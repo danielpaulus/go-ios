@@ -21,10 +21,11 @@ type SampleData struct {
 
 func TestPlistConversion(t *testing.T) {
 	testCases := map[string]struct {
-		data     SampleData
+		data     interface{}
 		fileName string
 	}{
-		"foo": {SampleData{"d", 4, 0.2}, "sample-plist-primitives"},
+		"randomData":     {SampleData{"d", 4, 0.2}, "sample-plist-primitives"},
+		"UsbMuxResponse": {usbmux.MuxResponse{"ErrorName", 5}, "usbmuxresponse"},
 	}
 
 	for _, tc := range testCases {
