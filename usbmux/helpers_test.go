@@ -37,7 +37,7 @@ func StartServer(path string, receivedMessages chan []byte, sendMessage chan []b
 				msg := <-sendMessage
 				_, err := conn.Write(msg)
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
 				}
 			}
 		}()
@@ -47,7 +47,7 @@ func StartServer(path string, receivedMessages chan []byte, sendMessage chan []b
 			buffer := make([]byte, 1)
 			_, err := conn.Read(buffer)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
 			}
 			receivedMessages <- buffer
 
