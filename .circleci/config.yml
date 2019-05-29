@@ -24,4 +24,4 @@ jobs:
             go tool cover -html=c.out -o coverage.html
             mv coverage.html /tmp/artifacts 
       - codecov/upload:
-          file: /tmp/artifacts
+          file: /tmp/artifacts/coverage.html
