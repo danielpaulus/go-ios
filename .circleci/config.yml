@@ -7,7 +7,6 @@ orbs:
 jobs:
   build:
     docker:
-      # specify the version
       - image: circleci/golang:1.12
       
     steps:
