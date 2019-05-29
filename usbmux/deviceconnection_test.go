@@ -13,24 +13,30 @@ type DummyCodec struct {
 }
 
 func TestDeviceConnection(t *testing.T) {
+	//setup dummy server
 	path, cleanup := CreateSocketFilePath("socket")
 	defer cleanup()
-	received := make(chan []byte)
-	send := make(chan []byte)
-	serverCleanup := StartServer(path, received, send)
+	serverReceiver := make(chan []byte)
+	serverSender := make(chan []byte)
+	serverCleanup := StartServer(path, serverReceiver, serverSender)
 	defer serverCleanup()
-
 	dummyCodec := DummyCodec{received: make(chan []byte), send: make(chan []byte)}
+	//setup device connection
 	var deviceConn DeviceConnection
 	deviceConn.connectToSocketAddress(&dummyCodec, path)
+
+	//check that deviceconnection passes messages through the active
+	//encoder
 	message := make([]byte, 1)
 	go func() { deviceConn.send(message) }()
 	encoderShouldEncode := <-dummyCodec.send
 	assert.ElementsMatch(t, message, encoderShouldEncode)
-	serverShouldHaveReceived := <-received
+	serverShouldHaveReceived := <-serverReceiver
 	assert.ElementsMatch(t, message, serverShouldHaveReceived)
 
-	send <- message
+	//check that deviceConnection correctly passes received messages through
+	//the active decoder
+	serverSender <- message
 	decoderShouldDecode := <-dummyCodec.received
 	assert.ElementsMatch(t, message, decoderShouldDecode)
 	deviceConn.close()
