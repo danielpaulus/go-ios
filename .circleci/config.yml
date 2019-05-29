@@ -20,8 +20,7 @@ jobs:
             mkdir -p /tmp/artifacts
       - run: 
           command: |
-            go test -v -coverprofile=c.out ./...
-            go tool cover -html=c.out -o coverage.html
-            mv coverage.html /tmp/artifacts 
+            go test -v -coverprofile=coverage.txt -covermode=atomic ./...
+            mv coverage.txt /tmp/artifacts 
       - codecov/upload:
-          file: /tmp/artifacts/coverage.html
+          file: /tmp/artifacts/coverage.txt
