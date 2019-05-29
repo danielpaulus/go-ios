@@ -3,15 +3,12 @@ package usbmux
 import (
 	"io"
 	"net"
-	"os"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
 )
 
 const usbmuxdSocket = "/var/run/usbmuxd"
-
-var usbmuxdSocketEnv = os.Getenv("USBMUXD_SOCKET_ADDRESS")
 
 //Codec is an interface with methods to Encode and Decode iOS Messages for all different protocols.
 type Codec interface {
@@ -29,15 +26,13 @@ type DeviceConnection struct {
 	stop        chan struct{}
 }
 
-//connect connects to /var/run/usbmuxd by default or to whatever is specified in the
-// "USBMUXD_SOCKET_ADDRESS" env var.
+//connect connects to /var/run/usbmuxd by default
 func (conn *DeviceConnection) connect(activeCodec Codec) {
-	var address = usbmuxdSocket
-	if usbmuxdSocketEnv != "" {
-		address = usbmuxdSocketEnv
-	}
+	conn.connectToSocketAddress(activeCodec, usbmuxdSocket)
+}
 
-	c, err := net.Dial("unix", address)
+func (conn *DeviceConnection) connectToSocketAddress(activeCodec Codec, socketAddress string) {
+	c, err := net.Dial("unix", socketAddress)
 	if err != nil {
 		log.Fatal("Could not connect to usbmuxd socket, is it running?", err)
 	}
@@ -46,7 +41,6 @@ func (conn *DeviceConnection) connect(activeCodec Codec) {
 	conn.c = c
 	conn.activeCodec = activeCodec
 	conn.startReading()
-
 }
 
 func (conn *DeviceConnection) close() {

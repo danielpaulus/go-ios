@@ -13,6 +13,7 @@ import (
 //MuxConnection provides a Send Method for sending Messages to UsbMuxD and a ResponseChannel to
 //receive the responses.
 type MuxConnection struct {
+	//tag will be incremented for every message, so responses can be correlated to requests
 	tag             uint32
 	deviceConn      *DeviceConnection
 	ResponseChannel chan []byte
