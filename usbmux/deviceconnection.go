@@ -26,8 +26,13 @@ type DeviceConnection struct {
 	stop        chan struct{}
 }
 
+//connect connects to /var/run/usbmuxd by default
 func (conn *DeviceConnection) connect(activeCodec Codec) {
-	c, err := net.Dial("unix", usbmuxdSocket)
+	conn.connectToSocketAddress(activeCodec, usbmuxdSocket)
+}
+
+func (conn *DeviceConnection) connectToSocketAddress(activeCodec Codec, socketAddress string) {
+	c, err := net.Dial("unix", socketAddress)
 	if err != nil {
 		log.Fatal("Could not connect to usbmuxd socket, is it running?", err)
 	}
@@ -36,7 +41,6 @@ func (conn *DeviceConnection) connect(activeCodec Codec) {
 	conn.c = c
 	conn.activeCodec = activeCodec
 	conn.startReading()
-
 }
 
 func (conn *DeviceConnection) close() {
