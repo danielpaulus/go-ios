@@ -1,5 +1,16 @@
 package main
 
+import (
+	"usbmuxd/usbmux"
+)
+
 func main() {
-	println("hi")
+	printDeviceList()
+}
+
+func printDeviceList() {
+	deviceList := usbmux.ListDevices()
+
+	deviceList.Print()
+
 }
