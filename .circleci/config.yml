@@ -2,6 +2,8 @@
 #
 # Check https://circleci.com/docs/2.0/language-go/ for more details
 version: 2
+orbs:
+  codecov: codecov/codecov@1.0.2
 jobs:
   build:
     docker:
@@ -13,4 +15,14 @@ jobs:
 
       # specify any bash command here prefixed with `run: `
       - run: go build go-ios.go
-      - run: go test -v ./...
+      - run:
+          name: "Create a temp directory for artifacts"
+          command: |
+            mkdir -p /tmp/artifacts
+      - run: 
+          command: |
+            go test -v -coverprofile=c.out ./...
+            go tool cover -html=c.out -o coverage.html
+            mv coverage.html /tmp/artifacts 
+      - codecov/upload:
+          file: /tmp/artifacts
