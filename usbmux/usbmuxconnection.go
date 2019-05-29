@@ -15,24 +15,33 @@ import (
 type MuxConnection struct {
 	//tag will be incremented for every message, so responses can be correlated to requests
 	tag             uint32
-	deviceConn      *DeviceConnection
+	deviceConn      DeviceConnectionInterface
 	ResponseChannel chan []byte
 }
 
 //NewUsbMuxConnection creates a new MuxConnection by connecting to the usbmuxd Socket.
 func NewUsbMuxConnection() *MuxConnection {
 	var conn MuxConnection
-	var deviceConn DeviceConnection
 	conn.tag = 0
-	conn.deviceConn = &deviceConn
-	deviceConn.connect(&conn)
 	conn.ResponseChannel = make(chan []byte)
+	var deviceConn DeviceConnection
+	deviceConn.Connect(&conn)
+	conn.deviceConn = &deviceConn
+	return &conn
+}
+
+func NewUsbMuxConnectionWithDeviceConnection(deviceConn DeviceConnectionInterface) *MuxConnection {
+	var conn MuxConnection
+	conn.tag = 0
+	conn.ResponseChannel = make(chan []byte)
+	deviceConn.Connect(&conn)
+	conn.deviceConn = deviceConn
 	return &conn
 }
 
 //Close closes the underlying socket connection.
 func (muxConn *MuxConnection) Close() {
-	muxConn.deviceConn.close()
+	muxConn.deviceConn.Close()
 }
 
 type usbmuxHeader struct {
@@ -63,13 +72,13 @@ func getHeader(length int, tag uint32) []byte {
 }
 
 func (muxConn *MuxConnection) Send(msg interface{}) {
-	muxConn.deviceConn.send(msg)
+	muxConn.deviceConn.Send(msg)
 }
 
 //Encode serializes a MuxMessage struct to a Plist and returns the []byte of its
 //string representation
 func (muxConn *MuxConnection) Encode(message interface{}) ([]byte, error) {
-	log.Debug("UsbMux send", reflect.TypeOf(message), " on ", &muxConn.deviceConn.c)
+	log.Debug("UsbMux send", reflect.TypeOf(message), " on ", &muxConn.deviceConn)
 	stringContent := ToPlist(message)
 	var err error
 	var buffer bytes.Buffer
@@ -101,7 +110,7 @@ func (muxConn *MuxConnection) Decode(r io.Reader) error {
 	if n != int(muxHeader.Length-16) {
 		return errors.New("Invalid UsbMux Payload")
 	}
-	log.Debug("UsbMux Receive on ", &muxConn.deviceConn.c)
+	log.Debug("UsbMux Receive on ", &muxConn.deviceConn)
 	muxConn.ResponseChannel <- payloadBytes
 	return nil
 }

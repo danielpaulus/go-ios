@@ -1,8 +1,9 @@
-package usbmux
+package usbmux_test
 
 import (
 	"io"
 	"testing"
+	"usbmuxd/usbmux"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -22,13 +23,13 @@ func TestDeviceConnection(t *testing.T) {
 	defer serverCleanup()
 	dummyCodec := DummyCodec{received: make(chan []byte), send: make(chan []byte)}
 	//setup device connection
-	var deviceConn DeviceConnection
-	deviceConn.connectToSocketAddress(&dummyCodec, path)
+	var deviceConn usbmux.DeviceConnection
+	deviceConn.ConnectToSocketAddress(&dummyCodec, path)
 
 	//check that deviceconnection passes messages through the active
 	//encoder
 	message := make([]byte, 1)
-	go func() { deviceConn.send(message) }()
+	go func() { deviceConn.Send(message) }()
 	encoderShouldEncode := <-dummyCodec.send
 	assert.ElementsMatch(t, message, encoderShouldEncode)
 	serverShouldHaveReceived := <-serverReceiver
@@ -39,7 +40,7 @@ func TestDeviceConnection(t *testing.T) {
 	serverSender <- message
 	decoderShouldDecode := <-dummyCodec.received
 	assert.ElementsMatch(t, message, decoderShouldDecode)
-	deviceConn.close()
+	deviceConn.Close()
 }
 
 func (codec *DummyCodec) Encode(message interface{}) ([]byte, error) {

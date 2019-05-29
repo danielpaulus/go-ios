@@ -18,6 +18,14 @@ type Codec interface {
 	Decode(io.Reader) error
 }
 
+type DeviceConnectionInterface interface {
+	Connect(activeCodec Codec)
+	ConnectToSocketAddress(activeCodec Codec, socketAddress string)
+	Close()
+	SendForProtocolUpgrade(muxConnection *MuxConnection, message interface{}, newCodec Codec) []byte
+	Send(message interface{})
+}
+
 //DeviceConnection wraps the net.Conn to the ios Device and has support for
 //switching Codecs and enabling SSL
 type DeviceConnection struct {
@@ -27,11 +35,11 @@ type DeviceConnection struct {
 }
 
 //connect connects to /var/run/usbmuxd by default
-func (conn *DeviceConnection) connect(activeCodec Codec) {
-	conn.connectToSocketAddress(activeCodec, usbmuxdSocket)
+func (conn *DeviceConnection) Connect(activeCodec Codec) {
+	conn.ConnectToSocketAddress(activeCodec, usbmuxdSocket)
 }
 
-func (conn *DeviceConnection) connectToSocketAddress(activeCodec Codec, socketAddress string) {
+func (conn *DeviceConnection) ConnectToSocketAddress(activeCodec Codec, socketAddress string) {
 	c, err := net.Dial("unix", socketAddress)
 	if err != nil {
 		log.Fatal("Could not connect to usbmuxd socket, is it running?", err)
@@ -43,18 +51,18 @@ func (conn *DeviceConnection) connectToSocketAddress(activeCodec Codec, socketAd
 	conn.startReading()
 }
 
-func (conn *DeviceConnection) close() {
+func (conn *DeviceConnection) Close() {
 	log.Debug("Closing connection:", &conn.c)
 	var sig struct{}
 	go func() { conn.stop <- sig }()
 	conn.c.Close()
 }
 
-func (conn *DeviceConnection) send(message interface{}) {
+func (conn *DeviceConnection) Send(message interface{}) {
 	bytes, err := conn.activeCodec.Encode(message)
 	if err != nil {
 		log.Errorf("Deviceconnection failed sending data %s", err)
-		conn.close()
+		conn.Close()
 		return
 	}
 	conn.c.Write(bytes)
@@ -70,7 +78,7 @@ func reader(conn *DeviceConnection) {
 		default:
 			if err != nil {
 				log.Errorf("Failed decoding/reading %s", err)
-				conn.close()
+				conn.Close()
 				return
 			}
 		}
@@ -86,10 +94,10 @@ func reader(conn *DeviceConnection) {
 //To Prevent this, stop reading immediately after reading the response.
 //Third, set the new codec and start reading again
 //It returns the usbMuxResponse as a []byte
-func (conn *DeviceConnection) sendForProtocolUpgrade(muxConnection *MuxConnection, message interface{}, newCodec Codec) []byte {
+func (conn *DeviceConnection) SendForProtocolUpgrade(muxConnection *MuxConnection, message interface{}, newCodec Codec) []byte {
 	log.Debug("Protocol update to ", reflect.TypeOf(newCodec), " on ", &conn.c)
 	conn.stopReadingAfterNextMessage()
-	conn.send(message)
+	conn.Send(message)
 	responseBytes := <-muxConnection.ResponseChannel
 	conn.activeCodec = newCodec
 	conn.startReading()
