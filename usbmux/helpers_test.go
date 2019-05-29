@@ -45,7 +45,10 @@ func StartServer(path string, receivedMessages chan []byte, sendMessage chan []b
 		for {
 			// will listen for message to process ending in newline (\n)
 			buffer := make([]byte, 1)
-			conn.Read(buffer)
+			_, err := conn.Read(buffer)
+			if err != nil {
+				log.Fatal(err)
+			}
 			receivedMessages <- buffer
 
 		}
