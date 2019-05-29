@@ -35,7 +35,10 @@ func StartServer(path string, receivedMessages chan []byte, sendMessage chan []b
 		go func() {
 			for {
 				msg := <-sendMessage
-				conn.Write(msg)
+				_, err := conn.Write(msg)
+				if err != nil {
+					log.Fatal(err)
+				}
 			}
 		}()
 		// run loop forever (or until ctrl-c)
