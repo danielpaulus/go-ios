@@ -23,4 +23,5 @@ jobs:
 
       # specify any bash command here prefixed with `run: `
       - run: go get 
-      - run: go test -v .
+      - run: go build go-ios.go
+      - run: go test -v ./...
