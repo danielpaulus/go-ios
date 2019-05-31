@@ -13,7 +13,7 @@ type MuxResponse struct {
 	Number      uint32
 }
 
-func usbMuxResponsefromBytes(plistBytes []byte) MuxResponse {
+func UsbMuxResponsefromBytes(plistBytes []byte) MuxResponse {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var usbMuxResponse MuxResponse
 	_ = decoder.Decode(&usbMuxResponse)
