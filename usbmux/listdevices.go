@@ -2,6 +2,7 @@ package usbmux
 
 import (
 	"bytes"
+	"strings"
 
 	plist "howett.net/plist"
 )
@@ -21,11 +22,14 @@ func deviceListfromBytes(plistBytes []byte) DeviceList {
 	return deviceList
 }
 
-//Print all udids to the console
-func (deviceList DeviceList) Print() {
+//String returns a list of all udids in a formatted string
+func (deviceList DeviceList) String() string {
+	var sb strings.Builder
 	for _, element := range deviceList.DeviceList {
-		println(element.Properties.SerialNumber)
+		sb.WriteString(element.Properties.SerialNumber)
+		sb.WriteString("\n")
 	}
+	return sb.String()
 }
 
 //DeviceList is a simple wrapper for a
@@ -54,7 +58,7 @@ type DeviceProperties struct {
 	SerialNumber    string
 }
 
-func newReadDevices() *ReadDevicesType {
+func NewReadDevices() *ReadDevicesType {
 	data := &ReadDevicesType{
 		MessageType:         "ListDevices",
 		ProgName:            "go-usbmux",
@@ -66,8 +70,8 @@ func newReadDevices() *ReadDevicesType {
 //ListDevices returns a DeviceList containing data about all
 //currently connected iOS devices
 func (muxConn *MuxConnection) ListDevices() DeviceList {
-	msg := newReadDevices()
-	muxConn.deviceConn.Send(msg)
+	msg := NewReadDevices()
+	muxConn.Send(msg)
 	response := <-muxConn.ResponseChannel
 	return deviceListfromBytes(response)
 }

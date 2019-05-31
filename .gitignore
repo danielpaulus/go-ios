@@ -5,6 +5,7 @@
 *.so
 *.dylib
 go-ios
+usbmuxd
 
 # Test binary, build with `go test -c`
 *.test

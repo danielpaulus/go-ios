@@ -3,7 +3,7 @@ package usbmux
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"io"
 	"reflect"
 
@@ -105,10 +105,7 @@ func (muxConn *MuxConnection) Decode(r io.Reader) error {
 	payloadBytes := make([]byte, muxHeader.Length-16)
 	n, err := io.ReadFull(r, payloadBytes)
 	if err != nil {
-		return err
-	}
-	if n != int(muxHeader.Length-16) {
-		return errors.New("Invalid UsbMux Payload")
+		return fmt.Errorf("Error '%s' while reading usbmux package. Only %d bytes received instead of %d", err.Error(), n, muxHeader.Length-16)
 	}
 	log.Debug("UsbMux Receive on ", &muxConn.deviceConn)
 	muxConn.ResponseChannel <- payloadBytes
