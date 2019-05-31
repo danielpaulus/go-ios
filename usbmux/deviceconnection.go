@@ -90,7 +90,7 @@ func reader(conn *DeviceConnection) {
 
 }
 
-//sendForProtocolUpgrade takes care of the complicated protocol upgrade process of iOS/Usbmux.
+//SendForProtocolUpgrade takes care of the complicated protocol upgrade process of iOS/Usbmux.
 //First, a Connect Message is sent to usbmux using the UsbMux Codec
 //Second, wait for the Mux Response also in UsbMuxCodec and stop reading immediately after receiving it
 //since this is network connection, it could be that the MuxResponse is immediately followed by
