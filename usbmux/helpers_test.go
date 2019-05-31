@@ -1,4 +1,4 @@
-package usbmux
+package usbmux_test
 
 import (
 	"io/ioutil"
