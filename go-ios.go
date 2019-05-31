@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"usbmuxd/usbmux"
@@ -217,6 +216,7 @@ func pairDevice(device usbmux.DeviceEntry) {
 
 }
 
+/*
 func formatOutput(data interface{}) string {
 	b, err2 := json.Marshal(data)
 	if err2 != nil {
@@ -224,4 +224,4 @@ func formatOutput(data interface{}) string {
 		return ""
 	}
 	return string(b)
-}
+}*/

@@ -38,7 +38,12 @@ func TestCodec(t *testing.T) {
 
 		f, err := os.Open(golden)
 		if assert.NoError(t, err) {
-			go func() { muxConn.Decode(f) }()
+			go func() {
+				err := muxConn.Decode(f)
+				if err != nil {
+					log.Fatal("USBMux decoder failed in unit test")
+				}
+			}()
 			decoded := <-muxConn.ResponseChannel
 			log.Info(decoded)
 			assert.ElementsMatch(t, decoded, []byte(usbmux.ToPlist(usbmux.NewReadDevices())))
