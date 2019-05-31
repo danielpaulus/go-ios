@@ -30,6 +30,8 @@ func NewUsbMuxConnection() *MuxConnection {
 	return &conn
 }
 
+// NewUsbMuxConnectionWithDeviceConnection creates a new MuxConnection with from an already initialized DeviceConnectionInterface
+// (only needed for testing)
 func NewUsbMuxConnectionWithDeviceConnection(deviceConn DeviceConnectionInterface) *MuxConnection {
 	var conn MuxConnection
 	conn.tag = 0
@@ -71,6 +73,7 @@ func getHeader(length int, tag uint32) []byte {
 	return buf.Bytes()
 }
 
+// Send sends and encodes a Plist using the usbmux Encoder
 func (muxConn *MuxConnection) Send(msg interface{}) {
 	muxConn.deviceConn.Send(msg)
 }

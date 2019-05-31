@@ -18,6 +18,7 @@ type Codec interface {
 	Decode(io.Reader) error
 }
 
+// DeviceConnectionInterface contains a physical network connection to a usbmuxd socket.
 type DeviceConnectionInterface interface {
 	Connect(activeCodec Codec)
 	ConnectToSocketAddress(activeCodec Codec, socketAddress string)
@@ -34,11 +35,12 @@ type DeviceConnection struct {
 	stop        chan struct{}
 }
 
-//connect connects to /var/run/usbmuxd by default
+//Connect connects to the USB multiplexer daemon using  the default address: '/var/run/usbmuxd'
 func (conn *DeviceConnection) Connect(activeCodec Codec) {
 	conn.ConnectToSocketAddress(activeCodec, usbmuxdSocket)
 }
 
+//ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
 func (conn *DeviceConnection) ConnectToSocketAddress(activeCodec Codec, socketAddress string) {
 	c, err := net.Dial("unix", socketAddress)
 	if err != nil {
@@ -51,6 +53,7 @@ func (conn *DeviceConnection) ConnectToSocketAddress(activeCodec Codec, socketAd
 	conn.startReading()
 }
 
+//Close closes the network connection
 func (conn *DeviceConnection) Close() {
 	log.Debug("Closing connection:", &conn.c)
 	var sig struct{}
@@ -58,6 +61,7 @@ func (conn *DeviceConnection) Close() {
 	conn.c.Close()
 }
 
+//Send sends a message
 func (conn *DeviceConnection) Send(message interface{}) {
 	bytes, err := conn.activeCodec.Encode(message)
 	if err != nil {

@@ -58,6 +58,8 @@ type DeviceProperties struct {
 	SerialNumber    string
 }
 
+// NewReadDevices creates a struct containing a request for a device list that can be sent
+// to UsbMuxD.
 func NewReadDevices() *ReadDevicesType {
 	data := &ReadDevicesType{
 		MessageType:         "ListDevices",
