@@ -18,7 +18,7 @@ func TestMuxResponse(t *testing.T) {
 
 	for _, tc := range testCases {
 		bytes := []byte(usbmux.ToPlist(tc.muxResponse))
-		actual := usbmux.UsbMuxResponsefromBytes(bytes)
+		actual := usbmux.MuxResponsefromBytes(bytes)
 		assert.Equal(t, tc.muxResponse, actual)
 		assert.Equal(t, tc.successful, actual.IsSuccessFull())
 	}
