@@ -58,16 +58,14 @@ type DeviceConnectionMock struct {
 	activeCodec usbmux.Codec
 }
 
-func (mock *DeviceConnectionMock) Connect(activeCodec usbmux.Codec) {
-
-}
-
+func (mock *DeviceConnectionMock) Connect(activeCodec usbmux.Codec) {}
 func (mock *DeviceConnectionMock) ConnectToSocketAddress(activeCodec usbmux.Codec, socketAddress string) {
 }
 func (mock *DeviceConnectionMock) Close() {}
 func (mock *DeviceConnectionMock) SendForProtocolUpgrade(muxConnection *usbmux.MuxConnection, message interface{}, newCodec usbmux.Codec) []byte {
 	return nil
 }
-func (mock *DeviceConnectionMock) Send(message interface{}) {
-
+func (mock *DeviceConnectionMock) Send(message interface{}) {}
+func (mock *DeviceConnectionMock) SendForSslUpgrade(lockDownConn *usbmux.LockDownConnection, pairRecord usbmux.PairRecord) usbmux.StartSessionResponse {
+	return usbmux.StartSessionResponse{}
 }
