@@ -11,7 +11,7 @@ const lockdownport int = 32498
 //LockDownConnection allows you to interact with the Lockdown service on the phone.
 //The UsbMuxConnection used to create this LockDownConnection cannot be used anymore.
 type LockDownConnection struct {
-	deviceConnection *DeviceConnection
+	deviceConnection DeviceConnectionInterface
 	sessionID        string
 	ResponseChannel  chan []byte
 	plistCodec       *PlistCodec
@@ -32,9 +32,13 @@ func newGetValue(key string) *getValue {
 	return data
 }
 
+func (lockDownConn LockDownConnection) Send(msg interface{}) {
+	lockDownConn.deviceConnection.Send(msg)
+}
+
 //GetValues retrieves a GetAllValuesResponse containing all values lockdown returns
 func (lockDownConn *LockDownConnection) GetValues() GetAllValuesResponse {
-	lockDownConn.deviceConnection.Send(newGetValue(""))
+	lockDownConn.Send(newGetValue(""))
 	resp := <-lockDownConn.ResponseChannel
 	response := getAllValuesResponseFromBytes(resp)
 	return response
@@ -47,7 +51,7 @@ func (lockDownConn *LockDownConnection) GetProductVersion() string {
 
 //GetValue gets and returns the string value for the lockdown key
 func (lockDownConn *LockDownConnection) GetValue(key string) interface{} {
-	lockDownConn.deviceConnection.Send(newGetValue(key))
+	lockDownConn.Send(newGetValue(key))
 	resp := <-lockDownConn.ResponseChannel
 	response := getValueResponsefromBytes(resp)
 	return response.Value

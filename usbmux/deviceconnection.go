@@ -1,6 +1,7 @@
 package usbmux
 
 import (
+	"crypto/tls"
 	"io"
 	"net"
 	"reflect"
@@ -24,6 +25,7 @@ type DeviceConnectionInterface interface {
 	ConnectToSocketAddress(activeCodec Codec, socketAddress string)
 	Close()
 	SendForProtocolUpgrade(muxConnection *MuxConnection, message interface{}, newCodec Codec) []byte
+	SendForSslUpgrade(lockDownConn *LockDownConnection, pairRecord PairRecord) StartSessionResponse
 	Send(message interface{})
 }
 
@@ -115,4 +117,36 @@ func (conn *DeviceConnection) stopReadingAfterNextMessage() {
 
 func (conn *DeviceConnection) startReading() {
 	go reader(conn)
+}
+
+func (conn *DeviceConnection) SendForSslUpgrade(lockDownConn *LockDownConnection, pairRecord PairRecord) StartSessionResponse {
+	conn.stopReadingAfterNextMessage()
+	conn.Send(newStartSessionRequest(pairRecord.HostID, pairRecord.SystemBUID))
+	resp := <-lockDownConn.ResponseChannel
+	response := startSessionResponsefromBytes(resp)
+	lockDownConn.sessionID = response.SessionID
+	if response.EnableSessionSSL {
+		conn.enableSessionSsl(pairRecord)
+		conn.startReading()
+	}
+	return response
+}
+
+func (conn *DeviceConnection) enableSessionSsl(pairRecord PairRecord) {
+	cert5, error5 := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
+	if error5 != nil {
+		return
+	}
+	conf := &tls.Config{
+		//We always trust whatever the phone sends, I do not see an issue here as probably
+		//nobody would build a fake iphone to hack this library.
+		InsecureSkipVerify: true,
+		Certificates:       []tls.Certificate{cert5},
+		ClientAuth:         tls.NoClientCert,
+	}
+
+	var tlsConn *tls.Conn
+	tlsConn = tls.Client(conn.c, conf)
+	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
+	conn.c = net.Conn(tlsConn)
 }

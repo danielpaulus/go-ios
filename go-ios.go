@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"usbmuxd/usbmux"
@@ -168,10 +169,8 @@ func getDeviceOrQuit(udid string) (usbmux.DeviceEntry, error) {
 }
 
 func printDeviceInfo(device usbmux.DeviceEntry) {
-
-	// allValues := getValues(device)
-
-	// fmt.Println(formatOutput(allValues.Value))
+	allValues := getValues(device)
+	fmt.Println(formatOutput(allValues.Value))
 }
 
 func runSyslog(device usbmux.DeviceEntry) {
@@ -189,22 +188,22 @@ func runSyslog(device usbmux.DeviceEntry) {
 	// <-c
 }
 
-// func getValues(device usbmux.DeviceEntry) usbmux.GetAllValuesResponse {
-// 	muxConnection := usbmux.NewUsbMuxConnection()
-// 	defer muxConnection.Close()
+func getValues(device usbmux.DeviceEntry) usbmux.GetAllValuesResponse {
+	muxConnection := usbmux.NewUsbMuxConnection()
+	defer muxConnection.Close()
 
-// 	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
+	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
 
-// 	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	lockdownConnection.StartSession(pairRecord)
+	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	lockdownConnection.StartSession(pairRecord)
 
-// 	allValues := lockdownConnection.GetValues()
-// 	lockdownConnection.StopSession()
-// 	return allValues
-// }
+	allValues := lockdownConnection.GetValues()
+	lockdownConnection.StopSession()
+	return allValues
+}
 
 func pairDevice(device usbmux.DeviceEntry) {
 	// err := usbmux.Pair(device)
@@ -216,7 +215,6 @@ func pairDevice(device usbmux.DeviceEntry) {
 
 }
 
-/*
 func formatOutput(data interface{}) string {
 	b, err2 := json.Marshal(data)
 	if err2 != nil {
@@ -224,4 +222,4 @@ func formatOutput(data interface{}) string {
 		return ""
 	}
 	return string(b)
-}*/
+}
