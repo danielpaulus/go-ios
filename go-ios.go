@@ -11,6 +11,11 @@ import (
 )
 
 func main() {
+	Main()
+}
+
+// Main Exports main for testing
+func Main() {
 	usage := `iOS client v 0.01
 
 Usage:
@@ -34,7 +39,6 @@ Options:
   `
 	arguments, _ := docopt.ParseDoc(usage)
 
-	fmt.Println(arguments)
 	udid, _ := arguments.String("--udid")
 	device, err := getDeviceOrQuit(udid)
 	if err != nil {
@@ -93,7 +97,6 @@ Options:
 		startForwarding(device, hostPort, targetPort)
 		return
 	}
-
 }
 
 func startForwarding(device usbmux.DeviceEntry, hostPort int, targetPort int) {
@@ -140,7 +143,7 @@ func saveScreenshot(device usbmux.DeviceEntry, outputPath string) {
 
 func printDeviceList(details bool) {
 	deviceList := usbmux.ListDevices()
-	println(deviceList.String())
+	fmt.Print(deviceList.String())
 	// if details {
 	// 	for _, device := range deviceList.DeviceList {
 	// 		udid := device.Properties.SerialNumber
