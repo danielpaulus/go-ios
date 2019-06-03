@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const usbmuxdSocket = "/var/run/usbmuxd"
+var UsbmuxdSocket = "/var/run/usbmuxd"
 
 //Codec is an interface with methods to Encode and Decode iOS Messages for all different protocols.
 type Codec interface {
@@ -39,7 +39,7 @@ type DeviceConnection struct {
 
 //Connect connects to the USB multiplexer daemon using  the default address: '/var/run/usbmuxd'
 func (conn *DeviceConnection) Connect(activeCodec Codec) {
-	conn.ConnectToSocketAddress(activeCodec, usbmuxdSocket)
+	conn.ConnectToSocketAddress(activeCodec, UsbmuxdSocket)
 }
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
@@ -71,7 +71,11 @@ func (conn *DeviceConnection) Send(message interface{}) {
 		conn.Close()
 		return
 	}
-	conn.c.Write(bytes)
+	n, err := conn.c.Write(bytes)
+	log.Info(n)
+	if err != nil {
+		log.Fatalf("Failed sending: %s", err)
+	}
 }
 
 func reader(conn *DeviceConnection) {

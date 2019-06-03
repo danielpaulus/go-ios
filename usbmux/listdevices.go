@@ -15,7 +15,7 @@ type ReadDevicesType struct {
 	ClientVersionString string
 }
 
-func deviceListfromBytes(plistBytes []byte) DeviceList {
+func DeviceListfromBytes(plistBytes []byte) DeviceList {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var deviceList DeviceList
 	_ = decoder.Decode(&deviceList)
@@ -75,7 +75,7 @@ func (muxConn *MuxConnection) ListDevices() DeviceList {
 	msg := NewReadDevices()
 	muxConn.Send(msg)
 	response := <-muxConn.ResponseChannel
-	return deviceListfromBytes(response)
+	return DeviceListfromBytes(response)
 }
 
 //ListDevices returns a DeviceList containing data about all
