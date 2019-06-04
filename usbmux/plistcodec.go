@@ -11,17 +11,11 @@ import (
 )
 
 type PlistCodec struct {
-	deviceConnection DeviceConnectionInterface
-	ResponseChannel  chan []byte
+	ResponseChannel chan []byte
 }
 
-func NewPlistCodecFromMuxConnection(muxConn *MuxConnection, responseChannel chan []byte) *PlistCodec {
-	return NewPlistCodec(muxConn.deviceConn, responseChannel)
-}
-
-func NewPlistCodec(deviceConnection DeviceConnectionInterface, responseChannel chan []byte) *PlistCodec {
+func NewPlistCodec(responseChannel chan []byte) *PlistCodec {
 	var codec PlistCodec
-	codec.deviceConnection = deviceConnection
 	codec.ResponseChannel = responseChannel
 	return &codec
 }
@@ -31,7 +25,7 @@ func NewPlistCodec(deviceConnection DeviceConnectionInterface, responseChannel c
 //followed by the plist as a string
 func (plistCodec *PlistCodec) Encode(message interface{}) ([]byte, error) {
 	stringContent := ToPlist(message)
-	log.Debug("Lockdown send", reflect.TypeOf(message), " on ", &plistCodec.deviceConnection)
+	log.Debug("Lockdown send", reflect.TypeOf(message))
 	buf := new(bytes.Buffer)
 	length := len(stringContent)
 	messageLength := uint32(length)
@@ -62,7 +56,6 @@ func (plistCodec *PlistCodec) Decode(r io.Reader) error {
 	if n != int(length) {
 		return errors.New("lockdown Payload had incorrect size")
 	}
-	log.Debug("Lockdown receive on ", &plistCodec.deviceConnection)
 	plistCodec.ResponseChannel <- payloadBytes
 	return nil
 }

@@ -60,7 +60,7 @@ func (muxConn *MuxConnection) Connect(deviceID int, port uint16, newCodec Codec)
 func (muxConn *MuxConnection) ConnectLockdown(deviceID int) (*LockDownConnection, error) {
 	msg := newConnectMessage(deviceID, lockdownport)
 	responseChannel := make(chan []byte)
-	lockdownConn := &LockDownConnection{muxConn.deviceConn, "", responseChannel, NewPlistCodec(muxConn.deviceConn, responseChannel)}
+	lockdownConn := &LockDownConnection{muxConn.deviceConn, "", responseChannel, NewPlistCodec(responseChannel)}
 
 	responseBytes := muxConn.deviceConn.SendForProtocolUpgrade(muxConn, msg, lockdownConn.plistCodec)
 	response := MuxResponsefromBytes(responseBytes)
