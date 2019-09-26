@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"usbmuxd/usbmux"
 
-	docopt "github.com/docopt/docopt-go"
+	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -13,6 +13,7 @@ func main() {
 	usage := `iOS client v 0.01
 
 Usage:
+  ios listen 
   ios list [--details]
   ios info [options]
   ios syslog [options]
@@ -33,23 +34,30 @@ Options:
   `
 	arguments, _ := docopt.ParseDoc(usage)
 
-	fmt.Println(arguments)
+	b, _ := arguments.Bool("listen")
+	if b {
+		startListening()
+		return
+	}
+
 	udid, _ := arguments.String("--udid")
 	device, err := getDeviceOrQuit(udid)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	b, _ := arguments.Bool("info")
+	b, _ = arguments.Bool("info")
 	if b {
 		printDeviceInfo(device)
 		return
 	}
+
 	b, _ = arguments.Bool("syslog")
 	if b {
 		runSyslog(device)
 		return
 	}
+
 	b, _ = arguments.Bool("screenshot")
 	if b {
 		path, _ := arguments.String("--output")
@@ -165,6 +173,24 @@ func getDeviceOrQuit(udid string) (usbmux.DeviceEntry, error) {
 		}
 	}
 	return usbmux.DeviceEntry{}, fmt.Errorf("Device '%s' not found. Is it attached to the machine?", udid)
+}
+
+func startListening() {
+	muxConnection := usbmux.NewUsbMuxConnection()
+	defer muxConnection.Close()
+	attachedReceiver, err := muxConnection.Listen()
+	if err != nil {
+		log.Fatal("Failed issuing Listen command", err)
+	}
+	for {
+		msg, err := attachedReceiver()
+		if err != nil {
+			log.Error("Stopped listening because of error")
+			return
+		}
+		log.Info(usbmux.ToPlist(msg))
+	}
+
 }
 
 func printDeviceInfo(device usbmux.DeviceEntry) {

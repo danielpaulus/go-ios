@@ -3,6 +3,7 @@ package usbmux
 import (
 	"io"
 	"net"
+	"os"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
@@ -81,13 +82,12 @@ func reader(conn *DeviceConnection) {
 			return
 		default:
 			if err != nil {
-				log.Errorf("Failed decoding/reading %s", err)
-				conn.Close()
-				return
+				log.Errorf("Failed decoding/reading %s, sending zero length data to codec", err)
+				//TODO: find more elegant way
+				os.Exit(1)
 			}
 		}
 	}
-
 }
 
 //SendForProtocolUpgrade takes care of the complicated protocol upgrade process of iOS/Usbmux.
