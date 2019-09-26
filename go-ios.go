@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"usbmuxd/usbmux"
+	"github.com/danielpaulus/go-ios/usbmux"
 
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
