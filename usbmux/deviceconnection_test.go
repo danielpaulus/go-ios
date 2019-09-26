@@ -1,9 +1,9 @@
 package usbmux_test
 
 import (
+	"github.com/danielpaulus/go-ios/usbmux"
 	"io"
 	"testing"
-	"usbmuxd/usbmux"
 
 	"github.com/stretchr/testify/assert"
 )
