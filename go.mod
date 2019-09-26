@@ -1,4 +1,4 @@
-module usbmuxd
+module github.com/danielpaulus/go-ios
 
 go 1.12
 
