@@ -184,8 +184,14 @@ func printDeviceDate(device usbmux.DeviceEntry) {
 }
 
 func printDeviceName(device usbmux.DeviceEntry) {
-	// allValues := getValues(device)
-	// println(allValues.Value.DeviceName)
+	allValues := getValues(device)
+	if JSONdisabled {
+		println(allValues.Value.DeviceName)
+	} else {
+		println(convertToJSONString(map[string]string{
+			"devicename": allValues.Value.DeviceName,
+		}))
+	}
 }
 
 func saveScreenshot(device usbmux.DeviceEntry, outputPath string) {
