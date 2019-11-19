@@ -7,6 +7,7 @@
 go-ios
 usbmuxd
 main
+ios
 
 # Test binary, build with `go test -c`
 *.test
