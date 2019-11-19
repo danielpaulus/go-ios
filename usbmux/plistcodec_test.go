@@ -2,10 +2,10 @@ package usbmux_test
 
 import (
 	"bytes"
+	"github.com/danielpaulus/go-ios/usbmux"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
-	"usbmuxd/usbmux"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
