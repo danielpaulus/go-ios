@@ -302,7 +302,10 @@ func printDeviceInfo(device usbmux.DeviceEntry) {
 func runSyslog(device usbmux.DeviceEntry) {
 	log.Debug("Run Syslog.")
 
-	syslogConnection := syslog.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+	syslogConnection, err := syslog.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+	if err != nil {
+		log.Fatalf("Syslog connection failed, %s", err)
+	}
 	defer syslogConnection.Close()
 
 	go func() {

@@ -19,14 +19,17 @@ type Connection struct {
 
 //New returns a new SysLog Connection for the given DeviceID and Udid
 //It will create LogReader as a buffered Channel because Syslog is very verbose.
-func New(deviceID int, udid string, pairRecord usbmux.PairRecord) *Connection {
+func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, error) {
 	startServiceResponse := usbmux.StartService(deviceID, udid, serviceName)
 	var sysLogConn Connection
 	sysLogConn.muxConn = usbmux.NewUsbMuxConnection()
-	sysLogConn.muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, &sysLogConn, pairRecord)
+	err := sysLogConn.muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, &sysLogConn, pairRecord)
+	if err != nil {
+		return &Connection{}, err
+	}
 	sysLogConn.logReader = make(chan string, 200)
 
-	return &sysLogConn
+	return &sysLogConn, nil
 }
 
 //ReadLogMessage this is a blocking function that will return individual log messages received from syslog.
