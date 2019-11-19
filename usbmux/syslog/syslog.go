@@ -13,7 +13,7 @@ const serviceName string = "com.apple.syslog_relay"
 //Connection exposes the LogReader channel which send the LogMessages as strings.
 type Connection struct {
 	muxConn        *usbmux.MuxConnection
-	LogReader      chan string
+	logReader      chan string
 	bufferedReader *bufio.Reader
 }
 
@@ -24,9 +24,15 @@ func New(deviceID int, udid string, pairRecord usbmux.PairRecord) *Connection {
 	var sysLogConn Connection
 	sysLogConn.muxConn = usbmux.NewUsbMuxConnection()
 	sysLogConn.muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, &sysLogConn, pairRecord)
-	sysLogConn.LogReader = make(chan string, 200)
+	sysLogConn.logReader = make(chan string, 200)
 
 	return &sysLogConn
+}
+
+//ReadLogMessage this is a blocking function that will return individual log messages received from syslog.
+//Call it in an endless for loop in a separate go routine.
+func (sysLogConn *Connection) ReadLogMessage() string {
+	return <-sysLogConn.logReader
 }
 
 //Encode returns only and error because syslog is read only.
@@ -48,7 +54,7 @@ func (sysLogConn *Connection) Decode(r io.Reader) error {
 		return err
 	}
 	select {
-	case sysLogConn.LogReader <- stringmessage:
+	case sysLogConn.logReader <- stringmessage:
 	default:
 
 	}

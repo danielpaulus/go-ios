@@ -306,8 +306,15 @@ func runSyslog(device usbmux.DeviceEntry) {
 	defer syslogConnection.Close()
 
 	go func() {
+		messageContainer := map[string]string{}
 		for {
-			print(<-syslogConnection.LogReader)
+			logMessage := syslogConnection.ReadLogMessage()
+			if JSONdisabled {
+				print(logMessage)
+			} else {
+				messageContainer["msg"] = logMessage
+				print(convertToJSONString(messageContainer))
+			}
 		}
 	}()
 	c := make(chan os.Signal, 1)
