@@ -32,6 +32,7 @@ func newGetValue(key string) *getValue {
 	return data
 }
 
+//Send is a convenience method and simply forwards the message to lockDownConn.deviceConnection
 func (lockDownConn LockDownConnection) Send(msg interface{}) {
 	lockDownConn.deviceConnection.Send(msg)
 }

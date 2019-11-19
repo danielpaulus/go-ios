@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//UsbmuxdSocket this is the unix domain socket address to connect to. The default is "/var/run/usbmuxd"
 var UsbmuxdSocket = "/var/run/usbmuxd"
 
 //Codec is an interface with methods to Encode and Decode iOS Messages for all different protocols.
@@ -122,6 +123,7 @@ func (conn *DeviceConnection) startReading() {
 	go reader(conn)
 }
 
+//SendForSslUpgrade Start Session and enable SSL
 func (conn *DeviceConnection) SendForSslUpgrade(lockDownConn *LockDownConnection, pairRecord PairRecord) StartSessionResponse {
 	conn.stopReadingAfterNextMessage()
 	conn.Send(newStartSessionRequest(pairRecord.HostID, pairRecord.SystemBUID))

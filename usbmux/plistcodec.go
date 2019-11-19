@@ -3,6 +3,7 @@ package usbmux
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"reflect"
@@ -26,6 +27,9 @@ func NewPlistCodec(responseChannel chan []byte) *PlistCodec {
 func (plistCodec *PlistCodec) Encode(message interface{}) ([]byte, error) {
 	stringContent := ToPlist(message)
 	log.Debug("Lockdown send", reflect.TypeOf(message))
+	if log.IsLevelEnabled(log.TraceLevel) {
+		print(stringContent)
+	}
 	buf := new(bytes.Buffer)
 	length := len(stringContent)
 	messageLength := uint32(length)
@@ -52,6 +56,9 @@ func (plistCodec *PlistCodec) Decode(r io.Reader) error {
 	n, err := io.ReadFull(r, payloadBytes)
 	if err != nil {
 		return fmt.Errorf("lockdown Payload had incorrect size: %d original error: %s", n, err)
+	}
+	if log.IsLevelEnabled(log.TraceLevel) {
+		println(hex.Dump(payloadBytes))
 	}
 	plistCodec.ResponseChannel <- payloadBytes
 	return nil

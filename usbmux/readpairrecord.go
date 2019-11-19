@@ -3,6 +3,7 @@ package usbmux
 import (
 	"bytes"
 
+	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
 
@@ -50,7 +51,14 @@ type PairRecord struct {
 func pairRecordDatafromBytes(plistBytes []byte) PairRecordData {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var data PairRecordData
-	_ = decoder.Decode(&data)
+	err := decoder.Decode(&data)
+	if err != nil {
+		log.Fatal("bla")
+	}
+	if data.PairRecordData == nil {
+		resp := MuxResponsefromBytes(plistBytes)
+		log.Fatalf("ReadPair failed with errorcode '%d', is the device paired?", resp.Number)
+	}
 	return data
 }
 
@@ -66,6 +74,7 @@ func pairRecordfromBytes(plistBytes []byte) PairRecord {
 func (muxConn *MuxConnection) ReadPair(udid string) PairRecord {
 	muxConn.Send(newReadPair(udid))
 	resp := <-muxConn.ResponseChannel
+	log.Debugf("ReadPairResponse:")
 	pairRecordData := pairRecordDatafromBytes(resp)
 	return pairRecordfromBytes(pairRecordData.PairRecordData)
 }

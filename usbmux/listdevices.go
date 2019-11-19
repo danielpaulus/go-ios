@@ -15,6 +15,7 @@ type ReadDevicesType struct {
 	ClientVersionString string
 }
 
+//DeviceListfromBytes parses a DeviceList from a byte array
 func DeviceListfromBytes(plistBytes []byte) DeviceList {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var deviceList DeviceList
@@ -30,6 +31,15 @@ func (deviceList DeviceList) String() string {
 		sb.WriteString("\n")
 	}
 	return sb.String()
+}
+
+//CreateMapForJSONConverter creates a simple json ready map containing all UDIDs
+func (deviceList DeviceList) CreateMapForJSONConverter() map[string]interface{} {
+	devices := make([]string, len(deviceList.DeviceList))
+	for i, element := range deviceList.DeviceList {
+		devices[i] = element.Properties.SerialNumber
+	}
+	return map[string]interface{}{"deviceList": devices}
 }
 
 //DeviceList is a simple wrapper for a
