@@ -150,8 +150,7 @@ func (conn *DeviceConnection) enableSessionSsl(pairRecord PairRecord) {
 		ClientAuth:         tls.NoClientCert,
 	}
 
-	var tlsConn *tls.Conn
-	tlsConn = tls.Client(conn.c, conf)
+	tlsConn := tls.Client(conn.c, conf)
 	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
 	conn.c = net.Conn(tlsConn)
 }
