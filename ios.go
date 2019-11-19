@@ -54,6 +54,25 @@ Options:
   --nojson       Disable JSON output (default).
   -h --help      Show this screen.
   --udid=<udid>  UDID of the device.
+
+The commands work as following:
+	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command. 
+	By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
+	Specify -v for debug logging and -t for dumping every message.
+
+   ios listen [options]                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
+   ios list [options] [--details]                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
+   ios info [options]                                 Prints a dump of Lockdown getValues.
+   ios syslog [options]                               Prints a device's log output
+   ios screenshot [options] [--output=<outfile>]      Takes a screenshot and writes it to the current dir or to <outfile>
+   ios devicename [options]                           Prints the devicename
+   ios date [options]                                 Prints the device date
+   ios diagnostics list [options]                     List diagnostic infos
+   ios pair [options]                                 Pairs the device and potentially triggers the pairing dialog
+   ios forward [options] <hostPort> <targetPort>      Similar to iproxy, forward a TCP connection to the device.
+   ios -h | --help                                    Prints this screen.
+   ios --version | version [options]                  Prints the version
+
   `
 	arguments, err := docopt.ParseDoc(usage)
 	if err != nil {
