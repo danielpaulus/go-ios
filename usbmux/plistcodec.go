@@ -11,10 +11,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//PlistCodec is a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
 type PlistCodec struct {
 	ResponseChannel chan []byte
 }
 
+//NewPlistCodec create a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
 func NewPlistCodec(responseChannel chan []byte) *PlistCodec {
 	var codec PlistCodec
 	codec.ResponseChannel = responseChannel

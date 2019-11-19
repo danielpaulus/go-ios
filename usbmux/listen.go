@@ -7,6 +7,7 @@ import (
 	"howett.net/plist"
 )
 
+//ListenType contains infos for creating a LISTEN message for USBMUX
 type ListenType struct {
 	MessageType         string
 	ProgName            string
@@ -15,7 +16,7 @@ type ListenType struct {
 	kLibUSBMuxVersion   int
 }
 
-//Contains some info about when iOS devices are connected or disconnected from the host
+//AttachedMessage contains some info about when iOS devices are connected or disconnected from the host
 type AttachedMessage struct {
 	MessageType string
 	DeviceID    int
@@ -32,14 +33,17 @@ func attachedFromBytes(plistBytes []byte) (AttachedMessage, error) {
 	return obj, nil
 }
 
+//DeviceAttached  checks if the attached message is about a newly added device
 func (msg AttachedMessage) DeviceAttached() bool {
 	return "Attached" == msg.MessageType
 }
 
+//DeviceDetached checks if the attachedMessage is about a disconnected device
 func (msg AttachedMessage) DeviceDetached() bool {
 	return "Detached" == msg.MessageType
 }
 
+//NewListen creates a new Listen Message for USBMUX
 func NewListen() *ListenType {
 	data := &ListenType{
 		MessageType:         "Listen",
