@@ -115,6 +115,7 @@ func (conn *DeviceConnection) SendForProtocolUpgrade(muxConnection *MuxConnectio
 	return responseBytes
 }
 
+//SendForProtocolUpgradeSSL does the same as SendForProtocolUpgrade and in addition to that enables SSL on the service connection.
 func (conn *DeviceConnection) SendForProtocolUpgradeSSL(muxConnection *MuxConnection, message interface{}, newCodec Codec, pairRecord PairRecord) []byte {
 	log.Debug("Protocol update to ", reflect.TypeOf(newCodec), " on ", &conn.c)
 	conn.stopReadingAfterNextMessage()

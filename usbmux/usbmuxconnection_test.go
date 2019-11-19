@@ -65,6 +65,9 @@ func (mock *DeviceConnectionMock) Close() {}
 func (mock *DeviceConnectionMock) SendForProtocolUpgrade(muxConnection *usbmux.MuxConnection, message interface{}, newCodec usbmux.Codec) []byte {
 	return nil
 }
+func (mock *DeviceConnectionMock) SendForProtocolUpgradeSSL(muxConnection *usbmux.MuxConnection, message interface{}, newCodec usbmux.Codec, pairRecord usbmux.PairRecord) []byte {
+	return nil
+}
 func (mock *DeviceConnectionMock) Send(message interface{}) {}
 func (mock *DeviceConnectionMock) SendForSslUpgrade(lockDownConn *usbmux.LockDownConnection, pairRecord usbmux.PairRecord) usbmux.StartSessionResponse {
 	return usbmux.StartSessionResponse{}
