@@ -13,6 +13,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/usbmux"
 
+	"github.com/danielpaulus/go-ios/usbmux/diagnostics"
 	"github.com/danielpaulus/go-ios/usbmux/forward"
 	"github.com/danielpaulus/go-ios/usbmux/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/usbmux/syslog"
@@ -174,9 +175,12 @@ func startForwarding(device usbmux.DeviceEntry, hostPort int, targetPort int) {
 }
 
 func printDiagnostics(device usbmux.DeviceEntry) {
-	// log.Debug("print diagnostics")
-	// diagnosticsService := diagnostics.New(device.DeviceID, device.Properties.SerialNumber)
-	// fmt.Println(formatOutput(diagnosticsService.AllValues()))
+	log.Debug("print diagnostics")
+	diagnosticsService, err := diagnostics.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+	if err != nil {
+		log.Fatalf("Starting diagnostics service failed with: %s", err)
+	}
+	fmt.Println(convertToJSONString(diagnosticsService.AllValues()))
 }
 
 func printDeviceDate(device usbmux.DeviceEntry) {
@@ -354,6 +358,7 @@ func getValues(device usbmux.DeviceEntry) usbmux.GetAllValuesResponse {
 }
 
 func pairDevice(device usbmux.DeviceEntry) {
+	println("not yet copied from branch go-ios-old")
 	// err := usbmux.Pair(device)
 	// if err != nil {
 	// 	println(err)
