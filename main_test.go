@@ -16,7 +16,7 @@ func TestDeviceList(t *testing.T) {
 	if !*e2e {
 		return
 	}
-	output, err := exec.Command("go", "run", "./go-ios.go", "list").Output()
+	output, err := exec.Command("go", "run", "./main.go", "list").Output()
 	if err != nil {
 		fmt.Println(err.Error())
 	}

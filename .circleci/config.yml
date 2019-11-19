@@ -7,20 +7,20 @@ orbs:
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.12
-      
+      - image: circleci/golang:1.13
+
     steps:
       - checkout
 
       # specify any bash command here prefixed with `run: `
-      - run: go build go-ios.go
+      - run: go build main.go
       - run:
           name: "Create a temp directory for artifacts"
           command: |
             mkdir -p /tmp/artifacts
-      - run: 
+      - run:
           command: |
             go test -v -coverprofile=coverage.txt -covermode=atomic ./...
-            mv coverage.txt /tmp/artifacts 
+            mv coverage.txt /tmp/artifacts
       - codecov/upload:
           file: /tmp/artifacts/coverage.txt
