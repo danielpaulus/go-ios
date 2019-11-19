@@ -51,6 +51,26 @@ func (muxConn *MuxConnection) Connect(deviceID int, port uint16, newCodec Codec)
 	return fmt.Errorf("Failed connecting to service, error code:%d", response.Number)
 }
 
+//ConnectWithStartServiceResponse issues a Connect Message to UsbMuxd for the given deviceID on the given port
+//enabling the newCodec for it. It also enables SSL on the new service connection if requested by StartServiceResponse.
+//It returns an error containing the UsbMux error code should the connect fail.
+func (muxConn *MuxConnection) ConnectWithStartServiceResponse(deviceID int, startServiceResponse StartServiceResponse, newCodec Codec, pairRecord PairRecord) error {
+	msg := newConnectMessage(deviceID, int(ntohs(startServiceResponse.Port)))
+
+	var responseBytes []byte
+	if startServiceResponse.EnableServiceSSL {
+		responseBytes = muxConn.deviceConn.SendForProtocolUpgradeSSL(muxConn, msg, newCodec, pairRecord)
+	} else {
+		responseBytes = muxConn.deviceConn.SendForProtocolUpgrade(muxConn, msg, newCodec)
+	}
+
+	response := MuxResponsefromBytes(responseBytes)
+	if response.IsSuccessFull() {
+		return nil
+	}
+	return fmt.Errorf("Failed connecting to service, error code:%d", response.Number)
+}
+
 //ConnectLockdown connects this Usbmux connection to the LockDown service that
 // always runs on the device on the same port. The connect call needs the deviceID which can be
 // retrieved from a DeviceList using the ListDevices function. After this function

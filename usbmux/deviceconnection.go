@@ -27,6 +27,7 @@ type DeviceConnectionInterface interface {
 	ConnectToSocketAddress(activeCodec Codec, socketAddress string)
 	Close()
 	SendForProtocolUpgrade(muxConnection *MuxConnection, message interface{}, newCodec Codec) []byte
+	SendForProtocolUpgradeSSL(muxConnection *MuxConnection, message interface{}, newCodec Codec, pairRecord PairRecord) []byte
 	SendForSslUpgrade(lockDownConn *LockDownConnection, pairRecord PairRecord) StartSessionResponse
 	Send(message interface{})
 }
@@ -110,6 +111,17 @@ func (conn *DeviceConnection) SendForProtocolUpgrade(muxConnection *MuxConnectio
 	conn.Send(message)
 	responseBytes := <-muxConnection.ResponseChannel
 	conn.activeCodec = newCodec
+	conn.startReading()
+	return responseBytes
+}
+
+func (conn *DeviceConnection) SendForProtocolUpgradeSSL(muxConnection *MuxConnection, message interface{}, newCodec Codec, pairRecord PairRecord) []byte {
+	log.Debug("Protocol update to ", reflect.TypeOf(newCodec), " on ", &conn.c)
+	conn.stopReadingAfterNextMessage()
+	conn.Send(message)
+	responseBytes := <-muxConnection.ResponseChannel
+	conn.activeCodec = newCodec
+	conn.enableSessionSsl(pairRecord)
 	conn.startReading()
 	return responseBytes
 }
