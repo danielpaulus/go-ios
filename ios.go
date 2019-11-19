@@ -4,10 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/danielpaulus/go-ios/usbmux"
 
+	syslog "github.com/danielpaulus/go-ios/usbmux/syslog"
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
 )
@@ -296,18 +300,29 @@ func printDeviceInfo(device usbmux.DeviceEntry) {
 }
 
 func runSyslog(device usbmux.DeviceEntry) {
-	// log.Debug("Run Syslog.")
-	// syslogConnection := syslog.New(device.DeviceID, device.Properties.SerialNumber)
-	// defer syslogConnection.Close()
+	log.Debug("Run Syslog.")
 
-	// go func() {
-	// 	for {
-	// 		print(<-syslogConnection.LogReader)
-	// 	}
-	// }()
-	// c := make(chan os.Signal, 1)
-	// signal.Notify(c, os.Interrupt)
-	// <-c
+	syslogConnection, err := syslog.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+	if err != nil {
+		log.Fatalf("Syslog connection failed, %s", err)
+	}
+	defer syslogConnection.Close()
+
+	go func() {
+		messageContainer := map[string]string{}
+		for {
+			logMessage := syslogConnection.ReadLogMessage()
+			if JSONdisabled {
+				print(logMessage)
+			} else {
+				messageContainer["msg"] = logMessage
+				print(convertToJSONString(messageContainer))
+			}
+		}
+	}()
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
 }
 
 func getValues(device usbmux.DeviceEntry) usbmux.GetAllValuesResponse {
