@@ -1,6 +1,7 @@
 package usbmux
 
 import (
+	"crypto/tls"
 	"io"
 	"net"
 	"os"
@@ -9,7 +10,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const usbmuxdSocket = "/var/run/usbmuxd"
+//UsbmuxdSocket this is the unix domain socket address to connect to. The default is "/var/run/usbmuxd"
+var UsbmuxdSocket = "/var/run/usbmuxd"
 
 //Codec is an interface with methods to Encode and Decode iOS Messages for all different protocols.
 type Codec interface {
@@ -25,6 +27,7 @@ type DeviceConnectionInterface interface {
 	ConnectToSocketAddress(activeCodec Codec, socketAddress string)
 	Close()
 	SendForProtocolUpgrade(muxConnection *MuxConnection, message interface{}, newCodec Codec) []byte
+	SendForSslUpgrade(lockDownConn *LockDownConnection, pairRecord PairRecord) StartSessionResponse
 	Send(message interface{})
 }
 
@@ -38,7 +41,7 @@ type DeviceConnection struct {
 
 //Connect connects to the USB multiplexer daemon using  the default address: '/var/run/usbmuxd'
 func (conn *DeviceConnection) Connect(activeCodec Codec) {
-	conn.ConnectToSocketAddress(activeCodec, usbmuxdSocket)
+	conn.ConnectToSocketAddress(activeCodec, UsbmuxdSocket)
 }
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
@@ -70,7 +73,10 @@ func (conn *DeviceConnection) Send(message interface{}) {
 		conn.Close()
 		return
 	}
-	conn.c.Write(bytes)
+	_, err = conn.c.Write(bytes)
+	if err != nil {
+		log.Fatalf("Failed sending: %s", err)
+	}
 }
 
 func reader(conn *DeviceConnection) {
@@ -115,4 +121,36 @@ func (conn *DeviceConnection) stopReadingAfterNextMessage() {
 
 func (conn *DeviceConnection) startReading() {
 	go reader(conn)
+}
+
+//SendForSslUpgrade Start Session and enable SSL
+func (conn *DeviceConnection) SendForSslUpgrade(lockDownConn *LockDownConnection, pairRecord PairRecord) StartSessionResponse {
+	conn.stopReadingAfterNextMessage()
+	conn.Send(newStartSessionRequest(pairRecord.HostID, pairRecord.SystemBUID))
+	resp := <-lockDownConn.ResponseChannel
+	response := startSessionResponsefromBytes(resp)
+	lockDownConn.sessionID = response.SessionID
+	if response.EnableSessionSSL {
+		conn.enableSessionSsl(pairRecord)
+		conn.startReading()
+	}
+	return response
+}
+
+func (conn *DeviceConnection) enableSessionSsl(pairRecord PairRecord) {
+	cert5, error5 := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
+	if error5 != nil {
+		return
+	}
+	conf := &tls.Config{
+		//We always trust whatever the phone sends, I do not see an issue here as probably
+		//nobody would build a fake iphone to hack this library.
+		InsecureSkipVerify: true,
+		Certificates:       []tls.Certificate{cert5},
+		ClientAuth:         tls.NoClientCert,
+	}
+
+	tlsConn := tls.Client(conn.c, conf)
+	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
+	conn.c = net.Conn(tlsConn)
 }

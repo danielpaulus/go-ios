@@ -1,20 +1,33 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/danielpaulus/go-ios/usbmux"
 
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
 )
 
+//JSONdisabled enables or disables output in JSON format
+var JSONdisabled = false
+
 func main() {
+	Main()
+}
+
+const version = "v 0.01"
+
+// Main Exports main for testing
+func Main() {
 	usage := `iOS client v 0.01
 
 Usage:
-  ios listen 
-  ios list [--details]
+  ios listen [options]
+  ios list [options] [--details]
   ios info [options]
   ios syslog [options]
   ios screenshot [options]
@@ -24,15 +37,47 @@ Usage:
   ios pair [options]
   ios forward [options] <hostPort> <targetPort>
   ios -h | --help
-  ios --version
+  ios --version | version [options]
 
 Options:
-  -h --help     Show this screen.
-  --version     Show version.
-  -u=<udid>, --udid     UDID of the device.
-  -o=<filepath>, --output
+  -v --verbose   Enable Debug Logging.
+  -t --trace     Enable Trace Logging (dump every message).
+  --nojson       Disable JSON output (default).
+  -h --help      Show this screen.
+  --udid=<udid>  UDID of the device.
   `
-	arguments, _ := docopt.ParseDoc(usage)
+	arguments, err := docopt.ParseDoc(usage)
+	if err != nil {
+		log.Fatal(err)
+	}
+	disableJSON, _ := arguments.Bool("--nojson")
+	if disableJSON {
+		JSONdisabled = true
+	} else {
+		log.SetFormatter(&log.JSONFormatter{})
+	}
+
+	traceLevelEnabled, _ := arguments.Bool("--trace")
+	if traceLevelEnabled {
+		log.Info("Set Trace mode")
+		log.SetLevel(log.TraceLevel)
+	} else {
+
+		verboseLoggingEnabledLong, _ := arguments.Bool("--verbose")
+
+		if verboseLoggingEnabledLong {
+			log.Info("Set Debug mode")
+			log.SetLevel(log.DebugLevel)
+		}
+	}
+	log.Debug(arguments)
+
+	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
+	shouldPrintVersion, _ := arguments.Bool("--version")
+	if shouldPrintVersionNoDashes || shouldPrintVersion {
+		printVersion()
+		return
+	}
 
 	b, _ := arguments.Bool("listen")
 	if b {
@@ -100,11 +145,20 @@ Options:
 		startForwarding(device, hostPort, targetPort)
 		return
 	}
+}
 
+func printVersion() {
+	versionMap := map[string]interface{}{
+		"version": version,
+	}
+	if JSONdisabled {
+		fmt.Println(version)
+	} else {
+		fmt.Println(convertToJSONString(versionMap))
+	}
 }
 
 func startForwarding(device usbmux.DeviceEntry, hostPort int, targetPort int) {
-
 	// forward.Forward(device, uint16(hostPort), uint16(targetPort))
 	// c := make(chan os.Signal, 1)
 	// signal.Notify(c, os.Interrupt)
@@ -118,15 +172,26 @@ func printDiagnostics(device usbmux.DeviceEntry) {
 }
 
 func printDeviceDate(device usbmux.DeviceEntry) {
-	// allValues := getValues(device)
+	allValues := getValues(device)
 
-	// fmt.Println(time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).Format(time.RFC850))
+	formatedDate := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).Format(time.RFC850)
+	if JSONdisabled {
+		fmt.Println(formatedDate)
+	} else {
+		fmt.Println(convertToJSONString(map[string]interface{}{"formatedDate": formatedDate, "TimeIntervalSince1970": allValues.Value.TimeIntervalSince1970}))
+	}
 
 }
 
 func printDeviceName(device usbmux.DeviceEntry) {
-	// allValues := getValues(device)
-	// println(allValues.Value.DeviceName)
+	allValues := getValues(device)
+	if JSONdisabled {
+		println(allValues.Value.DeviceName)
+	} else {
+		println(convertToJSONString(map[string]string{
+			"devicename": allValues.Value.DeviceName,
+		}))
+	}
 }
 
 func saveScreenshot(device usbmux.DeviceEntry, outputPath string) {
@@ -147,19 +212,51 @@ func saveScreenshot(device usbmux.DeviceEntry, outputPath string) {
 
 func printDeviceList(details bool) {
 	deviceList := usbmux.ListDevices()
-	println(deviceList.String())
-	// if details {
-	// 	for _, device := range deviceList.DeviceList {
-	// 		udid := device.Properties.SerialNumber
-	// 		allValues := getValues(device)
-	// 		fmt.Printf("%s  %s  %s %s", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion)
-	// 	}
-	// } else {
-	// 	deviceList.Print()
-	// }
+
+	if details {
+		if JSONdisabled {
+			outputDetailedListNoJSON(deviceList)
+		} else {
+			outputDetailedList(deviceList)
+		}
+	} else {
+		if JSONdisabled {
+			fmt.Print(deviceList.String())
+		} else {
+			fmt.Println(convertToJSONString(deviceList.CreateMapForJSONConverter()))
+		}
+	}
+}
+
+type detailsEntry struct {
+	Udid           string
+	ProductName    string
+	ProductType    string
+	ProductVersion string
+}
+
+func outputDetailedList(deviceList usbmux.DeviceList) {
+	result := make([]detailsEntry, len(deviceList.DeviceList))
+	for i, device := range deviceList.DeviceList {
+		udid := device.Properties.SerialNumber
+		allValues := getValues(device)
+		result[i] = detailsEntry{udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion}
+	}
+	fmt.Println(convertToJSONString(map[string][]detailsEntry{
+		"deviceList": result,
+	}))
+}
+
+func outputDetailedListNoJSON(deviceList usbmux.DeviceList) {
+	for _, device := range deviceList.DeviceList {
+		udid := device.Properties.SerialNumber
+		allValues := getValues(device)
+		fmt.Printf("%s  %s  %s %s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion)
+	}
 }
 
 func getDeviceOrQuit(udid string) (usbmux.DeviceEntry, error) {
+	log.Debugf("Looking for device '%s'", udid)
 	deviceList := usbmux.ListDevices()
 	if udid == "" {
 		if len(deviceList.DeviceList) == 0 {
@@ -188,16 +285,14 @@ func startListening() {
 			log.Error("Stopped listening because of error")
 			return
 		}
-		log.Info(usbmux.ToPlist(msg))
+		println(convertToJSONString((msg)))
 	}
 
 }
 
 func printDeviceInfo(device usbmux.DeviceEntry) {
-
-	// allValues := getValues(device)
-
-	// fmt.Println(formatOutput(allValues.Value))
+	allValues := getValues(device)
+	fmt.Println(convertToJSONString(allValues.Value))
 }
 
 func runSyslog(device usbmux.DeviceEntry) {
@@ -215,22 +310,22 @@ func runSyslog(device usbmux.DeviceEntry) {
 	// <-c
 }
 
-// func getValues(device usbmux.DeviceEntry) usbmux.GetAllValuesResponse {
-// 	muxConnection := usbmux.NewUsbMuxConnection()
-// 	defer muxConnection.Close()
+func getValues(device usbmux.DeviceEntry) usbmux.GetAllValuesResponse {
+	muxConnection := usbmux.NewUsbMuxConnection()
+	defer muxConnection.Close()
 
-// 	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
+	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
 
-// 	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	lockdownConnection.StartSession(pairRecord)
+	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	lockdownConnection.StartSession(pairRecord)
 
-// 	allValues := lockdownConnection.GetValues()
-// 	lockdownConnection.StopSession()
-// 	return allValues
-// }
+	allValues := lockdownConnection.GetValues()
+	lockdownConnection.StopSession()
+	return allValues
+}
 
 func pairDevice(device usbmux.DeviceEntry) {
 	// err := usbmux.Pair(device)
@@ -242,12 +337,11 @@ func pairDevice(device usbmux.DeviceEntry) {
 
 }
 
-/*
-func formatOutput(data interface{}) string {
-	b, err2 := json.Marshal(data)
-	if err2 != nil {
-		fmt.Println(err2)
+func convertToJSONString(data interface{}) string {
+	b, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println(err)
 		return ""
 	}
 	return string(b)
-}*/
+}

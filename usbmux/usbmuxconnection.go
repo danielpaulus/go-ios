@@ -97,7 +97,7 @@ func (muxConn *MuxConnection) Encode(message interface{}) ([]byte, error) {
 
 //Decode reads all bytes for the next MuxMessage from r io.Reader and
 //sends them to the ResponseChannel
-func (muxConn *MuxConnection) Decode(r io.Reader) error {
+func (muxConn MuxConnection) Decode(r io.Reader) error {
 	var muxHeader usbmuxHeader
 
 	err := binary.Read(r, binary.LittleEndian, &muxHeader)
