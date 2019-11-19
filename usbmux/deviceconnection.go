@@ -71,8 +71,7 @@ func (conn *DeviceConnection) Send(message interface{}) {
 		conn.Close()
 		return
 	}
-	n, err := conn.c.Write(bytes)
-	log.Info(n)
+	_, err = conn.c.Write(bytes)
 	if err != nil {
 		log.Fatalf("Failed sending: %s", err)
 	}

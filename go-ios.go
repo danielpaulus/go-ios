@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 	"usbmuxd/usbmux"
 
 	docopt "github.com/docopt/docopt-go"
@@ -38,7 +39,7 @@ Options:
   -o=<filepath>, --output
   `
 	arguments, _ := docopt.ParseDoc(usage)
-
+	log.Info(arguments)
 	udid, _ := arguments.String("--udid")
 	device, err := getDeviceOrQuit(udid)
 	if err != nil {
@@ -114,9 +115,10 @@ func printDiagnostics(device usbmux.DeviceEntry) {
 }
 
 func printDeviceDate(device usbmux.DeviceEntry) {
-	// allValues := getValues(device)
+	allValues := getValues(device)
 
-	// fmt.Println(time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).Format(time.RFC850))
+	formatedDate := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).Format(time.RFC850)
+	fmt.Println(formatOutput(map[string]interface{}{"formatedDate": formatedDate, "TimeIntervalSince1970": allValues.Value.TimeIntervalSince1970}))
 
 }
 
