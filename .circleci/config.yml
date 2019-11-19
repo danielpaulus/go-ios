@@ -13,7 +13,7 @@ jobs:
       - checkout
 
       # specify any bash command here prefixed with `run: `
-      - run: go build main.go
+      - run: go build ios.go
       - run:
           name: "Create a temp directory for artifacts"
           command: |
