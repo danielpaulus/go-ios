@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/danielpaulus/go-ios/usbmux"
 
 	"github.com/docopt/docopt-go"
@@ -277,7 +279,7 @@ func startListening() {
 			log.Error("Stopped listening because of error")
 			return
 		}
-		log.Info(usbmux.ToPlist(msg))
+		println(convertToJSONString((msg)))
 	}
 
 }
