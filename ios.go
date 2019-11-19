@@ -13,6 +13,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/usbmux"
 
+	"github.com/danielpaulus/go-ios/usbmux/forward"
 	"github.com/danielpaulus/go-ios/usbmux/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/usbmux/syslog"
 	"github.com/docopt/docopt-go"
@@ -166,10 +167,10 @@ func printVersion() {
 }
 
 func startForwarding(device usbmux.DeviceEntry, hostPort int, targetPort int) {
-	// forward.Forward(device, uint16(hostPort), uint16(targetPort))
-	// c := make(chan os.Signal, 1)
-	// signal.Notify(c, os.Interrupt)
-	// <-c
+	forward.Forward(device, uint16(hostPort), uint16(targetPort))
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
 }
 
 func printDiagnostics(device usbmux.DeviceEntry) {
