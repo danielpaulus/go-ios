@@ -30,6 +30,17 @@ func NewUsbMuxConnection() *MuxConnection {
 	return &conn
 }
 
+//NewUsbMuxServerConnection creates a new MuxConnection in listening mode for proxy use.
+func NewUsbMuxServerConnection() *MuxConnection {
+	var conn MuxConnection
+	conn.tag = 0
+	conn.ResponseChannel = make(chan []byte)
+	var deviceConn DeviceConnection
+	deviceConn.Connect(&conn)
+	conn.deviceConn = &deviceConn
+	return &conn
+}
+
 // NewUsbMuxConnectionWithDeviceConnection creates a new MuxConnection with from an already initialized DeviceConnectionInterface
 // (only needed for testing)
 func NewUsbMuxConnectionWithDeviceConnection(deviceConn DeviceConnectionInterface) *MuxConnection {

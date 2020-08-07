@@ -45,6 +45,7 @@ Usage:
   ios diagnostics list [options]
   ios pair [options]
   ios forward [options] <hostPort> <targetPort>
+  ios dproxy
   ios -h | --help
   ios --version | version [options]
 
@@ -70,6 +71,7 @@ The commands work as following:
    ios diagnostics list [options]                     List diagnostic infos
    ios pair [options]                                 Pairs the device and potentially triggers the pairing dialog
    ios forward [options] <hostPort> <targetPort>      Similar to iproxy, forward a TCP connection to the device.
+   ios dproxy                                         Starts the reverse engineering proxy server
    ios -h | --help                                    Prints this screen.
    ios --version | version [options]                  Prints the version
 
@@ -113,6 +115,12 @@ The commands work as following:
 		return
 	}
 
+	b, _ = arguments.Bool("dproxy")
+	if b {
+		startDebugProxy()
+		return
+	}
+
 	udid, _ := arguments.String("--udid")
 	device, err := getDeviceOrQuit(udid)
 	if err != nil {
@@ -142,6 +150,7 @@ The commands work as following:
 		printDeviceName(device)
 		return
 	}
+
 	b, _ = arguments.Bool("date")
 	if b {
 		printDeviceDate(device)
@@ -184,6 +193,20 @@ func printVersion() {
 	} else {
 		fmt.Println(convertToJSONString(versionMap))
 	}
+}
+
+func startDebugProxy() {
+	proxy := usbmux.NewDebugProxy()
+	go func() {
+		err := proxy.Launch()
+		log.WithFields(log.Fields{"error": err}).Infof("DebugProxy Terminated abnormally")
+		os.Exit(0)
+	}()
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+	log.Info("Shutting down debugproxy")
+	proxy.Close()
 }
 
 func startForwarding(device usbmux.DeviceEntry, hostPort int, targetPort int) {
