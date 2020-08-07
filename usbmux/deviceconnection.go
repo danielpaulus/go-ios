@@ -10,9 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//UsbmuxdSocket this is the unix domain socket address to connect to. The default is "/var/run/usbmuxd"
-var UsbmuxdSocket = "/var/run/usbmuxd"
-
 //Codec is an interface with methods to Encode and Decode iOS Messages for all different protocols.
 type Codec interface {
 	//Encode converts a given message to a byte array
@@ -30,6 +27,7 @@ type DeviceConnectionInterface interface {
 	SendForProtocolUpgradeSSL(muxConnection *MuxConnection, message interface{}, newCodec Codec, pairRecord PairRecord) []byte
 	SendForSslUpgrade(lockDownConn *LockDownConnection, pairRecord PairRecord) StartSessionResponse
 	Send(message interface{})
+	Listen(activeCodec Codec)
 }
 
 //DeviceConnection wraps the net.Conn to the ios Device and has support for
@@ -38,11 +36,20 @@ type DeviceConnection struct {
 	c           net.Conn
 	activeCodec Codec
 	stop        chan struct{}
+	muxSocket   string
+}
+
+func NewDeviceConnection(socketToConnectTo string) *DeviceConnection {
+	return &DeviceConnection{muxSocket: socketToConnectTo}
 }
 
 //Connect connects to the USB multiplexer daemon using  the default address: '/var/run/usbmuxd'
 func (conn *DeviceConnection) Connect(activeCodec Codec) {
-	conn.ConnectToSocketAddress(activeCodec, UsbmuxdSocket)
+	conn.ConnectToSocketAddress(activeCodec, conn.muxSocket)
+}
+
+func (conn *DeviceConnection) Listen(activeCodec Codec) {
+
 }
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres

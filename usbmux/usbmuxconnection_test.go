@@ -1,11 +1,12 @@
 package usbmux_test
 
 import (
-	"github.com/danielpaulus/go-ios/usbmux"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielpaulus/go-ios/usbmux"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -58,6 +59,7 @@ type DeviceConnectionMock struct {
 	activeCodec usbmux.Codec
 }
 
+func (mock *DeviceConnectionMock) Listen(activeCodec usbmux.Codec)  {}
 func (mock *DeviceConnectionMock) Connect(activeCodec usbmux.Codec) {}
 func (mock *DeviceConnectionMock) ConnectToSocketAddress(activeCodec usbmux.Codec, socketAddress string) {
 }

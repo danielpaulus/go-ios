@@ -10,6 +10,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//DefaultUsbmuxdSocket this is the unix domain socket address to connect to. The default is "/var/run/usbmuxd"
+var DefaultUsbmuxdSocket = "/var/run/usbmuxd"
+
 //MuxConnection provides a Send Method for sending Messages to UsbMuxD and a ResponseChannel to
 //receive the responses.
 type MuxConnection struct {
@@ -21,23 +24,26 @@ type MuxConnection struct {
 
 //NewUsbMuxConnection creates a new MuxConnection by connecting to the usbmuxd Socket.
 func NewUsbMuxConnection() *MuxConnection {
+	return NewUsbMuxConnectionToSocket(DefaultUsbmuxdSocket)
+}
+
+//NewUsbMuxConnectionToSocket creates a new MuxConnection by connecting to the specified usbmuxd Socket.
+func NewUsbMuxConnectionToSocket(socket string) *MuxConnection {
 	var conn MuxConnection
 	conn.tag = 0
 	conn.ResponseChannel = make(chan []byte)
-	var deviceConn DeviceConnection
-	deviceConn.Connect(&conn)
-	conn.deviceConn = &deviceConn
+	conn.deviceConn = NewDeviceConnection(socket)
+	conn.deviceConn.Connect(&conn)
 	return &conn
 }
 
 //NewUsbMuxServerConnection creates a new MuxConnection in listening mode for proxy use.
-func NewUsbMuxServerConnection() *MuxConnection {
+func NewUsbMuxServerConnection(socket string) *MuxConnection {
 	var conn MuxConnection
 	conn.tag = 0
 	conn.ResponseChannel = make(chan []byte)
-	var deviceConn DeviceConnection
-	deviceConn.Connect(&conn)
-	conn.deviceConn = &deviceConn
+	conn.deviceConn = NewDeviceConnection(socket)
+	conn.deviceConn.Listen(&conn)
 	return &conn
 }
 
