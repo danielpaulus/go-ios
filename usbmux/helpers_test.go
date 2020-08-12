@@ -1,12 +1,13 @@
 package usbmux_test
 
 import (
-	"github.com/danielpaulus/go-ios/usbmux"
 	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielpaulus/go-ios/usbmux"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -101,7 +102,7 @@ func GenericMockUsbmuxdIntegrationTest(t *testing.T, commandToInvoke func() inte
 	serverCleanup := StartMuxServer(path, serverReceiver, serverSender)
 	defer serverCleanup()
 
-	usbmux.UsbmuxdSocket = path
+	usbmux.DefaultUsbmuxdSocket = path
 
 	returnValue := make(chan interface{})
 	go func() {

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"net"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
@@ -38,12 +39,12 @@ func NewUsbMuxConnectionToSocket(socket string) *MuxConnection {
 }
 
 //NewUsbMuxServerConnection creates a new MuxConnection in listening mode for proxy use.
-func NewUsbMuxServerConnection(socket string) *MuxConnection {
+func NewUsbMuxServerConnection(c net.Conn) *MuxConnection {
 	var conn MuxConnection
 	conn.tag = 0
 	conn.ResponseChannel = make(chan []byte)
-	conn.deviceConn = NewDeviceConnection(socket)
-	conn.deviceConn.Listen(&conn)
+	conn.deviceConn = NewDeviceConnection("")
+	conn.deviceConn.Listen(&conn, c)
 	return &conn
 }
 
@@ -115,6 +116,10 @@ func (muxConn *MuxConnection) Encode(message interface{}) ([]byte, error) {
 //Decode reads all bytes for the next MuxMessage from r io.Reader and
 //sends them to the ResponseChannel
 func (muxConn MuxConnection) Decode(r io.Reader) error {
+	if r == nil {
+		muxConn.ResponseChannel <- nil
+		return nil
+	}
 	var muxHeader usbmuxHeader
 
 	err := binary.Read(r, binary.LittleEndian, &muxHeader)

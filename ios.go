@@ -71,7 +71,7 @@ The commands work as following:
    ios diagnostics list [options]                     List diagnostic infos
    ios pair [options]                                 Pairs the device and potentially triggers the pairing dialog
    ios forward [options] <hostPort> <targetPort>      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy                                         Starts the reverse engineering proxy server
+   ios dproxy                                         Starts the reverse engineering proxy server. Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist" to stop usbmuxd and load to start it again should the proxy mess up things.
    ios -h | --help                                    Prints this screen.
    ios --version | version [options]                  Prints the version
 

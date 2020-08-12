@@ -2,6 +2,7 @@ package usbmux_test
 
 import (
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -59,7 +60,8 @@ type DeviceConnectionMock struct {
 	activeCodec usbmux.Codec
 }
 
-func (mock *DeviceConnectionMock) Listen(activeCodec usbmux.Codec)  {}
+func (mock *DeviceConnectionMock) Listen(activeCodec usbmux.Codec, c net.Conn) {}
+func (mock *DeviceConnectionMock) WaitForDisconnect() error
 func (mock *DeviceConnectionMock) Connect(activeCodec usbmux.Codec) {}
 func (mock *DeviceConnectionMock) ConnectToSocketAddress(activeCodec usbmux.Codec, socketAddress string) {
 }

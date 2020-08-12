@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"io"
 	"net"
-	"os"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
@@ -27,16 +26,18 @@ type DeviceConnectionInterface interface {
 	SendForProtocolUpgradeSSL(muxConnection *MuxConnection, message interface{}, newCodec Codec, pairRecord PairRecord) []byte
 	SendForSslUpgrade(lockDownConn *LockDownConnection, pairRecord PairRecord) StartSessionResponse
 	Send(message interface{})
-	Listen(activeCodec Codec)
+	Listen(activeCodec Codec, c net.Conn)
+	WaitForDisconnect() error
 }
 
 //DeviceConnection wraps the net.Conn to the ios Device and has support for
 //switching Codecs and enabling SSL
 type DeviceConnection struct {
-	c           net.Conn
-	activeCodec Codec
-	stop        chan struct{}
-	muxSocket   string
+	c                 net.Conn
+	activeCodec       Codec
+	stop              chan struct{}
+	disconnectChannel chan error
+	muxSocket         string
 }
 
 func NewDeviceConnection(socketToConnectTo string) *DeviceConnection {
@@ -48,8 +49,11 @@ func (conn *DeviceConnection) Connect(activeCodec Codec) {
 	conn.ConnectToSocketAddress(activeCodec, conn.muxSocket)
 }
 
-func (conn *DeviceConnection) Listen(activeCodec Codec) {
-
+func (conn *DeviceConnection) Listen(activeCodec Codec, c net.Conn) {
+	conn.stop = make(chan struct{})
+	conn.c = c
+	conn.activeCodec = activeCodec
+	conn.startReading()
 }
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
@@ -93,15 +97,22 @@ func reader(conn *DeviceConnection) {
 		select {
 		case <-conn.stop:
 			//ignore error for stopped connection
+			conn.disconnectChannel <- nil
 			return
 		default:
 			if err != nil {
-				log.Errorf("Failed decoding/reading %s, sending zero length data to codec", err)
-				//TODO: find more elegant way
-				os.Exit(1)
+				log.Info("Connection disconnected")
+				conn.activeCodec.Decode(nil)
+				conn.disconnectChannel <- err
 			}
 		}
 	}
+}
+
+//WaitForDisconnect blocks until the connection disconnects and returns the error that caused the disconnect
+func (conn *DeviceConnection) WaitForDisconnect() error {
+	reason := <-conn.disconnectChannel
+	return reason
 }
 
 //SendForProtocolUpgrade takes care of the complicated protocol upgrade process of iOS/Usbmux.
