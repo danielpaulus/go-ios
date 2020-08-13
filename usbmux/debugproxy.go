@@ -42,7 +42,7 @@ func (d *DebugProxy) retrieveServiceInfoByPort(port uint16) (PhoneServiceInforma
 
 //NewDebugProxy creates a new Default proxy
 func NewDebugProxy() *DebugProxy {
-	return &DebugProxy{}
+	return &DebugProxy{mux: sync.Mutex{}, serviceMap: make(map[string]PhoneServiceInformation)}
 }
 
 //Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
@@ -88,7 +88,11 @@ type ProxyConnection struct {
 	debugProxy                *DebugProxy
 }
 
-func (p *ProxyConnection) handleConnect(connectMessage interface{}, u *MuxConnection) {
+func (p *ProxyConnection) handleConnect(connectMessage interface{}, u *MuxConnection, serviceInfo PhoneServiceInformation) {
+
+}
+
+func (p *ProxyConnection) handleConnectToLockdown(connectMessage interface{}, u *MuxConnection) {
 	p.WaitingForProtocolChange = true
 	p.deviceChannel <- nil
 
@@ -203,9 +207,19 @@ func readOnUnixDomainSocketAndForwardToDeviceUsbMuxSingleDecode(p *ProxyConnecti
 
 		log.Info(decoded)
 		if decoded["MessageType"] == "Connect" {
-			log.Info("Upgrading to Lockdown")
-
-			p.handleConnect(decoded, u)
+			log.Info("Detected Connect Message")
+			port := decoded["PortNumber"].(uint64)
+			if int(port) == lockdownport {
+				log.Info("Upgrading to Lockdown")
+				p.handleConnectToLockdown(decoded, u)
+			} else {
+				info, err := p.debugProxy.retrieveServiceInfoByPort(ntohs(uint16(port)))
+				if err != nil {
+					log.Fatal("ServiceInfo for port not found, this is a bug :-)")
+				}
+				log.Info("Connection to service detected", info)
+				p.handleConnect(decoded, u, info)
+			}
 			return
 		}
 		p.connectionToDevice.Send(decoded)
@@ -266,7 +280,7 @@ func readOnUnixDomainSocketAndForwardToDevice(p *ProxyConnection) {
 
 		if decoded["MessageType"] == "Connect" {
 			log.Info("Upgrading to Lockdown")
-			p.handleConnect(decoded, nil)
+			p.handleConnectToLockdown(decoded, nil)
 			return
 		}
 

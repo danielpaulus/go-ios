@@ -1,7 +1,6 @@
 package usbmux
 
 import (
-	"encoding/binary"
 	"fmt"
 )
 
@@ -26,16 +25,6 @@ func newConnectMessage(deviceID int, portNumber int) *connectMessage {
 		PortNumber:          uint32(portNumber),
 	}
 	return data
-}
-
-//ntohs is a re-implementation of the C function ntohs.
-//it means networkorder to host oder and basically swaps
-//the endianness of the given int.
-//It returns port converted to little endian.
-func ntohs(port uint16) uint16 {
-	buf := make([]byte, 2)
-	binary.BigEndian.PutUint16(buf, port)
-	return binary.LittleEndian.Uint16(buf)
 }
 
 //Connect issues a Connect Message to UsbMuxd for the given deviceID on the given port
