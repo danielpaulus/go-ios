@@ -20,3 +20,4 @@ ios
 .vscode
 .DS_Store
 .circleci/
+__debug_bin

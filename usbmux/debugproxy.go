@@ -2,7 +2,9 @@ package usbmux
 
 import (
 	"bytes"
+	"fmt"
 	"net"
+	"sync"
 
 	"github.com/danielpaulus/go-ios/usbmux/proxy_utils"
 	log "github.com/sirupsen/logrus"
@@ -10,7 +12,33 @@ import (
 )
 
 //DebugProxy can be used to dump and modify communication between mac and host
-type DebugProxy struct{}
+type DebugProxy struct {
+	mux        sync.Mutex
+	serviceMap map[string]PhoneServiceInformation
+}
+
+func (d *DebugProxy) storeServiceInformation(serviceInfo PhoneServiceInformation) {
+	d.mux.Lock()
+	defer d.mux.Unlock()
+	d.serviceMap[serviceInfo.ServiceName] = serviceInfo
+}
+
+func (d *DebugProxy) retrieveServiceInfoByName(serviceName string) PhoneServiceInformation {
+	d.mux.Lock()
+	defer d.mux.Unlock()
+	return d.serviceMap[serviceName]
+}
+
+func (d *DebugProxy) retrieveServiceInfoByPort(port uint16) (PhoneServiceInformation, error) {
+	d.mux.Lock()
+	defer d.mux.Unlock()
+	for _, element := range d.serviceMap {
+		if element.ServicePort == port {
+			return element, nil
+		}
+	}
+	return PhoneServiceInformation{}, fmt.Errorf("No Service found for port %d", port)
+}
 
 //NewDebugProxy creates a new Default proxy
 func NewDebugProxy() *DebugProxy {
@@ -38,10 +66,16 @@ func (d *DebugProxy) Launch() error {
 			log.Errorf("error with connection: %e", err)
 		}
 
-		startProxyConnection(conn, originalSocket, pairRecord)
+		startProxyConnection(conn, originalSocket, pairRecord, d)
 
 	}
 
+}
+
+type PhoneServiceInformation struct {
+	ServicePort uint16
+	ServiceName string
+	UseSSL      bool
 }
 
 type ProxyConnection struct {
@@ -50,8 +84,8 @@ type ProxyConnection struct {
 	connectionToDevice        DeviceConnectionInterface
 	deviceChannel             chan []byte
 	pairRecord                PairRecord
-
-	WaitingForProtocolChange bool
+	WaitingForProtocolChange  bool
+	debugProxy                *DebugProxy
 }
 
 func (p *ProxyConnection) handleConnect(connectMessage interface{}, u *MuxConnection) {
@@ -112,10 +146,10 @@ func (p *ProxyConnection) handleSSLUpgrade(startSessionMessage interface{}, plis
 	}
 }
 
-func startProxyConnection(conn net.Conn, originalSocket string, pairRecord PairRecord) {
+func startProxyConnection(conn net.Conn, originalSocket string, pairRecord PairRecord, debugProxy *DebugProxy) {
 	connListeningOnUnixSocket := NewUsbMuxServerConnection(conn)
 	connectionToDevice := NewUsbMuxConnectionToSocket(originalSocket)
-	p := ProxyConnection{connListeningOnUnixSocket.deviceConn, connListeningOnUnixSocket.ResponseChannel, connectionToDevice.deviceConn, connectionToDevice.ResponseChannel, pairRecord, false}
+	p := ProxyConnection{connListeningOnUnixSocket.deviceConn, connListeningOnUnixSocket.ResponseChannel, connectionToDevice.deviceConn, connectionToDevice.ResponseChannel, pairRecord, false, debugProxy}
 
 	go readOnUnixDomainSocketAndForwardToDeviceUsbMuxSingleDecode(&p, connListeningOnUnixSocket)
 	go readOnDeviceConnectionAndForwardToUnixDomainConnection(&p)
@@ -179,33 +213,6 @@ func readOnUnixDomainSocketAndForwardToDeviceUsbMuxSingleDecode(p *ProxyConnecti
 	}
 }
 
-func readOnDeviceConnectionAndForwardToUnixDomainConnectionLockdown(p *ProxyConnection) {
-	for {
-
-		msg := <-p.deviceChannel
-		if p.WaitingForProtocolChange {
-			log.Info("stopping proxy reading loop for lockdown device connection")
-			return
-		}
-
-		if msg == nil {
-			log.Info("device disconnected")
-			p.connListeningOnUnixSocket.Close()
-			return
-		}
-		var decoded map[string]interface{}
-		decoder := plist.NewDecoder(bytes.NewReader(msg))
-		err := decoder.Decode(&decoded)
-		if err != nil {
-			log.Info(err)
-		}
-
-		log.Info(decoded)
-
-		p.connListeningOnUnixSocket.Send(decoded)
-	}
-}
-
 func readOnDeviceConnectionAndForwardToUnixDomainConnection(p *ProxyConnection) {
 	for {
 		msg := <-p.deviceChannel
@@ -227,7 +234,14 @@ func readOnDeviceConnectionAndForwardToUnixDomainConnection(p *ProxyConnection) 
 		}
 
 		log.Info(decoded)
+		if decoded["Request"] == "StartService" {
 
+			info := PhoneServiceInformation{ServicePort: uint16(decoded["Port"].(uint64)), ServiceName: decoded["Service"].(string), UseSSL: decoded["EnableServiceSSL"].(bool)}
+
+			log.Info("Detected Service Start", (info))
+			p.debugProxy.storeServiceInformation(info)
+
+		}
 		p.connListeningOnUnixSocket.Send(decoded)
 	}
 }
