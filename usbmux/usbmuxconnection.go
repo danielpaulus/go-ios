@@ -21,6 +21,9 @@ type MuxConnection struct {
 	tag             uint32
 	deviceConn      DeviceConnectionInterface
 	ResponseChannel chan []byte
+	singleDecode    bool
+	decodeSignal    chan interface{}
+	stopSignal      chan interface{}
 }
 
 //NewUsbMuxConnection creates a new MuxConnection by connecting to the usbmuxd Socket.
@@ -33,6 +36,7 @@ func NewUsbMuxConnectionToSocket(socket string) *MuxConnection {
 	var conn MuxConnection
 	conn.tag = 0
 	conn.ResponseChannel = make(chan []byte)
+	conn.singleDecode = false
 	conn.deviceConn = NewDeviceConnection(socket)
 	conn.deviceConn.Connect(&conn)
 	return &conn
@@ -42,6 +46,9 @@ func NewUsbMuxConnectionToSocket(socket string) *MuxConnection {
 func NewUsbMuxServerConnection(c net.Conn) *MuxConnection {
 	var conn MuxConnection
 	conn.tag = 0
+	conn.singleDecode = true
+	conn.decodeSignal = make(chan interface{})
+	conn.stopSignal = make(chan interface{})
 	conn.ResponseChannel = make(chan []byte)
 	conn.deviceConn = NewDeviceConnection("")
 	conn.deviceConn.Listen(&conn, c)
@@ -53,6 +60,7 @@ func NewUsbMuxServerConnection(c net.Conn) *MuxConnection {
 func NewUsbMuxConnectionWithDeviceConnection(deviceConn DeviceConnectionInterface) *MuxConnection {
 	var conn MuxConnection
 	conn.tag = 0
+	conn.singleDecode = false
 	conn.ResponseChannel = make(chan []byte)
 	deviceConn.Connect(&conn)
 	conn.deviceConn = deviceConn
@@ -113,6 +121,15 @@ func (muxConn *MuxConnection) Encode(message interface{}) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+func (muxConn *MuxConnection) StartDecode() {
+	var i interface{}
+	muxConn.decodeSignal <- i
+}
+func (muxConn *MuxConnection) StopDecoding() {
+	var i interface{}
+	muxConn.stopSignal <- i
+}
+
 //Decode reads all bytes for the next MuxMessage from r io.Reader and
 //sends them to the ResponseChannel
 func (muxConn MuxConnection) Decode(r io.Reader) error {
@@ -120,6 +137,16 @@ func (muxConn MuxConnection) Decode(r io.Reader) error {
 		muxConn.ResponseChannel <- nil
 		return nil
 	}
+	if muxConn.singleDecode {
+		select {
+		case <-muxConn.stopSignal:
+			return nil
+		case <-muxConn.decodeSignal:
+			log.Info("rcv decode")
+		}
+	}
+	log.Info("yub")
+
 	var muxHeader usbmuxHeader
 
 	err := binary.Read(r, binary.LittleEndian, &muxHeader)

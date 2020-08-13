@@ -14,13 +14,35 @@ import (
 //PlistCodec is a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
 type PlistCodec struct {
 	ResponseChannel chan []byte
+	singleDecode    bool
+	decodeSignal    chan interface{}
+	stopSignal      chan interface{}
 }
 
 //NewPlistCodec create a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
 func NewPlistCodec(responseChannel chan []byte) *PlistCodec {
 	var codec PlistCodec
 	codec.ResponseChannel = responseChannel
+	codec.singleDecode = false
 	return &codec
+}
+
+func NewPlistCodecSingleDecode(responseChannel chan []byte) *PlistCodec {
+	var codec PlistCodec
+	codec.ResponseChannel = responseChannel
+	codec.decodeSignal = make(chan interface{})
+	codec.stopSignal = make(chan interface{})
+	codec.singleDecode = true
+	return &codec
+}
+
+func (plistCodec *PlistCodec) StartDecode() {
+	var i interface{}
+	plistCodec.decodeSignal <- i
+}
+func (plistCodec *PlistCodec) StopDecoding() {
+	var i interface{}
+	plistCodec.stopSignal <- i
 }
 
 //Encode encodes a LockDown Struct to a byte[] with the lockdown plist format.
@@ -47,6 +69,17 @@ func (plistCodec *PlistCodec) Encode(message interface{}) ([]byte, error) {
 //Decode reads a Lockdown Message from the provided reader and
 //sends it to the ResponseChannel
 func (plistCodec *PlistCodec) Decode(r io.Reader) error {
+	if r == nil {
+		plistCodec.ResponseChannel <- nil
+		return nil
+	}
+	if plistCodec.singleDecode {
+		select {
+		case <-plistCodec.stopSignal:
+			return nil
+		case <-plistCodec.decodeSignal:
+		}
+	}
 	buf := make([]byte, 4)
 
 	err := binary.Read(r, binary.BigEndian, buf)

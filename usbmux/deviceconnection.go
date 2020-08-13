@@ -28,6 +28,11 @@ type DeviceConnectionInterface interface {
 	Send(message interface{})
 	Listen(activeCodec Codec, c net.Conn)
 	WaitForDisconnect() error
+	StopReadingAfterNextMessage()
+	ResumeReadingWithNewCodec(codec Codec)
+	SetCodec(codec Codec)
+	EnableSessionSsl(pairRecord PairRecord)
+	ResumeReading()
 }
 
 //DeviceConnection wraps the net.Conn to the ios Device and has support for
@@ -96,8 +101,7 @@ func reader(conn *DeviceConnection) {
 		err := conn.activeCodec.Decode(conn.c)
 		select {
 		case <-conn.stop:
-			//ignore error for stopped connection
-			conn.disconnectChannel <- nil
+			//ignore error for stopped connection, we stop reading for protocol upgrades
 			return
 		default:
 			if err != nil {
@@ -140,9 +144,28 @@ func (conn *DeviceConnection) SendForProtocolUpgradeSSL(muxConnection *MuxConnec
 	conn.Send(message)
 	responseBytes := <-muxConnection.ResponseChannel
 	conn.activeCodec = newCodec
-	conn.enableSessionSsl(pairRecord)
+	conn.EnableSessionSsl(pairRecord)
 	conn.startReading()
 	return responseBytes
+}
+
+func (conn *DeviceConnection) SetCodecAfterNextMessage(newCodec Codec, channel chan []byte) []byte {
+	conn.stopReadingAfterNextMessage()
+	msg := <-channel
+	conn.activeCodec = newCodec
+	conn.startReading()
+	return msg
+}
+
+func (conn *DeviceConnection) StopReadingAfterNextMessage() {
+	conn.stopReadingAfterNextMessage()
+}
+func (conn *DeviceConnection) ResumeReadingWithNewCodec(codec Codec) {
+	conn.activeCodec = codec
+	conn.startReading()
+}
+func (conn *DeviceConnection) SetCodec(codec Codec) {
+	conn.activeCodec = codec
 }
 
 func (conn *DeviceConnection) stopReadingAfterNextMessage() {
@@ -154,6 +177,10 @@ func (conn *DeviceConnection) startReading() {
 	go reader(conn)
 }
 
+func (conn *DeviceConnection) ResumeReading() {
+	conn.startReading()
+}
+
 //SendForSslUpgrade Start Session and enable SSL
 func (conn *DeviceConnection) SendForSslUpgrade(lockDownConn *LockDownConnection, pairRecord PairRecord) StartSessionResponse {
 	conn.stopReadingAfterNextMessage()
@@ -162,15 +189,16 @@ func (conn *DeviceConnection) SendForSslUpgrade(lockDownConn *LockDownConnection
 	response := startSessionResponsefromBytes(resp)
 	lockDownConn.sessionID = response.SessionID
 	if response.EnableSessionSSL {
-		conn.enableSessionSsl(pairRecord)
+		conn.EnableSessionSsl(pairRecord)
 		conn.startReading()
 	}
 	return response
 }
 
-func (conn *DeviceConnection) enableSessionSsl(pairRecord PairRecord) {
+func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) {
 	cert5, error5 := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
 	if error5 != nil {
+		log.Error("Error SSL:" + error5.Error())
 		return
 	}
 	conf := &tls.Config{

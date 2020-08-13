@@ -19,6 +19,7 @@ func NewDebugProxy() *DebugProxy {
 
 //Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
 func (d *DebugProxy) Launch() error {
+	pairRecord := ReadPairRecord("b89227a71e1a97c00bcc297d33c3f58b789dbc8a")
 	originalSocket, err := proxy_utils.MoveSock(DefaultUsbmuxdSocket)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err, "socket": DefaultUsbmuxdSocket}).Error("Unable to move, lacking permissions?")
@@ -36,50 +37,227 @@ func (d *DebugProxy) Launch() error {
 		if err != nil {
 			log.Errorf("error with connection: %e", err)
 		}
-		serverConn := NewUsbMuxServerConnection(conn)
-		clientConn := NewUsbMuxConnectionToSocket(originalSocket)
 
-		go func() {
-			for {
-				msg := <-serverConn.ResponseChannel
-				if msg == nil {
-					log.Info("service on host disconnected")
-					clientConn.Close()
-					return
-				}
-				var decoded map[string]interface{}
-				decoder := plist.NewDecoder(bytes.NewReader(msg))
-				err := decoder.Decode(&decoded)
-				if err != nil {
-					log.Info(err)
-				}
+		startProxyConnection(conn, originalSocket, pairRecord)
 
-				log.Info(decoded)
-				clientConn.Send(decoded)
-				//just one way
-			}
-		}()
-		go func() {
-			for {
-				msg := <-clientConn.ResponseChannel
-				if msg == nil {
-					log.Info("device disconnected")
-					serverConn.Close()
-					return
-				}
-				var decoded map[string]interface{}
-				decoder := plist.NewDecoder(bytes.NewReader(msg))
-				err := decoder.Decode(&decoded)
-				if err != nil {
-					log.Info(err)
-				}
+	}
 
-				log.Info(decoded)
+}
 
-				serverConn.Send(decoded)
-			}
-		}()
+type ProxyConnection struct {
+	connListeningOnUnixSocket DeviceConnectionInterface
+	unixSocketChannel         chan []byte
+	connectionToDevice        DeviceConnectionInterface
+	deviceChannel             chan []byte
+	pairRecord                PairRecord
 
+	WaitingForProtocolChange bool
+}
+
+func (p *ProxyConnection) handleConnect(connectMessage interface{}, u *MuxConnection) {
+	p.WaitingForProtocolChange = true
+	p.deviceChannel <- nil
+
+	newDeviceChannel := make(chan []byte)
+	newUnixSocketChannel := make(chan []byte)
+	p.connectionToDevice.StopReadingAfterNextMessage()
+	p.connectionToDevice.Send(connectMessage)
+	response := <-p.deviceChannel
+	p.WaitingForProtocolChange = false
+	var decoded map[string]interface{}
+	decoder := plist.NewDecoder(bytes.NewReader(response))
+	decoder.Decode(&decoded)
+	plistCodec := NewPlistCodec(newDeviceChannel)
+	p.connectionToDevice.ResumeReadingWithNewCodec(plistCodec)
+
+	p.connListeningOnUnixSocket.Send(decoded)
+	singleDecodePlistCodec := NewPlistCodecSingleDecode(newUnixSocketChannel)
+	p.connListeningOnUnixSocket.SetCodec(singleDecodePlistCodec)
+	p.unixSocketChannel = newUnixSocketChannel
+	p.deviceChannel = newDeviceChannel
+	if u != nil {
+		u.StopDecoding()
+	}
+	log.Info("Upgrade to lockdown complete")
+	go readOnUnixDomainSocketAndForwardToDeviceLockdownSingleDecode(p, singleDecodePlistCodec)
+	go readOnDeviceConnectionAndForwardToUnixDomainConnection(p)
+}
+
+func (p *ProxyConnection) handleSSLUpgrade(startSessionMessage interface{}, plistCodec *PlistCodec) {
+	p.WaitingForProtocolChange = true
+	p.deviceChannel <- nil
+	p.connectionToDevice.StopReadingAfterNextMessage()
+	p.connectionToDevice.Send(startSessionMessage)
+	response := <-p.deviceChannel
+	p.WaitingForProtocolChange = false
+	var decoded map[string]interface{}
+	decoder := plist.NewDecoder(bytes.NewReader(response))
+	decoder.Decode(&decoded)
+
+	log.Info(decoded)
+
+	if decoded["EnableSessionSSL"] == true {
+		log.Info("should enable ssl")
+		p.connectionToDevice.EnableSessionSsl(p.pairRecord)
+		p.connListeningOnUnixSocket.StopReadingAfterNextMessage()
+		plistCodec.StopDecoding()
+		p.connListeningOnUnixSocket.Send(decoded)
+		p.connListeningOnUnixSocket.EnableSessionSsl(p.pairRecord)
+		p.connectionToDevice.ResumeReading()
+		p.connListeningOnUnixSocket.ResumeReading()
+		go readOnDeviceConnectionAndForwardToUnixDomainConnection(p)
+	} else {
+		log.Fatal("lockdown without ssl should not exist")
+	}
+}
+
+func startProxyConnection(conn net.Conn, originalSocket string, pairRecord PairRecord) {
+	connListeningOnUnixSocket := NewUsbMuxServerConnection(conn)
+	connectionToDevice := NewUsbMuxConnectionToSocket(originalSocket)
+	p := ProxyConnection{connListeningOnUnixSocket.deviceConn, connListeningOnUnixSocket.ResponseChannel, connectionToDevice.deviceConn, connectionToDevice.ResponseChannel, pairRecord, false}
+
+	go readOnUnixDomainSocketAndForwardToDeviceUsbMuxSingleDecode(&p, connListeningOnUnixSocket)
+	go readOnDeviceConnectionAndForwardToUnixDomainConnection(&p)
+}
+
+func readOnUnixDomainSocketAndForwardToDeviceLockdownSingleDecode(p *ProxyConnection, plistCodec *PlistCodec) {
+	for {
+		plistCodec.StartDecode()
+		msg := <-p.unixSocketChannel
+
+		if msg == nil {
+			log.Info("service on host disconnected")
+			p.connectionToDevice.Close()
+			return
+		}
+		var decoded map[string]interface{}
+		decoder := plist.NewDecoder(bytes.NewReader(msg))
+		err := decoder.Decode(&decoded)
+		if err != nil {
+			log.Info(err)
+		}
+
+		log.Info(decoded)
+		if decoded["Request"] == "StartSession" {
+			log.Info("Lockdown StartSession detected, kicking of SSL check")
+
+			p.handleSSLUpgrade(decoded, plistCodec)
+			return
+		}
+		p.connectionToDevice.Send(decoded)
+
+	}
+}
+
+func readOnUnixDomainSocketAndForwardToDeviceUsbMuxSingleDecode(p *ProxyConnection, u *MuxConnection) {
+	for {
+		u.StartDecode()
+		msg := <-p.unixSocketChannel
+
+		if msg == nil {
+			log.Info("service on host disconnected")
+			p.connectionToDevice.Close()
+			return
+		}
+		var decoded map[string]interface{}
+		decoder := plist.NewDecoder(bytes.NewReader(msg))
+		err := decoder.Decode(&decoded)
+		if err != nil {
+			log.Info(err)
+		}
+
+		log.Info(decoded)
+		if decoded["MessageType"] == "Connect" {
+			log.Info("Upgrading to Lockdown")
+
+			p.handleConnect(decoded, u)
+			return
+		}
+		p.connectionToDevice.Send(decoded)
+
+	}
+}
+
+func readOnDeviceConnectionAndForwardToUnixDomainConnectionLockdown(p *ProxyConnection) {
+	for {
+
+		msg := <-p.deviceChannel
+		if p.WaitingForProtocolChange {
+			return
+		}
+
+		if msg == nil {
+			log.Info("device disconnected")
+			p.connListeningOnUnixSocket.Close()
+			return
+		}
+		var decoded map[string]interface{}
+		decoder := plist.NewDecoder(bytes.NewReader(msg))
+		err := decoder.Decode(&decoded)
+		if err != nil {
+			log.Info(err)
+		}
+
+		log.Info(decoded)
+
+		p.connListeningOnUnixSocket.Send(decoded)
+	}
+}
+
+func readOnDeviceConnectionAndForwardToUnixDomainConnection(p *ProxyConnection) {
+	for {
+		msg := <-p.deviceChannel
+		if p.WaitingForProtocolChange {
+			log.Info("Protocol Change, killing proxy read loop")
+			return
+		}
+
+		if msg == nil {
+			log.Info("device disconnected")
+			p.connListeningOnUnixSocket.Close()
+			return
+		}
+		var decoded map[string]interface{}
+		decoder := plist.NewDecoder(bytes.NewReader(msg))
+		err := decoder.Decode(&decoded)
+		if err != nil {
+			log.Info(err)
+		}
+
+		log.Info(decoded)
+
+		p.connListeningOnUnixSocket.Send(decoded)
+	}
+}
+
+//hier muss der single step lockdown read rein und nach startSession den enableSSL call machen
+func readOnUnixDomainSocketAndForwardToDevice(p *ProxyConnection) {
+
+	for {
+		msg := <-p.unixSocketChannel
+
+		if msg == nil {
+			log.Info("service on host disconnected")
+			p.connectionToDevice.Close()
+			return
+		}
+		var decoded map[string]interface{}
+		decoder := plist.NewDecoder(bytes.NewReader(msg))
+		err := decoder.Decode(&decoded)
+		if err != nil {
+			log.Info(err)
+		}
+
+		if decoded["MessageType"] == "Connect" {
+			log.Info("Upgrading to Lockdown")
+			p.handleConnect(decoded, nil)
+			return
+		}
+
+		p.connectionToDevice.Send(decoded)
+		log.Info("RCV ONHOST AND SEND TO DEVICE:")
+		log.Info(decoded)
+		log.Info("END SEND")
 	}
 
 }
