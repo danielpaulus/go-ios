@@ -76,6 +76,7 @@ func (plistCodec *PlistCodec) Decode(r io.Reader) error {
 	if plistCodec.singleDecode {
 		select {
 		case <-plistCodec.stopSignal:
+			log.Info("Plist Codec stopping decoding")
 			return nil
 		case <-plistCodec.decodeSignal:
 		}

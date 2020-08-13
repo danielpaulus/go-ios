@@ -102,10 +102,11 @@ func (p *ProxyConnection) handleSSLUpgrade(startSessionMessage interface{}, plis
 		p.connListeningOnUnixSocket.StopReadingAfterNextMessage()
 		plistCodec.StopDecoding()
 		p.connListeningOnUnixSocket.Send(decoded)
-		p.connListeningOnUnixSocket.EnableSessionSsl(p.pairRecord)
+		p.connListeningOnUnixSocket.EnableSessionSslServerMode(p.pairRecord)
 		p.connectionToDevice.ResumeReading()
 		p.connListeningOnUnixSocket.ResumeReading()
 		go readOnDeviceConnectionAndForwardToUnixDomainConnection(p)
+		go readOnUnixDomainSocketAndForwardToDeviceLockdownSingleDecode(p, plistCodec)
 	} else {
 		log.Fatal("lockdown without ssl should not exist")
 	}
@@ -183,6 +184,7 @@ func readOnDeviceConnectionAndForwardToUnixDomainConnectionLockdown(p *ProxyConn
 
 		msg := <-p.deviceChannel
 		if p.WaitingForProtocolChange {
+			log.Info("stopping proxy reading loop for lockdown device connection")
 			return
 		}
 

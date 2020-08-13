@@ -142,10 +142,9 @@ func (muxConn MuxConnection) Decode(r io.Reader) error {
 		case <-muxConn.stopSignal:
 			return nil
 		case <-muxConn.decodeSignal:
-			log.Info("rcv decode")
+			log.Info("usbmux codec rcv decode")
 		}
 	}
-	log.Info("yub")
 
 	var muxHeader usbmuxHeader
 

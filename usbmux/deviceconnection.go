@@ -32,6 +32,7 @@ type DeviceConnectionInterface interface {
 	ResumeReadingWithNewCodec(codec Codec)
 	SetCodec(codec Codec)
 	EnableSessionSsl(pairRecord PairRecord)
+	EnableSessionSslServerMode(pairRecord PairRecord)
 	ResumeReading()
 }
 
@@ -195,6 +196,28 @@ func (conn *DeviceConnection) SendForSslUpgrade(lockDownConn *LockDownConnection
 	return response
 }
 
+func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
+	cert5, error5 := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
+	if error5 != nil {
+		log.Error("Error SSL:" + error5.Error())
+		return
+	}
+	conf := &tls.Config{
+		//We always trust whatever the phone sends, I do not see an issue here as probably
+		//nobody would build a fake iphone to hack this library.
+		InsecureSkipVerify: true,
+		Certificates:       []tls.Certificate{cert5},
+		ClientAuth:         tls.NoClientCert,
+	}
+	tlsConn := tls.Server(conn.c, conf)
+	err := tlsConn.Handshake()
+	if err != nil {
+		log.Info("Handshake error", err)
+	}
+	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
+	conn.c = net.Conn(tlsConn)
+}
+
 func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) {
 	cert5, error5 := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
 	if error5 != nil {
@@ -210,6 +233,10 @@ func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) {
 	}
 
 	tlsConn := tls.Client(conn.c, conf)
+	err := tlsConn.Handshake()
+	if err != nil {
+		log.Info("Handshake error", err)
+	}
 	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
 	conn.c = net.Conn(tlsConn)
 }

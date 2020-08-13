@@ -64,6 +64,7 @@ func (mock *DeviceConnectionMock) ResumeReading()
 func (mock *DeviceConnectionMock) Listen(activeCodec usbmux.Codec, c net.Conn) {}
 func (mock *DeviceConnectionMock) WaitForDisconnect() error
 func (conn *DeviceConnectionMock) EnableSessionSsl(pairRecord usbmux.PairRecord)
+func (conn *DeviceConnectionMock) EnableSessionSslServerMode(pairRecord usbmux.PairRecord)
 func (mock *DeviceConnectionMock) StopReadingAfterNextMessage()
 func (mock *DeviceConnectionMock) ResumeReadingWithNewCodec(codec usbmux.Codec)
 func (mock *DeviceConnectionMock) SetCodec(codec usbmux.Codec)
