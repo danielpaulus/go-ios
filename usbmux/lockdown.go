@@ -47,7 +47,7 @@ func (lockDownConn *LockDownConnection) ReadMessage() ([]byte, error) {
 	if err != nil {
 		return make([]byte, 0), err
 	}
-	return resp.([]byte), err
+	return resp, err
 }
 
 //GetValues retrieves a GetAllValuesResponse containing all values lockdown returns

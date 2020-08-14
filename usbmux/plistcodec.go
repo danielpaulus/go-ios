@@ -44,7 +44,7 @@ func (plistCodec *PlistCodec) Encode(message interface{}) ([]byte, error) {
 
 //Decode reads a Lockdown Message from the provided reader and
 //sends it to the ResponseChannel
-func (plistCodec *PlistCodec) Decode(r io.Reader) (interface{}, error) {
+func (plistCodec *PlistCodec) Decode(r io.Reader) ([]byte, error) {
 	if r == nil {
 		return nil, errors.New("Reader was nil")
 	}

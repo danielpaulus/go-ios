@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 
 	"os"
 	"os/signal"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/usbmux"
 
+	"github.com/danielpaulus/go-ios/usbmux/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/usbmux/syslog"
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
@@ -244,26 +247,29 @@ func printDeviceName(device usbmux.DeviceEntry) {
 }
 
 func saveScreenshot(device usbmux.DeviceEntry, outputPath string) {
-	/*	log.Debug("take screenshot")
-		screenshotrService, err := screenshotr.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
-		if err != nil {
-			log.Fatalf("Starting Screenshotr failed with: %s", err)
-		}
-		imageBytes := screenshotrService.TakeScreenshot()
-		if outputPath == "" {
-			time := time.Now().Format("20060102150405")
-			path, _ := filepath.Abs("./screenshot" + time + ".png")
-			outputPath = path
-		}
-		err = ioutil.WriteFile(outputPath, imageBytes, 0777)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if JSONdisabled {
-			println(outputPath)
-		} else {
-			log.WithFields(log.Fields{"outputPath": outputPath}).Info("File saved successfully")
-		}*/
+	log.Debug("take screenshot")
+	screenshotrService, err := screenshotr.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+	if err != nil {
+		log.Fatalf("Starting Screenshotr failed with: %s", err)
+	}
+	imageBytes, err := screenshotrService.TakeScreenshot()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if outputPath == "" {
+		time := time.Now().Format("20060102150405")
+		path, _ := filepath.Abs("./screenshot" + time + ".png")
+		outputPath = path
+	}
+	err = ioutil.WriteFile(outputPath, imageBytes, 0777)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if JSONdisabled {
+		println(outputPath)
+	} else {
+		log.WithFields(log.Fields{"outputPath": outputPath}).Info("File saved successfully")
+	}
 }
 
 func printDeviceList(details bool) {

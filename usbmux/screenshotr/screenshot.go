@@ -1,8 +1,8 @@
 package screenshotr
 
-/*
 import (
 	"errors"
+	"io"
 
 	"github.com/danielpaulus/go-ios/usbmux"
 )
@@ -29,19 +29,24 @@ func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, 
 	}
 
 	var screenShotrConn Connection
+	screenShotrConn.deviceConn = muxConn.Close()
 	screenShotrConn.plistCodec = usbmux.NewPlistCodec()
-	screenShotrConn.readVersion()
+	reader := screenShotrConn.deviceConn.Reader()
+	screenShotrConn.readVersion(reader)
 	bytes, err := screenShotrConn.plistCodec.Encode(newVersionExchangeRequest(screenShotrConn.version.major))
 	screenShotrConn.deviceConn.Send(bytes)
-	screenShotrConn.readExchangeResponse()
+	screenShotrConn.readExchangeResponse(reader)
 	return &screenShotrConn, nil
 }
 
-func (screenshotrConn *Connection) readExchangeResponse() error {
-	reader := screenshotrConn.deviceConn.Reader()
-	response, err := screenshotrConn.plistCodec.Decode(reader)
+func (screenShotrConn *Connection) readExchangeResponse(reader io.Reader) error {
 
-	response2 := getArrayFromBytes(response)
+	responseBytes, err := screenShotrConn.plistCodec.Decode(reader)
+	if err != nil {
+		return err
+	}
+
+	response := getArrayFromBytes(responseBytes)
 	readyMessage, ok := response[0].(string)
 	if !ok || readyMessage != "DLMessageDeviceReady" {
 		return errors.New("wrong message received")
@@ -49,21 +54,33 @@ func (screenshotrConn *Connection) readExchangeResponse() error {
 	return nil
 }
 
-func (screenShotrConn *Connection) readVersion() {
-	versionBytes := <-screenShotrConn.plistCodec.ResponseChannel
+func (screenShotrConn *Connection) readVersion(reader io.Reader) error {
+
+	versionBytes, err := screenShotrConn.plistCodec.Decode(reader)
+	if err != nil {
+		return err
+	}
 	screenShotrConn.version = getVersionfromBytes(versionBytes)
+	return nil
 }
 
-func (screenShotrConn *Connection) TakeScreenshot() []uint8 {
-	screenShotrConn.deviceConn.Send(newScreenShotRequest())
-	responseBytes := <-screenShotrConn.plistCodec.ResponseChannel
+func (screenShotrConn *Connection) TakeScreenshot() ([]uint8, error) {
+	reader := screenShotrConn.deviceConn.Reader()
+	bytes, err := screenShotrConn.plistCodec.Encode(newScreenShotRequest())
+	if err != nil {
+		return make([]uint8, 0), err
+	}
+	screenShotrConn.deviceConn.Send(bytes)
+	responseBytes, err := screenShotrConn.plistCodec.Decode(reader)
+	if err != nil {
+		return make([]uint8, 0), err
+	}
 	response := getArrayFromBytes(responseBytes)
 	responseMap := response[1].(map[string]interface{})
-	bytes := responseMap["ScreenShotData"].([]uint8)
-	return bytes
+	screenshotBytes := responseMap["ScreenShotData"].([]uint8)
+	return screenshotBytes, nil
 }
 
 func (screenShotrConn *Connection) Close() {
 	screenShotrConn.deviceConn.Close()
 }
-*/
