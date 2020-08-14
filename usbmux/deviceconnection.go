@@ -31,7 +31,7 @@ type DeviceConnectionInterface interface {
 	SendForSslUpgrade(lockDownConn *LockDownConnection, pairRecord PairRecord) StartSessionResponse
 	Send(message interface{})
 	Listen(activeCodec Codec, c net.Conn)
-	WaitForDisconnect() error
+
 	StopReadingAfterNextMessage()
 	ResumeReadingWithNewCodec(codec Codec)
 	SetCodec(codec Codec)
@@ -43,12 +43,11 @@ type DeviceConnectionInterface interface {
 //DeviceConnection wraps the net.Conn to the ios Device and has support for
 //switching Codecs and enabling SSL
 type DeviceConnection struct {
-	c                 net.Conn
-	activeCodec       Codec
-	stop              chan struct{}
-	disconnectChannel chan error
-	muxSocket         string
-	dumpFile          string
+	c           net.Conn
+	activeCodec Codec
+	stop        chan struct{}
+	muxSocket   string
+	dumpFile    string
 }
 
 func NewDeviceConnection(socketToConnectTo string) *DeviceConnection {
@@ -122,16 +121,9 @@ func reader(conn *DeviceConnection) {
 			if err != nil {
 				log.Info("Connection disconnected", err)
 				conn.activeCodec.Decode(nil)
-				conn.disconnectChannel <- err
 			}
 		}
 	}
-}
-
-//WaitForDisconnect blocks until the connection disconnects and returns the error that caused the disconnect
-func (conn *DeviceConnection) WaitForDisconnect() error {
-	reason := <-conn.disconnectChannel
-	return reason
 }
 
 //SendForProtocolUpgrade takes care of the complicated protocol upgrade process of iOS/Usbmux.
