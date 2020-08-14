@@ -1,5 +1,6 @@
 package usbmux_test
 
+/*
 import (
 	"github.com/danielpaulus/go-ios/usbmux"
 	"io"
@@ -53,3 +54,4 @@ func (codec *DummyCodec) Decode(r io.Reader) error {
 	codec.received <- buffer
 	return nil
 }
+*/

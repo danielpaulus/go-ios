@@ -73,9 +73,12 @@ func pairRecordfromBytes(plistBytes []byte) PairRecord {
 //It returns the deserialized PairRecord.
 func (muxConn *MuxConnection) ReadPair(udid string) PairRecord {
 	muxConn.Send(newReadPair(udid))
-	resp := <-muxConn.ResponseChannel
+	resp, err := muxConn.ReadMessage()
+	if err != nil {
+		log.Fatal("Error reading PairRecord", err)
+	}
 	log.Debugf("ReadPairResponse:")
-	pairRecordData := pairRecordDatafromBytes(resp)
+	pairRecordData := pairRecordDatafromBytes(resp.payload)
 	return pairRecordfromBytes(pairRecordData.PairRecordData)
 }
 

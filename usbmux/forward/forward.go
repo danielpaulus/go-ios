@@ -1,5 +1,6 @@
 package forward
 
+/*
 import (
 	"fmt"
 	"io"
@@ -104,3 +105,4 @@ func (proxyConn *iosproxy) Decode(r io.Reader) error {
 
 	return nil
 }
+*/

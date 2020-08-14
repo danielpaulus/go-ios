@@ -1,5 +1,6 @@
 package diagnostics
 
+/*
 import "github.com/danielpaulus/go-ios/usbmux"
 
 const serviceName = "com.apple.mobile.diagnostics_relay"
@@ -39,3 +40,4 @@ func (diagnosticsConn *Connection) Close() {
 	diagnosticsConn.muxConn.Close()
 
 }
+*/

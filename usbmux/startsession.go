@@ -43,7 +43,19 @@ func startSessionResponsefromBytes(plistBytes []byte) StartSessionResponse {
 //SSL on the underlying connection if necessary. The devices usually always requests to enable
 //SSL.
 //It returns a StartSessionResponse
-func (lockDownConn *LockDownConnection) StartSession(pairRecord PairRecord) StartSessionResponse {
-	deviceConnection := lockDownConn.deviceConnection
-	return deviceConnection.SendForSslUpgrade(lockDownConn, pairRecord)
+func (lockDownConn *LockDownConnection) StartSession(pairRecord PairRecord) (StartSessionResponse, error) {
+	lockDownConn.Send(newStartSessionRequest(pairRecord.HostID, pairRecord.SystemBUID))
+	resp, err := lockDownConn.ReadMessage()
+	if err != nil {
+		return StartSessionResponse{}, err
+	}
+	response := startSessionResponsefromBytes(resp)
+	lockDownConn.sessionID = response.SessionID
+	if response.EnableSessionSSL {
+		err = lockDownConn.deviceConnection.EnableSessionSsl(pairRecord)
+		if err != nil {
+			return StartSessionResponse{}, err
+		}
+	}
+	return response, nil
 }

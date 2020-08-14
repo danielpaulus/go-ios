@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+
 	"howett.net/plist"
 )
 
@@ -61,12 +62,20 @@ func NewListen() *ListenType {
 func (muxConn *MuxConnection) Listen() (func() (AttachedMessage, error), error) {
 	msg := NewListen()
 	muxConn.Send(msg)
-	response := <-muxConn.ResponseChannel
-	if !MuxResponsefromBytes(response).IsSuccessFull() {
-		return nil, errors.New("Listen command to usbmuxd failed:" + hex.Dump(response))
+	response, err := muxConn.ReadMessage()
+	if err != nil {
+		return nil, err
+	}
+	if !MuxResponsefromBytes(response.payload).IsSuccessFull() {
+		return nil, errors.New("Listen command to usbmuxd failed:" + hex.Dump(response.payload))
 	}
 
 	return func() (AttachedMessage, error) {
-		return attachedFromBytes(<-muxConn.ResponseChannel)
+		mux, err := muxConn.ReadMessage()
+		if err != nil {
+			return AttachedMessage{}, err
+		}
+		return attachedFromBytes(mux.payload)
 	}, nil
+
 }

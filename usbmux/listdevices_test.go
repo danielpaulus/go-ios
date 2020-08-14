@@ -1,5 +1,6 @@
 package usbmux_test
 
+/*
 import (
 	"github.com/danielpaulus/go-ios/usbmux"
 	"testing"
@@ -34,3 +35,4 @@ func TestListDevicesCommand(t *testing.T) {
 	receivedList := GenericMockUsbmuxdIntegrationTest(t, generified, usbmux.NewReadDevices(), list).(usbmux.DeviceList)
 	assert.Equal(t, entryOne.Properties.SerialNumber, receivedList.DeviceList[0].Properties.SerialNumber)
 }
+*/

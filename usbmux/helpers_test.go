@@ -1,5 +1,6 @@
 package usbmux_test
 
+/*
 import (
 	"io/ioutil"
 	"net"
@@ -127,3 +128,4 @@ func GenericMockUsbmuxdIntegrationTest(t *testing.T, commandToInvoke func() inte
 	log.Fatal("TestFailed")
 	return nil
 }
+*/

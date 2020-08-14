@@ -40,17 +40,20 @@ func getStartServiceResponsefromBytes(plistBytes []byte) *StartServiceResponse {
 //StartService sends a StartServiceRequest using the provided serviceName
 //and returns the Port of the services in a BigEndian Integer.
 //This port cann be used with a new UsbMuxClient and the Connect call.
-func (lockDownConn *LockDownConnection) StartService(serviceName string) *StartServiceResponse {
+func (lockDownConn *LockDownConnection) StartService(serviceName string) (*StartServiceResponse, error) {
 	lockDownConn.Send(newStartServiceRequest(serviceName))
-	resp := <-lockDownConn.ResponseChannel
+	resp, err := lockDownConn.ReadMessage()
+	if err != nil {
+		return &StartServiceResponse{}, err
+	}
 	response := getStartServiceResponsefromBytes(resp)
 	log.WithFields(log.Fields{"Port": response.Port, "Request": response.Request, "Service": response.Service, "EnableServiceSSL": response.EnableServiceSSL}).Debug("Service started on device")
-	return response
+	return response, nil
 }
 
 //StartService conveniently starts a service on a device and cleans up the used UsbMuxconnection.
 //It returns the service port as a uint16 in BigEndian byte order.
-func StartService(deviceID int, udid string, serviceName string) *StartServiceResponse {
+func StartService(deviceID int, udid string, serviceName string) (*StartServiceResponse, error) {
 	muxConnection := NewUsbMuxConnection()
 	defer muxConnection.Close()
 	pairRecord := muxConnection.ReadPair(udid)
@@ -59,7 +62,10 @@ func StartService(deviceID int, udid string, serviceName string) *StartServiceRe
 		log.Fatal(err)
 	}
 	lockdown.StartSession(pairRecord)
-	response := lockdown.StartService(serviceName)
+	response, err := lockdown.StartService(serviceName)
+	if err != nil {
+		return response, err
+	}
 	lockdown.StopSession()
-	return response
+	return response, nil
 }

@@ -2,6 +2,7 @@ package usbmux
 
 import (
 	"bytes"
+	"log"
 	"strings"
 
 	plist "howett.net/plist"
@@ -84,8 +85,11 @@ func NewReadDevices() *ReadDevicesType {
 func (muxConn *MuxConnection) ListDevices() DeviceList {
 	msg := NewReadDevices()
 	muxConn.Send(msg)
-	response := <-muxConn.ResponseChannel
-	return DeviceListfromBytes(response)
+	response, err := muxConn.ReadMessage()
+	if err != nil {
+		log.Fatal("Failed getting devicelist", err)
+	}
+	return DeviceListfromBytes(response.payload)
 }
 
 //ListDevices returns a DeviceList containing data about all

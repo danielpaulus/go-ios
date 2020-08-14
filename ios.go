@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
 
 	"os"
 	"os/signal"
@@ -13,9 +11,6 @@ import (
 
 	"github.com/danielpaulus/go-ios/usbmux"
 
-	"github.com/danielpaulus/go-ios/usbmux/diagnostics"
-	"github.com/danielpaulus/go-ios/usbmux/forward"
-	"github.com/danielpaulus/go-ios/usbmux/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/usbmux/syslog"
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
@@ -196,33 +191,33 @@ func printVersion() {
 }
 
 func startDebugProxy() {
-	proxy := usbmux.NewDebugProxy()
-	go func() {
-		err := proxy.Launch()
-		log.WithFields(log.Fields{"error": err}).Infof("DebugProxy Terminated abnormally")
-		os.Exit(0)
-	}()
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
-	log.Info("Shutting down debugproxy")
-	proxy.Close()
+	/*	proxy := usbmux.NewDebugProxy()
+		go func() {
+			err := proxy.Launch()
+			log.WithFields(log.Fields{"error": err}).Infof("DebugProxy Terminated abnormally")
+			os.Exit(0)
+		}()
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		<-c
+		log.Info("Shutting down debugproxy")
+		proxy.Close()*/
 }
 
 func startForwarding(device usbmux.DeviceEntry, hostPort int, targetPort int) {
-	forward.Forward(device, uint16(hostPort), uint16(targetPort))
+	/*forward.Forward(device, uint16(hostPort), uint16(targetPort))
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-	<-c
+	<-c*/
 }
 
 func printDiagnostics(device usbmux.DeviceEntry) {
-	log.Debug("print diagnostics")
-	diagnosticsService, err := diagnostics.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
-	if err != nil {
-		log.Fatalf("Starting diagnostics service failed with: %s", err)
-	}
-	fmt.Println(convertToJSONString(diagnosticsService.AllValues()))
+	/*	log.Debug("print diagnostics")
+		diagnosticsService, err := diagnostics.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+		if err != nil {
+			log.Fatalf("Starting diagnostics service failed with: %s", err)
+		}
+		fmt.Println(convertToJSONString(diagnosticsService.AllValues()))*/
 }
 
 func printDeviceDate(device usbmux.DeviceEntry) {
@@ -249,26 +244,26 @@ func printDeviceName(device usbmux.DeviceEntry) {
 }
 
 func saveScreenshot(device usbmux.DeviceEntry, outputPath string) {
-	log.Debug("take screenshot")
-	screenshotrService, err := screenshotr.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
-	if err != nil {
-		log.Fatalf("Starting Screenshotr failed with: %s", err)
-	}
-	imageBytes := screenshotrService.TakeScreenshot()
-	if outputPath == "" {
-		time := time.Now().Format("20060102150405")
-		path, _ := filepath.Abs("./screenshot" + time + ".png")
-		outputPath = path
-	}
-	err = ioutil.WriteFile(outputPath, imageBytes, 0777)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if JSONdisabled {
-		println(outputPath)
-	} else {
-		log.WithFields(log.Fields{"outputPath": outputPath}).Info("File saved successfully")
-	}
+	/*	log.Debug("take screenshot")
+		screenshotrService, err := screenshotr.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+		if err != nil {
+			log.Fatalf("Starting Screenshotr failed with: %s", err)
+		}
+		imageBytes := screenshotrService.TakeScreenshot()
+		if outputPath == "" {
+			time := time.Now().Format("20060102150405")
+			path, _ := filepath.Abs("./screenshot" + time + ".png")
+			outputPath = path
+		}
+		err = ioutil.WriteFile(outputPath, imageBytes, 0777)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if JSONdisabled {
+			println(outputPath)
+		} else {
+			log.WithFields(log.Fields{"outputPath": outputPath}).Info("File saved successfully")
+		}*/
 }
 
 func printDeviceList(details bool) {
@@ -394,7 +389,10 @@ func getValues(device usbmux.DeviceEntry) usbmux.GetAllValuesResponse {
 	}
 	lockdownConnection.StartSession(pairRecord)
 
-	allValues := lockdownConnection.GetValues()
+	allValues, err := lockdownConnection.GetValues()
+	if err != nil {
+		log.Fatal(err)
+	}
 	lockdownConnection.StopSession()
 	return allValues
 }

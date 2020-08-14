@@ -1,5 +1,6 @@
 package usbmux_test
 
+/*
 import (
 	"bytes"
 	"github.com/danielpaulus/go-ios/usbmux"
@@ -46,3 +47,4 @@ func TestPlistCodec(t *testing.T) {
 	}
 
 }
+*/

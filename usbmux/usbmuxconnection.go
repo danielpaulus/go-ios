@@ -3,6 +3,7 @@ package usbmux
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -19,12 +20,8 @@ var DefaultUsbmuxdSocket = "/var/run/usbmuxd"
 //receive the responses.
 type MuxConnection struct {
 	//tag will be incremented for every message, so responses can be correlated to requests
-	tag             uint32
-	deviceConn      DeviceConnectionInterface
-	ResponseChannel chan []byte
-	singleDecode    bool
-	decodeSignal    chan interface{}
-	stopSignal      chan interface{}
+	tag        uint32
+	deviceConn DeviceConnectionInterface
 }
 
 //NewUsbMuxConnection creates a new MuxConnection by connecting to the usbmuxd Socket.
@@ -34,43 +31,36 @@ func NewUsbMuxConnection() *MuxConnection {
 
 //NewUsbMuxConnectionToSocket creates a new MuxConnection by connecting to the specified usbmuxd Socket.
 func NewUsbMuxConnectionToSocket(socket string) *MuxConnection {
-	var conn MuxConnection
-	conn.tag = 0
-	conn.ResponseChannel = make(chan []byte)
-	conn.singleDecode = false
-	conn.deviceConn = NewDeviceConnection(socket)
-	conn.deviceConn.Connect(&conn)
-	return &conn
+	muxConnection := &MuxConnection{tag: 0, deviceConn: NewDeviceConnection(socket)}
+	muxConnection.deviceConn.Connect()
+	return muxConnection
 }
 
 //NewUsbMuxServerConnection creates a new MuxConnection in listening mode for proxy use.
 func NewUsbMuxServerConnection(c net.Conn) *MuxConnection {
-	var conn MuxConnection
-	conn.tag = 0
-	conn.singleDecode = true
-	conn.decodeSignal = make(chan interface{})
-	conn.stopSignal = make(chan interface{})
-	conn.ResponseChannel = make(chan []byte)
-	conn.deviceConn = NewDeviceConnection("")
-	conn.deviceConn.Listen(&conn, c)
-	return &conn
+	muxConnection := &MuxConnection{tag: 0, deviceConn: NewDeviceConnection("")}
+	muxConnection.deviceConn.Listen(c)
+	return muxConnection
 }
 
 // NewUsbMuxConnectionWithDeviceConnection creates a new MuxConnection with from an already initialized DeviceConnectionInterface
 // (only needed for testing)
 func NewUsbMuxConnectionWithDeviceConnection(deviceConn DeviceConnectionInterface) *MuxConnection {
-	var conn MuxConnection
-	conn.tag = 0
-	conn.singleDecode = false
-	conn.ResponseChannel = make(chan []byte)
-	deviceConn.Connect(&conn)
-	conn.deviceConn = deviceConn
-	return &conn
+	muxConn := &MuxConnection{tag: 0, deviceConn: deviceConn}
+	muxConn.deviceConn.Connect()
+	return muxConn
 }
 
-//Close closes the underlying socket connection.
-func (muxConn *MuxConnection) Close() {
-	muxConn.deviceConn.Close()
+//Close dereferences this MuxConn from the underlying DeviceConnections and it returns the DeviceConnection for later use.
+func (muxConn *MuxConnection) Close() DeviceConnectionInterface {
+	conn := muxConn.deviceConn
+	muxConn.deviceConn = nil
+	return conn
+}
+
+type MuxMessage struct {
+	header  usbmuxHeader
+	payload []byte
 }
 
 type usbmuxHeader struct {
@@ -102,7 +92,21 @@ func getHeader(length int, tag uint32) []byte {
 
 // Send sends and encodes a Plist using the usbmux Encoder
 func (muxConn *MuxConnection) Send(msg interface{}) {
-	muxConn.deviceConn.Send(msg)
+	bytes, err := muxConn.Encode(msg)
+	if err != nil {
+		log.Fatal("Error sending mux")
+	}
+	muxConn.deviceConn.Send(bytes)
+}
+
+//ReadMessage blocks until the next muxMessage is available on the underlying DeviceConnection and returns it.
+func (muxConn *MuxConnection) ReadMessage() (*MuxMessage, error) {
+	reader := muxConn.deviceConn.Reader()
+	msg, err := muxConn.Decode(reader)
+	if err != nil {
+		return &MuxMessage{}, err
+	}
+	return msg.(*MuxMessage), nil
 }
 
 //Encode serializes a MuxMessage struct to a Plist and returns the []byte of its
@@ -125,45 +129,26 @@ func (muxConn *MuxConnection) Encode(message interface{}) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (muxConn *MuxConnection) StartDecode() {
-	var i interface{}
-	muxConn.decodeSignal <- i
-}
-func (muxConn *MuxConnection) StopDecoding() {
-	var i interface{}
-	muxConn.stopSignal <- i
-}
-
 //Decode reads all bytes for the next MuxMessage from r io.Reader and
 //sends them to the ResponseChannel
-func (muxConn MuxConnection) Decode(r io.Reader) error {
+func (muxConn MuxConnection) Decode(r io.Reader) (interface{}, error) {
 	if r == nil {
-		muxConn.ResponseChannel <- nil
-		return nil
-	}
-	if muxConn.singleDecode {
-		select {
-		case <-muxConn.stopSignal:
-			return nil
-		case <-muxConn.decodeSignal:
-			log.Info("usbmux codec rcv decode")
-		}
+		return nil, errors.New("Reader was nil")
 	}
 
 	var muxHeader usbmuxHeader
 
 	err := binary.Read(r, binary.LittleEndian, &muxHeader)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	payloadBytes := make([]byte, muxHeader.Length-16)
 	n, err := io.ReadFull(r, payloadBytes)
 	if err != nil {
-		return fmt.Errorf("Error '%s' while reading usbmux package. Only %d bytes received instead of %d", err.Error(), n, muxHeader.Length-16)
+		return nil, fmt.Errorf("Error '%s' while reading usbmux package. Only %d bytes received instead of %d", err.Error(), n, muxHeader.Length-16)
 	}
 	log.Debug("UsbMux Receive on ", &muxConn.deviceConn)
 
-	muxConn.ResponseChannel <- payloadBytes
-	return nil
+	return &MuxMessage{muxHeader, payloadBytes}, nil
 }

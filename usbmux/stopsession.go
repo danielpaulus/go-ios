@@ -36,5 +36,6 @@ func stopSessionResponsefromBytes(plistBytes []byte) stopSessionResponse {
 func (lockDownConn *LockDownConnection) StopSession() {
 	lockDownConn.Send(newStopSessionRequest(lockDownConn.sessionID))
 	//this returns a stopSessionResponse which we currently do not care about
-	<-lockDownConn.ResponseChannel
+	lockDownConn.ReadMessage()
+
 }

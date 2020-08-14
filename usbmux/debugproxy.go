@@ -1,5 +1,6 @@
 package usbmux
 
+/*
 import (
 	"bytes"
 	"fmt"
@@ -383,3 +384,4 @@ func (d *DebugProxy) Close() {
 		log.WithFields(log.Fields{"error": err}).Error("Failed moving back socket")
 	}
 }
+*/

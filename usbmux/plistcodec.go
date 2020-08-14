@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -13,36 +14,11 @@ import (
 
 //PlistCodec is a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
 type PlistCodec struct {
-	ResponseChannel chan []byte
-	singleDecode    bool
-	decodeSignal    chan interface{}
-	stopSignal      chan interface{}
 }
 
 //NewPlistCodec create a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
-func NewPlistCodec(responseChannel chan []byte) *PlistCodec {
-	var codec PlistCodec
-	codec.ResponseChannel = responseChannel
-	codec.singleDecode = false
-	return &codec
-}
-
-func NewPlistCodecSingleDecode(responseChannel chan []byte) *PlistCodec {
-	var codec PlistCodec
-	codec.ResponseChannel = responseChannel
-	codec.decodeSignal = make(chan interface{})
-	codec.stopSignal = make(chan interface{})
-	codec.singleDecode = true
-	return &codec
-}
-
-func (plistCodec *PlistCodec) StartDecode() {
-	var i interface{}
-	plistCodec.decodeSignal <- i
-}
-func (plistCodec *PlistCodec) StopDecoding() {
-	var i interface{}
-	plistCodec.stopSignal <- i
+func NewPlistCodec() *PlistCodec {
+	return &PlistCodec{}
 }
 
 //Encode encodes a LockDown Struct to a byte[] with the lockdown plist format.
@@ -68,34 +44,26 @@ func (plistCodec *PlistCodec) Encode(message interface{}) ([]byte, error) {
 
 //Decode reads a Lockdown Message from the provided reader and
 //sends it to the ResponseChannel
-func (plistCodec *PlistCodec) Decode(r io.Reader) error {
+func (plistCodec *PlistCodec) Decode(r io.Reader) (interface{}, error) {
 	if r == nil {
-		plistCodec.ResponseChannel <- nil
-		return nil
+		return nil, errors.New("Reader was nil")
 	}
-	if plistCodec.singleDecode {
-		select {
-		case <-plistCodec.stopSignal:
-			log.Info("Plist Codec stopping decoding")
-			return nil
-		case <-plistCodec.decodeSignal:
-		}
-	}
+
 	buf := make([]byte, 4)
 
 	err := binary.Read(r, binary.BigEndian, buf)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	length := binary.BigEndian.Uint32(buf)
 	payloadBytes := make([]byte, length)
 	n, err := io.ReadFull(r, payloadBytes)
 	if err != nil {
-		return fmt.Errorf("lockdown Payload had incorrect size: %d original error: %s", n, err)
+		return nil, fmt.Errorf("lockdown Payload had incorrect size: %d original error: %s", n, err)
 	}
 	if log.IsLevelEnabled(log.TraceLevel) {
 		println(hex.Dump(payloadBytes))
 	}
-	plistCodec.ResponseChannel <- payloadBytes
-	return nil
+
+	return payloadBytes, nil
 }

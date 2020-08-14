@@ -1,5 +1,6 @@
 package usbmux_test
 
+/*
 import (
 	"io/ioutil"
 	"net"
@@ -83,3 +84,4 @@ func (mock *DeviceConnectionMock) Send(message interface{}) {}
 func (mock *DeviceConnectionMock) SendForSslUpgrade(lockDownConn *usbmux.LockDownConnection, pairRecord usbmux.PairRecord) usbmux.StartSessionResponse {
 	return usbmux.StartSessionResponse{}
 }
+*/

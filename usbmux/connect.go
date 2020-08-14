@@ -30,10 +30,14 @@ func newConnectMessage(deviceID int, portNumber int) *connectMessage {
 //Connect issues a Connect Message to UsbMuxd for the given deviceID on the given port
 //enabling the newCodec for it.
 //It returns an error containing the UsbMux error code should the connect fail.
-func (muxConn *MuxConnection) Connect(deviceID int, port uint16, newCodec Codec) error {
+func (muxConn *MuxConnection) Connect(deviceID int, port uint16) error {
 	msg := newConnectMessage(deviceID, int(ntohs(port)))
-	responseBytes := muxConn.deviceConn.SendForProtocolUpgrade(muxConn, msg, newCodec)
-	response := MuxResponsefromBytes(responseBytes)
+	muxConn.Send(msg)
+	resp, err := muxConn.ReadMessage()
+	if err != nil {
+		return err
+	}
+	response := MuxResponsefromBytes(resp.payload)
 	if response.IsSuccessFull() {
 		return nil
 	}
@@ -43,21 +47,20 @@ func (muxConn *MuxConnection) Connect(deviceID int, port uint16, newCodec Codec)
 //ConnectWithStartServiceResponse issues a Connect Message to UsbMuxd for the given deviceID on the given port
 //enabling the newCodec for it. It also enables SSL on the new service connection if requested by StartServiceResponse.
 //It returns an error containing the UsbMux error code should the connect fail.
-func (muxConn *MuxConnection) ConnectWithStartServiceResponse(deviceID int, startServiceResponse StartServiceResponse, newCodec Codec, pairRecord PairRecord) error {
-	msg := newConnectMessage(deviceID, int(ntohs(startServiceResponse.Port)))
+func (muxConn *MuxConnection) ConnectWithStartServiceResponse(deviceID int, startServiceResponse StartServiceResponse, pairRecord PairRecord) error {
+	err := muxConn.Connect(deviceID, startServiceResponse.Port)
+	if err != nil {
+		return err
+	}
 
-	var responseBytes []byte
 	if startServiceResponse.EnableServiceSSL {
-		responseBytes = muxConn.deviceConn.SendForProtocolUpgradeSSL(muxConn, msg, newCodec, pairRecord)
-	} else {
-		responseBytes = muxConn.deviceConn.SendForProtocolUpgrade(muxConn, msg, newCodec)
+		err = muxConn.deviceConn.EnableSessionSsl(pairRecord)
+		if err != nil {
+			return err
+		}
 	}
 
-	response := MuxResponsefromBytes(responseBytes)
-	if response.IsSuccessFull() {
-		return nil
-	}
-	return fmt.Errorf("Failed connecting to service, error code:%d", response.Number)
+	return nil
 }
 
 //ConnectLockdown connects this Usbmux connection to the LockDown service that
@@ -68,13 +71,15 @@ func (muxConn *MuxConnection) ConnectWithStartServiceResponse(deviceID int, star
 // It returns a new LockDownConnection.
 func (muxConn *MuxConnection) ConnectLockdown(deviceID int) (*LockDownConnection, error) {
 	msg := newConnectMessage(deviceID, lockdownport)
-	responseChannel := make(chan []byte)
-	lockdownConn := &LockDownConnection{muxConn.deviceConn, "", responseChannel, NewPlistCodec(responseChannel)}
-
-	responseBytes := muxConn.deviceConn.SendForProtocolUpgrade(muxConn, msg, lockdownConn.plistCodec)
-	response := MuxResponsefromBytes(responseBytes)
-	if response.IsSuccessFull() {
-		return lockdownConn, nil
+	muxConn.Send(msg)
+	resp, err := muxConn.ReadMessage()
+	if err != nil {
+		return &LockDownConnection{}, err
 	}
+	response := MuxResponsefromBytes(resp.payload)
+	if response.IsSuccessFull() {
+		return &LockDownConnection{muxConn.deviceConn, "", NewPlistCodec()}, nil
+	}
+
 	return nil, fmt.Errorf("Failed connecting to Lockdown with error code:%d", response.Number)
 }

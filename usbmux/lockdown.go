@@ -2,6 +2,7 @@ package usbmux
 
 import (
 	"bytes"
+	"log"
 
 	plist "howett.net/plist"
 )
@@ -13,7 +14,6 @@ const lockdownport int = 32498
 type LockDownConnection struct {
 	deviceConnection DeviceConnectionInterface
 	sessionID        string
-	ResponseChannel  chan []byte
 	plistCodec       *PlistCodec
 }
 
@@ -32,30 +32,48 @@ func newGetValue(key string) *getValue {
 	return data
 }
 
-//Send is a convenience method and simply forwards the message to lockDownConn.deviceConnection
+//Send takes a go struct, converts it to a PLIST and sends it with a 4 byte length field.
 func (lockDownConn LockDownConnection) Send(msg interface{}) {
-	lockDownConn.deviceConnection.Send(msg)
+	bytes, err := lockDownConn.plistCodec.Encode(msg)
+	if err != nil {
+		log.Fatal("failed lockdown send")
+	}
+	lockDownConn.deviceConnection.Send(bytes)
+}
+
+func (lockDownConn *LockDownConnection) ReadMessage() ([]byte, error) {
+	reader := lockDownConn.deviceConnection.Reader()
+	resp, err := lockDownConn.plistCodec.Decode(reader)
+	if err != nil {
+		return make([]byte, 0), err
+	}
+	return resp.([]byte), err
 }
 
 //GetValues retrieves a GetAllValuesResponse containing all values lockdown returns
-func (lockDownConn *LockDownConnection) GetValues() GetAllValuesResponse {
+func (lockDownConn *LockDownConnection) GetValues() (GetAllValuesResponse, error) {
 	lockDownConn.Send(newGetValue(""))
-	resp := <-lockDownConn.ResponseChannel
+	resp, err := lockDownConn.ReadMessage()
+
 	response := getAllValuesResponseFromBytes(resp)
-	return response
+	return response, err
 }
 
 //GetProductVersion returns the ProductVersion of the device f.ex. "10.3"
 func (lockDownConn *LockDownConnection) GetProductVersion() string {
-	return lockDownConn.GetValue("ProductVersion").(string)
+	msg, err := lockDownConn.GetValue("ProductVersion")
+	if err != nil {
+		log.Fatal("Failed getting ProductVersion", err)
+	}
+	return msg.(string)
 }
 
 //GetValue gets and returns the string value for the lockdown key
-func (lockDownConn *LockDownConnection) GetValue(key string) interface{} {
+func (lockDownConn *LockDownConnection) GetValue(key string) (interface{}, error) {
 	lockDownConn.Send(newGetValue(key))
-	resp := <-lockDownConn.ResponseChannel
+	resp, err := lockDownConn.ReadMessage()
 	response := getValueResponsefromBytes(resp)
-	return response.Value
+	return response.Value, err
 }
 
 //GetValueResponse contains the response for a GetValue Request

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"io"
+	"log"
 
 	"github.com/danielpaulus/go-ios/usbmux"
 )
@@ -12,7 +13,7 @@ const serviceName string = "com.apple.syslog_relay"
 
 //Connection exposes the LogReader channel which send the LogMessages as strings.
 type Connection struct {
-	muxConn        *usbmux.MuxConnection
+	deviceConn     usbmux.DeviceConnectionInterface
 	logReader      chan string
 	bufferedReader *bufio.Reader
 }
@@ -20,13 +21,19 @@ type Connection struct {
 //New returns a new SysLog Connection for the given DeviceID and Udid
 //It will create LogReader as a buffered Channel because Syslog is very verbose.
 func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, error) {
-	startServiceResponse := usbmux.StartService(deviceID, udid, serviceName)
-	var sysLogConn Connection
-	sysLogConn.muxConn = usbmux.NewUsbMuxConnection()
-	err := sysLogConn.muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, &sysLogConn, pairRecord)
+	startServiceResponse, err := usbmux.StartService(deviceID, udid, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}
+	var sysLogConn Connection
+
+	muxConn := usbmux.NewUsbMuxConnection()
+	err = muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, pairRecord)
+	if err != nil {
+		return &Connection{}, err
+	}
+	sysLogConn.deviceConn = muxConn.Close()
+
 	sysLogConn.logReader = make(chan string, 200)
 
 	return &sysLogConn, nil
@@ -35,7 +42,13 @@ func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, 
 //ReadLogMessage this is a blocking function that will return individual log messages received from syslog.
 //Call it in an endless for loop in a separate go routine.
 func (sysLogConn *Connection) ReadLogMessage() string {
-	return <-sysLogConn.logReader
+	reader := sysLogConn.deviceConn.Reader()
+	logmsg, err := sysLogConn.Decode(reader)
+	if err != nil {
+		log.Fatal(err)
+		return ""
+	}
+	return logmsg
 }
 
 //Encode returns only and error because syslog is read only.
@@ -47,24 +60,19 @@ func (sysLogConn *Connection) Encode(message interface{}) ([]byte, error) {
 //syslog is very verbose, so the decoder sends the decoded strings to a bufferedChannel
 //in a non blocking style.
 //Do not call this manually, it is used by the underlying DeviceConnection.
-func (sysLogConn *Connection) Decode(r io.Reader) error {
+func (sysLogConn *Connection) Decode(r io.Reader) (string, error) {
 	if sysLogConn.bufferedReader == nil {
 		sysLogConn.bufferedReader = bufio.NewReader(r)
 	}
 
 	stringmessage, err := sysLogConn.bufferedReader.ReadString(0)
 	if err != nil {
-		return err
+		return "", err
 	}
-	select {
-	case sysLogConn.logReader <- stringmessage:
-	default:
-
-	}
-	return nil
+	return stringmessage, nil
 }
 
 //Close closes the underlying UsbMuxConnection
 func (sysLogConn *Connection) Close() {
-	sysLogConn.muxConn.Close()
+	sysLogConn.deviceConn.Close()
 }
