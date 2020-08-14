@@ -2,8 +2,12 @@ package usbmux
 
 import (
 	"crypto/tls"
+	"encoding/hex"
+	"fmt"
 	"io"
 	"net"
+	"os"
+	"path"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
@@ -44,6 +48,7 @@ type DeviceConnection struct {
 	stop              chan struct{}
 	disconnectChannel chan error
 	muxSocket         string
+	dumpFile          string
 }
 
 func NewDeviceConnection(socketToConnectTo string) *DeviceConnection {
@@ -86,6 +91,14 @@ func (conn *DeviceConnection) Close() {
 //Send sends a message
 func (conn *DeviceConnection) Send(message interface{}) {
 	bytes, err := conn.activeCodec.Encode(message)
+
+	file, err := os.OpenFile(path.Join(".", fmt.Sprintf("conn-%p-out.bin", &conn.c)),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println(err)
+	}
+	file.Write([]byte(hex.Dump(bytes)))
+	file.Close()
 	if err != nil {
 		log.Errorf("Deviceconnection failed sending data %s", err)
 		conn.Close()
@@ -93,7 +106,8 @@ func (conn *DeviceConnection) Send(message interface{}) {
 	}
 	_, err = conn.c.Write(bytes)
 	if err != nil {
-		log.Fatalf("Failed sending: %s", err)
+		log.Errorf("Failed sending: %s", err)
+		conn.Close()
 	}
 }
 
@@ -106,7 +120,7 @@ func reader(conn *DeviceConnection) {
 			return
 		default:
 			if err != nil {
-				log.Info("Connection disconnected")
+				log.Info("Connection disconnected", err)
 				conn.activeCodec.Decode(nil)
 				conn.disconnectChannel <- err
 			}

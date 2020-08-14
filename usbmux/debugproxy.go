@@ -149,6 +149,7 @@ func (p *ProxyConnection) handleConnectToLockdown(connectMessage interface{}, u 
 	p.connectionToDevice.StopReadingAfterNextMessage()
 	p.connectionToDevice.Send(connectMessage)
 	response := <-p.deviceChannel
+	log.Info(string(response))
 	p.WaitingForProtocolChange = false
 	var decoded map[string]interface{}
 	decoder := plist.NewDecoder(bytes.NewReader(response))
@@ -175,6 +176,7 @@ func (p *ProxyConnection) handleSSLUpgrade(startSessionMessage interface{}, plis
 	p.connectionToDevice.StopReadingAfterNextMessage()
 	p.connectionToDevice.Send(startSessionMessage)
 	response := <-p.deviceChannel
+	log.Info(string(response))
 	p.WaitingForProtocolChange = false
 	var decoded map[string]interface{}
 	decoder := plist.NewDecoder(bytes.NewReader(response))
@@ -320,6 +322,7 @@ func readOnDeviceConnectionAndForwardToUnixDomainConnection(p *ProxyConnection) 
 			p.connListeningOnUnixSocket.Close()
 			return
 		}
+
 		var decoded map[string]interface{}
 		decoder := plist.NewDecoder(bytes.NewReader(msg))
 		err := decoder.Decode(&decoded)

@@ -9,6 +9,7 @@ import (
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
+	"howett.net/plist"
 )
 
 //DefaultUsbmuxdSocket this is the unix domain socket address to connect to. The default is "/var/run/usbmuxd"
@@ -108,13 +109,16 @@ func (muxConn *MuxConnection) Send(msg interface{}) {
 //string representation
 func (muxConn *MuxConnection) Encode(message interface{}) ([]byte, error) {
 	log.Debug("UsbMux send", reflect.TypeOf(message), " on ", &muxConn.deviceConn)
-	stringContent := ToPlist(message)
+	//stringContent := ToPlist(message)
+
 	var err error
+	mbytes, err := plist.MarshalIndent(message, plist.XMLFormat, " ")
+
 	var buffer bytes.Buffer
 
-	headerBytes := getHeader(len(stringContent), muxConn.tag)
+	headerBytes := getHeader(len(mbytes), muxConn.tag)
 	buffer.Write(headerBytes)
-	_, err = buffer.Write([]byte(stringContent))
+	_, err = buffer.Write(mbytes)
 	if err != nil {
 		return nil, err
 	}
@@ -159,6 +163,7 @@ func (muxConn MuxConnection) Decode(r io.Reader) error {
 		return fmt.Errorf("Error '%s' while reading usbmux package. Only %d bytes received instead of %d", err.Error(), n, muxHeader.Length-16)
 	}
 	log.Debug("UsbMux Receive on ", &muxConn.deviceConn)
+
 	muxConn.ResponseChannel <- payloadBytes
 	return nil
 }
