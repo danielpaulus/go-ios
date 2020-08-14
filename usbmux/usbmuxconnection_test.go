@@ -62,7 +62,7 @@ type DeviceConnectionMock struct {
 
 func (mock *DeviceConnectionMock) ResumeReading()
 func (mock *DeviceConnectionMock) Listen(activeCodec usbmux.Codec, c net.Conn) {}
-func (mock *DeviceConnectionMock) WaitForDisconnect() error
+
 func (conn *DeviceConnectionMock) EnableSessionSsl(pairRecord usbmux.PairRecord)
 func (conn *DeviceConnectionMock) EnableSessionSslServerMode(pairRecord usbmux.PairRecord)
 func (mock *DeviceConnectionMock) StopReadingAfterNextMessage()
