@@ -13,6 +13,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/usbmux"
 
+	"github.com/danielpaulus/go-ios/usbmux/diagnostics"
 	"github.com/danielpaulus/go-ios/usbmux/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/usbmux/syslog"
 	"github.com/docopt/docopt-go"
@@ -215,12 +216,16 @@ func startForwarding(device usbmux.DeviceEntry, hostPort int, targetPort int) {
 }
 
 func printDiagnostics(device usbmux.DeviceEntry) {
-	/*	log.Debug("print diagnostics")
-		diagnosticsService, err := diagnostics.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
-		if err != nil {
-			log.Fatalf("Starting diagnostics service failed with: %s", err)
-		}
-		fmt.Println(convertToJSONString(diagnosticsService.AllValues()))*/
+	log.Debug("print diagnostics")
+	diagnosticsService, err := diagnostics.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+	if err != nil {
+		log.Fatalf("Starting diagnostics service failed with: %s", err)
+	}
+	values, err := diagnosticsService.AllValues()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(convertToJSONString(values))
 }
 
 func printDeviceDate(device usbmux.DeviceEntry) {
