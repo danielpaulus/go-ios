@@ -31,13 +31,13 @@ func newConnectMessage(deviceID int, portNumber int) *connectMessage {
 //enabling the newCodec for it.
 //It returns an error containing the UsbMux error code should the connect fail.
 func (muxConn *MuxConnection) Connect(deviceID int, port uint16) error {
-	msg := newConnectMessage(deviceID, int(ntohs(port)))
+	msg := newConnectMessage(deviceID, int(Ntohs(port)))
 	muxConn.Send(msg)
 	resp, err := muxConn.ReadMessage()
 	if err != nil {
 		return err
 	}
-	response := MuxResponsefromBytes(resp.payload)
+	response := MuxResponsefromBytes(resp.Payload)
 	if response.IsSuccessFull() {
 		return nil
 	}
@@ -70,13 +70,13 @@ func (muxConn *MuxConnection) ConnectWithStartServiceResponse(deviceID int, star
 // network connection is used for talking to Lockdown. Sending usbmux commands would break it.
 // It returns a new LockDownConnection.
 func (muxConn *MuxConnection) ConnectLockdown(deviceID int) (*LockDownConnection, error) {
-	msg := newConnectMessage(deviceID, lockdownport)
+	msg := newConnectMessage(deviceID, Lockdownport)
 	muxConn.Send(msg)
 	resp, err := muxConn.ReadMessage()
 	if err != nil {
 		return &LockDownConnection{}, err
 	}
-	response := MuxResponsefromBytes(resp.payload)
+	response := MuxResponsefromBytes(resp.Payload)
 	if response.IsSuccessFull() {
 		return &LockDownConnection{muxConn.deviceConn, "", NewPlistCodec()}, nil
 	}

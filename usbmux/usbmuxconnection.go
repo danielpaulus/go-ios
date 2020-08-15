@@ -36,11 +36,9 @@ func NewUsbMuxConnectionToSocket(socket string) *MuxConnection {
 	return muxConnection
 }
 
-//NewUsbMuxServerConnection creates a new MuxConnection in listening mode for proxy use.
-func NewUsbMuxServerConnection(c net.Conn) *MuxConnection {
-	muxConnection := &MuxConnection{tag: 0, deviceConn: NewDeviceConnection("")}
-	muxConnection.deviceConn.Listen(c)
-	return muxConnection
+//NewUsbMuxConnectionWithConn creates a new MuxConnection in listening mode for proxy use.
+func NewUsbMuxConnectionWithConn(c net.Conn) *MuxConnection {
+	return &MuxConnection{tag: 0, deviceConn: NewDeviceConnectionWithConn(c)}
 }
 
 // NewUsbMuxConnectionWithDeviceConnection creates a new MuxConnection with from an already initialized DeviceConnectionInterface
@@ -59,19 +57,19 @@ func (muxConn *MuxConnection) Close() DeviceConnectionInterface {
 }
 
 type MuxMessage struct {
-	header  usbmuxHeader
-	payload []byte
+	Header  UsbmuxHeader
+	Payload []byte
 }
 
-type usbmuxHeader struct {
+type UsbmuxHeader struct {
 	Length  uint32
 	Version uint32
 	Request uint32
 	Tag     uint32
 }
 
-func newUsbmuxHeader(length uint32, tag uint32) *usbmuxHeader {
-	header := usbmuxHeader{}
+func newUsbmuxHeader(length uint32, tag uint32) *UsbmuxHeader {
+	header := UsbmuxHeader{}
 	header.Length = length
 	header.Version = 1
 	header.Request = 8
@@ -98,6 +96,15 @@ func (muxConn *MuxConnection) Send(msg interface{}) error {
 		return err
 	}
 	return muxConn.deviceConn.Send(bytes)
+}
+
+//SendMuxMessage serializes and sends a MuxMessage to the underlying DeviceConnection.
+func (muxConn *MuxConnection) SendMuxMessage(msg MuxMessage) error {
+	err := binary.Write(muxConn.deviceConn.Writer(), binary.LittleEndian, msg.Header)
+	if err != nil {
+		return err
+	}
+	return muxConn.deviceConn.Send(msg.Payload)
 }
 
 //ReadMessage blocks until the next muxMessage is available on the underlying DeviceConnection and returns it.
@@ -137,7 +144,7 @@ func (muxConn MuxConnection) Decode(r io.Reader) (*MuxMessage, error) {
 		return nil, errors.New("Reader was nil")
 	}
 
-	var muxHeader usbmuxHeader
+	var muxHeader UsbmuxHeader
 
 	err := binary.Read(r, binary.LittleEndian, &muxHeader)
 	if err != nil {

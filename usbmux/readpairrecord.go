@@ -78,7 +78,7 @@ func (muxConn *MuxConnection) ReadPair(udid string) PairRecord {
 		log.Fatal("Error reading PairRecord", err)
 	}
 	log.Debugf("ReadPairResponse:")
-	pairRecordData := pairRecordDatafromBytes(resp.payload)
+	pairRecordData := pairRecordDatafromBytes(resp.Payload)
 	return pairRecordfromBytes(pairRecordData.PairRecordData)
 }
 

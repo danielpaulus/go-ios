@@ -66,8 +66,8 @@ func (muxConn *MuxConnection) Listen() (func() (AttachedMessage, error), error) 
 	if err != nil {
 		return nil, err
 	}
-	if !MuxResponsefromBytes(response.payload).IsSuccessFull() {
-		return nil, errors.New("Listen command to usbmuxd failed:" + hex.Dump(response.payload))
+	if !MuxResponsefromBytes(response.Payload).IsSuccessFull() {
+		return nil, errors.New("Listen command to usbmuxd failed:" + hex.Dump(response.Payload))
 	}
 
 	return func() (AttachedMessage, error) {
@@ -75,7 +75,7 @@ func (muxConn *MuxConnection) Listen() (func() (AttachedMessage, error), error) 
 		if err != nil {
 			return AttachedMessage{}, err
 		}
-		return attachedFromBytes(mux.payload)
+		return attachedFromBytes(mux.Payload)
 	}, nil
 
 }

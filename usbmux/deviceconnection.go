@@ -14,7 +14,6 @@ type DeviceConnectionInterface interface {
 	ConnectToSocketAddress(socketAddress string)
 	Close()
 	Send(message []byte) error
-	Listen(c net.Conn)
 	Reader() io.Reader
 	Writer() io.Writer
 	EnableSessionSsl(pairRecord PairRecord) error
@@ -33,13 +32,13 @@ func NewDeviceConnection(socketToConnectTo string) *DeviceConnection {
 	return &DeviceConnection{muxSocket: socketToConnectTo}
 }
 
+func NewDeviceConnectionWithConn(conn net.Conn) *DeviceConnection {
+	return &DeviceConnection{muxSocket: "", c: conn}
+}
+
 //Connect connects to the USB multiplexer daemon using  the default address: '/var/run/usbmuxd'
 func (conn *DeviceConnection) Connect() {
 	conn.ConnectToSocketAddress(conn.muxSocket)
-}
-
-func (conn *DeviceConnection) Listen(c net.Conn) {
-	conn.c = c
 }
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres

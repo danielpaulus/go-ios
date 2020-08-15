@@ -89,7 +89,7 @@ func (muxConn *MuxConnection) ListDevices() DeviceList {
 	if err != nil {
 		log.Fatal("Failed getting devicelist", err)
 	}
-	return DeviceListfromBytes(response.payload)
+	return DeviceListfromBytes(response.Payload)
 }
 
 //ListDevices returns a DeviceList containing data about all

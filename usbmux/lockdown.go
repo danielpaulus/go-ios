@@ -7,7 +7,7 @@ import (
 	plist "howett.net/plist"
 )
 
-const lockdownport int = 32498
+const Lockdownport int = 32498
 
 //LockDownConnection allows you to interact with the Lockdown service on the phone.
 //The UsbMuxConnection used to create this LockDownConnection cannot be used anymore.
