@@ -106,7 +106,7 @@ func (muxConn *MuxConnection) ReadMessage() (*MuxMessage, error) {
 	if err != nil {
 		return &MuxMessage{}, err
 	}
-	return msg.(*MuxMessage), nil
+	return msg, nil
 }
 
 //Encode serializes a MuxMessage struct to a Plist and returns the []byte of its
@@ -131,7 +131,7 @@ func (muxConn *MuxConnection) Encode(message interface{}) ([]byte, error) {
 
 //Decode reads all bytes for the next MuxMessage from r io.Reader and
 //sends them to the ResponseChannel
-func (muxConn MuxConnection) Decode(r io.Reader) (interface{}, error) {
+func (muxConn MuxConnection) Decode(r io.Reader) (*MuxMessage, error) {
 	if r == nil {
 		return nil, errors.New("Reader was nil")
 	}

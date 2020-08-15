@@ -25,11 +25,10 @@ type DeviceConnectionInterface interface {
 //switching Codecs and enabling SSL
 type DeviceConnection struct {
 	c         net.Conn
-	stop      chan struct{}
 	muxSocket string
-	dumpFile  string
 }
 
+//NewDeviceConnection creates a new DeviceConnection pointing to the given socket waiting for a call to Connect()
 func NewDeviceConnection(socketToConnectTo string) *DeviceConnection {
 	return &DeviceConnection{muxSocket: socketToConnectTo}
 }
@@ -40,9 +39,7 @@ func (conn *DeviceConnection) Connect() {
 }
 
 func (conn *DeviceConnection) Listen(c net.Conn) {
-	conn.stop = make(chan struct{})
 	conn.c = c
-
 }
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
@@ -52,7 +49,6 @@ func (conn *DeviceConnection) ConnectToSocketAddress(socketAddress string) {
 		log.Fatal("Could not connect to usbmuxd socket, is it running?", err)
 	}
 	log.Debug("Opening connection:", &c)
-	conn.stop = make(chan struct{})
 	conn.c = c
 
 }
@@ -60,8 +56,6 @@ func (conn *DeviceConnection) ConnectToSocketAddress(socketAddress string) {
 //Close closes the network connection
 func (conn *DeviceConnection) Close() {
 	log.Debug("Closing connection:", &conn.c)
-	var sig struct{}
-	go func() { conn.stop <- sig }()
 	conn.c.Close()
 }
 
@@ -84,6 +78,7 @@ func (conn *DeviceConnection) Writer() io.Writer {
 	return conn.c
 }
 
+//EnableSessionSslServerMode wraps the underlying net.Conn in a server tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
 	cert5, error5 := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
 	if error5 != nil {
@@ -106,6 +101,7 @@ func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) 
 	conn.c = net.Conn(tlsConn)
 }
 
+//EnableSessionSsl wraps the underlying net.Conn in a client tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	cert5, error5 := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
 	if error5 != nil {
