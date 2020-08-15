@@ -16,6 +16,7 @@ type DeviceConnectionInterface interface {
 	Send(message []byte)
 	Listen(c net.Conn)
 	Reader() io.Reader
+	Writer() io.Writer
 	EnableSessionSsl(pairRecord PairRecord) error
 	EnableSessionSslServerMode(pairRecord PairRecord)
 }
@@ -75,6 +76,11 @@ func (conn *DeviceConnection) Send(bytes []byte) {
 
 //Reader exposes the underlying net.Conn as io.Reader
 func (conn *DeviceConnection) Reader() io.Reader {
+	return conn.c
+}
+
+//Writer exposes the underlying net.Conn as io.Writer
+func (conn *DeviceConnection) Writer() io.Writer {
 	return conn.c
 }
 

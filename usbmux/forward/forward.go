@@ -1,6 +1,5 @@
 package forward
 
-/*
 import (
 	"fmt"
 	"io"
@@ -11,9 +10,8 @@ import (
 )
 
 type iosproxy struct {
-	tcpWriter net.Conn
-
-	readBuffer []byte
+	tcpConn    net.Conn
+	deviceConn usbmux.DeviceConnectionInterface
 }
 
 //Forward forwards every connection made to the hostPort to whatever service runs inside an app on the device on phonePort.
@@ -35,7 +33,7 @@ func connectionAccept(l net.Listener, deviceID int, phonePort uint16) {
 	for {
 		clientConn, err := l.Accept()
 		if err != nil {
-			log.Fatal("Error accepting new connections.")
+			log.Fatal("Error accepting new connection")
 		}
 		log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn)}).Info("new client connected")
 		go startNewProxyConnection(clientConn, deviceID, phonePort)
@@ -44,65 +42,24 @@ func connectionAccept(l net.Listener, deviceID int, phonePort uint16) {
 
 func startNewProxyConnection(clientConn net.Conn, deviceID int, phonePort uint16) {
 	usbmuxConn := usbmux.NewUsbMuxConnection()
-	//defer usbmuxConn.Close()
-	var proxyConnection iosproxy
-
-	buf := make([]byte, 4096)
-	proxyConnection.readBuffer = buf
-
-	proxyConnection.tcpWriter = clientConn
-	muxError := usbmuxConn.Connect(deviceID, phonePort, &proxyConnection)
+	muxError := usbmuxConn.Connect(deviceID, phonePort)
 	if muxError != nil {
 		log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn), "err": muxError, "phonePort": phonePort}).Infof("could not connect to phone")
 		clientConn.Close()
 		return
 	}
 	log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn), "phonePort": phonePort}).Infof("Connected to port")
+	deviceConn := usbmuxConn.Close()
 
-	tcpbuf := make([]byte, 4096)
-
+	//proxyConn := iosproxy{clientConn, deviceConn}
 	go func() {
-		for {
-			n, err := clientConn.Read(tcpbuf)
-			if err != nil {
-				log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn)}).Info("Read Error, closing")
-				clientConn.Close()
-				return
-			}
-			usbmuxConn.Send(tcpbuf[:n])
-		}
+		io.Copy(clientConn, deviceConn.Reader())
+	}()
+	go func() {
+		io.Copy(deviceConn.Writer(), clientConn)
 	}()
 }
 
 func (proxyConn *iosproxy) Close() {
-
+	proxyConn.tcpConn.Close()
 }
-
-func (proxyConn *iosproxy) Encode(message interface{}) ([]byte, error) {
-	return message.([]byte), nil
-}
-func (proxyConn *iosproxy) Decode(r io.Reader) error {
-	tcpbuf := make([]byte, 4096)
-	readBytes, err := r.Read(tcpbuf)
-
-	if err != nil {
-		log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", proxyConn.tcpWriter), "err": err}).Info("failed reading from device, closing client")
-		proxyConn.tcpWriter.Close()
-		return err
-	}
-	bytesToSend := tcpbuf[:readBytes]
-	remainingBytes := readBytes
-	for remainingBytes > 0 {
-		sentBytes, writerErr := proxyConn.tcpWriter.Write(bytesToSend)
-		if writerErr != nil {
-			log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", proxyConn.tcpWriter), "err": writerErr}).Info("failed writing to host tcp connection, closing client")
-			proxyConn.tcpWriter.Close()
-			return writerErr
-		}
-		remainingBytes -= sentBytes
-		bytesToSend = bytesToSend[sentBytes:]
-	}
-
-	return nil
-}
-*/
