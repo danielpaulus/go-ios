@@ -2,8 +2,8 @@ package usbmux
 
 import (
 	"bytes"
-	"log"
 
+	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
 
@@ -33,14 +33,17 @@ func newGetValue(key string) *getValue {
 }
 
 //Send takes a go struct, converts it to a PLIST and sends it with a 4 byte length field.
-func (lockDownConn LockDownConnection) Send(msg interface{}) {
+func (lockDownConn LockDownConnection) Send(msg interface{}) error {
 	bytes, err := lockDownConn.plistCodec.Encode(msg)
 	if err != nil {
-		log.Fatal("failed lockdown send")
+		log.Error("failed lockdown send")
+		return err
 	}
-	lockDownConn.deviceConnection.Send(bytes)
+	return lockDownConn.deviceConnection.Send(bytes)
 }
 
+//ReadMessage grabs the next LockDown Message using the PlistDecoder from the underlying
+//DeviceConnection and returns the Plist as a byte slice.
 func (lockDownConn *LockDownConnection) ReadMessage() ([]byte, error) {
 	reader := lockDownConn.deviceConnection.Reader()
 	resp, err := lockDownConn.plistCodec.Decode(reader)

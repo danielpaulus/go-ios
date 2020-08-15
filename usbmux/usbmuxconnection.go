@@ -91,12 +91,13 @@ func getHeader(length int, tag uint32) []byte {
 }
 
 // Send sends and encodes a Plist using the usbmux Encoder
-func (muxConn *MuxConnection) Send(msg interface{}) {
+func (muxConn *MuxConnection) Send(msg interface{}) error {
 	bytes, err := muxConn.Encode(msg)
 	if err != nil {
-		log.Fatal("Error sending mux")
+		log.Error("Error sending mux")
+		return err
 	}
-	muxConn.deviceConn.Send(bytes)
+	return muxConn.deviceConn.Send(bytes)
 }
 
 //ReadMessage blocks until the next muxMessage is available on the underlying DeviceConnection and returns it.

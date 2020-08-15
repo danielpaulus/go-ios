@@ -13,7 +13,7 @@ type DeviceConnectionInterface interface {
 	Connect()
 	ConnectToSocketAddress(socketAddress string)
 	Close()
-	Send(message []byte)
+	Send(message []byte) error
 	Listen(c net.Conn)
 	Reader() io.Reader
 	Writer() io.Writer
@@ -60,12 +60,14 @@ func (conn *DeviceConnection) Close() {
 }
 
 //Send sends a message
-func (conn *DeviceConnection) Send(bytes []byte) {
+func (conn *DeviceConnection) Send(bytes []byte) error {
 	_, err := conn.c.Write(bytes)
 	if err != nil {
 		log.Errorf("Failed sending: %s", err)
 		conn.Close()
+		return err
 	}
+	return nil
 }
 
 //Reader exposes the underlying net.Conn as io.Reader
