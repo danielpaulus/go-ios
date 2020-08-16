@@ -32,6 +32,26 @@ func newGetValue(key string) *getValue {
 	return data
 }
 
+//NewLockDownConnection creates a new LockDownConnection with empty sessionId and a PlistCodec.
+func NewLockDownConnection(dev DeviceConnectionInterface) *LockDownConnection {
+	return &LockDownConnection{dev, "", NewPlistCodec()}
+}
+
+//Close dereferences this LockDownConnection from the underlying DeviceConnection and it returns the DeviceConnection for later use.
+func (lockDownConn *LockDownConnection) Close() DeviceConnectionInterface {
+	conn := lockDownConn.deviceConnection
+	lockDownConn.deviceConnection = nil
+	return conn
+}
+
+func (lockDownConn LockDownConnection) EnableSessionSsl(pairRecord PairRecord) error {
+	return lockDownConn.deviceConnection.EnableSessionSsl(pairRecord)
+}
+func (lockDownConn LockDownConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
+	lockDownConn.deviceConnection.EnableSessionSslServerMode(pairRecord)
+
+}
+
 //Send takes a go struct, converts it to a PLIST and sends it with a 4 byte length field.
 func (lockDownConn LockDownConnection) Send(msg interface{}) error {
 	bytes, err := lockDownConn.plistCodec.Encode(msg)
