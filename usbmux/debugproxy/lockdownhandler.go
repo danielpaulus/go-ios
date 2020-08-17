@@ -46,5 +46,16 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *usbmux.Lo
 			lockdownToDevice.EnableSessionSsl(p.pairRecord)
 			lockdownOnUnixSocket.EnableSessionSslServerMode(p.pairRecord)
 		}
+		if decodedResponse["Request"] == "StartService" {
+
+			info := PhoneServiceInformation{
+				ServicePort: uint16(decodedResponse["Port"].(uint64)),
+				ServiceName: decodedResponse["Service"].(string),
+				UseSSL:      decodedResponse["EnableServiceSSL"].(bool)}
+
+			log.Info("Detected Service Start", (info))
+			p.debugProxy.storeServiceInformation(info)
+
+		}
 	}
 }

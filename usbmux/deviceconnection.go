@@ -81,6 +81,9 @@ func (conn *DeviceConnection) Writer() io.Writer {
 
 //EnableSessionSslServerMode wraps the underlying net.Conn in a server tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
+	//we can just use the hostcert and key here, normally the device has its own pair of cert and key
+	//but we do not know the device private key. funny enough, host has been signed by the same root cert
+	//so it will be accepted by clients
 	cert5, error5 := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
 	if error5 != nil {
 		log.Error("Error SSL:" + error5.Error())
