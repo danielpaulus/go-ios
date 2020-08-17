@@ -42,10 +42,19 @@ type PairRecordData struct {
 //and the HostPrivateKey []byte.
 //It is needed for enabling SSL Connections over Lockdown
 type PairRecord struct {
-	HostID          string
-	SystemBUID      string
-	HostCertificate []byte
-	HostPrivateKey  []byte
+	HostID            string
+	SystemBUID        string
+	HostCertificate   []byte
+	HostPrivateKey    []byte
+	DeviceCertificate []byte
+	EscrowBag         []byte
+	WiFiMACAddress    string
+	RootCertificate   []byte
+	RootPrivateKey    []byte
+}
+
+func (p PairRecord) String() string {
+	return ""
 }
 
 func pairRecordDatafromBytes(plistBytes []byte) PairRecordData {
@@ -62,7 +71,7 @@ func pairRecordDatafromBytes(plistBytes []byte) PairRecordData {
 	return data
 }
 
-func pairRecordfromBytes(plistBytes []byte) PairRecord {
+func PairRecordfromBytes(plistBytes []byte) PairRecord {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var data PairRecord
 	_ = decoder.Decode(&data)
@@ -79,7 +88,7 @@ func (muxConn *MuxConnection) ReadPair(udid string) PairRecord {
 	}
 	log.Debugf("ReadPairResponse:")
 	pairRecordData := pairRecordDatafromBytes(resp.Payload)
-	return pairRecordfromBytes(pairRecordData.PairRecordData)
+	return PairRecordfromBytes(pairRecordData.PairRecordData)
 }
 
 //ReadPairRecord creates a new USBMuxConnection just to read the pair record and closes it right after than.

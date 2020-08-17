@@ -32,6 +32,11 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnec
 		}
 
 		err = muxToDevice.SendMuxMessage(*request)
+
+		if decodedRequest["MessageType"] == "ReadPairRecord" {
+			handleReadPairRecord(p, muxOnUnixSocket, muxToDevice)
+			continue
+		}
 		if err != nil {
 			log.Fatal("Failed forwarding message to device", request)
 		}
@@ -52,9 +57,37 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnec
 	}
 }
 
+func handleReadPairRecord(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
+	response, err := muxToDevice.ReadMessage()
+	var decodedResponse map[string]interface{}
+	decoder := plist.NewDecoder(bytes.NewReader(response.Payload))
+	err = decoder.Decode(&decodedResponse)
+	if err != nil {
+		log.Info("Failed decoding MuxMessage", decodedResponse, err)
+	}
+	pairRecord := usbmux.PairRecordfromBytes(decodedResponse["PairRecordData"].([]byte))
+	pairRecord.DeviceCertificate = pairRecord.HostCertificate
+	decodedResponse["PairRecordData"] = []byte(usbmux.ToPlist(pairRecord))
+	newPayload := []byte(usbmux.ToPlist(decodedResponse))
+	response.Payload = newPayload
+	response.Header.Length = uint32(len(newPayload) + 16)
+	log.WithFields(log.Fields{"ID": p.id, "direction": "device->host"}).Info(decodedResponse)
+	err = muxOnUnixSocket.SendMuxMessage(*response)
+}
+
 func handleConnect(connectRequest *usbmux.MuxMessage, decodedConnectRequest map[string]interface{}, p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
 	log.Info("Detected Connect Message")
-	port := decodedConnectRequest["PortNumber"].(uint64)
+
+	var port int
+	portFromPlist := decodedConnectRequest["PortNumber"]
+	switch portFromPlist.(type) {
+	case uint64:
+		port = int(portFromPlist.(uint64))
+
+	case int64:
+		port = int(portFromPlist.(int64))
+	}
+
 	if int(port) == usbmux.Lockdownport {
 		log.Info("Upgrading to Lockdown")
 		handleConnectToLockdown(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice)

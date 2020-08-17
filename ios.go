@@ -47,6 +47,7 @@ Usage:
   ios pair [options]
   ios forward [options] <hostPort> <targetPort>
   ios dproxy
+  ios readpair
   ios -h | --help
   ios --version | version [options]
 
@@ -73,6 +74,7 @@ The commands work as following:
    ios pair [options]                                 Pairs the device and potentially triggers the pairing dialog
    ios forward [options] <hostPort> <targetPort>      Similar to iproxy, forward a TCP connection to the device.
    ios dproxy                                         Starts the reverse engineering proxy server. Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist" to stop usbmuxd and load to start it again should the proxy mess up things.
+   ios readpair                                       Dump detailed information about the pairrecord for a device.
    ios -h | --help                                    Prints this screen.
    ios --version | version [options]                  Prints the version
 
@@ -173,6 +175,12 @@ The commands work as following:
 	b, _ = arguments.Bool("pair")
 	if b {
 		pairDevice(device)
+		return
+	}
+
+	b, _ = arguments.Bool("readpair")
+	if b {
+		readPair(device)
 		return
 	}
 
@@ -419,6 +427,11 @@ func pairDevice(device usbmux.DeviceEntry) {
 	// 	fmt.Printf("Paired %s", device.Properties.SerialNumber)
 	// }
 
+}
+
+func readPair(device usbmux.DeviceEntry) {
+	record := usbmux.ReadPairRecord(device.Properties.SerialNumber)
+	log.Info(record.String())
 }
 
 func convertToJSONString(data interface{}) string {
