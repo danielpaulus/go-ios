@@ -24,7 +24,7 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnec
 		if err != nil {
 			log.Info("Failed decoding MuxMessage", request, err)
 		}
-		p.logJSONMessageFromDevice(map[string]interface{}{"header": request.Header, "payload": decodedRequest, "type": "USBMUX"})
+		p.logJSONMessageToDevice(map[string]interface{}{"header": request.Header, "payload": decodedRequest, "type": "USBMUX"})
 
 		log.WithFields(log.Fields{"ID": p.id, "direction": "host->device"}).Trace(decodedRequest)
 		if decodedRequest["MessageType"] == "Connect" {
@@ -53,7 +53,7 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnec
 		if err != nil {
 			log.Info("Failed decoding MuxMessage", decodedResponse, err)
 		}
-		p.logJSONMessageToDevice(map[string]interface{}{"header": request.Header, "payload": decodedRequest, "type": "USBMUX"})
+		p.logJSONMessageFromDevice(map[string]interface{}{"header": response.Header, "payload": decodedResponse, "type": "USBMUX"})
 		log.WithFields(log.Fields{"ID": p.id, "direction": "device->host"}).Trace(decodedResponse)
 		err = muxOnUnixSocket.SendMuxMessage(*response)
 	}
@@ -73,7 +73,8 @@ func handleReadPairRecord(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnect
 	newPayload := []byte(usbmux.ToPlist(decodedResponse))
 	response.Payload = newPayload
 	response.Header.Length = uint32(len(newPayload) + 16)
-	log.WithFields(log.Fields{"ID": p.id, "direction": "device->host"}).Info(decodedResponse)
+	p.logJSONMessageFromDevice(map[string]interface{}{"header": response.Header, "payload": decodedResponse, "type": "USBMUX"})
+	log.WithFields(log.Fields{"ID": p.id, "direction": "device->host"}).Trace(decodedResponse)
 	err = muxOnUnixSocket.SendMuxMessage(*response)
 }
 
@@ -126,7 +127,8 @@ func handleListen(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, mux
 		if err != nil {
 			log.Info("Failed decoding MuxMessage", decodedResponse, err)
 		}
-		log.WithFields(log.Fields{"ID": p.id, "direction": "device->host"}).Info(decodedResponse)
+		p.logJSONMessageFromDevice(map[string]interface{}{"header": response.Header, "payload": decodedResponse, "type": "USBMUX"})
+		log.WithFields(log.Fields{"ID": p.id, "direction": "device->host"}).Trace(decodedResponse)
 		err = muxOnUnixSocket.SendMuxMessage(*response)
 	}
 }
