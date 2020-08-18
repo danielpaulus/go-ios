@@ -97,7 +97,7 @@ func handleConnect(connectRequest *usbmux.MuxMessage, decodedConnectRequest map[
 			log.Fatal("ServiceInfo for port not found, this is a bug :-)")
 		}
 		log.Info("Connection to service detected", info)
-		handleConnectToService(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice)
+		handleConnectToService(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice, info)
 	}
 }
 
@@ -112,9 +112,6 @@ func handleConnectToLockdown(connectRequest *usbmux.MuxMessage, decodedConnectRe
 	lockdownToDevice := usbmux.NewLockDownConnection(muxToDevice.Close())
 	lockdownOnUnixSocket := usbmux.NewLockDownConnection(muxOnUnixSocket.Close())
 	proxyLockDownConnection(p, lockdownOnUnixSocket, lockdownToDevice)
-}
-func handleConnectToService(connectRequest *usbmux.MuxMessage, decodedConnectRequest map[string]interface{}, p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
-
 }
 
 func handleListen(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
