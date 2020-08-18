@@ -61,7 +61,8 @@ func proxyBinDumpConnection(p *ProxyConnection, binOnUnixSocket BinDumpCodec, bi
 			log.Info("Failed reading bytes", err)
 			return
 		}
-		log.WithFields(log.Fields{"ID": p.id, "direction": "host2device"}).Info(hex.Dump(bytes))
+		log.WithFields(log.Fields{"ID": p.id, "direction": "host2device"}).Trace(hex.Dump(bytes))
+		p.logBinaryMessageToDevice(bytes)
 		binToDevice.Send(bytes)
 
 	}
@@ -77,7 +78,8 @@ func proxyBinFromDeviceToHost(p *ProxyConnection, binOnUnixSocket BinDumpCodec, 
 			log.Info("Failed reading bytes", err)
 			return
 		}
-		log.WithFields(log.Fields{"ID": p.id, "direction": "device2host"}).Info(hex.Dump(bytes))
+		log.WithFields(log.Fields{"ID": p.id, "direction": "device2host"}).Trace(hex.Dump(bytes))
+		p.logBinaryMessageFromDevice(bytes)
 		binOnUnixSocket.Send(bytes)
 
 	}

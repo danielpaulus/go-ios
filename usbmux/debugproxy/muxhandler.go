@@ -24,8 +24,9 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnec
 		if err != nil {
 			log.Info("Failed decoding MuxMessage", request, err)
 		}
+		p.logJSONMessageFromDevice(map[string]interface{}{"header": request.Header, "payload": decodedRequest, "type": "USBMUX"})
 
-		log.WithFields(log.Fields{"ID": p.id, "direction": "host->device"}).Info(decodedRequest)
+		log.WithFields(log.Fields{"ID": p.id, "direction": "host->device"}).Trace(decodedRequest)
 		if decodedRequest["MessageType"] == "Connect" {
 			handleConnect(request, decodedRequest, p, muxOnUnixSocket, muxToDevice)
 			return
@@ -52,7 +53,8 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnec
 		if err != nil {
 			log.Info("Failed decoding MuxMessage", decodedResponse, err)
 		}
-		log.WithFields(log.Fields{"ID": p.id, "direction": "device->host"}).Info(decodedResponse)
+		p.logJSONMessageToDevice(map[string]interface{}{"header": request.Header, "payload": decodedRequest, "type": "USBMUX"})
+		log.WithFields(log.Fields{"ID": p.id, "direction": "device->host"}).Trace(decodedResponse)
 		err = muxOnUnixSocket.SendMuxMessage(*response)
 	}
 }

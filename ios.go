@@ -124,6 +124,13 @@ The commands work as following:
 		return
 	}
 
+	b, _ = arguments.Bool("list")
+	if b {
+		b, _ = arguments.Bool("--details")
+		printDeviceList(b)
+		return
+	}
+
 	udid, _ := arguments.String("--udid")
 	device, err := getDeviceOrQuit(udid)
 	if err != nil {
@@ -162,13 +169,6 @@ The commands work as following:
 	b, _ = arguments.Bool("diagnostics")
 	if b {
 		printDiagnostics(device)
-		return
-	}
-
-	b, _ = arguments.Bool("list")
-	if b {
-		b, _ = arguments.Bool("--details")
-		printDeviceList(b)
 		return
 	}
 
