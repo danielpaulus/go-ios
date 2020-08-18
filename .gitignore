@@ -21,3 +21,4 @@ ios
 .DS_Store
 .circleci/
 __debug_bin
+dump-*

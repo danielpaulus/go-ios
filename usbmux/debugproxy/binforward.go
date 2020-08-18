@@ -43,6 +43,10 @@ func handleConnectToService(connectRequest *usbmux.MuxMessage,
 
 	binToDevice := BinDumpCodec{muxToDevice.Close()}
 	binOnUnixSocket := BinDumpCodec{muxOnUnixSocket.Close()}
+	if serviceInfo.UseSSL {
+		binToDevice.deviceConn.EnableSessionSsl(p.pairRecord)
+		binOnUnixSocket.deviceConn.EnableSessionSslServerMode(p.pairRecord)
+	}
 	proxyBinDumpConnection(p, binOnUnixSocket, binToDevice)
 }
 
