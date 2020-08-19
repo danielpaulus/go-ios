@@ -2,6 +2,7 @@ package debugproxy
 
 import (
 	"bytes"
+	"io"
 
 	"github.com/danielpaulus/go-ios/usbmux"
 	log "github.com/sirupsen/logrus"
@@ -14,7 +15,11 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *usbmux.Lo
 		if err != nil {
 			lockdownOnUnixSocket.Close().Close()
 			lockdownToDevice.Close().Close()
-			log.Info("Failed reading LockdownMessage", err)
+			if err == io.EOF {
+				p.LogClosed()
+				return
+			}
+			p.log.Info("Failed reading LockdownMessage", err)
 			return
 		}
 
@@ -22,14 +27,14 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *usbmux.Lo
 		decoder := plist.NewDecoder(bytes.NewReader(request))
 		err = decoder.Decode(&decodedRequest)
 		if err != nil {
-			log.Info("Failed decoding LockdownMessage", request, err)
+			p.log.Info("Failed decoding LockdownMessage", request, err)
 		}
 		p.logJSONMessageToDevice(map[string]interface{}{"payload": decodedRequest, "type": "LOCKDOWN"})
-		log.WithFields(log.Fields{"ID": p.id, "direction": "host2device"}).Trace(decodedRequest)
+		p.log.WithFields(log.Fields{"ID": p.id, "direction": "host2device"}).Trace(decodedRequest)
 
 		err = lockdownToDevice.Send(decodedRequest)
 		if err != nil {
-			log.Fatal("Failed forwarding message to device", request)
+			p.log.Fatal("Failed forwarding message to device", request)
 		}
 
 		response, err := lockdownToDevice.ReadMessage()
@@ -37,10 +42,10 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *usbmux.Lo
 		decoder = plist.NewDecoder(bytes.NewReader(response))
 		err = decoder.Decode(&decodedResponse)
 		if err != nil {
-			log.Info("Failed decoding LockdownMessage", decodedResponse, err)
+			p.log.Info("Failed decoding LockdownMessage", decodedResponse, err)
 		}
 		p.logJSONMessageFromDevice(map[string]interface{}{"payload": decodedResponse, "type": "LOCKDOWN"})
-		log.WithFields(log.Fields{"ID": p.id, "direction": "device2host"}).Trace(decodedResponse)
+		p.log.WithFields(log.Fields{"ID": p.id, "direction": "device2host"}).Trace(decodedResponse)
 
 		err = lockdownOnUnixSocket.Send(decodedResponse)
 		if decodedResponse["EnableSessionSSL"] == true {
@@ -58,7 +63,7 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *usbmux.Lo
 				ServiceName: decodedResponse["Service"].(string),
 				UseSSL:      useSSL}
 
-			log.Info("Detected Service Start", (info))
+			p.log.Info("Detected Service Start", (info))
 			p.debugProxy.storeServiceInformation(info)
 
 		}

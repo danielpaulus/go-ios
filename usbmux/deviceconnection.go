@@ -18,6 +18,8 @@ type DeviceConnectionInterface interface {
 	Writer() io.Writer
 	EnableSessionSsl(pairRecord PairRecord) error
 	EnableSessionSslServerMode(pairRecord PairRecord)
+	EnableSessionSslHandshakeOnly(pairRecord PairRecord) error
+	EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord)
 }
 
 //DeviceConnection wraps the net.Conn to the ios Device and has support for
@@ -81,36 +83,38 @@ func (conn *DeviceConnection) Writer() io.Writer {
 
 //EnableSessionSslServerMode wraps the underlying net.Conn in a server tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
-	//we can just use the hostcert and key here, normally the device has its own pair of cert and key
-	//but we do not know the device private key. funny enough, host has been signed by the same root cert
-	//so it will be accepted by clients
-	cert5, error5 := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
-	if error5 != nil {
-		log.Error("Error SSL:" + error5.Error())
-		return
-	}
-	conf := &tls.Config{
-		//We always trust whatever the phone sends, I do not see an issue here as probably
-		//nobody would build a fake iphone to hack this library.
-		InsecureSkipVerify: true,
-		Certificates:       []tls.Certificate{cert5},
-		ClientAuth:         tls.NoClientCert,
-	}
-	tlsConn := tls.Server(conn.c, conf)
-	err := tlsConn.Handshake()
-	if err != nil {
-		log.Info("Handshake error", err)
-	}
-	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
+	tlsConn, _ := conn.createServerTlsConn(pairRecord)
+
 	conn.c = net.Conn(tlsConn)
+}
+
+func (conn *DeviceConnection) EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord) {
+	conn.createServerTlsConn(pairRecord)
 }
 
 //EnableSessionSsl wraps the underlying net.Conn in a client tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
-	cert5, error5 := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
-	if error5 != nil {
-		log.Error("Error SSL:" + error5.Error())
-		return error5
+	tlsConn, err := conn.createClientTlsConn(pairRecord)
+	if err != nil {
+		return err
+	}
+	conn.c = net.Conn(tlsConn)
+	return nil
+}
+
+func (conn *DeviceConnection) EnableSessionSslHandshakeOnly(pairRecord PairRecord) error {
+	_, err := conn.createClientTlsConn(pairRecord)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (conn *DeviceConnection) createClientTlsConn(pairRecord PairRecord) (*tls.Conn, error) {
+	cert5, err := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
+	if err != nil {
+		log.Error("Error SSL:" + err.Error())
+		return nil, err
 	}
 	conf := &tls.Config{
 		//We always trust whatever the phone sends, I do not see an issue here as probably
@@ -121,11 +125,37 @@ func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	}
 
 	tlsConn := tls.Client(conn.c, conf)
-	err := tlsConn.Handshake()
+	err = tlsConn.Handshake()
 	if err != nil {
 		log.Info("Handshake error", err)
+		return nil, err
 	}
 	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
-	conn.c = net.Conn(tlsConn)
-	return nil
+	return tlsConn, nil
+}
+
+func (conn *DeviceConnection) createServerTlsConn(pairRecord PairRecord) (*tls.Conn, error) {
+	//we can just use the hostcert and key here, normally the device has its own pair of cert and key
+	//but we do not know the device private key. funny enough, host has been signed by the same root cert
+	//so it will be accepted by clients
+	cert5, err := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
+	if err != nil {
+		log.Error("Error SSL:" + err.Error())
+		return nil, err
+	}
+	conf := &tls.Config{
+		//We always trust whatever the phone sends, I do not see an issue here as probably
+		//nobody would build a fake iphone to hack this library.
+		InsecureSkipVerify: true,
+		Certificates:       []tls.Certificate{cert5},
+		ClientAuth:         tls.NoClientCert,
+	}
+	tlsConn := tls.Server(conn.c, conf)
+	err = tlsConn.Handshake()
+	if err != nil {
+		log.Info("Handshake error", err)
+		return nil, err
+	}
+	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
+	return tlsConn, nil
 }

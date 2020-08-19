@@ -2,10 +2,13 @@ package debugproxy
 
 import (
 	"encoding/hex"
+	"io"
 
 	"github.com/danielpaulus/go-ios/usbmux"
 	log "github.com/sirupsen/logrus"
 )
+
+var servicesWithHandshakeOnlySSL = map[string]bool{"com.apple.instruments.remoteserver": true}
 
 type BinDumpCodec struct {
 	deviceConn usbmux.DeviceConnectionInterface
@@ -36,7 +39,7 @@ func handleConnectToService(connectRequest *usbmux.MuxMessage,
 	serviceInfo PhoneServiceInformation) {
 	err := muxToDevice.SendMuxMessage(*connectRequest)
 	if err != nil {
-		log.Fatal("Failed sending muxmessage to device")
+		p.log.Fatal("Failed sending muxmessage to device")
 	}
 	connectResponse, err := muxToDevice.ReadMessage()
 	muxOnUnixSocket.SendMuxMessage(*connectResponse)
@@ -44,8 +47,13 @@ func handleConnectToService(connectRequest *usbmux.MuxMessage,
 	binToDevice := BinDumpCodec{muxToDevice.Close()}
 	binOnUnixSocket := BinDumpCodec{muxOnUnixSocket.Close()}
 	if serviceInfo.UseSSL {
-		binToDevice.deviceConn.EnableSessionSsl(p.pairRecord)
-		binOnUnixSocket.deviceConn.EnableSessionSslServerMode(p.pairRecord)
+		if servicesWithHandshakeOnlySSL[serviceInfo.ServiceName] {
+			binToDevice.deviceConn.EnableSessionSslHandshakeOnly(p.pairRecord)
+			binOnUnixSocket.deviceConn.EnableSessionSslServerModeHandshakeOnly(p.pairRecord)
+		} else {
+			binToDevice.deviceConn.EnableSessionSsl(p.pairRecord)
+			binOnUnixSocket.deviceConn.EnableSessionSslServerMode(p.pairRecord)
+		}
 	}
 	proxyBinDumpConnection(p, binOnUnixSocket, binToDevice)
 }
@@ -58,10 +66,14 @@ func proxyBinDumpConnection(p *ProxyConnection, binOnUnixSocket BinDumpCodec, bi
 		if err != nil {
 			binOnUnixSocket.Close()
 			binToDevice.Close()
-			log.Info("Failed reading bytes", err)
+			if err == io.EOF {
+				p.LogClosed()
+				return
+			}
+			p.log.Info("Failed reading bytes", err)
 			return
 		}
-		log.WithFields(log.Fields{"ID": p.id, "direction": "host2device"}).Trace(hex.Dump(bytes))
+		p.log.WithFields(log.Fields{"direction": "host2device"}).Trace(hex.Dump(bytes))
 		p.logBinaryMessageToDevice(bytes)
 		binToDevice.Send(bytes)
 
@@ -75,12 +87,15 @@ func proxyBinFromDeviceToHost(p *ProxyConnection, binOnUnixSocket BinDumpCodec, 
 		if err != nil {
 			binOnUnixSocket.Close()
 			binToDevice.Close()
-			log.Info("Failed reading bytes", err)
+			if err == io.EOF {
+				p.LogClosed()
+				return
+			}
+			p.log.Info("Failed reading bytes", err)
 			return
 		}
-		log.WithFields(log.Fields{"ID": p.id, "direction": "device2host"}).Trace(hex.Dump(bytes))
+		p.log.WithFields(log.Fields{"direction": "device2host"}).Trace(hex.Dump(bytes))
 		p.logBinaryMessageFromDevice(bytes)
 		binOnUnixSocket.Send(bytes)
-
 	}
 }

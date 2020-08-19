@@ -12,6 +12,8 @@ import (
 
 	"github.com/danielpaulus/go-ios/usbmux"
 	"github.com/danielpaulus/go-ios/usbmux/proxy_utils"
+
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,12 +40,25 @@ type ProxyConnection struct {
 	pairRecord usbmux.PairRecord
 	debugProxy *DebugProxy
 	info       ConnectionInfo
+	log        *logrus.Entry
+	mux        sync.Mutex
+	closed     bool
 }
 
 type ConnectionInfo struct {
 	ConnectionPath string
 	CreatedAt      time.Time
 	ID             string
+}
+
+func (p *ProxyConnection) LogClosed() {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+	if p.closed {
+		return
+	}
+	p.closed = true
+	p.log.Info("Connection closed")
 }
 
 func (d *DebugProxy) storeServiceInformation(serviceInfo PhoneServiceInformation) {
@@ -111,7 +126,8 @@ func (d *DebugProxy) Launch() error {
 func startProxyConnection(conn net.Conn, originalSocket string, pairRecord usbmux.PairRecord, debugProxy *DebugProxy, info ConnectionInfo) {
 	connListeningOnUnixSocket := usbmux.NewUsbMuxConnectionWithConn(conn)
 	connectionToDevice := usbmux.NewUsbMuxConnectionToSocket(originalSocket)
-	p := ProxyConnection{fmt.Sprintf("#%d", debugProxy.connectionCounter), pairRecord, debugProxy, info}
+	id := fmt.Sprintf("#%d", debugProxy.connectionCounter)
+	p := ProxyConnection{id, pairRecord, debugProxy, info, log.WithFields(log.Fields{"id": id}), sync.Mutex{}, false}
 
 	go proxyUsbMuxConnection(&p, connListeningOnUnixSocket, connectionToDevice)
 }
