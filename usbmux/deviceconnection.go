@@ -62,7 +62,10 @@ func (conn *DeviceConnection) Close() {
 
 //Send sends a message
 func (conn *DeviceConnection) Send(bytes []byte) error {
-	_, err := conn.c.Write(bytes)
+	n, err := conn.c.Write(bytes)
+	if n < len(bytes) {
+		panic("shit")
+	}
 	if err != nil {
 		log.Errorf("Failed sending: %s", err)
 		conn.Close()

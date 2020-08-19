@@ -111,11 +111,12 @@ func (d *DebugProxy) Launch() error {
 			log.Errorf("error with connection: %e", err)
 		}
 		d.connectionCounter++
-		connectionPath := filepath.Join(".", d.WorkingDir, "connection-"+time.Now().UTC().Format("2006.01.02-15.04.05.000"))
+		id := fmt.Sprintf("#%d", d.connectionCounter)
+		connectionPath := filepath.Join(".", d.WorkingDir, "connection-"+id+"-"+time.Now().UTC().Format("2006.01.02-15.04.05.000"))
 
 		os.MkdirAll(connectionPath, os.ModePerm)
 
-		info := ConnectionInfo{ConnectionPath: connectionPath, CreatedAt: time.Now(), ID: "#" + string(d.connectionCounter)}
+		info := ConnectionInfo{ConnectionPath: connectionPath, CreatedAt: time.Now(), ID: id}
 		d.addConnectionInfoToJsonFile(info)
 
 		startProxyConnection(conn, originalSocket, pairRecord, d, info)
@@ -126,8 +127,8 @@ func (d *DebugProxy) Launch() error {
 func startProxyConnection(conn net.Conn, originalSocket string, pairRecord usbmux.PairRecord, debugProxy *DebugProxy, info ConnectionInfo) {
 	connListeningOnUnixSocket := usbmux.NewUsbMuxConnectionWithConn(conn)
 	connectionToDevice := usbmux.NewUsbMuxConnectionToSocket(originalSocket)
-	id := fmt.Sprintf("#%d", debugProxy.connectionCounter)
-	p := ProxyConnection{id, pairRecord, debugProxy, info, log.WithFields(log.Fields{"id": id}), sync.Mutex{}, false}
+
+	p := ProxyConnection{info.ID, pairRecord, debugProxy, info, log.WithFields(log.Fields{"id": info.ID}), sync.Mutex{}, false}
 
 	go proxyUsbMuxConnection(&p, connListeningOnUnixSocket, connectionToDevice)
 }

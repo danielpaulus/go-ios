@@ -81,9 +81,14 @@ func proxyBinDumpConnection(p *ProxyConnection, binOnUnixSocket BinDumpCodec, bi
 }
 
 func proxyBinFromDeviceToHost(p *ProxyConnection, binOnUnixSocket BinDumpCodec, binToDevice BinDumpCodec) {
+	byteCounter := 0
 	for {
 		bytes, err := binToDevice.ReadMessage()
-
+		byteCounter += len(bytes)
+		if byteCounter > 1024*500 {
+			p.log.WithFields(log.Fields{"bytes": byteCounter}).Info("bytes transferred")
+			byteCounter = 0
+		}
 		if err != nil {
 			binOnUnixSocket.Close()
 			binToDevice.Close()
