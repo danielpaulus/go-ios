@@ -172,15 +172,6 @@ func (p ProxyConnection) logJSONMessageToDevice(msg interface{}) {
 	writeJSON(filepath.Join(p.info.ConnectionPath, outPath), msg)
 }
 
-func (p ProxyConnection) logBinaryMessageFromDevice(msg []byte) {
-	const outPath = "bindump-fromdevice.bin"
-	writeBytes(filepath.Join(p.info.ConnectionPath, outPath), msg)
-}
-func (p ProxyConnection) logBinaryMessageToDevice(msg []byte) {
-	const outPath = "bindump-todevice.bin"
-	writeBytes(filepath.Join(p.info.ConnectionPath, outPath), msg)
-}
-
 func writeJSON(filePath string, JSON interface{}) {
 	file, err := os.OpenFile(filePath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -193,16 +184,5 @@ func writeJSON(filePath string, JSON interface{}) {
 	}
 	file.Write(jsonmsg)
 	io.WriteString(file, "\n")
-	file.Close()
-}
-
-func writeBytes(filePath string, data []byte) {
-	file, err := os.OpenFile(filePath,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal("Could not write to file, this should not happen", err, filePath)
-	}
-
-	file.Write(data)
 	file.Close()
 }
