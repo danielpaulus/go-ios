@@ -1,13 +1,14 @@
 package dtx
 
 import (
+	"bytes"
 	"container/list"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"log"
 
-	archiver "github.com/danielpaulus/nskeyedarchiver"
+	archiver "github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
+	"github.com/labstack/gommon/log"
 )
 
 // That is by far the weirdest concept I have ever seen.
@@ -99,9 +100,10 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 }
 
 const (
-	null      uint32 = 0x0A
-	bytearray uint32 = 0x02
-	t_uint32  uint32 = 0x03
+	null       uint32 = 0x0A
+	stringtype uint32 = 0x01
+	bytearray  uint32 = 0x02
+	t_uint32   uint32 = 0x03
 )
 
 func toString(t uint32) string {
@@ -119,4 +121,39 @@ func toString(t uint32) string {
 
 func hasLength(typeCode uint32) bool {
 	return typeCode == bytearray
+}
+
+type AuxiliaryEncoder struct {
+	buf bytes.Buffer
+}
+
+func (a *AuxiliaryEncoder) AddNsKeyedArchivedObject(object interface{}) {
+	a.writeEntry(null, nil)
+	bytes, err := archiver.ArchiveBin(object)
+	if err != nil {
+		log.Info(err)
+	}
+	a.writeEntry(bytearray, bytes)
+}
+
+func (a *AuxiliaryEncoder) writeEntry(entryType uint32, object interface{}) {
+
+	binary.Write(&a.buf, binary.LittleEndian, entryType)
+	if entryType == null {
+		return
+	}
+	if entryType == t_uint32 {
+		binary.Write(&a.buf, binary.LittleEndian, object.(int32))
+	}
+	if entryType == bytearray {
+		binary.Write(&a.buf, binary.LittleEndian, int32(len(object.([]byte))))
+		a.buf.Write(object.([]byte))
+
+	}
+	log.Fatalf("Unknown DtxPrimitiveDictionaryType: %d", entryType)
+
+}
+
+func (a *AuxiliaryEncoder) GetBytes() []byte {
+	return a.GetBytes()
 }

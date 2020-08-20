@@ -83,3 +83,19 @@ func (muxConn *MuxConnection) ConnectLockdown(deviceID int) (*LockDownConnection
 
 	return nil, fmt.Errorf("Failed connecting to Lockdown with error code:%d", response.Number)
 }
+
+//ConnectToService connects to a service on the phone and returns the ready to use DeviceConnectionInterface
+func ConnectToService(deviceID int, udid string, serviceName string) (DeviceConnectionInterface, error) {
+	startServiceResponse, err := StartService(deviceID, udid, serviceName)
+	if err != nil {
+		return nil, err
+	}
+	pairRecord := ReadPairRecord(udid)
+
+	muxConn := NewUsbMuxConnection()
+	err = muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, pairRecord)
+	if err != nil {
+		return nil, err
+	}
+	return muxConn.Close(), nil
+}

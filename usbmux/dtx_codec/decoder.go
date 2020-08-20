@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/danielpaulus/nskeyedarchiver"
+	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 )
 
 type DtxMessage struct {

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>$archiver</key>
+	<string>NSKeyedArchiver</string>
+	<key>$objects</key>
+	<array>
+		<string>$null</string>
+		<integer>1</integer>
+		<real>1</real>
+		<real>1.5</real>
+		<data>
+		YXNkZmFzZGZhZHNmYWRzZg==
+		</data>
+		<true/>
+		<string>Hello, World!</string>
+		<string>Hello, World!</string>
+		<string>Hello, World!</string>
+		<false/>
+		<integer>42</integer>
+	</array>
+	<key>$top</key>
+	<dict>
+		<key>$0</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>1</integer>
+		</dict>
+		<key>$1</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>1</integer>
+		</dict>
+		<key>$10</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>9</integer>
+		</dict>
+		<key>$11</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>10</integer>
+		</dict>
+		<key>$2</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>2</integer>
+		</dict>
+		<key>$3</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>3</integer>
+		</dict>
+		<key>$4</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>4</integer>
+		</dict>
+		<key>$5</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>5</integer>
+		</dict>
+		<key>$6</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>6</integer>
+		</dict>
+		<key>$7</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>7</integer>
+		</dict>
+		<key>$8</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>8</integer>
+		</dict>
+		<key>$9</key>
+		<dict>
+			<key>CF$UID</key>
+			<integer>9</integer>
+		</dict>
+	</dict>
+	<key>$version</key>
+	<integer>100000</integer>
+</dict>
+</plist>
