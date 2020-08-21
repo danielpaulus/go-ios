@@ -100,6 +100,9 @@ func (muxConn *MuxConnection) Send(msg interface{}) error {
 
 //SendMuxMessage serializes and sends a MuxMessage to the underlying DeviceConnection.
 func (muxConn *MuxConnection) SendMuxMessage(msg MuxMessage) error {
+	if muxConn.deviceConn == nil {
+		return io.EOF
+	}
 	err := binary.Write(muxConn.deviceConn.Writer(), binary.LittleEndian, msg.Header)
 	if err != nil {
 		return err

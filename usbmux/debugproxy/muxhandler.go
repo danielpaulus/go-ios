@@ -121,9 +121,34 @@ func handleConnectToLockdown(connectRequest *usbmux.MuxMessage, decodedConnectRe
 }
 
 func handleListen(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
-	//TODO: we need a way to detect if the host closes the connection, otherwise this will stay open longer than needed
+	go func() {
+		//use this to detect when the conn is closed. There shouldn't be any messages received ever.
+		_, err := muxOnUnixSocket.ReadMessage()
+		if err == io.EOF {
+			muxOnUnixSocket.Close().Close()
+			muxToDevice.Close().Close()
+			p.LogClosed()
+			return
+		}
+		p.log.WithFields(log.Fields{"error": err}).Error("Unexpected error on read for LISTEN connection")
+	}()
+
 	for {
 		response, err := muxToDevice.ReadMessage()
+		if err != nil {
+			//TODO: ugly, improve
+			d := muxOnUnixSocket.Close()
+			d1 := muxToDevice.Close()
+			if d != nil {
+				d.Close()
+			}
+			if d1 != nil {
+				d1.Close()
+			}
+
+			p.LogClosed()
+			return
+		}
 		var decodedResponse map[string]interface{}
 		decoder := plist.NewDecoder(bytes.NewReader(response.Payload))
 		err = decoder.Decode(&decodedResponse)
@@ -134,4 +159,5 @@ func handleListen(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, mux
 		p.log.WithFields(log.Fields{"ID": p.id, "direction": "device->host"}).Trace(decodedResponse)
 		err = muxOnUnixSocket.SendMuxMessage(*response)
 	}
+
 }
