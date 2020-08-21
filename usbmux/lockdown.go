@@ -44,6 +44,11 @@ func (lockDownConn *LockDownConnection) Close() DeviceConnectionInterface {
 	return conn
 }
 
+//DisableSessionSSL see documentation in DeviceConnection
+func (lockDownConn LockDownConnection) DisableSessionSSL() {
+	lockDownConn.deviceConnection.DisableSessionSSL()
+}
+
 func (lockDownConn LockDownConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	return lockDownConn.deviceConnection.EnableSessionSsl(pairRecord)
 }

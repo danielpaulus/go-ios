@@ -67,5 +67,10 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *usbmux.Lo
 			p.debugProxy.storeServiceInformation(info)
 
 		}
+
+		if decodedResponse["Request"] == "StopSession" {
+			lockdownOnUnixSocket.DisableSessionSSL()
+			lockdownToDevice.DisableSessionSSL()
+		}
 	}
 }
