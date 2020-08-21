@@ -3,12 +3,14 @@ package debugproxy
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
-	"log"
+
 	"os"
 	"time"
 
 	dtx "github.com/danielpaulus/go-ios/usbmux/dtx_codec"
+	log "github.com/sirupsen/logrus"
 )
 
 type decoder interface {
@@ -19,6 +21,7 @@ type dtxDecoder struct {
 	jsonFilePath string
 	binFilePath  string
 	buffer       bytes.Buffer
+	isBroken     bool
 }
 
 type MessageWithMetaInfo struct {
@@ -30,10 +33,15 @@ type MessageWithMetaInfo struct {
 }
 
 func NewDtxDecoder(jsonFilePath string, binFilePath string) decoder {
-	return &dtxDecoder{jsonFilePath: jsonFilePath, binFilePath: binFilePath, buffer: bytes.Buffer{}}
+	return &dtxDecoder{jsonFilePath: jsonFilePath, binFilePath: binFilePath, buffer: bytes.Buffer{}, isBroken: false}
 }
 
 func (f *dtxDecoder) decode(data []byte) {
+	if f.isBroken {
+		//when an error happens while decoding, this flag prevents from flooding the logs with errors
+		//while still dumping binary to debug later
+		return
+	}
 	f.buffer.Write(data)
 	slice := f.buffer.Next(f.buffer.Len())
 	written := 0
@@ -45,8 +53,9 @@ func (f *dtxDecoder) decode(data []byte) {
 			break
 		}
 		if err != nil {
-			log.Fatalf("Failed decoding DTX:%s", err)
-			panic("should not happen")
+			log.Errorf("Failed decoding DTX:%s, continuing bindumping", err)
+			log.Info(fmt.Sprintf("%x", slice))
+			f.isBroken = true
 		}
 		slice = remainingbytes
 

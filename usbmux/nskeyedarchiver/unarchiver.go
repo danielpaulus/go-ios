@@ -50,7 +50,9 @@ func extractObjects(objectRefs []plist.UID, objects []interface{}) ([]interface{
 			returnValue[i] = object
 			continue
 		}
-		if object, ok := isArrayObject(objectRef.(map[string]interface{}), objects); ok {
+		//if this crashes, I forgot a primitive type
+		nonPrimitiveObjectRef := objectRef.(map[string]interface{})
+		if object, ok := isArrayObject(nonPrimitiveObjectRef, objects); ok {
 			extractObjects, err := extractObjects(toUidList(object[nsObjects].([]interface{})), objects)
 			if err != nil {
 				return nil, err
@@ -68,8 +70,27 @@ func extractObjects(objectRefs []plist.UID, objects []interface{}) ([]interface{
 			continue
 		}
 
+		if object, ok := isNSMutableDataObject(objectRef.(map[string]interface{}), objects); ok {
+			returnValue[i] = object[nsDataKey]
+			continue
+		}
+
+		if object, ok := isNSMutableString(objectRef.(map[string]interface{}), objects); ok {
+			returnValue[i] = object[nsStringKey]
+			continue
+		}
+
+		if _, ok := isNSNull(objectRef.(map[string]interface{}), objects); ok {
+			returnValue[i] = nil
+			continue
+		}
+
 		objectType := reflect.TypeOf(objectRef).String()
-		return nil, fmt.Errorf("Unknown object type:%s", objectType)
+		className, err := resolveClass(objectRef.(map[string]interface{})[class], objects)
+		if err != nil {
+			return nil, fmt.Errorf("Unknown object type:%s, could not decode class", objectType)
+		}
+		return nil, fmt.Errorf("Unknown object type:%s, could not decode class", className)
 
 	}
 	return returnValue, nil
@@ -92,6 +113,39 @@ func isDictionaryObject(object map[string]interface{}, objects []interface{}) (m
 		return nil, false
 	}
 	if className == nsDictionary || className == nsMutableDictionary {
+		return object, true
+	}
+	return object, false
+}
+
+func isNSMutableDataObject(object map[string]interface{}, objects []interface{}) (map[string]interface{}, bool) {
+	className, err := resolveClass(object[class], objects)
+	if err != nil {
+		return nil, false
+	}
+	if className == nsMutableData {
+		return object, true
+	}
+	return object, false
+}
+
+func isNSMutableString(object map[string]interface{}, objects []interface{}) (map[string]interface{}, bool) {
+	className, err := resolveClass(object[class], objects)
+	if err != nil {
+		return nil, false
+	}
+	if className == nsMutableString {
+		return object, true
+	}
+	return object, false
+}
+
+func isNSNull(object map[string]interface{}, objects []interface{}) (map[string]interface{}, bool) {
+	className, err := resolveClass(object[class], objects)
+	if err != nil {
+		return nil, false
+	}
+	if className == nsNullKey {
 		return object, true
 	}
 	return object, false

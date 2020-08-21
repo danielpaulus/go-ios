@@ -12,6 +12,9 @@ const (
 	className       = "$classname"
 	versionValue    = 100000
 	null            = "$null"
+	nsDataKey       = "NS.data"
+	nsStringKey     = "NS.string"
+	nsNullKey       = "NSNull"
 )
 
 const (
@@ -24,4 +27,9 @@ const (
 const (
 	nsDictionary        = "NSDictionary"
 	nsMutableDictionary = "NSMutableDictionary"
+)
+
+const (
+	nsMutableData   = "NSMutableData"
+	nsMutableString = "NSMutableString"
 )

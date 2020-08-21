@@ -2,10 +2,11 @@ package dtx_test
 
 import (
 	"io/ioutil"
-	"log"
+
 	"testing"
 
 	dtx "github.com/danielpaulus/go-ios/usbmux/dtx_codec"
+	"github.com/labstack/gommon/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,6 +26,28 @@ func TestErrors(t *testing.T) {
 	for i := 0; i < len(dat)-4; i++ {
 		_, _, err = dtx.Decode(dat[0 : 4+i])
 		assert.True(t, dtx.IsIncomplete(err))
+	}
+
+}
+
+func TestAXDump(t *testing.T) {
+
+	//dat, err := ioutil.ReadFile("fixtures/broken-message-from-ax-1.bin")
+	//dat, err := ioutil.ReadFile("fixtures/nsmutablestring.bin")
+	dat, err := ioutil.ReadFile("fixtures/nsnull.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	var remainingBytes []byte
+	remainingBytes = dat
+	for len(remainingBytes) > 0 {
+		msg, s, err := dtx.Decode(remainingBytes)
+		log.Info(msg)
+		remainingBytes = s
+		if !assert.NoError(t, err) {
+			log.Fatal("whet", err)
+		}
 	}
 
 }

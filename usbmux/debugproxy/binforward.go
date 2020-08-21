@@ -20,7 +20,9 @@ type serviceConfig struct {
 var serviceConfigurations = map[string]serviceConfig{
 	"com.apple.instruments.remoteserver":                 {NewDtxDecoder, true},
 	"com.apple.accessibility.axAuditDaemon.remoteserver": {NewDtxDecoder, true},
-	"bindumper": {NewBinDumpOnly, false},
+	"com.apple.testmanagerd.lockdown":                    {NewDtxDecoder, true},
+	"com.apple.debugserver":                              {NewBinDumpOnly, true},
+	"bindumper":                                          {NewBinDumpOnly, false},
 }
 
 func getServiceConfigForName(serviceName string) serviceConfig {
