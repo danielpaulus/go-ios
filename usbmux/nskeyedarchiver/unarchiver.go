@@ -2,7 +2,6 @@ package nskeyedarchiver
 
 import (
 	"fmt"
-	"reflect"
 
 	plist "howett.net/plist"
 )
@@ -12,6 +11,7 @@ import (
 // NSArray, NSMutableArray, NSSet and NSMutableSet will transformed into []interface{}
 // NSDictionary and NSMutableDictionary will be transformed into map[string] interface{}. I might add non string keys later.
 func Unarchive(xml []byte) ([]interface{}, error) {
+	SetupClasses()
 	plist, err := plistFromBytes(xml)
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func extractObjects(objectRefs []plist.UID, objects []interface{}) ([]interface{
 			continue
 		}
 
-		if object, ok := isDictionaryObject(objectRef.(map[string]interface{}), objects); ok {
+		if object, ok := isDictionaryObject(nonPrimitiveObjectRef, objects); ok {
 			dictionary, err := extractDictionary(object, objects)
 			if err != nil {
 				return nil, err
@@ -70,30 +70,41 @@ func extractObjects(objectRefs []plist.UID, objects []interface{}) ([]interface{
 			continue
 		}
 
-		if object, ok := isNSMutableDataObject(objectRef.(map[string]interface{}), objects); ok {
+		if object, ok := isNSMutableDataObject(nonPrimitiveObjectRef, objects); ok {
 			returnValue[i] = object[nsDataKey]
 			continue
 		}
 
-		if object, ok := isNSMutableString(objectRef.(map[string]interface{}), objects); ok {
+		if object, ok := isNSMutableString(nonPrimitiveObjectRef, objects); ok {
 			returnValue[i] = object[nsStringKey]
 			continue
 		}
 
-		if _, ok := isNSNull(objectRef.(map[string]interface{}), objects); ok {
+		if _, ok := isNSNull(nonPrimitiveObjectRef, objects); ok {
 			returnValue[i] = nil
 			continue
 		}
 
-		objectType := reflect.TypeOf(objectRef).String()
-		className, err := resolveClass(objectRef.(map[string]interface{})[class], objects)
+		obj, err := decodeNonstandardObject(nonPrimitiveObjectRef, objects)
 		if err != nil {
-			return nil, fmt.Errorf("Unknown object type:%s, could not decode class", objectType)
+			return nil, err
 		}
-		return nil, fmt.Errorf("Unknown object type:%s, could not decode class", className)
+		returnValue[i] = obj
 
 	}
 	return returnValue, nil
+}
+
+func decodeNonstandardObject(object map[string]interface{}, objects []interface{}) (interface{}, error) {
+	className, err := resolveClass(object[class], objects)
+	if err != nil {
+		return nil, err
+	}
+	factory := classes[className]
+	if factory == nil {
+		return nil, fmt.Errorf("Unknown class:%s", className)
+	}
+	return factory(object, objects), nil
 }
 
 func isArrayObject(object map[string]interface{}, objects []interface{}) (map[string]interface{}, bool) {

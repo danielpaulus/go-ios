@@ -34,7 +34,8 @@ func TestAXDump(t *testing.T) {
 
 	//dat, err := ioutil.ReadFile("fixtures/broken-message-from-ax-1.bin")
 	//dat, err := ioutil.ReadFile("fixtures/nsmutablestring.bin")
-	dat, err := ioutil.ReadFile("fixtures/nsnull.bin")
+	//dat, err := ioutil.ReadFile("fixtures/nsnull.bin")
+	dat, err := ioutil.ReadFile("fixtures/dtactivitytapmessage.bin")
 
 	if err != nil {
 		log.Fatal(err)
