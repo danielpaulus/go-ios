@@ -57,7 +57,7 @@ func (f *dtxDecoder) decode(data []byte) {
 	slice := f.buffer.Next(f.buffer.Len())
 	written := 0
 	for {
-		msg, remainingbytes, err := dtx.Decode(slice)
+		msg, remainingbytes, err := dtx.DecodeNonBlocking(slice)
 		if dtx.IsIncomplete(err) {
 			f.buffer.Reset()
 			f.buffer.Write(slice)

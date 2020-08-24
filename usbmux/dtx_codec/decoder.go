@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 )
@@ -45,6 +46,10 @@ type AuxiliaryHeader struct {
 
 func (a AuxiliaryHeader) String() string {
 	return fmt.Sprintf("BufSiz:%d Unknown:%d AuxSiz:%d Unknown2:%d", a.BufferSize, a.Unknown, a.AuxiliarySize, a.Unknown2)
+}
+
+func (d DtxMessage) HasError() bool {
+	return d.PayloadHeader.MessageType == DtxTypeError
 }
 
 func (d DtxMessage) String() string {
@@ -103,6 +108,7 @@ const (
 	MethodInvocationWithExpectedReply    = 0x3
 	MethodinvocationWithoutExpectedReply = 0x2
 	Ack                                  = 0x0
+	DtxTypeError                         = 0x4
 )
 
 var messageTypeLookup = map[int]string{
@@ -138,7 +144,76 @@ func (d DtxMessage) MessageIsFirstFragmentFor(otherMessage DtxMessage) bool {
 	return d.Identifier == otherMessage.Identifier && d.Fragments == otherMessage.Fragments && otherMessage.FragmentIndex > 0
 }
 
-func Decode(messageBytes []byte) (DtxMessage, []byte, error) {
+func ReadMessage(reader io.Reader) (DtxMessage, error) {
+	header := make([]byte, 32)
+	_, err := reader.Read(header)
+	if err != nil {
+		return DtxMessage{}, err
+	}
+	if binary.BigEndian.Uint32(header) != DtxMessageMagic {
+		return DtxMessage{}, NewOutOfSync(fmt.Sprintf("Wrong Magic: %x", header[0:4]))
+	}
+	result := readHeader(header)
+
+	if result.IsFragment() {
+		//32 offset is correct, the binary starts with a payload header
+		messageBytes := make([]byte, result.MessageLength)
+		reader.Read(messageBytes)
+		result.fragmentBytes = messageBytes
+		return result, nil
+	}
+
+	payloadHeaderBytes := make([]byte, 16)
+	_, err = reader.Read(payloadHeaderBytes)
+	if err != nil {
+		return DtxMessage{}, err
+	}
+
+	ph, err := parsePayloadHeader(payloadHeaderBytes)
+	if err != nil {
+		return DtxMessage{}, err
+	}
+	result.PayloadHeader = ph
+
+	if result.HasAuxiliary() {
+		auxHeaderBytes := make([]byte, 16)
+		_, err = reader.Read(auxHeaderBytes)
+		if err != nil {
+			return DtxMessage{}, err
+		}
+
+		header, err := parseAuxiliaryHeader(auxHeaderBytes)
+		if err != nil {
+			return DtxMessage{}, err
+		}
+		result.AuxiliaryHeader = header
+		auxBytes := make([]byte, result.AuxiliaryHeader.AuxiliarySize)
+		_, err = reader.Read(auxBytes)
+		if err != nil {
+			return DtxMessage{}, err
+		}
+		result.Auxiliary = decodeAuxiliary(auxBytes)
+	}
+
+	result.RawBytes = make([]byte, 0)
+	if result.HasPayload() {
+		payloadBytes := make([]byte, result.PayloadLength())
+		_, err = reader.Read(payloadBytes)
+		if err != nil {
+			return DtxMessage{}, err
+		}
+
+		payload, err := nskeyedarchiver.Unarchive(payloadBytes)
+		if err != nil {
+			return DtxMessage{}, err
+		}
+		result.Payload = payload
+	}
+
+	return result, nil
+}
+
+func DecodeNonBlocking(messageBytes []byte) (DtxMessage, []byte, error) {
 
 	if len(messageBytes) < 4 {
 		return DtxMessage{}, make([]byte, 0), NewIncomplete("Less than 4 bytes")
@@ -155,16 +230,8 @@ func Decode(messageBytes []byte) (DtxMessage, []byte, error) {
 	if binary.LittleEndian.Uint32(messageBytes[4:]) != DtxHeaderLength {
 		return DtxMessage{}, make([]byte, 0), fmt.Errorf("Incorrect Header length, should be 32: %x", messageBytes[4:8])
 	}
-	result := DtxMessage{}
-	result.FragmentIndex = binary.LittleEndian.Uint16(messageBytes[8:])
-	result.Fragments = binary.LittleEndian.Uint16(messageBytes[10:])
-	result.MessageLength = int(binary.LittleEndian.Uint32(messageBytes[12:]))
-	result.Identifier = int(binary.LittleEndian.Uint32(messageBytes[16:]))
-	result.ConversationIndex = int(binary.LittleEndian.Uint32(messageBytes[20:]))
-	result.ChannelCode = int(binary.LittleEndian.Uint32(messageBytes[24:]))
 
-	result.ExpectsReply = binary.LittleEndian.Uint32(messageBytes[28:]) == uint32(1)
-
+	result := readHeader(messageBytes)
 	if result.IsFirstFragment() {
 		result.fragmentBytes = messageBytes[:32]
 		return result, messageBytes[32:], nil
@@ -219,6 +286,19 @@ func Decode(messageBytes []byte) (DtxMessage, []byte, error) {
 
 	remainingBytes := messageBytes[totalMessageLength:]
 	return result, remainingBytes, nil
+}
+
+func readHeader(messageBytes []byte) DtxMessage {
+	result := DtxMessage{}
+	result.FragmentIndex = binary.LittleEndian.Uint16(messageBytes[8:])
+	result.Fragments = binary.LittleEndian.Uint16(messageBytes[10:])
+	result.MessageLength = int(binary.LittleEndian.Uint32(messageBytes[12:]))
+	result.Identifier = int(binary.LittleEndian.Uint32(messageBytes[16:]))
+	result.ConversationIndex = int(binary.LittleEndian.Uint32(messageBytes[20:]))
+	result.ChannelCode = int(binary.LittleEndian.Uint32(messageBytes[24:]))
+
+	result.ExpectsReply = binary.LittleEndian.Uint32(messageBytes[28:]) == uint32(1)
+	return result
 }
 
 func parseAuxiliaryHeader(headerBytes []byte) (AuxiliaryHeader, error) {

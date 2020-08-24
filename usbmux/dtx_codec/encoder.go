@@ -3,8 +3,15 @@ package dtx
 import (
 	"encoding/binary"
 
-	"github.com/labstack/gommon/log"
+	log "github.com/sirupsen/logrus"
 )
+
+func BuildAckMessage(msg DtxMessage) []byte {
+	response := make([]byte, 48)
+	writeHeader(response, 16, msg.Identifier, msg.ChannelCode, msg.ConversationIndex+1, false)
+	writePayloadHeader(response, Ack, 0, 0)
+	return response
+}
 
 func Encode(
 	Identifier int,
@@ -25,7 +32,7 @@ func Encode(
 	messageLength := 16 + 16 + uint32(auxiliarySize+payloadLength)
 	messageBytes := make([]byte, 32+messageLength)
 
-	writeHeader(messageBytes, messageLength, Identifier, ChannelCode, ExpectsReply)
+	writeHeader(messageBytes, messageLength, Identifier, 0, ChannelCode, ExpectsReply)
 	writePayloadHeader(messageBytes[32:], MessageType, payloadLength, auxiliarySize)
 	writeAuxHeader(messageBytes[48:], auxiliarySize)
 	copy(messageBytes[64:], auxBytes)
@@ -36,7 +43,7 @@ func Encode(
 	return messageBytes, nil
 }
 
-func writeHeader(messageBytes []byte, messageLength uint32, Identifier int,
+func writeHeader(messageBytes []byte, messageLength uint32, Identifier int, ConversationIndex int,
 	ChannelCode int,
 	ExpectsReply bool) {
 	binary.BigEndian.PutUint32(messageBytes, DtxMessageMagic)

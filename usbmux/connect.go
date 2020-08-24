@@ -44,6 +44,15 @@ func (muxConn *MuxConnection) Connect(deviceID int, port uint16) error {
 	return fmt.Errorf("Failed connecting to service, error code:%d", response.Number)
 }
 
+//serviceConfigurations stores info about which DTX based services only execute a SSL Handshake
+//and then go back to sending unencrypted data right after the handshake.
+var serviceConfigurations = map[string]bool{
+	"com.apple.instruments.remoteserver":                 true,
+	"com.apple.accessibility.axAuditDaemon.remoteserver": true,
+	"com.apple.testmanagerd.lockdown":                    true,
+	"com.apple.debugserver":                              true,
+}
+
 //ConnectWithStartServiceResponse issues a Connect Message to UsbMuxd for the given deviceID on the given port
 //enabling the newCodec for it. It also enables SSL on the new service connection if requested by StartServiceResponse.
 //It returns an error containing the UsbMux error code should the connect fail.
@@ -53,10 +62,15 @@ func (muxConn *MuxConnection) ConnectWithStartServiceResponse(deviceID int, star
 		return err
 	}
 
+	var sslerr error
 	if startServiceResponse.EnableServiceSSL {
-		err = muxConn.deviceConn.EnableSessionSsl(pairRecord)
-		if err != nil {
-			return err
+		if _, ok := serviceConfigurations[startServiceResponse.Service]; ok {
+			sslerr = muxConn.deviceConn.EnableSessionSslHandshakeOnly(pairRecord)
+		} else {
+			sslerr = muxConn.deviceConn.EnableSessionSsl(pairRecord)
+		}
+		if sslerr != nil {
+			return sslerr
 		}
 	}
 

@@ -10,7 +10,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 	archiver "github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
-	"github.com/labstack/gommon/log"
+	log "github.com/sirupsen/logrus"
 )
 
 // That is by far the weirdest concept I have ever seen.
@@ -25,11 +25,21 @@ type DtxPrimitiveDictionary struct {
 }
 
 type DtxPrimitiveKeyValuePair struct {
-	keyType                  uint32
-	key                      interface{}
-	valueType                uint32
-	value                    interface{}
-	isNsKeyedArchiverEncoded bool
+	keyType   uint32
+	key       interface{}
+	valueType uint32
+	value     interface{}
+}
+
+func NewDtxPrimitiveDictionary() DtxPrimitiveDictionary {
+	return DtxPrimitiveDictionary{keyValuePairs: list.New()}
+}
+
+func (d *DtxPrimitiveDictionary) AddInt32(value int) {
+	d.keyValuePairs.PushBack(DtxPrimitiveKeyValuePair{t_null, nil, t_uint32, value})
+}
+func (d *DtxPrimitiveDictionary) AddBytes(value []byte) {
+	d.keyValuePairs.PushBack(DtxPrimitiveKeyValuePair{t_null, nil, t_bytearray, value})
 }
 
 func (d DtxPrimitiveDictionary) ToBytes() ([]byte, error) {
@@ -113,7 +123,7 @@ func decodeAuxiliary(auxBytes []byte) DtxPrimitiveDictionary {
 		auxBytes = remainingBytes
 		valueType, value, remainingBytes := readEntry(auxBytes)
 		auxBytes = remainingBytes
-		pair := DtxPrimitiveKeyValuePair{keyType, key, valueType, value, isNSKeyedArchiverEncoded(valueType, value)}
+		pair := DtxPrimitiveKeyValuePair{keyType, key, valueType, value}
 		result.keyValuePairs.PushBack(pair)
 		if len(auxBytes) == 0 {
 			break
