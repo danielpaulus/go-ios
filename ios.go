@@ -125,7 +125,8 @@ The commands work as following:
 	}
 
 	b, _ = arguments.Bool("list")
-	if b {
+	diagnostics, _ := arguments.Bool("diagnostics")
+	if b && !diagnostics {
 		b, _ = arguments.Bool("--details")
 		printDeviceList(b)
 		return

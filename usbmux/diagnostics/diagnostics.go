@@ -10,22 +10,11 @@ type Connection struct {
 }
 
 func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, error) {
-	startServiceResponse, err := usbmux.StartService(deviceID, udid, serviceName)
+	deviceConn, err := usbmux.ConnectToService(deviceID, udid, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}
-	var diagnosticsConn Connection
-	muxConn := usbmux.NewUsbMuxConnection()
-
-	plistCodec := usbmux.NewPlistCodec()
-
-	diagnosticsConn.plistCodec = plistCodec
-	err = muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, pairRecord)
-	if err != nil {
-		return &Connection{}, err
-	}
-	diagnosticsConn.deviceConn = muxConn.Close()
-	return &diagnosticsConn, nil
+	return &Connection{deviceConn: deviceConn, plistCodec: usbmux.NewPlistCodec()}, nil
 }
 
 func (diagnosticsConn *Connection) AllValues() (allDiagnosticsResponse, error) {
