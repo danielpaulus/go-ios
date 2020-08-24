@@ -6,7 +6,9 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 
+	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 	archiver "github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 	"github.com/labstack/gommon/log"
 )
@@ -23,17 +25,67 @@ type DtxPrimitiveDictionary struct {
 }
 
 type DtxPrimitiveKeyValuePair struct {
-	keyType   uint32
-	key       interface{}
-	valueType uint32
-	value     interface{}
+	keyType                  uint32
+	key                      interface{}
+	valueType                uint32
+	value                    interface{}
+	isNsKeyedArchiverEncoded bool
+}
+
+func (d DtxPrimitiveDictionary) ToBytes() ([]byte, error) {
+	var buf bytes.Buffer
+	writer := io.Writer(&buf)
+
+	size := d.keyValuePairs.Len()
+
+	e := d.keyValuePairs.Front()
+	for i := 0; i < size; i++ {
+		valuetype := e.Value.(DtxPrimitiveKeyValuePair).valueType
+		value := e.Value.(DtxPrimitiveKeyValuePair).value
+		keytype := e.Value.(DtxPrimitiveKeyValuePair).keyType
+		if keytype != t_null {
+			return make([]byte, 0), fmt.Errorf("Encoding primitive dictionary keys is not supported. Unknown type: %d", keytype)
+		}
+		binary.Write(writer, binary.LittleEndian, t_null)
+		err := writeEntry(valuetype, value, writer)
+		if err != nil {
+			return make([]byte, 0), err
+		}
+		e = e.Next()
+	}
+
+	return buf.Bytes(), nil
+}
+
+func writeEntry(valuetype uint32, value interface{}, buf io.Writer) error {
+	if valuetype == t_null {
+		binary.Write(buf, binary.LittleEndian, t_null)
+		return nil
+	}
+	if valuetype == t_uint32 {
+		binary.Write(buf, binary.LittleEndian, t_uint32)
+		binary.Write(buf, binary.LittleEndian, value)
+		return nil
+	}
+	if valuetype == t_bytearray {
+		data := value.([]byte)
+		length := uint32(len(data))
+		binary.Write(buf, binary.LittleEndian, t_bytearray)
+		binary.Write(buf, binary.LittleEndian, length)
+		_, err := buf.Write(data)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	return fmt.Errorf("Unknown DtxPrimitiveDictionaryType: %d ", valuetype)
 }
 
 func (d DtxPrimitiveDictionary) String() string {
 	result := "["
 	for i, v := range d.valueTypes {
 		var prettyString []byte
-		if v == bytearray {
+		if v == t_bytearray {
 			bytes := d.values[i].([]byte)
 			prettyString = bytes
 			msg, err := archiver.Unarchive(bytes)
@@ -61,7 +113,7 @@ func decodeAuxiliary(auxBytes []byte) DtxPrimitiveDictionary {
 		auxBytes = remainingBytes
 		valueType, value, remainingBytes := readEntry(auxBytes)
 		auxBytes = remainingBytes
-		pair := DtxPrimitiveKeyValuePair{keyType, key, valueType, value}
+		pair := DtxPrimitiveKeyValuePair{keyType, key, valueType, value, isNSKeyedArchiverEncoded(valueType, value)}
 		result.keyValuePairs.PushBack(pair)
 		if len(auxBytes) == 0 {
 			break
@@ -77,18 +129,26 @@ func decodeAuxiliary(auxBytes []byte) DtxPrimitiveDictionary {
 	for i := 0; i < size; i++ {
 		result.valueTypes[i] = e.Value.(DtxPrimitiveKeyValuePair).valueType
 		result.values[i] = e.Value.(DtxPrimitiveKeyValuePair).value
+		e = e.Next()
 	}
 
 	return result
 }
+func isNSKeyedArchiverEncoded(datatype uint32, obj interface{}) bool {
+	if datatype != t_bytearray {
+		return false
+	}
+	data := obj.([]byte)
+	return bytes.Index(data, []byte(nskeyedarchiver.NsKeyedArchiver)) != -1
 
+}
 func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 	readType := binary.LittleEndian.Uint32(auxBytes)
-	if readType == null {
-		return null, nil, auxBytes[4:]
+	if readType == t_null {
+		return t_null, nil, auxBytes[4:]
 	}
 	if readType == t_uint32 {
-		return t_uint32, auxBytes[4:8], auxBytes[8:]
+		return t_uint32, binary.LittleEndian.Uint32(auxBytes[4:8]), auxBytes[8:]
 	}
 	if hasLength(readType) {
 		length := binary.LittleEndian.Uint32(auxBytes[4:])
@@ -100,17 +160,17 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 }
 
 const (
-	null       uint32 = 0x0A
-	stringtype uint32 = 0x01
-	bytearray  uint32 = 0x02
-	t_uint32   uint32 = 0x03
+	t_null      uint32 = 0x0A
+	t_string    uint32 = 0x01
+	t_bytearray uint32 = 0x02
+	t_uint32    uint32 = 0x03
 )
 
 func toString(t uint32) string {
 	switch t {
-	case null:
+	case t_null:
 		return "null"
-	case bytearray:
+	case t_bytearray:
 		return "binary"
 	case t_uint32:
 		return "uint32"
@@ -120,7 +180,7 @@ func toString(t uint32) string {
 }
 
 func hasLength(typeCode uint32) bool {
-	return typeCode == bytearray
+	return typeCode == t_bytearray
 }
 
 type AuxiliaryEncoder struct {
@@ -128,24 +188,24 @@ type AuxiliaryEncoder struct {
 }
 
 func (a *AuxiliaryEncoder) AddNsKeyedArchivedObject(object interface{}) {
-	a.writeEntry(null, nil)
+	a.writeEntry(t_null, nil)
 	bytes, err := archiver.ArchiveBin(object)
 	if err != nil {
 		log.Info(err)
 	}
-	a.writeEntry(bytearray, bytes)
+	a.writeEntry(t_bytearray, bytes)
 }
 
 func (a *AuxiliaryEncoder) writeEntry(entryType uint32, object interface{}) {
 
 	binary.Write(&a.buf, binary.LittleEndian, entryType)
-	if entryType == null {
+	if entryType == t_null {
 		return
 	}
 	if entryType == t_uint32 {
 		binary.Write(&a.buf, binary.LittleEndian, object.(int32))
 	}
-	if entryType == bytearray {
+	if entryType == t_bytearray {
 		binary.Write(&a.buf, binary.LittleEndian, int32(len(object.([]byte))))
 		a.buf.Write(object.([]byte))
 

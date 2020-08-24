@@ -21,6 +21,7 @@ func ArchiveXML(object interface{}) (string, error) {
 	return toPlist(plist)
 }
 func ArchiveBin(object interface{}) ([]byte, error) {
+	return make([]byte, 50), nil
 	plist, err := archiveObject(object)
 	if err != nil {
 		return []byte{}, err
@@ -48,7 +49,7 @@ func createSkeleton(size int, withRoot bool) map[string]interface{} {
 	return map[string]interface{}{
 		versionKey:  versionValue,
 		objectsKey:  objectsArray,
-		archiverKey: nsKeyedArchiver,
+		archiverKey: NsKeyedArchiver,
 		topKey:      topDict,
 	}
 }

@@ -22,6 +22,7 @@ type dtxDecoder struct {
 	binFilePath  string
 	buffer       bytes.Buffer
 	isBroken     bool
+	log          log.Entry
 }
 
 type MessageWithMetaInfo struct {
@@ -32,11 +33,21 @@ type MessageWithMetaInfo struct {
 	Length       int
 }
 
-func NewDtxDecoder(jsonFilePath string, binFilePath string) decoder {
-	return &dtxDecoder{jsonFilePath: jsonFilePath, binFilePath: binFilePath, buffer: bytes.Buffer{}, isBroken: false}
+func NewDtxDecoder(jsonFilePath string, binFilePath string, log log.Entry) decoder {
+	return &dtxDecoder{jsonFilePath: jsonFilePath, binFilePath: binFilePath, buffer: bytes.Buffer{}, isBroken: false, log: log}
 }
 
 func (f *dtxDecoder) decode(data []byte) {
+
+	file, err := os.OpenFile(f.binFilePath+".raw",
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println(err)
+	}
+
+	file.Write(data)
+	file.Close()
+
 	if f.isBroken {
 		//when an error happens while decoding, this flag prevents from flooding the logs with errors
 		//while still dumping binary to debug later
@@ -53,8 +64,8 @@ func (f *dtxDecoder) decode(data []byte) {
 			break
 		}
 		if err != nil {
-			log.Errorf("Failed decoding DTX:%s, continuing bindumping", err)
-			log.Info(fmt.Sprintf("%x", slice))
+			f.log.Errorf("Failed decoding DTX:%s, continuing bindumping", err)
+			f.log.Info(fmt.Sprintf("%x", slice))
 			f.isBroken = true
 		}
 		slice = remainingbytes
@@ -104,7 +115,7 @@ type binaryOnlyDumper struct {
 }
 
 //NewNoOpDecoder does nothing
-func NewBinDumpOnly(jsonFilePath string, dumpFilePath string) decoder {
+func NewBinDumpOnly(jsonFilePath string, dumpFilePath string, log log.Entry) decoder {
 	return binaryOnlyDumper{dumpFilePath}
 }
 func (n binaryOnlyDumper) decode(bytes []byte) {

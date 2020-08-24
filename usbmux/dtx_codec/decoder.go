@@ -71,7 +71,7 @@ func (d DtxMessage) StringDebug() string {
 		payload = string(b)
 	}
 	if d.HasAuxiliary() {
-		return fmt.Sprintf("auxheader:%s\naux:%s\npayload: %s \nrawbytes:%x", d.AuxiliaryHeader, d.Auxiliary, payload, d.RawBytes)
+		return fmt.Sprintf("auxheader:%s\naux:%s\npayload: %s \nrawbytes:%x", d.AuxiliaryHeader, d.Auxiliary.String(), payload, d.RawBytes)
 	}
 	return fmt.Sprintf("no aux,payload: %s \nrawbytes:%x", payload, d.RawBytes)
 }

@@ -10,7 +10,7 @@ import (
 )
 
 type serviceConfig struct {
-	codec            func(string, string) decoder
+	codec            func(string, string, log.Entry) decoder
 	handshakeOnlySSL bool
 }
 
@@ -71,10 +71,12 @@ func handleConnectToService(connectRequest *usbmux.MuxMessage,
 	binToDevice := BinaryForwardingProxy{muxToDevice.Close(), serviceConfig.codec(
 		path.Join(p.info.ConnectionPath, "from-device.json"),
 		path.Join(p.info.ConnectionPath, "from-device.bin"),
+		*p.log,
 	)}
 	binOnUnixSocket := BinaryForwardingProxy{muxOnUnixSocket.Close(), serviceConfig.codec(
 		path.Join(p.info.ConnectionPath, "to-device.json"),
 		path.Join(p.info.ConnectionPath, "to-device.bin"),
+		*p.log,
 	)}
 
 	if serviceInfo.UseSSL {

@@ -2,7 +2,7 @@ package nskeyedarchiver
 
 const (
 	archiverKey     = "$archiver"
-	nsKeyedArchiver = "NSKeyedArchiver"
+	NsKeyedArchiver = "NSKeyedArchiver"
 	versionKey      = "$version"
 	topKey          = "$top"
 	objectsKey      = "$objects"

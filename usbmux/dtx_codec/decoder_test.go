@@ -30,6 +30,30 @@ func TestErrors(t *testing.T) {
 
 }
 
+func TestCodec(t *testing.T) {
+
+	dat, err := ioutil.ReadFile("fixtures/requestChannelWithCodeIdentifier.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	var remainingBytes []byte
+	remainingBytes = dat
+	for len(remainingBytes) > 0 {
+		msg, s, err := dtx.Decode(remainingBytes)
+		log.Info(msg.StringDebug())
+		remainingBytes = s
+		if !assert.NoError(t, err) {
+			log.Fatal("whet", err)
+		}
+		bytes, err := dtx.Encode(3, 0, true, 2, msg.RawBytes[303:], msg.Auxiliary)
+		if assert.NoError(t, err) {
+			assert.Equal(t, dat, bytes)
+		}
+	}
+
+}
+
 func TestAXDump(t *testing.T) {
 
 	//dat, err := ioutil.ReadFile("fixtures/broken-message-from-ax-1.bin")
