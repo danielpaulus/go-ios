@@ -5,12 +5,36 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+
 	"testing"
 
+	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 	archiver "github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestArchiverStringArray(t *testing.T) {
+	arr := []interface{}{"a", "n", "c"}
+	b, err := nskeyedarchiver.ArchiveXML(arr)
+
+	if assert.NoError(t, err) {
+		result, err := nskeyedarchiver.Unarchive([]byte(b))
+		assert.NoError(t, err)
+		assert.Equal(t, arr, result[0])
+	}
+}
+
+func TestArchiverEmptyArray(t *testing.T) {
+	arr := []interface{}{}
+	b, err := nskeyedarchiver.ArchiveXML(arr)
+
+	if assert.NoError(t, err) {
+		result, err := nskeyedarchiver.Unarchive([]byte(b))
+		assert.NoError(t, err)
+		assert.Equal(t, arr, result[0])
+	}
+}
 
 func TestArchiver3(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/payload_dump.json")
