@@ -1,7 +1,9 @@
 package dtx
 
 import (
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/danielpaulus/go-ios/usbmux"
 	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
@@ -47,7 +49,9 @@ func NewDtxConnection(deviceId int, udid string, serviceName string) (*DtxConnec
 		return nil, err
 	}
 	dtxConnection := &DtxConnection{dtxConnection: conn, channelCodeCounter: 1, activeChannels: map[int]DtxChannel{}}
-	globalChannel := DtxChannel{channelCode: 0, messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection, messageDispatcher: NewGlobalDispatcher()}
+	globalChannel := DtxChannel{channelCode: 0,
+		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
+		messageDispatcher: NewGlobalDispatcher(), responseWaiters: map[int]chan DtxMessage{}}
 	dtxConnection.globalChannel = globalChannel
 	go reader(dtxConnection)
 
@@ -94,9 +98,14 @@ func (d *DtxConnection) RequestChannelIdentifier(identifier string, messageDispa
 	auxiliary.AddInt32(code)
 	arch, _ := nskeyedarchiver.ArchiveBin(identifier)
 	auxiliary.AddBytes(arch)
-	d.globalChannel.Send(true, MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	log.WithFields(log.Fields{"channel_id": identifier}).Info("Requesting channel")
 
-	channel := DtxChannel{channelCode: code, channelName: identifier, connection: d, messageDispatcher: messageDispatcher}
+	_, err := d.globalChannel.SendAndAwaitReply(true, MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	if err != nil {
+		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Info("failed requesting channel")
+	}
+	log.WithFields(log.Fields{"channel_id": identifier}).Info("Channel open")
+	channel := DtxChannel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan DtxMessage{}}
 	d.activeChannels[code] = channel
 	return channel
 }
@@ -107,6 +116,7 @@ type DtxChannel struct {
 	messageIdentifier int
 	connection        *DtxConnection
 	messageDispatcher DtxDispatcher
+	responseWaiters   map[int]chan DtxMessage
 }
 
 func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byte, auxiliary DtxPrimitiveDictionary) error {
@@ -119,6 +129,35 @@ func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byt
 	return d.connection.Send(bytes)
 }
 
-func (d DtxChannel) Dispatch(msg DtxMessage) {
+const timeout = time.Second * 5
+
+func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, payloadBytes []byte, auxiliary DtxPrimitiveDictionary) (DtxMessage, error) {
+	identifier := d.messageIdentifier
+	d.messageIdentifier++
+	bytes, err := Encode(identifier, d.channelCode, expectsReply, messageType, payloadBytes, auxiliary)
+	if err != nil {
+		return DtxMessage{}, err
+	}
+	responseChannel := make(chan DtxMessage)
+	d.responseWaiters[identifier] = responseChannel
+	err = d.connection.Send(bytes)
+	if err != nil {
+		return DtxMessage{}, err
+	}
+	select {
+	case response := <-responseChannel:
+		return response, nil
+	case <-time.After(timeout):
+		return DtxMessage{}, fmt.Errorf("Timed out waiting for response for message:%d channel:%d", identifier, d.channelCode)
+	}
+
+}
+
+func (d *DtxChannel) Dispatch(msg DtxMessage) {
+	if msg.ConversationIndex > 0 {
+		d.responseWaiters[msg.Identifier] <- msg
+		delete(d.responseWaiters, msg.Identifier)
+		return
+	}
 	d.messageDispatcher.Dispatch(msg)
 }

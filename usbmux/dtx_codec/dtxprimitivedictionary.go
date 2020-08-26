@@ -36,7 +36,7 @@ func NewDtxPrimitiveDictionary() DtxPrimitiveDictionary {
 }
 
 func (d *DtxPrimitiveDictionary) AddInt32(value int) {
-	d.keyValuePairs.PushBack(DtxPrimitiveKeyValuePair{t_null, nil, t_uint32, value})
+	d.keyValuePairs.PushBack(DtxPrimitiveKeyValuePair{t_null, nil, t_uint32, uint32(value)})
 }
 func (d *DtxPrimitiveDictionary) AddBytes(value []byte) {
 	d.keyValuePairs.PushBack(DtxPrimitiveKeyValuePair{t_null, nil, t_bytearray, value})
@@ -170,10 +170,11 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 }
 
 const (
-	t_null      uint32 = 0x0A
-	t_string    uint32 = 0x01
-	t_bytearray uint32 = 0x02
-	t_uint32    uint32 = 0x03
+	t_null                     uint32 = 0x0A
+	t_string                   uint32 = 0x01
+	t_bytearray                uint32 = 0x02
+	t_uint32                   uint32 = 0x03
+	DTX_PRIMITIVE_TYPE_INT64_B        = 6
 )
 
 func toString(t uint32) string {

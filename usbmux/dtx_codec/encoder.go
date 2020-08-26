@@ -2,8 +2,6 @@ package dtx
 
 import (
 	"encoding/binary"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func BuildAckMessage(msg DtxMessage) []byte {
@@ -39,7 +37,7 @@ func Encode(
 	copy(messageBytes[64+auxiliarySize:], payloadBytes)
 
 	//serializedMessage := make([]byte, message.)
-	log.Infof("%x", messageBytes)
+
 	return messageBytes, nil
 }
 
