@@ -91,11 +91,43 @@ func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, 
 }
 
 func serializeMap(mapObject map[string]interface{}, objects []interface{}) ([]interface{}, plist.UID) {
-	return nil, 0
+	dictDict := map[string]interface{}{}
+	index := len(objects)
+	objects = append(objects, dictDict)
+
+	index = len(objects)
+	objects = append(objects, dictionaryClassDefinition())
+	dictDict["$class"] = plist.UID(index)
+
+	keyRefs := make([]plist.UID, len(mapObject))
+
+	index = 0
+	for key, _ := range mapObject {
+		var uid plist.UID
+		objects, uid = archive(key, objects)
+		keyRefs[index] = uid
+		index++
+	}
+	dictDict["NS.keys"] = keyRefs
+
+	index = 0
+	valueRefs := make([]plist.UID, len(mapObject))
+	for _, value := range mapObject {
+		var uid plist.UID
+		objects, uid = archive(value, objects)
+		valueRefs[index] = uid
+		index++
+	}
+	dictDict["NS.objects"] = valueRefs
+
+	return objects, plist.UID(index)
 }
 
 func arrayClassDefinition() map[string]interface{} {
 	return map[string]interface{}{"$classes": []string{"NSArray", "NSObject"}, "$classname": "NSArray"}
+}
+func dictionaryClassDefinition() map[string]interface{} {
+	return map[string]interface{}{"$classes": []string{"NSDictionary", "NSObject"}, "$classname": "NSDictionary"}
 }
 
 func isArray(object interface{}) bool {

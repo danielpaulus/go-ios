@@ -14,8 +14,9 @@ func TestIt(t *testing.T) {
 	device := usbmux.ListDevices().DeviceList[0]
 	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, "com.apple.instruments.remoteserver")
 	processControl := instruments.NewProcessControl(conn)
-
-	pid, err := processControl.StartProcess("bla.test", "bla.test.de", map[string]string{}, []string{}, map[string]interface{}{})
+	options := map[string]interface{}{}
+	options["StartSuspendedKey"] = uint64(0)
+	pid, err := processControl.StartProcess("/private/var/mobile/Containers/Data/Application/F7EAD07C-F167-47A9-9EC6-118D666E7DC3", "com.netflix.Netflix", map[string]interface{}{}, []interface{}{}, options)
 	if err != nil {
 		log.Fatal(err)
 	}
