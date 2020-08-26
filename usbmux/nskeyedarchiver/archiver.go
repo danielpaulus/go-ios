@@ -64,6 +64,10 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 		return serializeArray(v, objects)
 	}
 
+	if v, ok := object.(map[string]interface{}); ok {
+		return serializeMap(v, objects)
+	}
+
 	log.Fatal(fmt.Errorf("Unsupported type:%s", object))
 	return nil, 0
 }
@@ -84,6 +88,10 @@ func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, 
 	}
 	arrayDict["NS.objects"] = itemRefs
 	return objects, plist.UID(index)
+}
+
+func serializeMap(mapObject map[string]interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	return nil, 0
 }
 
 func arrayClassDefinition() map[string]interface{} {

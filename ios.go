@@ -16,6 +16,7 @@ import (
 	"github.com/danielpaulus/go-ios/usbmux/debugproxy"
 	"github.com/danielpaulus/go-ios/usbmux/diagnostics"
 	"github.com/danielpaulus/go-ios/usbmux/forward"
+	"github.com/danielpaulus/go-ios/usbmux/installationproxy"
 	"github.com/danielpaulus/go-ios/usbmux/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/usbmux/syslog"
 	"github.com/docopt/docopt-go"
@@ -48,6 +49,7 @@ Usage:
   ios forward [options] <hostPort> <targetPort>
   ios dproxy
   ios readpair
+  ios installedapps
   ios -h | --help
   ios --version | version [options]
 
@@ -162,6 +164,12 @@ The commands work as following:
 		return
 	}
 
+	b, _ = arguments.Bool("installedapps")
+	if b {
+		printInstalledApps(device)
+		return
+	}
+
 	b, _ = arguments.Bool("date")
 	if b {
 		printDeviceDate(device)
@@ -249,6 +257,10 @@ func printDeviceDate(device usbmux.DeviceEntry) {
 		fmt.Println(convertToJSONString(map[string]interface{}{"formatedDate": formatedDate, "TimeIntervalSince1970": allValues.Value.TimeIntervalSince1970}))
 	}
 
+}
+func printInstalledApps(device usbmux.DeviceEntry) {
+	svc, _ := installationproxy.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+	svc.AllValues()
 }
 
 func printDeviceName(device usbmux.DeviceEntry) {
