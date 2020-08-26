@@ -30,17 +30,36 @@ func (p ProcessControl) StartProcess(path string, bundleID string, envVars map[s
 
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
 	auxiliary := dtx.NewDtxPrimitiveDictionary()
-	//auxiliary.AddInt32(code)
-	//arch, _ := nskeyedarchiver.ArchiveBin(identifier)
-	//auxiliary.AddBytes(arch)
+
+	arch, err := nskeyedarchiver.ArchiveBin(path)
+	dieOnErr(err)
+	auxiliary.AddBytes(arch)
+	arch, err = nskeyedarchiver.ArchiveBin(bundleID)
+	dieOnErr(err)
+	auxiliary.AddBytes(arch)
+	arch, err = nskeyedarchiver.ArchiveBin(envVars)
+	dieOnErr(err)
+	auxiliary.AddBytes(arch)
+	arch, err = nskeyedarchiver.ArchiveBin(arguments)
+	dieOnErr(err)
+	auxiliary.AddBytes(arch)
+	arch, err = nskeyedarchiver.ArchiveBin(options)
+	dieOnErr(err)
+	auxiliary.AddBytes(arch)
+
 	log.WithFields(log.Fields{"channel_id": channelName, "bundleID": bundleID}).Info("Launching process")
 
 	msg, err := p.processControlChannel.SendAndAwaitReply(true, dtx.MethodinvocationWithoutExpectedReply, payload, auxiliary)
 	if err != nil {
-		log.WithFields(log.Fields{"channel_id": channelName, "error": err}).Info("failed requesting channel")
+		log.WithFields(log.Fields{"channel_id": channelName, "error": err}).Info("failed starting process")
 	}
 	if msg.HasError() {
 		return -1, fmt.Errorf("Failed starting process: %s", msg.Payload[0])
 	}
 	return 0, nil
+}
+func dieOnErr(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }

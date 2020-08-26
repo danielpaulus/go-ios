@@ -35,7 +35,7 @@ func archiveObject(object interface{}) (interface{}, error) {
 		return archiverSkeleton, nil
 	}
 
-	return nil, fmt.Errorf("Unsupported type")
+	return nil, fmt.Errorf("Unsupported type:%s", object)
 }
 
 func createSkeleton(size int, withRoot bool) map[string]interface{} {
