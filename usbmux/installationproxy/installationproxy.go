@@ -4,7 +4,6 @@ import (
 	"bytes"
 
 	"github.com/danielpaulus/go-ios/usbmux"
-	log "github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
@@ -22,31 +21,37 @@ func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, 
 	}
 	return &Connection{deviceConn: deviceConn, plistCodec: usbmux.NewPlistCodec()}, nil
 }
+func (conn *Connection) BrowseUserApps() (BrowseResponse, error) {
+	return conn.browseApps(browseUserApps())
+}
 
-func (conn *Connection) AllValues() (interface{}, error) {
+func (conn *Connection) BrowseSystemApps() (BrowseResponse, error) {
+	return conn.browseApps(browseSystemApps())
+}
+
+func (conn *Connection) browseApps(request interface{}) (BrowseResponse, error) {
 	reader := conn.deviceConn.Reader()
-	bytes, err := conn.plistCodec.Encode(browseUserApps())
+	bytes, err := conn.plistCodec.Encode(request)
 	if err != nil {
-		return nil, err
+		return BrowseResponse{}, err
 	}
 	conn.deviceConn.Send(bytes)
 	response, err := conn.plistCodec.Decode(reader)
 	ifa, err := plistFromBytes(response)
-	log.Info(ifa)
 	if err != nil {
-		return nil, err
+		return BrowseResponse{}, err
 	}
-	return nil, nil
+	return ifa, nil
 }
-func plistFromBytes(plistBytes []byte) (interface{}, error) {
-	var test interface{}
+func plistFromBytes(plistBytes []byte) (BrowseResponse, error) {
+	var browseResponse BrowseResponse
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 
-	err := decoder.Decode(&test)
+	err := decoder.Decode(&browseResponse)
 	if err != nil {
-		return test, err
+		return browseResponse, err
 	}
-	return test, nil
+	return browseResponse, nil
 }
 func browseSystemApps() map[string]interface{} {
 	returnAttributes := []string{
@@ -103,4 +108,31 @@ func browseUserApps() map[string]interface{} {
 		"ShowLaunchProhibitedApps": true,
 	}
 	return map[string]interface{}{"ClientOptions": clientOptions, "Command": "Browse"}
+}
+
+type BrowseResponse struct {
+	CurrentIndex  uint64
+	CurrentAmount uint64
+	Status        string
+	CurrentList   []AppInfo
+}
+type AppInfo struct {
+	ApplicationDSID              int
+	ApplicationType              string
+	CFBundleDisplayName          string
+	CFBundleExecutable           string
+	CFBundleIdentifier           string
+	CFBundleName                 string
+	CFBundleShortVersionString   string
+	CFBundleVersion              string
+	Container                    string
+	Entitlements                 map[string]interface{}
+	EnvironmentVariables         map[string]interface{}
+	MinimumOSVersion             string
+	Path                         string
+	ProfileValidated             bool
+	SBAppTags                    string
+	SignerIdentity               string
+	UIDeviceFamily               []int
+	UIRequiredDeviceCapabilities []string
 }

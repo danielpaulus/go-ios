@@ -49,7 +49,7 @@ Usage:
   ios forward [options] <hostPort> <targetPort>
   ios dproxy
   ios readpair
-  ios installedapps
+  ios apps [--system]  
   ios -h | --help
   ios --version | version [options]
 
@@ -164,9 +164,11 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("installedapps")
+	b, _ = arguments.Bool("apps")
+
 	if b {
-		printInstalledApps(device)
+		system, _ := arguments.Bool("--system")
+		printInstalledApps(device, system)
 		return
 	}
 
@@ -258,9 +260,21 @@ func printDeviceDate(device usbmux.DeviceEntry) {
 	}
 
 }
-func printInstalledApps(device usbmux.DeviceEntry) {
+func printInstalledApps(device usbmux.DeviceEntry, system bool) {
 	svc, _ := installationproxy.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
-	svc.AllValues()
+	if !system {
+		response, err := svc.BrowseUserApps()
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Info(response)
+		return
+	}
+	response, err := svc.BrowseSystemApps()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Info(response)
 }
 
 func printDeviceName(device usbmux.DeviceEntry) {
