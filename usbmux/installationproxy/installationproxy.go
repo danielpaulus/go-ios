@@ -131,7 +131,7 @@ type AppInfo struct {
 	MinimumOSVersion             string
 	Path                         string
 	ProfileValidated             bool
-	SBAppTags                    string
+	SBAppTags                    []string
 	SignerIdentity               string
 	UIDeviceFamily               []int
 	UIRequiredDeviceCapabilities []string
