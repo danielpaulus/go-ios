@@ -273,7 +273,7 @@ func printDeviceDate(device usbmux.DeviceEntry) {
 
 }
 func printInstalledApps(device usbmux.DeviceEntry, system bool) {
-	svc, _ := installationproxy.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+	svc, _ := installationproxy.New(device.DeviceID, device.Properties.SerialNumber)
 	if !system {
 		response, err := svc.BrowseUserApps()
 		if err != nil {

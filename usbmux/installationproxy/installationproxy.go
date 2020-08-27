@@ -14,7 +14,7 @@ type Connection struct {
 	plistCodec *usbmux.PlistCodec
 }
 
-func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, error) {
+func New(deviceID int, udid string) (*Connection, error) {
 	deviceConn, err := usbmux.ConnectToService(deviceID, udid, serviceName)
 	if err != nil {
 		return &Connection{}, err
