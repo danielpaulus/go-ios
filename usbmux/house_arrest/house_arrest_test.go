@@ -1,5 +1,6 @@
 package house_arrest_test
 
+/*
 import (
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/danielpaulus/go-ios/usbmux"
 	"github.com/danielpaulus/go-ios/usbmux/house_arrest"
 )
+
 
 func TestIT(t *testing.T) {
 	device := usbmux.ListDevices().DeviceList[0]
@@ -23,3 +25,4 @@ func TestIT(t *testing.T) {
 	defer conn.Close()
 	log.Fatal(err)
 }
+*/
