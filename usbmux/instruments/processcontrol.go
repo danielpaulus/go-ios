@@ -3,6 +3,7 @@ package instruments
 import (
 	"fmt"
 
+	"github.com/danielpaulus/go-ios/usbmux"
 	dtx "github.com/danielpaulus/go-ios/usbmux/dtx_codec"
 	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
@@ -15,6 +16,15 @@ type ProcessControl struct {
 }
 
 type ProcessControlDispatcher struct{}
+
+func LaunchApp(bundleID string, device usbmux.DeviceEntry) (uint64, error) {
+	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, "com.apple.instruments.remoteserver")
+	defer conn.Close()
+	processControl := NewProcessControl(conn)
+	options := map[string]interface{}{}
+	options["StartSuspendedKey"] = uint64(0)
+	return processControl.StartProcess(bundleID, map[string]interface{}{}, []interface{}{}, options)
+}
 
 func (p ProcessControlDispatcher) Dispatch(m dtx.DtxMessage) {
 	log.Info(m)

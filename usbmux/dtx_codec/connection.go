@@ -26,6 +26,10 @@ type DtxDispatcher interface {
 	Dispatch(msg DtxMessage)
 }
 
+func (d *DtxConnection) Close() {
+	d.dtxConnection.Close()
+}
+
 func NewGlobalDispatcher() DtxDispatcher {
 	dispatcher := GlobalDispatcher{dispatchFunctions: map[string]func(DtxMessage){}}
 	const notifyPublishedCaps = "_notifyOfPublishedCapabilities:"

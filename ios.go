@@ -17,6 +17,7 @@ import (
 	"github.com/danielpaulus/go-ios/usbmux/diagnostics"
 	"github.com/danielpaulus/go-ios/usbmux/forward"
 	"github.com/danielpaulus/go-ios/usbmux/installationproxy"
+	"github.com/danielpaulus/go-ios/usbmux/instruments"
 	"github.com/danielpaulus/go-ios/usbmux/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/usbmux/syslog"
 	"github.com/docopt/docopt-go"
@@ -49,7 +50,8 @@ Usage:
   ios forward [options] <hostPort> <targetPort>
   ios dproxy
   ios readpair
-  ios apps [--system]  
+  ios apps [--system]
+  ios launch <bundleID>  
   ios -h | --help
   ios --version | version [options]
 
@@ -201,6 +203,16 @@ The commands work as following:
 		targetPort, _ := arguments.Int("<targetPort>")
 		startForwarding(device, hostPort, targetPort)
 		return
+	}
+
+	b, _ = arguments.Bool("launch")
+	if b {
+		bundleID, _ := arguments.String("<bundleID>")
+		pid, err := instruments.LaunchApp(bundleID, device)
+		if err != nil {
+			log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
+		}
+		log.Error(err)
 	}
 }
 
