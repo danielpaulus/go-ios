@@ -42,6 +42,17 @@ func (d *DtxPrimitiveDictionary) AddBytes(value []byte) {
 	d.keyValuePairs.PushBack(DtxPrimitiveKeyValuePair{t_null, nil, t_bytearray, value})
 }
 
+//AddNsKeyedArchivedObject wraps the object in a NSKeyedArchiver envelope before saving it to the dictionary as a []byte.
+//This will log.Fatal on error because NSKeyedArchiver has to support everything that is put in here during runtime.
+//If not, it is a non-recoverable bug and needs to be fixed anyway.
+func (d *DtxPrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) {
+	archivedObject, err := nskeyedarchiver.ArchiveBin(object)
+	if err != nil {
+		log.Fatal(err)
+	}
+	d.AddBytes(archivedObject)
+}
+
 func (d DtxPrimitiveDictionary) ToBytes() ([]byte, error) {
 	var buf bytes.Buffer
 	writer := io.Writer(&buf)

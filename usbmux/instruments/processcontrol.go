@@ -25,7 +25,7 @@ func NewProcessControl(dtxConnection *dtx.DtxConnection) ProcessControl {
 	return ProcessControl{processControlChannel: processControlChannel}
 }
 
-func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (int, error) {
+func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (uint64, error) {
 	const objcMethodName = "launchSuspendedProcessWithDevicePath:bundleIdentifier:environment:arguments:options:"
 	//seems like the path does not matter
 	const path = "/private/"
@@ -33,21 +33,11 @@ func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interfa
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
 	auxiliary := dtx.NewDtxPrimitiveDictionary()
 
-	arch, err := nskeyedarchiver.ArchiveBin(path)
-	dieOnErr(err)
-	auxiliary.AddBytes(arch)
-	arch, err = nskeyedarchiver.ArchiveBin(bundleID)
-	dieOnErr(err)
-	auxiliary.AddBytes(arch)
-	arch, err = nskeyedarchiver.ArchiveBin(envVars)
-	dieOnErr(err)
-	auxiliary.AddBytes(arch)
-	arch, err = nskeyedarchiver.ArchiveBin(arguments)
-	dieOnErr(err)
-	auxiliary.AddBytes(arch)
-	arch, err = nskeyedarchiver.ArchiveBin(options)
-	dieOnErr(err)
-	auxiliary.AddBytes(arch)
+	auxiliary.AddNsKeyedArchivedObject(path)
+	auxiliary.AddNsKeyedArchivedObject(bundleID)
+	auxiliary.AddNsKeyedArchivedObject(envVars)
+	auxiliary.AddNsKeyedArchivedObject(arguments)
+	auxiliary.AddNsKeyedArchivedObject(options)
 
 	log.WithFields(log.Fields{"channel_id": channelName, "bundleID": bundleID}).Info("Launching process")
 
@@ -56,12 +46,12 @@ func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interfa
 		log.WithFields(log.Fields{"channel_id": channelName, "error": err}).Info("failed starting process")
 	}
 	if msg.HasError() {
-		return -1, fmt.Errorf("Failed starting process: %s", msg.Payload[0])
+		return 0, fmt.Errorf("Failed starting process: %s", msg.Payload[0])
 	}
-	return 0, nil
-}
-func dieOnErr(err error) {
-	if err != nil {
-		log.Fatal(err)
+	if pid, ok := msg.Payload[0].(uint64); ok {
+		log.WithFields(log.Fields{"channel_id": channelName, "pid": pid}).Info("Process started successfully")
+		return pid, nil
 	}
+	return 0, fmt.Errorf("pid returned in payload was not of type uint64 for processcontroll.startprocess, instead: %s", msg.Payload)
+
 }
