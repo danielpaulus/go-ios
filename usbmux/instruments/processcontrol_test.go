@@ -16,7 +16,7 @@ func TestIt(t *testing.T) {
 	processControl := instruments.NewProcessControl(conn)
 	options := map[string]interface{}{}
 	options["StartSuspendedKey"] = uint64(0)
-	pid, err := processControl.StartProcess("/private/var/mobile/Containers/Data/Application/F7EAD07C-F167-47A9-9EC6-118D666E7DC3", "com.netflix.Netflix", map[string]interface{}{}, []interface{}{}, options)
+	pid, err := processControl.StartProcess("com.netflix.Netflix", map[string]interface{}{}, []interface{}{}, options)
 	if err != nil {
 		log.Fatal(err)
 	}

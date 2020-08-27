@@ -25,8 +25,10 @@ func NewProcessControl(dtxConnection *dtx.DtxConnection) ProcessControl {
 	return ProcessControl{processControlChannel: processControlChannel}
 }
 
-func (p ProcessControl) StartProcess(path string, bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (int, error) {
+func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (int, error) {
 	const objcMethodName = "launchSuspendedProcessWithDevicePath:bundleIdentifier:environment:arguments:options:"
+	//seems like the path does not matter
+	const path = "/private/"
 
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
 	auxiliary := dtx.NewDtxPrimitiveDictionary()
