@@ -19,7 +19,7 @@ type ProcessControlDispatcher struct{}
 
 func LaunchApp(bundleID string, device usbmux.DeviceEntry) (uint64, error) {
 	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, "com.apple.instruments.remoteserver")
-	defer conn.Close()
+	//defer conn.Close()
 	processControl := NewProcessControl(conn)
 	options := map[string]interface{}{}
 	options["StartSuspendedKey"] = uint64(0)
@@ -28,7 +28,7 @@ func LaunchApp(bundleID string, device usbmux.DeviceEntry) (uint64, error) {
 
 func LaunchAppWithArgs(bundleID string, device usbmux.DeviceEntry, args []interface{}, env map[string]interface{}, opts map[string]interface{}) (uint64, error) {
 	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, "com.apple.instruments.remoteserver")
-	defer conn.Close()
+	//defer conn.Close()
 	return NewProcessControl(conn).StartProcess(bundleID, env, args, opts)
 }
 
