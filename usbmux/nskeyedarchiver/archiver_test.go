@@ -10,10 +10,19 @@ import (
 
 	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 	archiver "github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
+func TestXCTestconfig(t *testing.T) {
+	config := nskeyedarchiver.NewXCTestConfiguration("productmodulename", uuid.New(), "targetAppBundle", "targetAppPath", "testBundleUrl")
+	result, err := nskeyedarchiver.ArchiveXML(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Info(result)
+}
 func TestArchiverStringArray(t *testing.T) {
 	arr := []interface{}{"a", "n", "c"}
 	b, err := nskeyedarchiver.ArchiveXML(arr)

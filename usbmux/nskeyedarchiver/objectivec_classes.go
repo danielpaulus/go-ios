@@ -78,8 +78,19 @@ func NewXCTestConfiguration(
 	return XCTestConfiguration{contents}
 }
 
-func archiveXcTestConfiguration(xctestconfig interface{}, objects []interface{}) ([]interface{}, plist.UID) {
-	return objects, 0
+func archiveXcTestConfiguration(xctestconfigInterface interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	xctestconfig := xctestconfigInterface.(XCTestConfiguration)
+	xcconfigRef := plist.UID(len(objects))
+	objects = append(objects, xctestconfig.contents)
+
+	for _, key := range []string{"$class", "aggregateStatisticsBeforeCrash", "automationFrameworkPath", "productModuleName", "sessionIdentifier", "targetApplicationArguments",
+		"targetApplicationBundleID", "targetApplicationEnvironment", "targetApplicationPath", "testBundleURL"} {
+		var ref plist.UID
+		objects, ref = archive(xctestconfig.contents[key], objects)
+		xctestconfig.contents[key] = ref
+	}
+
+	return objects, xcconfigRef
 }
 
 type NSUUID struct {
@@ -123,14 +134,14 @@ func archiveNSURL(nsurlInterface interface{}, objects []interface{}) ([]interfac
 
 	object["NS.base"] = plist.UID(0)
 	object["NS.relative"] = nsurl.path
-	uuidReference := len(objects)
+	urlReference := len(objects)
 	objects = append(objects, object)
 
-	classref := uuidReference + 1
+	classref := urlReference + 1
 	object[class] = plist.UID(classref)
 	objects = append(objects, buildClassDict("NSURL", "NSObject"))
 
-	return objects, plist.UID(uuidReference)
+	return objects, plist.UID(urlReference)
 }
 
 type DTActivityTraceTapMessage struct {
