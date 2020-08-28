@@ -66,7 +66,7 @@ func NewXCTestConfiguration(
 	//testApplicationDependencies
 	contents["testApplicationUserOverrides"] = plist.UID(0)
 	contents["testBundleRelativePath"] = plist.UID(0)
-	contents["testBundleURL"] = testBundleURL
+	contents["testBundleURL"] = NewNSURL(testBundleURL)
 	contents["testExecutionOrdering"] = false
 	contents["testsDrivenByIDE"] = false
 	contents["testsMustRunOnMainThread"] = true
@@ -133,13 +133,17 @@ func archiveNSURL(nsurlInterface interface{}, objects []interface{}) ([]interfac
 	object := map[string]interface{}{}
 
 	object["NS.base"] = plist.UID(0)
-	object["NS.relative"] = nsurl.path
+
 	urlReference := len(objects)
 	objects = append(objects, object)
 
 	classref := urlReference + 1
 	object[class] = plist.UID(classref)
 	objects = append(objects, buildClassDict("NSURL", "NSObject"))
+
+	pathRef := classref + 1
+	object["NS.relative"] = plist.UID(pathRef)
+	objects = append(objects, nsurl.path)
 
 	return objects, plist.UID(urlReference)
 }

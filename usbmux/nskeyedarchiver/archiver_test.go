@@ -16,12 +16,14 @@ import (
 )
 
 func TestXCTestconfig(t *testing.T) {
-	config := nskeyedarchiver.NewXCTestConfiguration("productmodulename", uuid.New(), "targetAppBundle", "targetAppPath", "testBundleUrl")
+	uuid := uuid.New()
+	config := nskeyedarchiver.NewXCTestConfiguration("productmodulename", uuid, "targetAppBundle", "targetAppPath", "testBundleUrl")
 	result, err := nskeyedarchiver.ArchiveXML(config)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Info(result)
+	print(result)
+	log.Info(uuid.String())
 }
 func TestArchiverStringArray(t *testing.T) {
 	arr := []interface{}{"a", "n", "c"}
