@@ -26,6 +26,12 @@ func LaunchApp(bundleID string, device usbmux.DeviceEntry) (uint64, error) {
 	return processControl.StartProcess(bundleID, map[string]interface{}{}, []interface{}{}, options)
 }
 
+func LaunchAppWithArgs(bundleID string, device usbmux.DeviceEntry, args []interface{}, env map[string]interface{}, opts map[string]interface{}) (uint64, error) {
+	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, "com.apple.instruments.remoteserver")
+	defer conn.Close()
+	return NewProcessControl(conn).StartProcess(bundleID, env, args, opts)
+}
+
 func (p ProcessControlDispatcher) Dispatch(m dtx.DtxMessage) {
 	log.Info(m)
 }

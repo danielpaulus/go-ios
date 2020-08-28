@@ -8,6 +8,7 @@ import (
 	"github.com/danielpaulus/go-ios/usbmux"
 	"github.com/danielpaulus/go-ios/usbmux/house_arrest"
 	"github.com/danielpaulus/go-ios/usbmux/installationproxy"
+	"github.com/danielpaulus/go-ios/usbmux/instruments"
 	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -42,6 +43,20 @@ func RunXCUITest(bundleID string, device usbmux.DeviceEntry) error {
 
 	log.Info(v)
 	return nil
+}
+
+func startTestRunner(device usbmux.DeviceEntry, xctestConfigPath string, bundleID string) (uint64, error) {
+	args := []interface{}{}
+	env := map[string]interface{}{
+		"XCTestConfigurationFilePath": xctestConfigPath,
+	}
+	opts := map[string]interface{}{
+		"StartSuspendedKey": 0,
+		"ActivateSuspended": 1,
+	}
+
+	return instruments.LaunchAppWithArgs(bundleID, device, args, env, opts)
+
 }
 
 func setupXcuiTest(device usbmux.DeviceEntry, bundleID string) (semver.Version, string, error) {
