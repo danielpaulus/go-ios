@@ -129,7 +129,7 @@ func (conn *Connection) openFileForWriting(filePath string) (byte, error) {
 	if err != nil {
 		return 0, err
 	}
-	if response.header.Operation == afc_operation_status {
+	if response.header.Operation != afc_operation_file_open_result {
 		return 0, fmt.Errorf("Unexpected afc response, expected %x received %x", afc_operation_status, response.header.Operation)
 	}
 	return response.headerPayload[0], nil

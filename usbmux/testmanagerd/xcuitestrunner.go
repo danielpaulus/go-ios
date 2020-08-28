@@ -2,11 +2,13 @@ package testmanagerd
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/usbmux"
 	"github.com/danielpaulus/go-ios/usbmux/house_arrest"
 	"github.com/danielpaulus/go-ios/usbmux/installationproxy"
+	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
@@ -32,51 +34,74 @@ const testBundleSuffix = "UITests.xctrunner"
 */
 
 func RunXCUITest(bundleID string, device usbmux.DeviceEntry) error {
-	version := usbmux.GetValues(device).Value.ProductVersion
-	v, err := semver.NewVersion(version)
-	testSessionID := uuid.New()
-	testRunnerBundleID := bundleID + testBundleSuffix
+	v, xctestConfigPath, err := setupXcuiTest(device, bundleID)
 	if err != nil {
 		return err
 	}
-	installationProxy, err := installationproxy.New(device)
-	defer installationProxy.Close()
-	if err != nil {
-		return err
-	}
-	apps, err := installationProxy.BrowseUserApps()
-	if err != nil {
-		return err
-	}
-	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
-	if err != nil {
-		return err
-	}
-	houseArrestService, err := house_arrest.New(device, testRunnerBundleID)
-	defer houseArrestService.Close()
-	if err != nil {
-		return err
-	}
-	testConfigPath, err := createTestConfigOnDevice(testSessionID, info, houseArrestService)
-	if err != nil {
-		return err
-	}
-
-	log.Info(testConfigPath)
-	log.Info(info)
+	log.Info(xctestConfigPath)
 
 	log.Info(v)
 	return nil
 }
 
+func setupXcuiTest(device usbmux.DeviceEntry, bundleID string) (semver.Version, string, error) {
+	version := usbmux.GetValues(device).Value.ProductVersion
+	testSessionID := uuid.New()
+	testRunnerBundleID := bundleID + testBundleSuffix
+	v, err := semver.NewVersion(version)
+	if err != nil {
+		return semver.Version{}, "", err
+	}
+	installationProxy, err := installationproxy.New(device)
+	defer installationProxy.Close()
+	if err != nil {
+		return semver.Version{}, "", err
+	}
+	apps, err := installationProxy.BrowseUserApps()
+	if err != nil {
+		return semver.Version{}, "", err
+	}
+	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
+	if err != nil {
+		return semver.Version{}, "", err
+	}
+	houseArrestService, err := house_arrest.New(device, testRunnerBundleID)
+	defer houseArrestService.Close()
+	if err != nil {
+		return semver.Version{}, "", err
+	}
+	testConfigPath, err := createTestConfigOnDevice(testSessionID, info, houseArrestService)
+	if err != nil {
+		return semver.Version{}, "", err
+	}
+
+	return *v, testConfigPath, nil
+}
+
 func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *house_arrest.Connection) (string, error) {
-	return "", nil
+	relativeXcTestConfigPath := path.Join("tmp", testSessionID.String()+".xctestconfiguration")
+	xctestConfigPath := path.Join(info.testRunnerHomePath, relativeXcTestConfigPath)
+
+	testBundleURL := path.Join(info.testrunnerAppPath, "PlugIns", info.targetAppBundleName+".xctest")
+
+	config := nskeyedarchiver.NewXCTestConfiguration(info.targetAppBundleName, testSessionID, info.targetAppBundleID, info.targetAppPath, testBundleURL)
+	result, err := nskeyedarchiver.ArchiveBin(config)
+	if err != nil {
+		return "", err
+	}
+	err = houseArrestService.SendFile(result, relativeXcTestConfigPath)
+	if err != nil {
+		return "", err
+	}
+	return xctestConfigPath, nil
 }
 
 type testInfo struct {
-	testrunnerAppPath  string
-	testRunnerHomePath string
-	appPath            string
+	testrunnerAppPath   string
+	testRunnerHomePath  string
+	targetAppPath       string
+	targetAppBundleName string
+	targetAppBundleID   string
 }
 
 func getAppInfos(bundleID string, testRunnerBundleID string, apps installationproxy.BrowseResponse) (testInfo, error) {
@@ -84,7 +109,9 @@ func getAppInfos(bundleID string, testRunnerBundleID string, apps installationpr
 
 	for _, app := range apps.CurrentList {
 		if app.CFBundleIdentifier == bundleID {
-			info.appPath = app.Path
+			info.targetAppPath = app.Path
+			info.targetAppBundleName = app.CFBundleName
+			info.targetAppBundleID = app.CFBundleIdentifier
 		}
 		if app.CFBundleIdentifier == testRunnerBundleID {
 			info.testrunnerAppPath = app.Path
@@ -92,7 +119,7 @@ func getAppInfos(bundleID string, testRunnerBundleID string, apps installationpr
 		}
 	}
 
-	if info.appPath == "" {
+	if info.targetAppPath == "" {
 		return testInfo{}, fmt.Errorf("Did not find AppInfo for '%s' on device. Is it installed?", bundleID)
 	}
 	if info.testRunnerHomePath == "" || info.testrunnerAppPath == "" {
