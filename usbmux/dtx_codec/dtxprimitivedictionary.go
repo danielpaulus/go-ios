@@ -171,6 +171,9 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 	if readType == t_uint32 {
 		return t_uint32, binary.LittleEndian.Uint32(auxBytes[4:8]), auxBytes[8:]
 	}
+	if readType == t_int64 {
+		return t_int64, binary.LittleEndian.Uint64(auxBytes[4:12]), auxBytes[12:]
+	}
 	if hasLength(readType) {
 		length := binary.LittleEndian.Uint32(auxBytes[4:])
 		data := auxBytes[8 : 8+length]
@@ -181,11 +184,11 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 }
 
 const (
-	t_null                     uint32 = 0x0A
-	t_string                   uint32 = 0x01
-	t_bytearray                uint32 = 0x02
-	t_uint32                   uint32 = 0x03
-	DTX_PRIMITIVE_TYPE_INT64_B        = 6
+	t_null      uint32 = 0x0A
+	t_string    uint32 = 0x01
+	t_bytearray uint32 = 0x02
+	t_uint32    uint32 = 0x03
+	t_int64     uint32 = 0x06
 )
 
 func toString(t uint32) string {
