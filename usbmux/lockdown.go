@@ -32,6 +32,26 @@ func newGetValue(key string) *getValue {
 	return data
 }
 
+func GetValues(device DeviceEntry) GetAllValuesResponse {
+	muxConnection := NewUsbMuxConnection()
+	defer muxConnection.Close()
+
+	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
+
+	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	lockdownConnection.StartSession(pairRecord)
+
+	allValues, err := lockdownConnection.GetValues()
+	if err != nil {
+		log.Fatal(err)
+	}
+	lockdownConnection.StopSession()
+	return allValues
+}
+
 //NewLockDownConnection creates a new LockDownConnection with empty sessionId and a PlistCodec.
 func NewLockDownConnection(dev DeviceConnectionInterface) *LockDownConnection {
 	return &LockDownConnection{dev, "", NewPlistCodec()}

@@ -20,6 +20,7 @@ import (
 	"github.com/danielpaulus/go-ios/usbmux/instruments"
 	"github.com/danielpaulus/go-ios/usbmux/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/usbmux/syslog"
+	"github.com/danielpaulus/go-ios/usbmux/testmanagerd"
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
 )
@@ -51,7 +52,8 @@ Usage:
   ios dproxy
   ios readpair
   ios apps [--system]
-  ios launch <bundleID>  
+  ios launch <bundleID>
+  ios runtest <bundleID>  
   ios -h | --help
   ios --version | version [options]
 
@@ -214,6 +216,17 @@ The commands work as following:
 		}
 		log.Error(err)
 	}
+
+	b, _ = arguments.Bool("runtest")
+	if b {
+		bundleID, _ := arguments.String("<bundleID>")
+		err := testmanagerd.RunXCUITest(bundleID, device)
+		if err != nil {
+			log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
+		}
+		return
+	}
+
 }
 
 func printVersion() {
@@ -273,7 +286,7 @@ func printDeviceDate(device usbmux.DeviceEntry) {
 
 }
 func printInstalledApps(device usbmux.DeviceEntry, system bool) {
-	svc, _ := installationproxy.New(device.DeviceID, device.Properties.SerialNumber)
+	svc, _ := installationproxy.New(device)
 	if !system {
 		response, err := svc.BrowseUserApps()
 		if err != nil {

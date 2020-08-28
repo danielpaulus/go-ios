@@ -20,8 +20,8 @@ type Connection struct {
 	packageNumber uint64
 }
 
-func New(deviceID int, udid string, bundleID string) (*Connection, error) {
-	deviceConn, err := usbmux.ConnectToService(deviceID, udid, serviceName)
+func New(device usbmux.DeviceEntry, bundleID string) (*Connection, error) {
+	deviceConn, err := usbmux.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}

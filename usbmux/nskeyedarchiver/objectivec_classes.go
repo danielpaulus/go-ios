@@ -1,16 +1,136 @@
 package nskeyedarchiver
 
 import (
+	"log"
+
+	"github.com/google/uuid"
 	"howett.net/plist"
 )
 
-var classes map[string]func(map[string]interface{}, []interface{}) interface{}
+var decodableClasses map[string]func(map[string]interface{}, []interface{}) interface{}
+var encodableClasses map[string]func(object interface{}, objects []interface{}) ([]interface{}, plist.UID)
 
-func SetupClasses() {
-	classes = map[string]func(map[string]interface{}, []interface{}) interface{}{
-		"DTActivityTraceTapMessage": NewDTActivityTraceTapMessage,
-		"NSError":                   NewNSError,
+func SetupDecoders() {
+	if decodableClasses == nil {
+		decodableClasses = map[string]func(map[string]interface{}, []interface{}) interface{}{
+			"DTActivityTraceTapMessage": NewDTActivityTraceTapMessage,
+			"NSError":                   NewNSError,
+		}
 	}
+}
+
+func SetupEncoders() {
+	if encodableClasses == nil {
+		encodableClasses = map[string]func(object interface{}, objects []interface{}) ([]interface{}, plist.UID){
+			"XCTestConfiguration": archiveXcTestConfiguration,
+			"NSUUID":              archiveNSUUID,
+			"NSURL":               archiveNSURL,
+		}
+	}
+}
+
+type XCTestConfiguration struct {
+	contents map[string]interface{}
+}
+
+func NewXCTestConfiguration(
+	productModuleName string,
+	sessionIdentifier uuid.UUID,
+	targetApplicationBundleID string,
+	targetApplicationPath string,
+	testBundleURL string,
+) XCTestConfiguration {
+	contents := map[string]interface{}{}
+	contents["$class"] = buildClassDict("XCTestConfiguration", "NSObject")
+	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
+	contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
+	contents["baselineFileRelativePath"] = plist.UID(0)
+	contents["baselineFileURL"] = plist.UID(0)
+	contents["defaultTestExecutionTimeAllowance"] = plist.UID(0)
+	contents["disablePerformanceMetrics"] = false
+	contents["emitOSLogs"] = false
+	//contents["formatVersion"]= 2
+	contents["gatherLocalizableStringsData"] = false
+	contents["initializeForUITesting"] = true
+	contents["maximumTestExecutionTimeAllowance"] = plist.UID(0)
+	contents["productModuleName"] = productModuleName
+	contents["randomExecutionOrderingSeed"] = plist.UID(0)
+	contents["reportActivities"] = true
+	contents["reportResultsToIDE"] = true
+	contents["sessionIdentifier"] = NewNSUUID(sessionIdentifier)
+	contents["systemAttachmentLifetime"] = 2
+	contents["targetApplicationArguments"] = []interface{}{}
+	contents["targetApplicationBundleID"] = targetApplicationBundleID
+	contents["targetApplicationEnvironment"] = map[string]interface{}{}
+	contents["targetApplicationPath"] = targetApplicationPath
+	//testApplicationDependencies
+	contents["testApplicationUserOverrides"] = plist.UID(0)
+	contents["testBundleRelativePath"] = plist.UID(0)
+	contents["testBundleURL"] = testBundleURL
+	contents["testExecutionOrdering"] = false
+	contents["testsDrivenByIDE"] = false
+	contents["testsMustRunOnMainThread"] = true
+	contents["testsToRun"] = plist.UID(0)
+	contents["testsToSkip"] = plist.UID(0)
+	contents["testTimeoutsEnabled"] = false
+	contents["treatMissingBaselinesAsFailures"] = false
+	contents["userAttachmentLifetime"] = 1
+	return XCTestConfiguration{contents}
+}
+
+func archiveXcTestConfiguration(xctestconfig interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	return objects, 0
+}
+
+type NSUUID struct {
+	uuidbytes []byte
+}
+
+func NewNSUUID(id uuid.UUID) NSUUID {
+	bytes, err := id.MarshalBinary()
+	if err != nil {
+		log.Fatal("Unexpected Error", err)
+	}
+	return NSUUID{bytes}
+}
+
+func archiveNSUUID(uid interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	nsuuid := uid.(NSUUID)
+	object := map[string]interface{}{}
+
+	object["NS.uuidbytes"] = nsuuid.uuidbytes
+	uuidReference := len(objects)
+	objects = append(objects, object)
+
+	classref := uuidReference + 1
+	object[class] = plist.UID(classref)
+	objects = append(objects, buildClassDict("NSUUID", "NSObject"))
+
+	return objects, plist.UID(uuidReference)
+}
+
+type NSURL struct {
+	path string
+}
+
+func NewNSURL(path string) NSURL {
+	return NSURL{path}
+}
+
+func archiveNSURL(nsurlInterface interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	nsurl := nsurlInterface.(NSURL)
+	object := map[string]interface{}{}
+
+	object["NS.base"] = plist.UID(0)
+	object["NS.relative"] = nsurl.path
+	uuidReference := len(objects)
+	objects = append(objects, object)
+
+	classref := uuidReference + 1
+	object[class] = plist.UID(classref)
+	objects = append(objects, buildClassDict("NSURL", "NSObject"))
+
+	return objects, plist.UID(uuidReference)
 }
 
 type DTActivityTraceTapMessage struct {

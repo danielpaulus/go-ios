@@ -14,8 +14,12 @@ type Connection struct {
 	plistCodec *usbmux.PlistCodec
 }
 
-func New(deviceID int, udid string) (*Connection, error) {
-	deviceConn, err := usbmux.ConnectToService(deviceID, udid, serviceName)
+func (c *Connection) Close() {
+	c.deviceConn.Close()
+}
+
+func New(device usbmux.DeviceEntry) (*Connection, error) {
+	deviceConn, err := usbmux.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}

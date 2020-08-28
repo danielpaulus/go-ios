@@ -31,6 +31,7 @@ func ArchiveBin(object interface{}) ([]byte, error) {
 }
 
 func archiveObject(object interface{}) (interface{}, error) {
+	SetupEncoders()
 	archiverSkeleton := createSkeleton(true)
 	objects := make([]interface{}, 1)
 	objects[0] = null
@@ -78,7 +79,7 @@ func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, 
 	objects = append(objects, arrayDict)
 
 	index = len(objects)
-	objects = append(objects, arrayClassDefinition())
+	objects = append(objects, buildClassDict("NSArray", "NSObject"))
 	arrayDict["$class"] = plist.UID(index)
 	itemRefs := make([]plist.UID, len(array))
 	for index, item := range array {
@@ -96,7 +97,7 @@ func serializeMap(mapObject map[string]interface{}, objects []interface{}) ([]in
 	objects = append(objects, dictDict)
 
 	index = len(objects)
-	objects = append(objects, dictionaryClassDefinition())
+	objects = append(objects, buildClassDict("NSDictionary", "NSObject"))
 	dictDict["$class"] = plist.UID(index)
 
 	keyRefs := make([]plist.UID, len(mapObject))
@@ -121,13 +122,6 @@ func serializeMap(mapObject map[string]interface{}, objects []interface{}) ([]in
 	dictDict["NS.objects"] = valueRefs
 
 	return objects, plist.UID(index)
-}
-
-func arrayClassDefinition() map[string]interface{} {
-	return map[string]interface{}{"$classes": []string{"NSArray", "NSObject"}, "$classname": "NSArray"}
-}
-func dictionaryClassDefinition() map[string]interface{} {
-	return map[string]interface{}{"$classes": []string{"NSDictionary", "NSObject"}, "$classname": "NSDictionary"}
 }
 
 func isArray(object interface{}) bool {

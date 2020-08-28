@@ -57,6 +57,10 @@ func printAsJSON(obj interface{}) {
 	fmt.Print(string(b))
 }
 
+func buildClassDict(classes ...interface{}) map[string]interface{} {
+	return map[string]interface{}{"$classes": classes, "$classname": classes[0]}
+}
+
 //verifyCorrectArchiver makes sure the nsKeyedArchived plist has all the right keys and values and returns an error otherwise
 func verifyCorrectArchiver(nsKeyedArchiverData map[string]interface{}) error {
 	if val, ok := nsKeyedArchiverData[archiverKey]; !ok {

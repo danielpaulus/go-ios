@@ -11,7 +11,7 @@ import (
 // NSArray, NSMutableArray, NSSet and NSMutableSet will transformed into []interface{}
 // NSDictionary and NSMutableDictionary will be transformed into map[string] interface{}. I might add non string keys later.
 func Unarchive(xml []byte) ([]interface{}, error) {
-	SetupClasses()
+	SetupDecoders()
 	plist, err := plistFromBytes(xml)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func decodeNonstandardObject(object map[string]interface{}, objects []interface{
 	if err != nil {
 		return nil, err
 	}
-	factory := classes[className]
+	factory := decodableClasses[className]
 	if factory == nil {
 		return nil, fmt.Errorf("Unknown class:%s", className)
 	}
