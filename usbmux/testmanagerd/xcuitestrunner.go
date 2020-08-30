@@ -65,12 +65,12 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTest
 	return nil
 }
 
-func (xdc XCTestManager_DaemonConnectionInterface) startExecutingTestPlanWithProtocolVersion(protocolVersion uint64) error {
+func startExecutingTestPlanWithProtocolVersion(channel dtx.DtxChannel, protocolVersion uint64) error {
 	const objcMethodName = "_IDE_startExecutingTestPlanWithProtocolVersion:"
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
 	auxiliary := dtx.NewDtxPrimitiveDictionary()
 	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
-	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	rply, err := channel.SendAndAwaitReply(true, dtx.MethodinvocationWithoutExpectedReply, payload, auxiliary)
 	if err != nil {
 		return err
 	}
@@ -84,6 +84,7 @@ type dtxproxy struct {
 	ideInterface     XCTestManager_IDEInterface
 	daemonConnection XCTestManager_DaemonConnectionInterface
 	IDEDaemonProxy   dtx.DtxChannel
+	dtxConnection    *dtx.DtxConnection
 }
 
 type ProxyDispatcher struct {
@@ -110,6 +111,7 @@ func newDtxProxy(dtxConnection *dtx.DtxConnection) dtxproxy {
 	return dtxproxy{IDEDaemonProxy: IDEDaemonProxy,
 		ideInterface:     XCTestManager_IDEInterface{IDEDaemonProxy, testBundleReadyChannel},
 		daemonConnection: XCTestManager_DaemonConnectionInterface{IDEDaemonProxy},
+		dtxConnection:    dtxConnection,
 	}
 }
 
@@ -142,12 +144,14 @@ func RunXCUITest(bundleID string, device usbmux.DeviceEntry) error {
 	}
 	log.Info("Runner started with pid:%d, waiting for testBundleReady", pid)
 	protocolVersion, minimalVersion := ideDaemonProxy.ideInterface.testBundleReady()
+	channel := ideDaemonProxy.dtxConnection.ForChannelRequest(ProxyDispatcher{})
+
 	log.Infof("ProtocolVersion:%d MinimalVersion:%d", protocolVersion, minimalVersion)
 	conn2, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, testmanagerd)
 	defer conn2.Close()
 	ideDaemonProxy2 := newDtxProxy(conn2)
 	ideDaemonProxy2.daemonConnection.initiateControlSessionForTestProcessID(pid, protocolVersion)
-	ideDaemonProxy.daemonConnection.startExecutingTestPlanWithProtocolVersion(protocolVersion)
+	startExecutingTestPlanWithProtocolVersion(channel, protocolVersion)
 	log.Info(xctestConfigPath)
 
 	log.Info(v)

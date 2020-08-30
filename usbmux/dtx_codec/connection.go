@@ -11,32 +11,42 @@ import (
 )
 
 type DtxConnection struct {
-	dtxConnection      usbmux.DeviceConnectionInterface
-	channelCodeCounter int
-	activeChannels     map[int]DtxChannel
-	globalChannel      DtxChannel
-	capabilities       map[string]interface{}
-	mutex              sync.Mutex
+	dtxConnection          usbmux.DeviceConnectionInterface
+	channelCodeCounter     int
+	activeChannels         map[int]DtxChannel
+	globalChannel          DtxChannel
+	capabilities           map[string]interface{}
+	mutex                  sync.Mutex
+	requestChannelMessages chan DtxMessage
 }
 
 type GlobalDispatcher struct {
-	dispatchFunctions map[string]func(DtxMessage)
+	dispatchFunctions      map[string]func(DtxMessage)
+	requestChannelMessages chan DtxMessage
 }
 type DtxDispatcher interface {
 	Dispatch(msg DtxMessage)
 }
 
+const requestChannel = "_requestChannelWithCode:identifier:"
+
 func (d *DtxConnection) Close() {
 	d.dtxConnection.Close()
 }
 
-func NewGlobalDispatcher() DtxDispatcher {
-	dispatcher := GlobalDispatcher{dispatchFunctions: map[string]func(DtxMessage){}}
+func NewGlobalDispatcher(requestChannelMessages chan DtxMessage) DtxDispatcher {
+	dispatcher := GlobalDispatcher{dispatchFunctions: map[string]func(DtxMessage){},
+		requestChannelMessages: requestChannelMessages}
 	const notifyPublishedCaps = "_notifyOfPublishedCapabilities:"
 	dispatcher.dispatchFunctions[notifyPublishedCaps] = notifyOfPublishedCapabilities
 	return dispatcher
 }
 func (g GlobalDispatcher) Dispatch(msg DtxMessage) {
+	if msg.Payload != nil {
+		if requestChannel == msg.Payload[0] {
+			g.requestChannelMessages <- msg
+		}
+	}
 	log.Infof("Global Dispatcher Received: %s %s %s", msg.Payload[0], msg, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
@@ -52,10 +62,11 @@ func NewDtxConnection(deviceId int, udid string, serviceName string) (*DtxConnec
 	if err != nil {
 		return nil, err
 	}
-	dtxConnection := &DtxConnection{dtxConnection: conn, channelCodeCounter: 1, activeChannels: map[int]DtxChannel{}}
+	requestChannelMessages := make(chan DtxMessage, 5)
+	dtxConnection := &DtxConnection{dtxConnection: conn, channelCodeCounter: 1, activeChannels: map[int]DtxChannel{}, requestChannelMessages: requestChannelMessages}
 	globalChannel := DtxChannel{channelCode: 0,
 		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
-		messageDispatcher: NewGlobalDispatcher(), responseWaiters: map[int]chan DtxMessage{}}
+		messageDispatcher: NewGlobalDispatcher(requestChannelMessages), responseWaiters: map[int]chan DtxMessage{}}
 	dtxConnection.globalChannel = globalChannel
 	go reader(dtxConnection)
 
@@ -91,12 +102,23 @@ func sendAckIfNeeded(dtxConn *DtxConnection, msg DtxMessage) {
 	}
 }
 
+func (d *DtxConnection) ForChannelRequest(messageDispatcher DtxDispatcher) DtxChannel {
+	msg := <-d.requestChannelMessages
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	code := msg.Auxiliary.GetArguments()[0].(uint32)
+	identifier, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
+	channel := DtxChannel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan DtxMessage{}}
+	d.activeChannels[int(code)] = channel
+	return channel
+}
+
 func (d *DtxConnection) RequestChannelIdentifier(identifier string, messageDispatcher DtxDispatcher) DtxChannel {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	code := d.channelCodeCounter
 	d.channelCodeCounter++
-	const requestChannel = "_requestChannelWithCode:identifier:"
+
 	payload, _ := nskeyedarchiver.ArchiveBin(requestChannel)
 	auxiliary := NewDtxPrimitiveDictionary()
 	auxiliary.AddInt32(code)
