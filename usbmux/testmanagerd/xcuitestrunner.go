@@ -36,11 +36,11 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifier
 	auxiliary := dtx.NewDtxPrimitiveDictionary()
 
 	auxiliary.AddNsKeyedArchivedObject(nskeyedarchiver.NewNSUUID(sessionIdentifier))
-	auxiliary.AddNsKeyedArchivedObject("D35B1EB7-7969-40A3-9078-EAB51B743DC9-27146-0000674FDBFF842E")
+	auxiliary.AddNsKeyedArchivedObject("thephonedoesntcarewhatisendhereitseems")
 	auxiliary.AddNsKeyedArchivedObject("/Applications/Xcode.app")
 	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
 	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName}).Info("Launching init test Session")
-	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
 	returnValue := rply.Payload[0]
 	if val, ok := returnValue.(uint64); !ok {
 		return 0, fmt.Errorf("%s got wrong returnvalue: %s", objcMethodName, rply.Payload)
@@ -57,7 +57,7 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTest
 	auxiliary := dtx.NewDtxPrimitiveDictionary()
 	auxiliary.AddNsKeyedArchivedObject(pid)
 	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
-	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func startExecutingTestPlanWithProtocolVersion(channel dtx.DtxChannel, protocolV
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
 	auxiliary := dtx.NewDtxPrimitiveDictionary()
 	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
-	rply, err := channel.SendAndAwaitReply(true, dtx.MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	rply, err := channel.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
 	if err != nil {
 		return err
 	}

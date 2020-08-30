@@ -57,7 +57,7 @@ func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interfa
 
 	log.WithFields(log.Fields{"channel_id": channelName, "bundleID": bundleID}).Info("Launching process")
 
-	msg, err := p.processControlChannel.SendAndAwaitReply(true, dtx.MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	msg, err := p.processControlChannel.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": channelName, "error": err}).Info("failed starting process")
 	}

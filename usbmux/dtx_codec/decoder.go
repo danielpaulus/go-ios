@@ -105,16 +105,16 @@ func (d DtxMessage) HasPayload() bool {
 }
 
 const (
-	MethodInvocationWithExpectedReply    = 0x3
-	MethodinvocationWithoutExpectedReply = 0x2
-	Ack                                  = 0x0
-	DtxTypeError                         = 0x4
+	ResponseWithReturnValueInPayload = 0x3
+	Methodinvocation                 = 0x2
+	Ack                              = 0x0
+	DtxTypeError                     = 0x4
 )
 
 var messageTypeLookup = map[int]string{
-	MethodInvocationWithExpectedReply:    `rpc_void`,
-	MethodinvocationWithoutExpectedReply: `rpc_asking_reply`,
-	Ack:                                  `Ack`,
+	ResponseWithReturnValueInPayload: `ResponseWithReturnValueInPayload`,
+	Methodinvocation:                 `Methodinvocation`,
+	Ack:                              `Ack`,
 }
 
 const (

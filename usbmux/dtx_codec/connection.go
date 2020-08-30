@@ -126,7 +126,7 @@ func (d *DtxConnection) RequestChannelIdentifier(identifier string, messageDispa
 	auxiliary.AddBytes(arch)
 	log.WithFields(log.Fields{"channel_id": identifier}).Info("Requesting channel")
 
-	rply, err := d.globalChannel.SendAndAwaitReply(true, MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	rply, err := d.globalChannel.SendAndAwaitReply(true, Methodinvocation, payload, auxiliary)
 	log.Info(rply)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Info("failed requesting channel")
