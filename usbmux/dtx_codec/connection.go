@@ -37,7 +37,7 @@ func NewGlobalDispatcher() DtxDispatcher {
 	return dispatcher
 }
 func (g GlobalDispatcher) Dispatch(msg DtxMessage) {
-	log.Infof("Global Dispatcher Received: %s %s", msg.Payload[0], msg)
+	log.Infof("Global Dispatcher Received: %s %s %s", msg.Payload[0], msg, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}
@@ -104,7 +104,8 @@ func (d *DtxConnection) RequestChannelIdentifier(identifier string, messageDispa
 	auxiliary.AddBytes(arch)
 	log.WithFields(log.Fields{"channel_id": identifier}).Info("Requesting channel")
 
-	_, err := d.globalChannel.SendAndAwaitReply(true, MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	rply, err := d.globalChannel.SendAndAwaitReply(true, MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	log.Info(rply)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Info("failed requesting channel")
 	}
@@ -126,10 +127,12 @@ type DtxChannel struct {
 func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byte, auxiliary DtxPrimitiveDictionary) error {
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
+
 	bytes, err := Encode(identifier, d.channelCode, expectsReply, messageType, payloadBytes, auxiliary)
 	if err != nil {
 		return err
 	}
+	log.Tracef("Sending:%x", bytes)
 	return d.connection.Send(bytes)
 }
 
@@ -144,6 +147,7 @@ func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, paylo
 	}
 	responseChannel := make(chan DtxMessage)
 	d.responseWaiters[identifier] = responseChannel
+	log.Tracef("Sending:%x", bytes)
 	err = d.connection.Send(bytes)
 	if err != nil {
 		return DtxMessage{}, err

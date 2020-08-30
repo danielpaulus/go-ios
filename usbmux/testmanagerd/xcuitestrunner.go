@@ -16,13 +16,21 @@ import (
 )
 
 type XCTestManager_IDEInterface struct {
-	IDEDaemonProxy dtx.DtxChannel
+	IDEDaemonProxy         dtx.DtxChannel
+	testBundleReadyChannel chan dtx.DtxMessage
 }
 type XCTestManager_DaemonConnectionInterface struct {
 	IDEDaemonProxy dtx.DtxChannel
 }
 
-func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifier(sessionIdentifier uuid.UUID, protocolVersion uint64) error {
+func (xide XCTestManager_IDEInterface) testBundleReady() (uint64, uint64) {
+	msg := <-xide.testBundleReadyChannel
+	protocolVersion, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
+	minimalVersion, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
+	return protocolVersion[0].(uint64), minimalVersion[0].(uint64)
+}
+
+func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifier(sessionIdentifier uuid.UUID, protocolVersion uint64) (uint64, error) {
 	const objcMethodName = "_IDE_initiateSessionWithIdentifier:forClient:atPath:protocolVersion:"
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
 	auxiliary := dtx.NewDtxPrimitiveDictionary()
@@ -33,9 +41,41 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifier
 	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
 	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName}).Info("Launching init test Session")
 	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.MethodinvocationWithoutExpectedReply, payload, auxiliary)
-	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Info("init test session reply")
+	returnValue := rply.Payload[0]
+	if val, ok := returnValue.(uint64); !ok {
+		return 0, fmt.Errorf("%s got wrong returnvalue: %s", objcMethodName, rply.Payload)
+	} else {
+		log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Info("init test session reply")
 
-	return err
+		return val, err
+	}
+}
+
+func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTestProcessID(pid uint64, protocolVersion uint64) error {
+	const objcMethodName = "_IDE_initiateControlSessionForTestProcessID:protocolVersion:"
+	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
+	auxiliary := dtx.NewDtxPrimitiveDictionary()
+	auxiliary.AddNsKeyedArchivedObject(pid)
+	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
+	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	if err != nil {
+		return err
+	}
+	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Info("initiateControlSessionForTestProcessID reply")
+	return nil
+}
+
+func (xdc XCTestManager_DaemonConnectionInterface) startExecutingTestPlanWithProtocolVersion(protocolVersion uint64) error {
+	const objcMethodName = "_IDE_startExecutingTestPlanWithProtocolVersion:"
+	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
+	auxiliary := dtx.NewDtxPrimitiveDictionary()
+	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
+	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.MethodinvocationWithoutExpectedReply, payload, auxiliary)
+	if err != nil {
+		return err
+	}
+	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Info("_IDE_startExecutingTestPlanWithProtocolVersion reply")
+	return nil
 }
 
 const ideToDaemonProxyChannelName = "dtxproxy:XCTestManager_IDEInterface:XCTestManager_DaemonConnectionInterface"
@@ -46,16 +86,29 @@ type dtxproxy struct {
 	IDEDaemonProxy   dtx.DtxChannel
 }
 
-type ProxyDispatcher struct{}
+type ProxyDispatcher struct {
+	testBundleReadyChannel chan dtx.DtxMessage
+}
 
 func (p ProxyDispatcher) Dispatch(m dtx.DtxMessage) {
+	if len(m.Payload) == 1 {
+		method := m.Payload[0].(string)
+		switch method {
+		case "_XCT_testBundleReadyWithProtocolVersion:minimumVersion:":
+			p.testBundleReadyChannel <- m
+			return
+		default:
+			log.Warnf("Method invocation not implement for selector:%s", method)
+		}
+	}
 	log.Infof("dispatcher received: %s", m.Payload[0])
 }
 
 func newDtxProxy(dtxConnection *dtx.DtxConnection) dtxproxy {
-	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, ProxyDispatcher{})
+	testBundleReadyChannel := make(chan dtx.DtxMessage, 1)
+	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, ProxyDispatcher{testBundleReadyChannel})
 	return dtxproxy{IDEDaemonProxy: IDEDaemonProxy,
-		ideInterface:     XCTestManager_IDEInterface{IDEDaemonProxy},
+		ideInterface:     XCTestManager_IDEInterface{IDEDaemonProxy, testBundleReadyChannel},
 		daemonConnection: XCTestManager_DaemonConnectionInterface{IDEDaemonProxy},
 	}
 }
@@ -78,7 +131,8 @@ func RunXCUITest(bundleID string, device usbmux.DeviceEntry) error {
 	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, testmanagerd)
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxy(conn)
-	err = ideDaemonProxy.daemonConnection.initiateSessionWithIdentifier(testSessionId, 29)
+	protocolVersion, err := ideDaemonProxy.daemonConnection.initiateSessionWithIdentifier(testSessionId, 29)
+	log.Infof("ProtocolVersion:%d", protocolVersion)
 	if err != nil {
 		return err
 	}
@@ -86,7 +140,14 @@ func RunXCUITest(bundleID string, device usbmux.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	log.Info("Runner started with pid:%d", pid)
+	log.Info("Runner started with pid:%d, waiting for testBundleReady", pid)
+	protocolVersion, minimalVersion := ideDaemonProxy.ideInterface.testBundleReady()
+	log.Infof("ProtocolVersion:%d MinimalVersion:%d", protocolVersion, minimalVersion)
+	conn2, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, testmanagerd)
+	defer conn2.Close()
+	ideDaemonProxy2 := newDtxProxy(conn2)
+	ideDaemonProxy2.daemonConnection.initiateControlSessionForTestProcessID(pid, protocolVersion)
+	ideDaemonProxy.daemonConnection.startExecutingTestPlanWithProtocolVersion(protocolVersion)
 	log.Info(xctestConfigPath)
 
 	log.Info(v)

@@ -2,14 +2,15 @@ package dtx
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 )
 
 func BuildAckMessage(msg DtxMessage) []byte {
 	response := make([]byte, 48)
 	writeHeader(response, 16, msg.Identifier, msg.ChannelCode, msg.ConversationIndex+1, false)
-	writePayloadHeader(response[32:], Ack, 0, 0)
-	println(hex.Dump(response))
+	binary.LittleEndian.PutUint32(response[32:], Ack)
+	binary.LittleEndian.PutUint32(response[36:], 0)
+	binary.LittleEndian.PutUint32(response[40:], 0)
+	binary.LittleEndian.PutUint32(response[44:], 0)
 	return response
 }
 
