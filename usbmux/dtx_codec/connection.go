@@ -37,7 +37,7 @@ func NewGlobalDispatcher() DtxDispatcher {
 	return dispatcher
 }
 func (g GlobalDispatcher) Dispatch(msg DtxMessage) {
-	log.Info(msg)
+	log.Infof("Global Dispatcher Received: %s %s", msg.Payload[0], msg)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}

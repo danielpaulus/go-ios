@@ -96,10 +96,10 @@ func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, 
 
 func serializeMap(mapObject map[string]interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	dictDict := map[string]interface{}{}
-	index := len(objects)
+	dictionaryRef := len(objects)
 	objects = append(objects, dictDict)
 
-	index = len(objects)
+	index := len(objects)
 	objects = append(objects, buildClassDict("NSDictionary", "NSObject"))
 	dictDict["$class"] = plist.UID(index)
 
@@ -124,7 +124,7 @@ func serializeMap(mapObject map[string]interface{}, objects []interface{}) ([]in
 	}
 	dictDict["NS.objects"] = valueRefs
 
-	return objects, plist.UID(index)
+	return objects, plist.UID(dictionaryRef)
 }
 
 func isArray(object interface{}) bool {

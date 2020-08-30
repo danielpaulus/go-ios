@@ -147,14 +147,15 @@ func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArres
 	relativeXcTestConfigPath := path.Join("tmp", testSessionID.String()+".xctestconfiguration")
 	xctestConfigPath := path.Join(info.testRunnerHomePath, relativeXcTestConfigPath)
 
-	testBundleURL := path.Join(info.testrunnerAppPath, "PlugIns", info.targetAppBundleName+".xctest")
+	testBundleURL := path.Join(info.testrunnerAppPath, "PlugIns", info.targetAppBundleName+"UITests.xctest")
 
 	config := nskeyedarchiver.NewXCTestConfiguration(info.targetAppBundleName, testSessionID, info.targetAppBundleID, info.targetAppPath, testBundleURL)
-	result, err := nskeyedarchiver.ArchiveBin(config)
+	result, err := nskeyedarchiver.ArchiveXML(config)
 	if err != nil {
 		return "", err
 	}
-	err = houseArrestService.SendFile(result, relativeXcTestConfigPath)
+	//println(result)
+	err = houseArrestService.SendFile([]byte(result), relativeXcTestConfigPath)
 	if err != nil {
 		return "", err
 	}

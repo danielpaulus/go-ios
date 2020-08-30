@@ -199,6 +199,8 @@ func toString(t uint32) string {
 		return "binary"
 	case t_uint32:
 		return "uint32"
+	case t_int64:
+		return "int64"
 	default:
 		return "unknown"
 	}

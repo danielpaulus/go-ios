@@ -1,6 +1,7 @@
 package nskeyedarchiver
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/google/uuid"
@@ -41,7 +42,7 @@ func NewXCTestConfiguration(
 	testBundleURL string,
 ) XCTestConfiguration {
 	contents := map[string]interface{}{}
-	contents["$class"] = buildClassDict("XCTestConfiguration", "NSObject")
+
 	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
 	contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
 	contents["baselineFileRelativePath"] = plist.UID(0)
@@ -59,15 +60,15 @@ func NewXCTestConfiguration(
 	contents["reportResultsToIDE"] = true
 	contents["sessionIdentifier"] = NewNSUUID(sessionIdentifier)
 	contents["systemAttachmentLifetime"] = 2
-	contents["targetApplicationArguments"] = []interface{}{}
+	//contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
 	contents["targetApplicationBundleID"] = targetApplicationBundleID
-	contents["targetApplicationEnvironment"] = map[string]interface{}{}
+	//contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
 	contents["targetApplicationPath"] = targetApplicationPath
 	//testApplicationDependencies
 	contents["testApplicationUserOverrides"] = plist.UID(0)
 	contents["testBundleRelativePath"] = plist.UID(0)
 	contents["testBundleURL"] = NewNSURL(testBundleURL)
-	contents["testExecutionOrdering"] = false
+	contents["testExecutionOrdering"] = 0
 	contents["testsDrivenByIDE"] = false
 	contents["testsMustRunOnMainThread"] = true
 	contents["testsToRun"] = plist.UID(0)
@@ -82,9 +83,13 @@ func archiveXcTestConfiguration(xctestconfigInterface interface{}, objects []int
 	xctestconfig := xctestconfigInterface.(XCTestConfiguration)
 	xcconfigRef := plist.UID(len(objects))
 	objects = append(objects, xctestconfig.contents)
+	classRef := plist.UID(len(objects))
+	objects = append(objects, buildClassDict("XCTestConfiguration", "NSObject"))
 
-	for _, key := range []string{"$class", "aggregateStatisticsBeforeCrash", "automationFrameworkPath", "productModuleName", "sessionIdentifier", "targetApplicationArguments",
-		"targetApplicationBundleID", "targetApplicationEnvironment", "targetApplicationPath", "testBundleURL"} {
+	xctestconfig.contents["$class"] = classRef
+
+	for _, key := range []string{"aggregateStatisticsBeforeCrash", "automationFrameworkPath", "productModuleName", "sessionIdentifier",
+		"targetApplicationBundleID", "targetApplicationPath", "testBundleURL"} {
 		var ref plist.UID
 		objects, ref = archive(xctestconfig.contents[key], objects)
 		xctestconfig.contents[key] = ref
@@ -143,7 +148,7 @@ func archiveNSURL(nsurlInterface interface{}, objects []interface{}) ([]interfac
 
 	pathRef := classref + 1
 	object["NS.relative"] = plist.UID(pathRef)
-	objects = append(objects, nsurl.path)
+	objects = append(objects, fmt.Sprintf("file://%s", nsurl.path))
 
 	return objects, plist.UID(urlReference)
 }
