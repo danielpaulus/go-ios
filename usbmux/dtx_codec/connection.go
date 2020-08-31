@@ -46,8 +46,13 @@ func (g GlobalDispatcher) Dispatch(msg DtxMessage) {
 		if requestChannel == msg.Payload[0] {
 			g.requestChannelMessages <- msg
 		}
+		if "outputReceived:fromProcess:atTime:" == msg.Payload[0] {
+			msg, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
+			log.Info(msg[0])
+			return
+		}
 	}
-	log.Infof("Global Dispatcher Received: %s %s %s", msg.Payload[0], msg, msg.Auxiliary)
+	log.Debugf("Global Dispatcher Received: %s %s %s", msg.Payload[0], msg, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}
@@ -85,7 +90,6 @@ func reader(dtxConn *DtxConnection) {
 			log.Fatal(err)
 		}
 		sendAckIfNeeded(dtxConn, msg)
-		log.Info(msg)
 		if channel, ok := dtxConn.activeChannels[msg.ChannelCode]; ok {
 			channel.Dispatch(msg)
 		} else {
@@ -125,14 +129,14 @@ func (d *DtxConnection) RequestChannelIdentifier(identifier string, messageDispa
 	auxiliary.AddInt32(code)
 	arch, _ := nskeyedarchiver.ArchiveBin(identifier)
 	auxiliary.AddBytes(arch)
-	log.WithFields(log.Fields{"channel_id": identifier}).Info("Requesting channel")
+	log.WithFields(log.Fields{"channel_id": identifier}).Debug("Requesting channel")
 
 	rply, err := d.globalChannel.SendAndAwaitReply(true, Methodinvocation, payload, auxiliary)
-	log.Info(rply)
+	log.Debug(rply)
 	if err != nil {
-		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Info("failed requesting channel")
+		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Error("failed requesting channel")
 	}
-	log.WithFields(log.Fields{"channel_id": identifier}).Info("Channel open")
+	log.WithFields(log.Fields{"channel_id": identifier}).Debug("Channel open")
 	channel := DtxChannel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan DtxMessage{}}
 	d.activeChannels[code] = channel
 	return channel

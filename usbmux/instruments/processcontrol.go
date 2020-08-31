@@ -17,6 +17,15 @@ type ProcessControl struct {
 
 type ProcessControlDispatcher struct{}
 
+func KillApp(pid uint64, device usbmux.DeviceEntry) error {
+	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, "com.apple.instruments.remoteserver")
+	//defer conn.Close()
+	processControl := NewProcessControl(conn)
+	options := map[string]interface{}{}
+	options["StartSuspendedKey"] = uint64(0)
+	return processControl.KillProcess(pid)
+}
+
 func LaunchApp(bundleID string, device usbmux.DeviceEntry) (uint64, error) {
 	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, "com.apple.instruments.remoteserver")
 	//defer conn.Close()
@@ -39,6 +48,16 @@ func (p ProcessControlDispatcher) Dispatch(m dtx.DtxMessage) {
 func NewProcessControl(dtxConnection *dtx.DtxConnection) ProcessControl {
 	processControlChannel := dtxConnection.RequestChannelIdentifier(channelName, ProcessControlDispatcher{})
 	return ProcessControl{processControlChannel: processControlChannel}
+}
+
+func (p ProcessControl) KillProcess(pid uint64) error {
+	const objcMethodName = "killPid:"
+	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
+	auxiliary := dtx.NewDtxPrimitiveDictionary()
+
+	auxiliary.AddNsKeyedArchivedObject(pid)
+	_, err := p.processControlChannel.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
+	return err
 }
 
 func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (uint64, error) {

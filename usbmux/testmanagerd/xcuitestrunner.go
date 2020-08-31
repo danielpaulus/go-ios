@@ -39,13 +39,13 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifier
 	auxiliary.AddNsKeyedArchivedObject("thephonedoesntcarewhatisendhereitseems")
 	auxiliary.AddNsKeyedArchivedObject("/Applications/Xcode.app")
 	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
-	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName}).Info("Launching init test Session")
+	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName}).Debug("Launching init test Session")
 	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
 	returnValue := rply.Payload[0]
 	if val, ok := returnValue.(uint64); !ok {
 		return 0, fmt.Errorf("%s got wrong returnvalue: %s", objcMethodName, rply.Payload)
 	} else {
-		log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Info("init test session reply")
+		log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Debug("init test session reply")
 
 		return val, err
 	}
@@ -61,7 +61,7 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTest
 	if err != nil {
 		return err
 	}
-	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Info("initiateControlSessionForTestProcessID reply")
+	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Debug("initiateControlSessionForTestProcessID reply")
 	return nil
 }
 
@@ -74,7 +74,7 @@ func startExecutingTestPlanWithProtocolVersion(channel dtx.DtxChannel, protocolV
 	if err != nil {
 		return err
 	}
-	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Info("_IDE_startExecutingTestPlanWithProtocolVersion reply")
+	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Debug("_IDE_startExecutingTestPlanWithProtocolVersion reply")
 	return nil
 }
 
@@ -99,10 +99,10 @@ func (p ProxyDispatcher) Dispatch(m dtx.DtxMessage) {
 			p.testBundleReadyChannel <- m
 			return
 		default:
-			log.Infof("Method invocation not implement for selector:%s", method)
+			log.Warnf("Method invocation not implement for selector:%s", method)
 		}
 	}
-	log.Infof("dispatcher received: %s", m.Payload[0])
+	log.Debugf("dispatcher received: %s", m.Payload[0])
 }
 
 func newDtxProxy(dtxConnection *dtx.DtxConnection) dtxproxy {
@@ -135,8 +135,10 @@ func RunXCUITest(bundleID string, device usbmux.DeviceEntry) error {
 	return runXCUIWithBundleIds(bundleID, testRunnerBundleID, "", device)
 }
 
+var closeChan = make(chan interface{})
+
 func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device usbmux.DeviceEntry) error {
-	testSessionId, v, xctestConfigPath, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
+	testSessionId, _, xctestConfigPath, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
 	}
@@ -152,7 +154,7 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	if err != nil {
 		return err
 	}
-	log.Info("Runner started with pid:%d, waiting for testBundleReady", pid)
+	log.Infof("Runner started with pid:%d, waiting for testBundleReady", pid)
 	protocolVersion, minimalVersion := ideDaemonProxy.ideInterface.testBundleReady()
 	channel := ideDaemonProxy.dtxConnection.ForChannelRequest(ProxyDispatcher{})
 
@@ -162,12 +164,20 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	ideDaemonProxy2 := newDtxProxy(conn2)
 	ideDaemonProxy2.daemonConnection.initiateControlSessionForTestProcessID(pid, protocolVersion)
 	startExecutingTestPlanWithProtocolVersion(channel, protocolVersion)
-	log.Info(xctestConfigPath)
-
-	log.Info(v)
-	for {
+	<-closeChan
+	log.Infof("Killing WDA Runner pid %d ...", pid)
+	err = instruments.KillApp(pid, device)
+	if err != nil {
+		return err
 	}
+	log.Info("runner killed with success")
 	return nil
+
+}
+
+func CloseXCUITestRunner() {
+	var signal interface{}
+	closeChan <- signal
 }
 
 func startTestRunner(device usbmux.DeviceEntry, xctestConfigPath string, bundleID string) (uint64, error) {
@@ -232,7 +242,7 @@ func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArres
 	if err != nil {
 		return "", err
 	}
-	//println(result)
+
 	err = houseArrestService.SendFile([]byte(result), relativeXcTestConfigPath)
 	if err != nil {
 		return "", err
@@ -250,7 +260,6 @@ type testInfo struct {
 
 func getAppInfos(bundleID string, testRunnerBundleID string, apps []installationproxy.AppInfo) (testInfo, error) {
 	info := testInfo{}
-	log.Info(apps)
 	for _, app := range apps {
 		if app.CFBundleIdentifier == bundleID {
 			info.targetAppPath = app.Path
