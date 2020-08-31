@@ -459,7 +459,7 @@ func runSyslog(device usbmux.DeviceEntry) {
 				print(logMessage)
 			} else {
 				messageContainer["msg"] = logMessage
-				print(convertToJSONString(messageContainer))
+				println(convertToJSONString(messageContainer))
 			}
 		}
 	}()
