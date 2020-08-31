@@ -25,27 +25,42 @@ func New(device usbmux.DeviceEntry) (*Connection, error) {
 	}
 	return &Connection{deviceConn: deviceConn, plistCodec: usbmux.NewPlistCodec()}, nil
 }
-func (conn *Connection) BrowseUserApps() (BrowseResponse, error) {
+func (conn *Connection) BrowseUserApps() ([]AppInfo, error) {
 	return conn.browseApps(browseUserApps())
 }
 
+/*
 func (conn *Connection) BrowseSystemApps() (BrowseResponse, error) {
 	return conn.browseApps(browseSystemApps())
-}
+}*/
 
-func (conn *Connection) browseApps(request interface{}) (BrowseResponse, error) {
+func (conn *Connection) browseApps(request interface{}) ([]AppInfo, error) {
 	reader := conn.deviceConn.Reader()
 	bytes, err := conn.plistCodec.Encode(request)
 	if err != nil {
-		return BrowseResponse{}, err
+		return make([]AppInfo, 0), err
 	}
 	conn.deviceConn.Send(bytes)
-	response, err := conn.plistCodec.Decode(reader)
-	ifa, err := plistFromBytes(response)
-	if err != nil {
-		return BrowseResponse{}, err
+	stillReceiving := true
+	responses := make([]BrowseResponse, 0)
+	size := uint64(0)
+	for stillReceiving {
+		response, err := conn.plistCodec.Decode(reader)
+		ifa, err := plistFromBytes(response)
+		stillReceiving = "Complete" != ifa.Status
+		if err != nil {
+			return make([]AppInfo, 0), err
+		}
+		size += ifa.CurrentAmount
+		responses = append(responses, ifa)
 	}
-	return ifa, nil
+	appinfos := make([]AppInfo, size)
+
+	for _, v := range responses {
+		copy(appinfos[v.CurrentIndex:], v.CurrentList)
+
+	}
+	return appinfos, nil
 }
 func plistFromBytes(plistBytes []byte) (BrowseResponse, error) {
 	var browseResponse BrowseResponse

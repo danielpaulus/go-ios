@@ -54,6 +54,7 @@ Usage:
   ios apps [--system]
   ios launch <bundleID>
   ios runtest <bundleID>  
+  ios runwda
   ios -h | --help
   ios --version | version [options]
 
@@ -227,6 +228,15 @@ The commands work as following:
 		return
 	}
 
+	b, _ = arguments.Bool("runwda")
+	if b {
+		err := testmanagerd.RunWDA(device)
+		if err != nil {
+			log.WithFields(log.Fields{"error": err}).Info("Failed running WDA")
+		}
+		return
+	}
+
 }
 
 func printVersion() {
@@ -295,11 +305,11 @@ func printInstalledApps(device usbmux.DeviceEntry, system bool) {
 		log.Info(response)
 		return
 	}
-	response, err := svc.BrowseSystemApps()
+	/*response, err := svc.BrowseSystemApps()
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Info(response)
+	log.Info(response)*/
 }
 
 func printDeviceName(device usbmux.DeviceEntry) {

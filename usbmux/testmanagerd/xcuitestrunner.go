@@ -99,7 +99,7 @@ func (p ProxyDispatcher) Dispatch(m dtx.DtxMessage) {
 			p.testBundleReadyChannel <- m
 			return
 		default:
-			log.Warnf("Method invocation not implement for selector:%s", method)
+			log.Infof("Method invocation not implement for selector:%s", method)
 		}
 	}
 	log.Infof("dispatcher received: %s", m.Payload[0])
@@ -125,8 +125,18 @@ const testBundleSuffix = "UITests.xctrunner"
 }
 */
 
+func RunWDA(device usbmux.DeviceEntry) error {
+
+	return runXCUIWithBundleIds("com.facebook.WebDriverAgentRunner.xctrunner", "com.facebook.WebDriverAgentRunner.xctrunner", "WebDriverAgentRunner.xctest", device)
+}
+
 func RunXCUITest(bundleID string, device usbmux.DeviceEntry) error {
-	testSessionId, v, xctestConfigPath, err := setupXcuiTest(device, bundleID)
+	testRunnerBundleID := bundleID + testBundleSuffix
+	return runXCUIWithBundleIds(bundleID, testRunnerBundleID, "", device)
+}
+
+func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device usbmux.DeviceEntry) error {
+	testSessionId, v, xctestConfigPath, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
 	}
@@ -138,7 +148,7 @@ func RunXCUITest(bundleID string, device usbmux.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	pid, err := startTestRunner(device, xctestConfigPath, bundleID+testBundleSuffix)
+	pid, err := startTestRunner(device, xctestConfigPath, testRunnerBundleID)
 	if err != nil {
 		return err
 	}
@@ -174,10 +184,10 @@ func startTestRunner(device usbmux.DeviceEntry, xctestConfigPath string, bundleI
 
 }
 
-func setupXcuiTest(device usbmux.DeviceEntry, bundleID string) (uuid.UUID, semver.Version, string, error) {
+func setupXcuiTest(device usbmux.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, semver.Version, string, error) {
 	version := usbmux.GetValues(device).Value.ProductVersion
 	testSessionID := uuid.New()
-	testRunnerBundleID := bundleID + testBundleSuffix
+
 	v, err := semver.NewVersion(version)
 	if err != nil {
 		return uuid.UUID{}, semver.Version{}, "", err
@@ -200,7 +210,7 @@ func setupXcuiTest(device usbmux.DeviceEntry, bundleID string) (uuid.UUID, semve
 	if err != nil {
 		return uuid.UUID{}, semver.Version{}, "", err
 	}
-	testConfigPath, err := createTestConfigOnDevice(testSessionID, info, houseArrestService)
+	testConfigPath, err := createTestConfigOnDevice(testSessionID, info, houseArrestService, xctestConfigFileName)
 	if err != nil {
 		return uuid.UUID{}, semver.Version{}, "", err
 	}
@@ -208,11 +218,14 @@ func setupXcuiTest(device usbmux.DeviceEntry, bundleID string) (uuid.UUID, semve
 	return testSessionID, *v, testConfigPath, nil
 }
 
-func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *house_arrest.Connection) (string, error) {
+func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *house_arrest.Connection, xctestConfigFileName string) (string, error) {
 	relativeXcTestConfigPath := path.Join("tmp", testSessionID.String()+".xctestconfiguration")
 	xctestConfigPath := path.Join(info.testRunnerHomePath, relativeXcTestConfigPath)
 
-	testBundleURL := path.Join(info.testrunnerAppPath, "PlugIns", info.targetAppBundleName+"UITests.xctest")
+	if xctestConfigFileName == "" {
+		xctestConfigFileName = info.targetAppBundleName + "UITests.xctest"
+	}
+	testBundleURL := path.Join(info.testrunnerAppPath, "PlugIns", xctestConfigFileName)
 
 	config := nskeyedarchiver.NewXCTestConfiguration(info.targetAppBundleName, testSessionID, info.targetAppBundleID, info.targetAppPath, testBundleURL)
 	result, err := nskeyedarchiver.ArchiveXML(config)
@@ -235,10 +248,10 @@ type testInfo struct {
 	targetAppBundleID   string
 }
 
-func getAppInfos(bundleID string, testRunnerBundleID string, apps installationproxy.BrowseResponse) (testInfo, error) {
+func getAppInfos(bundleID string, testRunnerBundleID string, apps []installationproxy.AppInfo) (testInfo, error) {
 	info := testInfo{}
-
-	for _, app := range apps.CurrentList {
+	log.Info(apps)
+	for _, app := range apps {
 		if app.CFBundleIdentifier == bundleID {
 			info.targetAppPath = app.Path
 			info.targetAppBundleName = app.CFBundleName

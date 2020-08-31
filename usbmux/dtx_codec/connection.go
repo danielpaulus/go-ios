@@ -85,6 +85,7 @@ func reader(dtxConn *DtxConnection) {
 			log.Fatal(err)
 		}
 		sendAckIfNeeded(dtxConn, msg)
+		log.Info(msg)
 		if channel, ok := dtxConn.activeChannels[msg.ChannelCode]; ok {
 			channel.Dispatch(msg)
 		} else {
