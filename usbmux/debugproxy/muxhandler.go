@@ -95,14 +95,14 @@ func handleConnect(connectRequest *usbmux.MuxMessage, decodedConnectRequest map[
 	}
 
 	if int(port) == usbmux.Lockdownport {
-		p.log.Info("Connect to Lockdown")
+		p.log.Debug("Connect to Lockdown")
 		handleConnectToLockdown(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice)
 	} else {
 		info, err := p.debugProxy.retrieveServiceInfoByPort(usbmux.Ntohs(uint16(port)))
 		if err != nil {
 			p.log.Fatal("ServiceInfo for port not found, this is a bug :-)")
 		}
-		p.log.Info("Connection to service detected", info)
+		p.log.Debug("Connection to service detected", info)
 		handleConnectToService(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice, info)
 	}
 }

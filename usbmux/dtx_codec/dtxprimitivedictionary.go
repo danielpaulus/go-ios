@@ -222,7 +222,7 @@ func (a *AuxiliaryEncoder) AddNsKeyedArchivedObject(object interface{}) {
 	a.writeEntry(t_null, nil)
 	bytes, err := archiver.ArchiveBin(object)
 	if err != nil {
-		log.Info(err)
+		log.Fatal(err)
 	}
 	a.writeEntry(t_bytearray, bytes)
 }

@@ -42,7 +42,7 @@ func LaunchAppWithArgs(bundleID string, device usbmux.DeviceEntry, args []interf
 }
 
 func (p ProcessControlDispatcher) Dispatch(m dtx.DtxMessage) {
-	log.Info(m)
+	log.Debug(m)
 }
 
 func NewProcessControl(dtxConnection *dtx.DtxConnection) ProcessControl {
