@@ -54,7 +54,7 @@ Usage:
   ios apps [--system]
   ios launch <bundleID>
   ios runtest <bundleID>  
-  ios runwda
+  ios runwda [options]
   ios -h | --help
   ios --version | version [options]
 
