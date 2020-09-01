@@ -58,10 +58,12 @@ func (d *DtxPrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) {
 }
 
 func (d DtxPrimitiveDictionary) ToBytes() ([]byte, error) {
+	size := d.keyValuePairs.Len()
+	if size == 0 {
+		return make([]byte, 0), nil
+	}
 	var buf bytes.Buffer
 	writer := io.Writer(&buf)
-
-	size := d.keyValuePairs.Len()
 
 	e := d.keyValuePairs.Front()
 	for i := 0; i < size; i++ {

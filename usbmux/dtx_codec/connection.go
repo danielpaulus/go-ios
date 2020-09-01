@@ -34,6 +34,10 @@ func (d *DtxConnection) Close() {
 	d.dtxConnection.Close()
 }
 
+func (c DtxConnection) GlobalChannel() *DtxChannel {
+	return &c.globalChannel
+}
+
 func NewGlobalDispatcher(requestChannelMessages chan DtxMessage) DtxDispatcher {
 	dispatcher := GlobalDispatcher{dispatchFunctions: map[string]func(DtxMessage){},
 		requestChannelMessages: requestChannelMessages}
@@ -149,6 +153,38 @@ type DtxChannel struct {
 	connection        *DtxConnection
 	messageDispatcher DtxDispatcher
 	responseWaiters   map[int]chan DtxMessage
+	mutex             sync.Mutex
+}
+
+//MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
+//DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
+func (d *DtxChannel) MethodCall(selector string, args []interface{}) (DtxMessage, error) {
+	payload, _ := nskeyedarchiver.ArchiveBin(selector)
+	auxiliary := NewDtxPrimitiveDictionary()
+	for _, arg := range args {
+		auxiliary.AddNsKeyedArchivedObject(arg)
+	}
+	msg, err := d.SendAndAwaitReply(true, Methodinvocation, payload, auxiliary)
+	if err != nil {
+		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed starting invoking method")
+	}
+	if msg.HasError() {
+		return msg, fmt.Errorf("Failed invoking method '%s' with error: %s", selector, msg.Payload[0])
+	}
+	return msg, nil
+}
+
+func (d *DtxChannel) MethodCallAsync(selector string, args []interface{}) error {
+	payload, _ := nskeyedarchiver.ArchiveBin(selector)
+	auxiliary := NewDtxPrimitiveDictionary()
+	for _, arg := range args {
+		auxiliary.AddNsKeyedArchivedObject(arg)
+	}
+	err := d.Send(false, Methodinvocation, payload, auxiliary)
+	if err != nil {
+		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed starting invoking method")
+	}
+	return nil
 }
 
 func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byte, auxiliary DtxPrimitiveDictionary) error {
@@ -165,6 +201,12 @@ func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byt
 
 const timeout = time.Second * 5
 
+func (d *DtxChannel) AddResponseWaiter(identifier int, channel chan DtxMessage) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	d.responseWaiters[identifier] = channel
+}
+
 func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, payloadBytes []byte, auxiliary DtxPrimitiveDictionary) (DtxMessage, error) {
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
@@ -173,7 +215,7 @@ func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, paylo
 		return DtxMessage{}, err
 	}
 	responseChannel := make(chan DtxMessage)
-	d.responseWaiters[identifier] = responseChannel
+	d.AddResponseWaiter(identifier, responseChannel)
 	log.Tracef("Sending:%x", bytes)
 	err = d.connection.Send(bytes)
 	if err != nil {
@@ -190,6 +232,8 @@ func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, paylo
 
 func (d *DtxChannel) Dispatch(msg DtxMessage) {
 	if msg.ConversationIndex > 0 {
+		d.mutex.Lock()
+		defer d.mutex.Unlock()
 		d.responseWaiters[msg.Identifier] <- msg
 		delete(d.responseWaiters, msg.Identifier)
 		return

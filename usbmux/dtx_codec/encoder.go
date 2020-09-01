@@ -30,16 +30,22 @@ func Encode(
 
 	payloadLength := len(payloadBytes)
 	auxiliarySize := len(auxBytes)
-	messageLength := 16 + 16 + uint32(auxiliarySize+payloadLength)
+	auxHeaderSize := uint32(16)
+	messageLength := 16 + uint32(auxiliarySize+payloadLength)
+	if auxiliarySize > 0 {
+		messageLength += auxHeaderSize
+	}
 	messageBytes := make([]byte, 32+messageLength)
 
 	writeHeader(messageBytes, messageLength, Identifier, 0, ChannelCode, ExpectsReply)
 	writePayloadHeader(messageBytes[32:], MessageType, payloadLength, auxiliarySize)
-	writeAuxHeader(messageBytes[48:], auxiliarySize)
-	copy(messageBytes[64:], auxBytes)
-	copy(messageBytes[64+auxiliarySize:], payloadBytes)
-
-	//serializedMessage := make([]byte, message.)
+	if auxiliarySize == 0 {
+		copy(messageBytes[48:], payloadBytes)
+	} else {
+		writeAuxHeader(messageBytes[48:], auxiliarySize)
+		copy(messageBytes[64:], auxBytes)
+		copy(messageBytes[64+auxiliarySize:], payloadBytes)
+	}
 
 	return messageBytes, nil
 }
@@ -66,7 +72,10 @@ func writeHeader(messageBytes []byte, messageLength uint32, Identifier int, Conv
 
 func writePayloadHeader(messageBytes []byte, MessageType int, payloadLength int, auxLength int) {
 	binary.LittleEndian.PutUint32(messageBytes, uint32(MessageType))
-	auxLengthWithHeader := uint32(auxLength) + 16
+	auxLengthWithHeader := uint32(auxLength)
+	if auxLength > 0 {
+		auxLengthWithHeader += 16
+	}
 	binary.LittleEndian.PutUint32(messageBytes[4:], auxLengthWithHeader)
 	binary.LittleEndian.PutUint32(messageBytes[8:], uint32(payloadLength)+auxLengthWithHeader)
 	binary.LittleEndian.PutUint32(messageBytes[12:], 0)
