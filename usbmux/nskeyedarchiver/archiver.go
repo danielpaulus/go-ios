@@ -55,6 +55,7 @@ func createSkeleton(withRoot bool) map[string]interface{} {
 }
 
 func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+
 	if object, ok := isPrimitiveObject(object); ok {
 		index := len(objects)
 		objects = append(objects, object)
@@ -68,6 +69,7 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 	if v, ok := object.(map[string]interface{}); ok {
 		return serializeMap(v, objects)
 	}
+
 	if encoderFunc, ok := encodableClasses[reflect.TypeOf(object).Name()]; ok {
 		return encoderFunc(object, objects)
 	}

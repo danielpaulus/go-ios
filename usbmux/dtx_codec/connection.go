@@ -14,7 +14,7 @@ type DtxConnection struct {
 	dtxConnection          usbmux.DeviceConnectionInterface
 	channelCodeCounter     int
 	activeChannels         map[int]DtxChannel
-	globalChannel          DtxChannel
+	globalChannel          *DtxChannel
 	capabilities           map[string]interface{}
 	mutex                  sync.Mutex
 	requestChannelMessages chan DtxMessage
@@ -35,7 +35,7 @@ func (d *DtxConnection) Close() {
 }
 
 func (c DtxConnection) GlobalChannel() *DtxChannel {
-	return &c.globalChannel
+	return c.globalChannel
 }
 
 func NewGlobalDispatcher(requestChannelMessages chan DtxMessage) DtxDispatcher {
@@ -56,7 +56,7 @@ func (g GlobalDispatcher) Dispatch(msg DtxMessage) {
 			return
 		}
 	}
-	log.Debugf("Global Dispatcher Received: %s %s %s", msg.Payload[0], msg, msg.Auxiliary)
+	log.Infof("Global Dispatcher Received: %s %s %s", msg.Payload[0], msg, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}
@@ -75,8 +75,8 @@ func NewDtxConnection(deviceId int, udid string, serviceName string) (*DtxConnec
 	dtxConnection := &DtxConnection{dtxConnection: conn, channelCodeCounter: 1, activeChannels: map[int]DtxChannel{}, requestChannelMessages: requestChannelMessages}
 	globalChannel := DtxChannel{channelCode: 0,
 		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
-		messageDispatcher: NewGlobalDispatcher(requestChannelMessages), responseWaiters: map[int]chan DtxMessage{}}
-	dtxConnection.globalChannel = globalChannel
+		messageDispatcher: NewGlobalDispatcher(requestChannelMessages), responseWaiters: map[int]chan DtxMessage{}, registeredMethods: map[string]chan DtxMessage{}}
+	dtxConnection.globalChannel = &globalChannel
 	go reader(dtxConnection)
 
 	return dtxConnection, nil
@@ -153,7 +153,21 @@ type DtxChannel struct {
 	connection        *DtxConnection
 	messageDispatcher DtxDispatcher
 	responseWaiters   map[int]chan DtxMessage
+	registeredMethods map[string]chan DtxMessage
 	mutex             sync.Mutex
+}
+
+func (d *DtxChannel) RegisterMethodForRemote(selector string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	d.registeredMethods[selector] = make(chan DtxMessage)
+}
+
+func (d *DtxChannel) ReceiveMethodCall(selector string) DtxMessage {
+	d.mutex.Lock()
+	channel := d.registeredMethods[selector]
+	d.mutex.Unlock()
+	return <-channel
 }
 
 //MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
@@ -188,8 +202,11 @@ func (d *DtxChannel) MethodCallAsync(selector string, args []interface{}) error 
 }
 
 func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byte, auxiliary DtxPrimitiveDictionary) error {
+	d.mutex.Lock()
+
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
+	d.mutex.Unlock()
 
 	bytes, err := Encode(identifier, d.channelCode, expectsReply, messageType, payloadBytes, auxiliary)
 	if err != nil {
@@ -208,8 +225,10 @@ func (d *DtxChannel) AddResponseWaiter(identifier int, channel chan DtxMessage) 
 }
 
 func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, payloadBytes []byte, auxiliary DtxPrimitiveDictionary) (DtxMessage, error) {
+	d.mutex.Lock()
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
+	d.mutex.Unlock()
 	bytes, err := Encode(identifier, d.channelCode, expectsReply, messageType, payloadBytes, auxiliary)
 	if err != nil {
 		return DtxMessage{}, err
@@ -231,6 +250,20 @@ func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, paylo
 }
 
 func (d *DtxChannel) Dispatch(msg DtxMessage) {
+
+	d.mutex.Lock()
+	if msg.Identifier >= d.messageIdentifier {
+		d.messageIdentifier = msg.Identifier + 1
+	}
+	if msg.PayloadHeader.MessageType == Methodinvocation {
+		log.Info("Dispatching:", msg.Payload[0].(string))
+		if v, ok := d.registeredMethods[msg.Payload[0].(string)]; ok {
+			d.mutex.Unlock()
+			v <- msg
+			return
+		}
+	}
+	d.mutex.Unlock()
 	if msg.ConversationIndex > 0 {
 		d.mutex.Lock()
 		defer d.mutex.Unlock()

@@ -100,7 +100,7 @@ func (f *dtxDecoder) decode(data []byte) {
 		}
 		aux.RawBytes = nil
 		jsonMetaInfo := MessageWithMetaInfo{aux, "dtx", time.Now(), offset, len(msg.RawBytes)}
-
+		f.log.WithFields(log.Fields{"p": f.jsonFilePath}).Infof("%s %s", msg.Payload, msg.Auxiliary)
 		jsonmsg, err := json.Marshal(jsonMetaInfo)
 		file.Write(jsonmsg)
 		io.WriteString(file, "\n")

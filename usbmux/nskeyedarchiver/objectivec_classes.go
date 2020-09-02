@@ -3,6 +3,7 @@ package nskeyedarchiver
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 	"howett.net/plist"
@@ -16,6 +17,8 @@ func SetupDecoders() {
 		decodableClasses = map[string]func(map[string]interface{}, []interface{}) interface{}{
 			"DTActivityTraceTapMessage": NewDTActivityTraceTapMessage,
 			"NSError":                   NewNSError,
+			"NSNull":                    NewNSNullFromArchived,
+			"NSDate":                    NewNSDate,
 		}
 	}
 }
@@ -26,6 +29,7 @@ func SetupEncoders() {
 			"XCTestConfiguration": archiveXcTestConfiguration,
 			"NSUUID":              archiveNSUUID,
 			"NSURL":               archiveNSURL,
+			"NSNull":              archiveNSNull,
 		}
 	}
 }
@@ -177,4 +181,42 @@ func NewNSError(object map[string]interface{}, objects []interface{}) interface{
 	userinfo, _ := extractDictionary(objects[userInfo_ref].(map[string]interface{}), objects)
 
 	return NSError{ErrorCode: errorCode, Domain: domain, UserInfo: userinfo}
+}
+
+//Apples Reference Date is Jan 1st 2001 00:00
+const nsReferenceDate = 978307200000
+
+type NSDate struct {
+	timestamp time.Time
+}
+
+func NewNSDate(object map[string]interface{}, objects []interface{}) interface{} {
+	value := object["NS.time"].(float64)
+	milliesFloat := (1000*value + nsReferenceDate)
+	millies := int64(milliesFloat)
+	time := time.Unix(0, millies*int64(time.Millisecond))
+	return NSDate{time}
+}
+func (n NSDate) String() string {
+	return fmt.Sprintf("%s", n.timestamp)
+}
+
+type NSNull struct {
+	class string
+}
+
+func NewNSNullFromArchived(object map[string]interface{}, objects []interface{}) interface{} {
+	return NewNSNull()
+}
+func NewNSNull() interface{} {
+	return NSNull{"NSNull"}
+}
+
+func archiveNSNull(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	nsnull := map[string]interface{}{}
+	nsnullReference := len(objects)
+	objects = append(objects, nsnull)
+	objects = append(objects, buildClassDict("NSNull", "NSObject"))
+	nsnull[class] = plist.UID(nsnullReference + 1)
+	return objects, plist.UID(nsnullReference)
 }

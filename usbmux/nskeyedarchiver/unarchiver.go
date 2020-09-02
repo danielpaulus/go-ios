@@ -80,11 +80,6 @@ func extractObjects(objectRefs []plist.UID, objects []interface{}) ([]interface{
 			continue
 		}
 
-		if _, ok := isNSNull(nonPrimitiveObjectRef, objects); ok {
-			returnValue[i] = nil
-			continue
-		}
-
 		obj, err := decodeNonstandardObject(nonPrimitiveObjectRef, objects)
 		if err != nil {
 			return nil, err
@@ -146,17 +141,6 @@ func isNSMutableString(object map[string]interface{}, objects []interface{}) (ma
 		return nil, false
 	}
 	if className == nsMutableString {
-		return object, true
-	}
-	return object, false
-}
-
-func isNSNull(object map[string]interface{}, objects []interface{}) (map[string]interface{}, bool) {
-	className, err := resolveClass(object[class], objects)
-	if err != nil {
-		return nil, false
-	}
-	if className == nsNullKey {
 		return object, true
 	}
 	return object, false

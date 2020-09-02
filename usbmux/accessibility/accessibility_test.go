@@ -11,10 +11,21 @@ import (
 
 func TestIT(t *testing.T) {
 	device := usbmux.ListDevices().DeviceList[0]
+
 	conn, err := accessibility.New(device)
-	conn.Init()
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = conn.Init()
+	conn.SwitchToDevice()
+	if err != nil {
+		log.Fatal(err)
+	}
+	conn.EnableSelectionMode()
+	conn.GetElement()
+	conn.GetElement()
+	conn.TurnOff()
+
+	//conn.EnableSelectionMode()
 
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/usbmux"
 
+	"github.com/danielpaulus/go-ios/usbmux/accessibility"
 	"github.com/danielpaulus/go-ios/usbmux/debugproxy"
 	"github.com/danielpaulus/go-ios/usbmux/diagnostics"
 	"github.com/danielpaulus/go-ios/usbmux/forward"
@@ -55,6 +56,7 @@ Usage:
   ios launch <bundleID>
   ios runtest <bundleID>  
   ios runwda [options]
+  ios ax
   ios -h | --help
   ios --version | version [options]
 
@@ -110,6 +112,7 @@ The commands work as following:
 			log.SetLevel(log.DebugLevel)
 		}
 	}
+	//log.SetReportCaller(true)
 	log.Debug(arguments)
 
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
@@ -242,6 +245,28 @@ The commands work as following:
 		log.Info("Closing..")
 		testmanagerd.CloseXCUITestRunner()
 		log.Info("Done Closing")
+		return
+	}
+
+	b, _ = arguments.Bool("ax")
+	if b {
+		go func() {
+			device := usbmux.ListDevices().DeviceList[0]
+
+			conn, err := accessibility.New(device)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = conn.Init()
+			conn.SwitchToDevice()
+			//conn.EnableSelectionMode()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		<-c
 		return
 	}
 

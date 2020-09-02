@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"reflect"
 
 	"testing"
 
@@ -47,8 +48,38 @@ func TestArchiverEmptyArray(t *testing.T) {
 	}
 }
 
+func TestNSDate(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/ax_statechange.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestNSNull(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/ax_focus_on_element.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	unarchivedObject, _ := archiver.Unarchive(nskeyedBytes)
+	assert.Equal(t, reflect.TypeOf(unarchivedObject[0]).Name(), "NSNull")
+	log.Info(unarchivedObject[0])
+	expected := "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>$archiver</key><string>NSKeyedArchiver</string><key>$objects</key><array><string>$null</string><dict><key>$class</key><dict><key>CF$UID</key><integer>2</integer></dict></dict><dict><key>$classes</key><array><string>NSNull</string><string>NSObject</string></array><key>$classname</key><string>NSNull</string></dict></array><key>$top</key><dict><key>root</key><dict><key>CF$UID</key><integer>1</integer></dict></dict><key>$version</key><integer>100000</integer></dict></plist>"
+	xml, err := archiver.ArchiveXML(unarchivedObject[0])
+	if assert.NoError(t, err) {
+		assert.Equal(t, expected, xml)
+	}
+}
+
 func TestArchiver3(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/payload_dump.json")
+
 	if err != nil {
 		log.Fatal(err)
 	}
