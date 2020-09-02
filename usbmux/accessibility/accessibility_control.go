@@ -42,10 +42,10 @@ func (a AccessibilityControl) Init() error {
 	go a.readhostAppStateChanged()
 	go a.readhostInspectorNotificationReceived()
 
-	err := a.notifyPublishedCapabilities()
+	/*err := a.notifyPublishedCapabilities()
 	if err != nil {
 		return err
-	}
+	}*/
 	//a list of methods we are allowed to call on the device
 	deviceCapabilities, err := a.deviceCapabilities()
 	if err != nil {
@@ -123,11 +123,11 @@ func (a AccessibilityControl) TurnOff() {
 }
 
 func (a AccessibilityControl) GetElement() {
+	log.Info("changing")
 	a.deviceInspectorMoveWithOptions()
-	a.deviceInspectorMoveWithOptions()
-	resp, _ := a.deviceAccessibilitySettings()
-	log.Info("AX Settings received:", resp)
-	resp = a.awaitHostInspectorCurrentElementChanged()
+	//a.deviceInspectorMoveWithOptions()
+
+	resp := a.awaitHostInspectorCurrentElementChanged()
 	log.Info("item changed", resp)
 }
 
@@ -149,14 +149,14 @@ func (a AccessibilityControl) awaitHostInspectorMonitoredEventTypeChanged() {
 
 func (a AccessibilityControl) deviceInspectorMoveWithOptions() {
 	method := "deviceInspectorMoveWithOptions:"
-	options := map[string]interface{}{
+	options := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 		"ObjectType": "passthrough",
-		"Value": map[string]interface{}{
-			"allowNonAX":        map[string]interface{}{"ObjectType": "passthrough", "Value": false},
-			"direction":         map[string]interface{}{"ObjectType": "passthrough", "Value": uint64(4)},
-			"includeContainers": map[string]interface{}{"ObjectType": "passthrough", "Value": true},
-		},
-	}
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"allowNonAX":        nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": "false"}),
+			"direction":         nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": "4"}),
+			"includeContainers": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": "true"}),
+		}),
+	})
 	a.channel.MethodCallAsync(method, []interface{}{options})
 
 }

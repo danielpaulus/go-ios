@@ -30,6 +30,7 @@ func SetupEncoders() {
 			"NSUUID":              archiveNSUUID,
 			"NSURL":               archiveNSURL,
 			"NSNull":              archiveNSNull,
+			"NSMutableDictionary": archiveNSMutableDictionary,
 		}
 	}
 }
@@ -219,4 +220,17 @@ func archiveNSNull(object interface{}, objects []interface{}) ([]interface{}, pl
 	objects = append(objects, buildClassDict("NSNull", "NSObject"))
 	nsnull[class] = plist.UID(nsnullReference + 1)
 	return objects, plist.UID(nsnullReference)
+}
+
+type NSMutableDictionary struct {
+	internalDict map[string]interface{}
+}
+
+func NewNSMutableDictionary(internalDict map[string]interface{}) interface{} {
+	return NSMutableDictionary{internalDict}
+}
+
+func archiveNSMutableDictionary(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	mut := object.(NSMutableDictionary)
+	return serializeMap(mut.internalDict, objects, buildClassDict("NSMutableDictionary", "NSNull", "NSObject"))
 }

@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
+	log "github.com/sirupsen/logrus"
 )
 
 type DtxMessage struct {
@@ -146,7 +147,7 @@ func (d DtxMessage) MessageIsFirstFragmentFor(otherMessage DtxMessage) bool {
 
 func ReadMessage(reader io.Reader) (DtxMessage, error) {
 	header := make([]byte, 32)
-	_, err := reader.Read(header)
+	_, err := io.ReadFull(reader, header)
 	if err != nil {
 		return DtxMessage{}, err
 	}
@@ -158,13 +159,13 @@ func ReadMessage(reader io.Reader) (DtxMessage, error) {
 	if result.IsFragment() {
 		//32 offset is correct, the binary starts with a payload header
 		messageBytes := make([]byte, result.MessageLength)
-		reader.Read(messageBytes)
+		io.ReadFull(reader, messageBytes)
 		result.fragmentBytes = messageBytes
 		return result, nil
 	}
 
 	payloadHeaderBytes := make([]byte, 16)
-	_, err = reader.Read(payloadHeaderBytes)
+	_, err = io.ReadFull(reader, payloadHeaderBytes)
 	if err != nil {
 		return DtxMessage{}, err
 	}
@@ -177,7 +178,7 @@ func ReadMessage(reader io.Reader) (DtxMessage, error) {
 
 	if result.HasAuxiliary() {
 		auxHeaderBytes := make([]byte, 16)
-		_, err = reader.Read(auxHeaderBytes)
+		_, err = io.ReadFull(reader, auxHeaderBytes)
 		if err != nil {
 			return DtxMessage{}, err
 		}
@@ -188,7 +189,7 @@ func ReadMessage(reader io.Reader) (DtxMessage, error) {
 		}
 		result.AuxiliaryHeader = header
 		auxBytes := make([]byte, result.AuxiliaryHeader.AuxiliarySize)
-		_, err = reader.Read(auxBytes)
+		_, err = io.ReadFull(reader, auxBytes)
 		if err != nil {
 			return DtxMessage{}, err
 		}
@@ -198,7 +199,8 @@ func ReadMessage(reader io.Reader) (DtxMessage, error) {
 	result.RawBytes = make([]byte, 0)
 	if result.HasPayload() {
 		payloadBytes := make([]byte, result.PayloadLength())
-		_, err = reader.Read(payloadBytes)
+		n, err := io.ReadFull(reader, payloadBytes)
+		log.Info(n)
 		if err != nil {
 			return DtxMessage{}, err
 		}
