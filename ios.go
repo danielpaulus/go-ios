@@ -263,9 +263,11 @@ The commands work as following:
 
 			conn.EnableSelectionMode()
 
-			conn.GetElement()
-			/*	time.Sleep(time.Second)
+			for i := 0; i < 10; i++ {
 				conn.GetElement()
+				time.Sleep(time.Second)
+			}
+			/*	conn.GetElement()
 				time.Sleep(time.Second)
 				conn.TurnOff()*/
 			//conn.GetElement()
