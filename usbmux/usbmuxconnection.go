@@ -61,6 +61,7 @@ type MuxMessage struct {
 	Payload []byte
 }
 
+//UsbmuxHeader contains the header for plist messages for the usbmux daemon.
 type UsbmuxHeader struct {
 	Length  uint32
 	Version uint32
