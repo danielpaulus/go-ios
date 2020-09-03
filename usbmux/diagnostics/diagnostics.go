@@ -6,7 +6,7 @@ const serviceName = "com.apple.mobile.diagnostics_relay"
 
 type Connection struct {
 	deviceConn usbmux.DeviceConnectionInterface
-	plistCodec *usbmux.PlistCodec
+	plistCodec usbmux.PlistCodec
 }
 
 func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, error) {

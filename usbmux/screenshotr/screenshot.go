@@ -12,7 +12,7 @@ const serviceName string = "com.apple.mobile.screenshotr"
 //Connection exposes the LogReader channel which send the LogMessages as strings.
 type Connection struct {
 	deviceConn usbmux.DeviceConnectionInterface
-	plistCodec *usbmux.PlistCodec
+	plistCodec usbmux.PlistCodec
 	version    versionInfo
 }
 

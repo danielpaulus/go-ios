@@ -11,7 +11,7 @@ const serviceName = "com.apple.mobile.installation_proxy"
 
 type Connection struct {
 	deviceConn usbmux.DeviceConnectionInterface
-	plistCodec *usbmux.PlistCodec
+	plistCodec usbmux.PlistCodec
 }
 
 func (c *Connection) Close() {

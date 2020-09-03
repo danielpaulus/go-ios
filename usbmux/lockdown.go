@@ -14,7 +14,7 @@ const Lockdownport uint16 = 32498
 type LockDownConnection struct {
 	deviceConnection DeviceConnectionInterface
 	sessionID        string
-	plistCodec       *PlistCodec
+	plistCodec       PlistCodec
 }
 
 type getValue struct {

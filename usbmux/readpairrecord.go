@@ -19,8 +19,8 @@ type ReadPair struct {
 	PairRecordID        string
 }
 
-func newReadPair(udid string) *ReadPair {
-	data := &ReadPair{
+func newReadPair(udid string) ReadPair {
+	data := ReadPair{
 		BundleID:            "go.ios.control",
 		ClientVersionString: "go-usbmux-0.0.1",
 		MessageType:         "ReadPairRecord",

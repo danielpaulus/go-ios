@@ -17,14 +17,14 @@ type PlistCodec struct {
 }
 
 //NewPlistCodec create a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
-func NewPlistCodec() *PlistCodec {
-	return &PlistCodec{}
+func NewPlistCodec() PlistCodec {
+	return PlistCodec{}
 }
 
 //Encode encodes a LockDown Struct to a byte[] with the lockdown plist format.
 //It returns a byte array that contains a 4 byte length unsigned big endian integer
 //followed by the plist as a string
-func (plistCodec *PlistCodec) Encode(message interface{}) ([]byte, error) {
+func (plistCodec PlistCodec) Encode(message interface{}) ([]byte, error) {
 	stringContent := ToPlist(message)
 	log.Debug("Lockdown send", reflect.TypeOf(message))
 	if log.IsLevelEnabled(log.TraceLevel) {
@@ -44,7 +44,7 @@ func (plistCodec *PlistCodec) Encode(message interface{}) ([]byte, error) {
 
 //Decode reads a Lockdown Message from the provided reader and
 //sends it to the ResponseChannel
-func (plistCodec *PlistCodec) Decode(r io.Reader) ([]byte, error) {
+func (plistCodec PlistCodec) Decode(r io.Reader) ([]byte, error) {
 	if r == nil {
 		return nil, errors.New("Reader was nil")
 	}
