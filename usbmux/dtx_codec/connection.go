@@ -17,15 +17,15 @@ type DtxConnection struct {
 	globalChannel          *DtxChannel
 	capabilities           map[string]interface{}
 	mutex                  sync.Mutex
-	requestChannelMessages chan DtxMessage
+	requestChannelMessages chan Message
 }
 
 type GlobalDispatcher struct {
-	dispatchFunctions      map[string]func(DtxMessage)
-	requestChannelMessages chan DtxMessage
+	dispatchFunctions      map[string]func(Message)
+	requestChannelMessages chan Message
 }
 type DtxDispatcher interface {
-	Dispatch(msg DtxMessage)
+	Dispatch(msg Message)
 }
 
 const requestChannel = "_requestChannelWithCode:identifier:"
@@ -38,14 +38,14 @@ func (c DtxConnection) GlobalChannel() *DtxChannel {
 	return c.globalChannel
 }
 
-func NewGlobalDispatcher(requestChannelMessages chan DtxMessage) DtxDispatcher {
-	dispatcher := GlobalDispatcher{dispatchFunctions: map[string]func(DtxMessage){},
+func NewGlobalDispatcher(requestChannelMessages chan Message) DtxDispatcher {
+	dispatcher := GlobalDispatcher{dispatchFunctions: map[string]func(Message){},
 		requestChannelMessages: requestChannelMessages}
 	const notifyPublishedCaps = "_notifyOfPublishedCapabilities:"
 	dispatcher.dispatchFunctions[notifyPublishedCaps] = notifyOfPublishedCapabilities
 	return dispatcher
 }
-func (g GlobalDispatcher) Dispatch(msg DtxMessage) {
+func (g GlobalDispatcher) Dispatch(msg Message) {
 	if msg.Payload != nil {
 		if requestChannel == msg.Payload[0] {
 			g.requestChannelMessages <- msg
@@ -62,7 +62,7 @@ func (g GlobalDispatcher) Dispatch(msg DtxMessage) {
 	}
 }
 
-func notifyOfPublishedCapabilities(msg DtxMessage) {
+func notifyOfPublishedCapabilities(msg Message) {
 	log.Info("capabs")
 }
 
@@ -71,11 +71,11 @@ func NewDtxConnection(deviceId int, udid string, serviceName string) (*DtxConnec
 	if err != nil {
 		return nil, err
 	}
-	requestChannelMessages := make(chan DtxMessage, 5)
+	requestChannelMessages := make(chan Message, 5)
 	dtxConnection := &DtxConnection{dtxConnection: conn, channelCodeCounter: 1, activeChannels: map[int]DtxChannel{}, requestChannelMessages: requestChannelMessages}
 	globalChannel := DtxChannel{channelCode: 0,
 		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
-		messageDispatcher: NewGlobalDispatcher(requestChannelMessages), responseWaiters: map[int]chan DtxMessage{}, registeredMethods: map[string]chan DtxMessage{}}
+		messageDispatcher: NewGlobalDispatcher(requestChannelMessages), responseWaiters: map[int]chan Message{}, registeredMethods: map[string]chan Message{}}
 	dtxConnection.globalChannel = &globalChannel
 	go reader(dtxConnection)
 
@@ -102,7 +102,7 @@ func reader(dtxConn *DtxConnection) {
 	}
 }
 
-func sendAckIfNeeded(dtxConn *DtxConnection, msg DtxMessage) {
+func sendAckIfNeeded(dtxConn *DtxConnection, msg Message) {
 	if msg.ExpectsReply {
 		err := dtxConn.Send(BuildAckMessage(msg))
 		if err != nil {
@@ -117,7 +117,7 @@ func (d *DtxConnection) ForChannelRequest(messageDispatcher DtxDispatcher) DtxCh
 	defer d.mutex.Unlock()
 	code := msg.Auxiliary.GetArguments()[0].(uint32)
 	identifier, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
-	channel := DtxChannel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan DtxMessage{}}
+	channel := DtxChannel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}}
 	d.activeChannels[int(code)] = channel
 	return channel
 }
@@ -129,7 +129,7 @@ func (d *DtxConnection) RequestChannelIdentifier(identifier string, messageDispa
 	d.channelCodeCounter++
 
 	payload, _ := nskeyedarchiver.ArchiveBin(requestChannel)
-	auxiliary := NewDtxPrimitiveDictionary()
+	auxiliary := NewPrimitiveDictionary()
 	auxiliary.AddInt32(code)
 	arch, _ := nskeyedarchiver.ArchiveBin(identifier)
 	auxiliary.AddBytes(arch)
@@ -141,7 +141,7 @@ func (d *DtxConnection) RequestChannelIdentifier(identifier string, messageDispa
 		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Error("failed requesting channel")
 	}
 	log.WithFields(log.Fields{"channel_id": identifier}).Debug("Channel open")
-	channel := DtxChannel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan DtxMessage{}}
+	channel := DtxChannel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}}
 	d.activeChannels[code] = channel
 	return channel
 }
@@ -152,18 +152,18 @@ type DtxChannel struct {
 	messageIdentifier int
 	connection        *DtxConnection
 	messageDispatcher DtxDispatcher
-	responseWaiters   map[int]chan DtxMessage
-	registeredMethods map[string]chan DtxMessage
+	responseWaiters   map[int]chan Message
+	registeredMethods map[string]chan Message
 	mutex             sync.Mutex
 }
 
 func (d *DtxChannel) RegisterMethodForRemote(selector string) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
-	d.registeredMethods[selector] = make(chan DtxMessage)
+	d.registeredMethods[selector] = make(chan Message)
 }
 
-func (d *DtxChannel) ReceiveMethodCall(selector string) DtxMessage {
+func (d *DtxChannel) ReceiveMethodCall(selector string) Message {
 	d.mutex.Lock()
 	channel := d.registeredMethods[selector]
 	d.mutex.Unlock()
@@ -172,9 +172,9 @@ func (d *DtxChannel) ReceiveMethodCall(selector string) DtxMessage {
 
 //MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 //DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
-func (d *DtxChannel) MethodCall(selector string, args []interface{}) (DtxMessage, error) {
+func (d *DtxChannel) MethodCall(selector string, args []interface{}) (Message, error) {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
-	auxiliary := NewDtxPrimitiveDictionary()
+	auxiliary := NewPrimitiveDictionary()
 	for _, arg := range args {
 		auxiliary.AddNsKeyedArchivedObject(arg)
 	}
@@ -190,7 +190,7 @@ func (d *DtxChannel) MethodCall(selector string, args []interface{}) (DtxMessage
 
 func (d *DtxChannel) MethodCallAsync(selector string, args []interface{}) error {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
-	auxiliary := NewDtxPrimitiveDictionary()
+	auxiliary := NewPrimitiveDictionary()
 	for _, arg := range args {
 		auxiliary.AddNsKeyedArchivedObject(arg)
 	}
@@ -201,7 +201,7 @@ func (d *DtxChannel) MethodCallAsync(selector string, args []interface{}) error 
 	return nil
 }
 
-func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byte, auxiliary DtxPrimitiveDictionary) error {
+func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byte, auxiliary PrimitiveDictionary) error {
 	d.mutex.Lock()
 
 	identifier := d.messageIdentifier
@@ -218,38 +218,38 @@ func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byt
 
 const timeout = time.Second * 5
 
-func (d *DtxChannel) AddResponseWaiter(identifier int, channel chan DtxMessage) {
+func (d *DtxChannel) AddResponseWaiter(identifier int, channel chan Message) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	d.responseWaiters[identifier] = channel
 }
 
-func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, payloadBytes []byte, auxiliary DtxPrimitiveDictionary) (DtxMessage, error) {
+func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
 	d.mutex.Lock()
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
 	d.mutex.Unlock()
 	bytes, err := Encode(identifier, d.channelCode, expectsReply, messageType, payloadBytes, auxiliary)
 	if err != nil {
-		return DtxMessage{}, err
+		return Message{}, err
 	}
-	responseChannel := make(chan DtxMessage)
+	responseChannel := make(chan Message)
 	d.AddResponseWaiter(identifier, responseChannel)
 	log.Tracef("Sending:%x", bytes)
 	err = d.connection.Send(bytes)
 	if err != nil {
-		return DtxMessage{}, err
+		return Message{}, err
 	}
 	select {
 	case response := <-responseChannel:
 		return response, nil
 	case <-time.After(timeout):
-		return DtxMessage{}, fmt.Errorf("Timed out waiting for response for message:%d channel:%d", identifier, d.channelCode)
+		return Message{}, fmt.Errorf("Timed out waiting for response for message:%d channel:%d", identifier, d.channelCode)
 	}
 
 }
 
-func (d *DtxChannel) Dispatch(msg DtxMessage) {
+func (d *DtxChannel) Dispatch(msg Message) {
 
 	d.mutex.Lock()
 	if msg.Identifier >= d.messageIdentifier {

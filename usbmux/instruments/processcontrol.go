@@ -41,7 +41,7 @@ func LaunchAppWithArgs(bundleID string, device usbmux.DeviceEntry, args []interf
 	return NewProcessControl(conn).StartProcess(bundleID, env, args, opts)
 }
 
-func (p ProcessControlDispatcher) Dispatch(m dtx.DtxMessage) {
+func (p ProcessControlDispatcher) Dispatch(m dtx.Message) {
 	log.Debug(m)
 }
 
@@ -53,7 +53,7 @@ func NewProcessControl(dtxConnection *dtx.DtxConnection) ProcessControl {
 func (p ProcessControl) KillProcess(pid uint64) error {
 	const objcMethodName = "killPid:"
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
-	auxiliary := dtx.NewDtxPrimitiveDictionary()
+	auxiliary := dtx.NewPrimitiveDictionary()
 
 	auxiliary.AddNsKeyedArchivedObject(pid)
 	_, err := p.processControlChannel.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
@@ -66,7 +66,7 @@ func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interfa
 	const path = "/private/"
 
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
-	auxiliary := dtx.NewDtxPrimitiveDictionary()
+	auxiliary := dtx.NewPrimitiveDictionary()
 
 	auxiliary.AddNsKeyedArchivedObject(path)
 	auxiliary.AddNsKeyedArchivedObject(bundleID)

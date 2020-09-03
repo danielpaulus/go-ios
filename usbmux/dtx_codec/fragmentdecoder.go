@@ -4,20 +4,24 @@ import (
 	"encoding/binary"
 )
 
+//FragmentDecoder collects DtxMessage fragments and merges them into a single DtxMessage when they are complete.
 type FragmentDecoder struct {
-	firstFragment DtxMessage
-	fragments     []DtxMessage
+	firstFragment Message
+	fragments     []Message
 	finished      bool
 }
 
-func NewFragmentDecoder(firstFragment DtxMessage) *FragmentDecoder {
+//NewFragmentDecoder creates a new decoder with the first fragment
+func NewFragmentDecoder(firstFragment Message) *FragmentDecoder {
 	if !firstFragment.IsFirstFragment() {
 		panic("Illegalstate, need to pass in a firstFragment")
 	}
-	return &FragmentDecoder{firstFragment, make([]DtxMessage, firstFragment.Fragments-1), false}
+	return &FragmentDecoder{firstFragment, make([]Message, firstFragment.Fragments-1), false}
 }
 
-func (f *FragmentDecoder) AddFragment(fragment DtxMessage) bool {
+//AddFragment adds fragments if they match the firstFragment this FragmentDecoder was created with.
+//It returns true if the fragment was added and fals if the fragment was not matching this decoder's first fragment.
+func (f *FragmentDecoder) AddFragment(fragment Message) bool {
 	if !f.firstFragment.MessageIsFirstFragmentFor(fragment) {
 		return false
 	}
@@ -27,10 +31,13 @@ func (f *FragmentDecoder) AddFragment(fragment DtxMessage) bool {
 	}
 	return true
 }
+
+//HasFinished can be used to check if all fragments have been added
 func (f FragmentDecoder) HasFinished() bool {
 	return f.finished
 }
 
+//Extract can be used to get an assembled DtxMessage from all the fragments. Never call this befor HasFinished is true.
 func (f FragmentDecoder) Extract() []byte {
 	if !f.finished {
 		panic("illegal state")
@@ -45,7 +52,5 @@ func (f FragmentDecoder) Extract() []byte {
 		copy(assembledMessage[offset:], frag.fragmentBytes)
 		offset += len(frag.fragmentBytes)
 	}
-
-	//println(hex.EncodeToString(assembledMessage))
 	return assembledMessage
 }

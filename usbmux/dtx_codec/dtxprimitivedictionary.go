@@ -13,43 +13,42 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// That is by far the weirdest concept I have ever seen.
-// Looking at disassembled code you can see this is a custom dictionary type
-// only used for DTX. In practice however, the keys are always null and the
+// PrimitiveDictionary contains a custom dictionary type
+// only used for DTX. In practice however, the keys of all dictionaries are always null and the
 // values are used as a simple array containing the method arguments for the
 // method this message is invoking. (The payload object usually contains method names or returnvalues)
-type DtxPrimitiveDictionary struct {
+type PrimitiveDictionary struct {
 	keyValuePairs *list.List
 	values        []interface{}
 	valueTypes    []uint32
 }
 
-type DtxPrimitiveKeyValuePair struct {
+type PrimitiveKeyValuePair struct {
 	keyType   uint32
 	key       interface{}
 	valueType uint32
 	value     interface{}
 }
 
-func NewDtxPrimitiveDictionary() DtxPrimitiveDictionary {
-	return DtxPrimitiveDictionary{keyValuePairs: list.New()}
+func NewPrimitiveDictionary() PrimitiveDictionary {
+	return PrimitiveDictionary{keyValuePairs: list.New()}
 }
 
-func (d *DtxPrimitiveDictionary) AddInt32(value int) {
-	d.keyValuePairs.PushBack(DtxPrimitiveKeyValuePair{t_null, nil, t_uint32, uint32(value)})
+func (d *PrimitiveDictionary) AddInt32(value int) {
+	d.keyValuePairs.PushBack(PrimitiveKeyValuePair{t_null, nil, t_uint32, uint32(value)})
 }
-func (d *DtxPrimitiveDictionary) AddBytes(value []byte) {
-	d.keyValuePairs.PushBack(DtxPrimitiveKeyValuePair{t_null, nil, t_bytearray, value})
+func (d *PrimitiveDictionary) AddBytes(value []byte) {
+	d.keyValuePairs.PushBack(PrimitiveKeyValuePair{t_null, nil, t_bytearray, value})
 }
 
-func (d DtxPrimitiveDictionary) GetArguments() []interface{} {
+func (d PrimitiveDictionary) GetArguments() []interface{} {
 	return d.values
 }
 
 //AddNsKeyedArchivedObject wraps the object in a NSKeyedArchiver envelope before saving it to the dictionary as a []byte.
 //This will log.Fatal on error because NSKeyedArchiver has to support everything that is put in here during runtime.
 //If not, it is a non-recoverable bug and needs to be fixed anyway.
-func (d *DtxPrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) {
+func (d *PrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) {
 	archivedObject, err := nskeyedarchiver.ArchiveBin(object)
 	if err != nil {
 		log.Fatal(err)
@@ -57,7 +56,8 @@ func (d *DtxPrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) {
 	d.AddBytes(archivedObject)
 }
 
-func (d DtxPrimitiveDictionary) ToBytes() ([]byte, error) {
+//ToBytes serializes this PrimitiveDictionary to a byte slice
+func (d PrimitiveDictionary) ToBytes() ([]byte, error) {
 	size := d.keyValuePairs.Len()
 	if size == 0 {
 		return make([]byte, 0), nil
@@ -67,9 +67,9 @@ func (d DtxPrimitiveDictionary) ToBytes() ([]byte, error) {
 
 	e := d.keyValuePairs.Front()
 	for i := 0; i < size; i++ {
-		valuetype := e.Value.(DtxPrimitiveKeyValuePair).valueType
-		value := e.Value.(DtxPrimitiveKeyValuePair).value
-		keytype := e.Value.(DtxPrimitiveKeyValuePair).keyType
+		valuetype := e.Value.(PrimitiveKeyValuePair).valueType
+		value := e.Value.(PrimitiveKeyValuePair).value
+		keytype := e.Value.(PrimitiveKeyValuePair).keyType
 		if keytype != t_null {
 			return make([]byte, 0), fmt.Errorf("Encoding primitive dictionary keys is not supported. Unknown type: %d", keytype)
 		}
@@ -108,7 +108,7 @@ func writeEntry(valuetype uint32, value interface{}, buf io.Writer) error {
 	return fmt.Errorf("Unknown DtxPrimitiveDictionaryType: %d ", valuetype)
 }
 
-func (d DtxPrimitiveDictionary) String() string {
+func (d PrimitiveDictionary) String() string {
 	result := "["
 	for i, v := range d.valueTypes {
 		var prettyString []byte
@@ -132,15 +132,15 @@ func (d DtxPrimitiveDictionary) String() string {
 	return result
 }
 
-func decodeAuxiliary(auxBytes []byte) DtxPrimitiveDictionary {
-	result := DtxPrimitiveDictionary{}
+func decodeAuxiliary(auxBytes []byte) PrimitiveDictionary {
+	result := PrimitiveDictionary{}
 	result.keyValuePairs = list.New()
 	for {
 		keyType, key, remainingBytes := readEntry(auxBytes)
 		auxBytes = remainingBytes
 		valueType, value, remainingBytes := readEntry(auxBytes)
 		auxBytes = remainingBytes
-		pair := DtxPrimitiveKeyValuePair{keyType, key, valueType, value}
+		pair := PrimitiveKeyValuePair{keyType, key, valueType, value}
 		result.keyValuePairs.PushBack(pair)
 		if len(auxBytes) == 0 {
 			break
@@ -154,8 +154,8 @@ func decodeAuxiliary(auxBytes []byte) DtxPrimitiveDictionary {
 
 	e := result.keyValuePairs.Front()
 	for i := 0; i < size; i++ {
-		result.valueTypes[i] = e.Value.(DtxPrimitiveKeyValuePair).valueType
-		result.values[i] = e.Value.(DtxPrimitiveKeyValuePair).value
+		result.valueTypes[i] = e.Value.(PrimitiveKeyValuePair).valueType
+		result.values[i] = e.Value.(PrimitiveKeyValuePair).value
 		e = e.Next()
 	}
 

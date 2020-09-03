@@ -86,7 +86,7 @@ func (f *dtxDecoder) decode(data []byte) {
 			log.Println(err)
 		}
 
-		type Alias dtx.DtxMessage
+		type Alias dtx.Message
 		auxi := ""
 		if msg.HasAuxiliary() {
 			auxi = msg.Auxiliary.String()

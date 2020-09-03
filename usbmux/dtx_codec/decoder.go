@@ -3,155 +3,21 @@ package dtx
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"io"
 
 	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 )
 
-type DtxMessage struct {
-	Fragments         uint16
-	FragmentIndex     uint16
-	MessageLength     int
-	Identifier        int
-	ConversationIndex int
-	ChannelCode       int
-	ExpectsReply      bool
-	PayloadHeader     DtxPayloadHeader
-	Payload           []interface{}
-	AuxiliaryHeader   AuxiliaryHeader
-	Auxiliary         DtxPrimitiveDictionary
-	RawBytes          []byte
-	fragmentBytes     []byte
-}
-
-//16 Bytes
-type DtxPayloadHeader struct {
-	MessageType        int
-	AuxiliaryLength    int
-	TotalPayloadLength int
-	Flags              int
-}
-
-//This header can actually be completely ignored. We do not need to care about the buffer size
-//And we already know the AuxiliarySize. The other two ints seem to be always 0 anyway. Could
-//also be that Buffer and Aux Size are Uint64
-type AuxiliaryHeader struct {
-	BufferSize    uint32
-	Unknown       uint32
-	AuxiliarySize uint32
-	Unknown2      uint32
-}
-
-func (a AuxiliaryHeader) String() string {
-	return fmt.Sprintf("BufSiz:%d Unknown:%d AuxSiz:%d Unknown2:%d", a.BufferSize, a.Unknown, a.AuxiliarySize, a.Unknown2)
-}
-
-func (d DtxMessage) HasError() bool {
-	return d.PayloadHeader.MessageType == DtxTypeError
-}
-
-func (d DtxMessage) String() string {
-	var e = ""
-	if d.ExpectsReply {
-		e = "e"
-	}
-	msgtype := fmt.Sprintf("Unknown:%d", d.PayloadHeader.MessageType)
-	if knowntype, ok := messageTypeLookup[d.PayloadHeader.MessageType]; ok {
-		msgtype = knowntype
-	}
-
-	return fmt.Sprintf("i%d.%d%s c%d t:%s mlen:%d aux_len%d paylen%d", d.Identifier, d.ConversationIndex, e, d.ChannelCode, msgtype,
-		d.MessageLength, d.PayloadHeader.AuxiliaryLength, d.PayloadLength())
-}
-
-func (d DtxMessage) StringDebug() string {
-	if Ack == d.PayloadHeader.MessageType {
-		return d.String()
-	}
-	payload := "none"
-	if d.HasPayload() {
-		b, _ := json.Marshal(d.Payload[0])
-		payload = string(b)
-	}
-	if d.HasAuxiliary() {
-		return fmt.Sprintf("auxheader:%s\naux:%s\npayload: %s \nrawbytes:%x", d.AuxiliaryHeader, d.Auxiliary.String(), payload, d.RawBytes)
-	}
-	return fmt.Sprintf("no aux,payload: %s \nrawbytes:%x", payload, d.RawBytes)
-}
-func (d DtxMessage) parsePayloadBytes(messageBytes []byte) ([]interface{}, error) {
-	offset := 0
-	if d.HasAuxiliary() && d.HasPayload() {
-		offset = 48 + d.PayloadHeader.AuxiliaryLength
-	}
-	if !d.HasAuxiliary() && d.HasPayload() {
-		offset = 48
-	}
-
-	return nskeyedarchiver.Unarchive(messageBytes[offset:])
-}
-
-func (d DtxMessage) PayloadLength() int {
-	return d.PayloadHeader.TotalPayloadLength - d.PayloadHeader.AuxiliaryLength
-}
-
-func (d DtxMessage) HasAuxiliary() bool {
-	return d.PayloadHeader.AuxiliaryLength > 0
-}
-
-func (d DtxMessage) HasPayload() bool {
-	return d.PayloadLength() > 0
-}
-
-const (
-	ResponseWithReturnValueInPayload = 0x3
-	Methodinvocation                 = 0x2
-	Ack                              = 0x0
-	DtxTypeError                     = 0x4
-)
-
-var messageTypeLookup = map[int]string{
-	ResponseWithReturnValueInPayload: `ResponseWithReturnValueInPayload`,
-	Methodinvocation:                 `Methodinvocation`,
-	Ack:                              `Ack`,
-}
-
-const (
-	DtxMessageMagic uint32 = 0x795B3D1F
-	DtxHeaderLength uint32 = 32
-	DtxReservedBits uint32 = 0x0
-)
-
-//This message is only 32 bytes long
-func (d DtxMessage) IsFirstFragment() bool {
-	return d.Fragments > 1 && d.FragmentIndex == 0
-}
-
-func (d DtxMessage) IsLastFragment() bool {
-	return d.Fragments-d.FragmentIndex == 1
-}
-
-func (d DtxMessage) IsFragment() bool {
-	return d.Fragments > 1
-}
-
-//Indicates whether the message you call this on, is the first part of a fragmented message, and if otherMessage is a subsequent fragment
-func (d DtxMessage) MessageIsFirstFragmentFor(otherMessage DtxMessage) bool {
-	if !d.IsFirstFragment() {
-		panic("Illegal state")
-	}
-	return d.Identifier == otherMessage.Identifier && d.Fragments == otherMessage.Fragments && otherMessage.FragmentIndex > 0
-}
-
-func ReadMessage(reader io.Reader) (DtxMessage, error) {
+//ReadMessage uses the reader to fully read a Message from it in blocking mode.
+func ReadMessage(reader io.Reader) (Message, error) {
 	header := make([]byte, 32)
 	_, err := io.ReadFull(reader, header)
 	if err != nil {
-		return DtxMessage{}, err
+		return Message{}, err
 	}
 	if binary.BigEndian.Uint32(header) != DtxMessageMagic {
-		return DtxMessage{}, NewOutOfSync(fmt.Sprintf("Wrong Magic: %x", header[0:4]))
+		return Message{}, NewOutOfSync(fmt.Sprintf("Wrong Magic: %x", header[0:4]))
 	}
 	result := readHeader(header)
 
@@ -166,12 +32,12 @@ func ReadMessage(reader io.Reader) (DtxMessage, error) {
 	payloadHeaderBytes := make([]byte, 16)
 	_, err = io.ReadFull(reader, payloadHeaderBytes)
 	if err != nil {
-		return DtxMessage{}, err
+		return Message{}, err
 	}
 
 	ph, err := parsePayloadHeader(payloadHeaderBytes)
 	if err != nil {
-		return DtxMessage{}, err
+		return Message{}, err
 	}
 	result.PayloadHeader = ph
 
@@ -179,18 +45,18 @@ func ReadMessage(reader io.Reader) (DtxMessage, error) {
 		auxHeaderBytes := make([]byte, 16)
 		_, err = io.ReadFull(reader, auxHeaderBytes)
 		if err != nil {
-			return DtxMessage{}, err
+			return Message{}, err
 		}
 
 		header, err := parseAuxiliaryHeader(auxHeaderBytes)
 		if err != nil {
-			return DtxMessage{}, err
+			return Message{}, err
 		}
 		result.AuxiliaryHeader = header
 		auxBytes := make([]byte, result.AuxiliaryHeader.AuxiliarySize)
 		_, err = io.ReadFull(reader, auxBytes)
 		if err != nil {
-			return DtxMessage{}, err
+			return Message{}, err
 		}
 		result.Auxiliary = decodeAuxiliary(auxBytes)
 	}
@@ -200,12 +66,12 @@ func ReadMessage(reader io.Reader) (DtxMessage, error) {
 		payloadBytes := make([]byte, result.PayloadLength())
 		_, err := io.ReadFull(reader, payloadBytes)
 		if err != nil {
-			return DtxMessage{}, err
+			return Message{}, err
 		}
 
 		payload, err := nskeyedarchiver.Unarchive(payloadBytes)
 		if err != nil {
-			return DtxMessage{}, err
+			return Message{}, err
 		}
 		result.Payload = payload
 	}
@@ -213,22 +79,25 @@ func ReadMessage(reader io.Reader) (DtxMessage, error) {
 	return result, nil
 }
 
-func DecodeNonBlocking(messageBytes []byte) (DtxMessage, []byte, error) {
+//DecodeNonBlocking should only be used for the debug proxy to on the fly decode DtxMessages.
+//It is used because if the Decoder encounters an error, we can still keep reading and forwarding the raw bytes.
+//This ensures that the debug proxy keeps working and the byte dump can be used to fix the DtxDecoder
+func DecodeNonBlocking(messageBytes []byte) (Message, []byte, error) {
 
 	if len(messageBytes) < 4 {
-		return DtxMessage{}, make([]byte, 0), NewIncomplete("Less than 4 bytes")
+		return Message{}, make([]byte, 0), NewIncomplete("Less than 4 bytes")
 	}
 
 	if binary.BigEndian.Uint32(messageBytes) != DtxMessageMagic {
-		return DtxMessage{}, make([]byte, 0), NewOutOfSync(fmt.Sprintf("Wrong Magic: %x", messageBytes[0:4]))
+		return Message{}, make([]byte, 0), NewOutOfSync(fmt.Sprintf("Wrong Magic: %x", messageBytes[0:4]))
 	}
 
 	if len(messageBytes) < 32 {
-		return DtxMessage{}, make([]byte, 0), NewIncomplete("Less than 32 bytes")
+		return Message{}, make([]byte, 0), NewIncomplete("Less than 32 bytes")
 	}
 
-	if binary.LittleEndian.Uint32(messageBytes[4:]) != DtxHeaderLength {
-		return DtxMessage{}, make([]byte, 0), fmt.Errorf("Incorrect Header length, should be 32: %x", messageBytes[4:8])
+	if binary.LittleEndian.Uint32(messageBytes[4:]) != DtxMessageHeaderLength {
+		return Message{}, make([]byte, 0), fmt.Errorf("Incorrect Header length, should be 32: %x", messageBytes[4:8])
 	}
 
 	result := readHeader(messageBytes)
@@ -239,47 +108,47 @@ func DecodeNonBlocking(messageBytes []byte) (DtxMessage, []byte, error) {
 	if result.IsFragment() {
 		//32 offset is correct, the binary starts with a payload header
 		if len(messageBytes) < result.MessageLength+32 {
-			return DtxMessage{}, make([]byte, 0), NewIncomplete("Fragment lacks bytes")
+			return Message{}, make([]byte, 0), NewIncomplete("Fragment lacks bytes")
 		}
 		result.fragmentBytes = messageBytes[32 : result.MessageLength+32]
 		return result, messageBytes[result.MessageLength+32:], nil
 	}
 
 	if len(messageBytes) < 48 {
-		return DtxMessage{}, make([]byte, 0), NewIncomplete("Payload Header missing")
+		return Message{}, make([]byte, 0), NewIncomplete("Payload Header missing")
 	}
 
 	ph, err := parsePayloadHeader(messageBytes[32:48])
 	if err != nil {
-		return DtxMessage{}, make([]byte, 0), err
+		return Message{}, make([]byte, 0), err
 	}
 	result.PayloadHeader = ph
 
 	if result.HasAuxiliary() {
 		if len(messageBytes) < 64 {
-			return DtxMessage{}, make([]byte, 0), NewIncomplete("Aux Header missing")
+			return Message{}, make([]byte, 0), NewIncomplete("Aux Header missing")
 		}
 		header, err := parseAuxiliaryHeader(messageBytes[48:64])
 		if err != nil {
-			return DtxMessage{}, make([]byte, 0), err
+			return Message{}, make([]byte, 0), err
 		}
 		result.AuxiliaryHeader = header
 		if len(messageBytes) < 48+result.PayloadHeader.AuxiliaryLength {
-			return DtxMessage{}, make([]byte, 0), NewIncomplete("Aux Payload missing")
+			return Message{}, make([]byte, 0), NewIncomplete("Aux Payload missing")
 		}
 		auxBytes := messageBytes[64 : 48+result.PayloadHeader.AuxiliaryLength]
 		result.Auxiliary = decodeAuxiliary(auxBytes)
 	}
 
-	totalMessageLength := result.MessageLength + int(DtxHeaderLength)
+	totalMessageLength := result.MessageLength + int(DtxMessageHeaderLength)
 	if len(messageBytes) < totalMessageLength {
-		return DtxMessage{}, make([]byte, 0), NewIncomplete("Payload missing")
+		return Message{}, make([]byte, 0), NewIncomplete("Payload missing")
 	}
 	result.RawBytes = messageBytes[:totalMessageLength]
 	if result.HasPayload() {
 		payload, err := result.parsePayloadBytes(result.RawBytes)
 		if err != nil {
-			return DtxMessage{}, make([]byte, 0), err
+			return Message{}, make([]byte, 0), err
 		}
 		result.Payload = payload
 	}
@@ -288,8 +157,8 @@ func DecodeNonBlocking(messageBytes []byte) (DtxMessage, []byte, error) {
 	return result, remainingBytes, nil
 }
 
-func readHeader(messageBytes []byte) DtxMessage {
-	result := DtxMessage{}
+func readHeader(messageBytes []byte) Message {
+	result := Message{}
 	result.FragmentIndex = binary.LittleEndian.Uint16(messageBytes[8:])
 	result.Fragments = binary.LittleEndian.Uint16(messageBytes[10:])
 	result.MessageLength = int(binary.LittleEndian.Uint32(messageBytes[12:]))
@@ -311,12 +180,63 @@ func parseAuxiliaryHeader(headerBytes []byte) (AuxiliaryHeader, error) {
 	return result, nil
 }
 
-func parsePayloadHeader(messageBytes []byte) (DtxPayloadHeader, error) {
-	result := DtxPayloadHeader{}
+func parsePayloadHeader(messageBytes []byte) (PayloadHeader, error) {
+	result := PayloadHeader{}
 	result.MessageType = int(binary.LittleEndian.Uint32(messageBytes))
 	result.AuxiliaryLength = int(binary.LittleEndian.Uint32(messageBytes[4:]))
 	result.TotalPayloadLength = int(binary.LittleEndian.Uint32(messageBytes[8:]))
 	result.Flags = int(binary.LittleEndian.Uint32(messageBytes[12:]))
 
 	return result, nil
+}
+
+func (d Message) parsePayloadBytes(messageBytes []byte) ([]interface{}, error) {
+	offset := 0
+	if d.HasAuxiliary() && d.HasPayload() {
+		offset = 48 + d.PayloadHeader.AuxiliaryLength
+	}
+	if !d.HasAuxiliary() && d.HasPayload() {
+		offset = 48
+	}
+
+	return nskeyedarchiver.Unarchive(messageBytes[offset:])
+}
+
+//PayloadLength equals PayloadHeader.TotalPayloadLength - d.PayloadHeader.AuxiliaryLength so it is the Payload without the Auxiliary
+func (d Message) PayloadLength() int {
+	return d.PayloadHeader.TotalPayloadLength - d.PayloadHeader.AuxiliaryLength
+}
+
+//HasAuxiliary returns PayloadHeader.AuxiliaryLength > 0
+func (d Message) HasAuxiliary() bool {
+	return d.PayloadHeader.AuxiliaryLength > 0
+}
+
+//HasPayload returns PayloadLength() > 0, it is true if the Message has payload bytes
+func (d Message) HasPayload() bool {
+	return d.PayloadLength() > 0
+}
+
+//IsFirstFragment returns true if the message is the first of a series of fragments.IsFirstFragment
+//The first fragment message is only 32 bytes long
+func (d Message) IsFirstFragment() bool {
+	return d.Fragments > 1 && d.FragmentIndex == 0
+}
+
+//IsLastFragment returns true if this message is the last fragment
+func (d Message) IsLastFragment() bool {
+	return d.Fragments-d.FragmentIndex == 1
+}
+
+//IsFragment returns true if the Message is a fragment
+func (d Message) IsFragment() bool {
+	return d.Fragments > 1
+}
+
+// MessageIsFirstFragmentFor indicates whether the message you call this on, is the first part of a fragmented message, and if otherMessage is a subsequent fragment
+func (d Message) MessageIsFirstFragmentFor(otherMessage Message) bool {
+	if !d.IsFirstFragment() {
+		panic("Illegal state")
+	}
+	return d.Identifier == otherMessage.Identifier && d.Fragments == otherMessage.Fragments && otherMessage.FragmentIndex > 0
 }

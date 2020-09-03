@@ -17,7 +17,7 @@ import (
 
 type XCTestManager_IDEInterface struct {
 	IDEDaemonProxy         dtx.DtxChannel
-	testBundleReadyChannel chan dtx.DtxMessage
+	testBundleReadyChannel chan dtx.Message
 }
 type XCTestManager_DaemonConnectionInterface struct {
 	IDEDaemonProxy dtx.DtxChannel
@@ -33,7 +33,7 @@ func (xide XCTestManager_IDEInterface) testBundleReady() (uint64, uint64) {
 func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifier(sessionIdentifier uuid.UUID, protocolVersion uint64) (uint64, error) {
 	const objcMethodName = "_IDE_initiateSessionWithIdentifier:forClient:atPath:protocolVersion:"
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
-	auxiliary := dtx.NewDtxPrimitiveDictionary()
+	auxiliary := dtx.NewPrimitiveDictionary()
 
 	auxiliary.AddNsKeyedArchivedObject(nskeyedarchiver.NewNSUUID(sessionIdentifier))
 	auxiliary.AddNsKeyedArchivedObject("thephonedoesntcarewhatisendhereitseems")
@@ -54,7 +54,7 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifier
 func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTestProcessID(pid uint64, protocolVersion uint64) error {
 	const objcMethodName = "_IDE_initiateControlSessionForTestProcessID:protocolVersion:"
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
-	auxiliary := dtx.NewDtxPrimitiveDictionary()
+	auxiliary := dtx.NewPrimitiveDictionary()
 	auxiliary.AddNsKeyedArchivedObject(pid)
 	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
 	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
@@ -68,7 +68,7 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTest
 func startExecutingTestPlanWithProtocolVersion(channel dtx.DtxChannel, protocolVersion uint64) error {
 	const objcMethodName = "_IDE_startExecutingTestPlanWithProtocolVersion:"
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
-	auxiliary := dtx.NewDtxPrimitiveDictionary()
+	auxiliary := dtx.NewPrimitiveDictionary()
 	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
 	rply, err := channel.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
 	if err != nil {
@@ -88,10 +88,10 @@ type dtxproxy struct {
 }
 
 type ProxyDispatcher struct {
-	testBundleReadyChannel chan dtx.DtxMessage
+	testBundleReadyChannel chan dtx.Message
 }
 
-func (p ProxyDispatcher) Dispatch(m dtx.DtxMessage) {
+func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 	if len(m.Payload) == 1 {
 		method := m.Payload[0].(string)
 		switch method {
@@ -106,7 +106,7 @@ func (p ProxyDispatcher) Dispatch(m dtx.DtxMessage) {
 }
 
 func newDtxProxy(dtxConnection *dtx.DtxConnection) dtxproxy {
-	testBundleReadyChannel := make(chan dtx.DtxMessage, 1)
+	testBundleReadyChannel := make(chan dtx.Message, 1)
 	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, ProxyDispatcher{testBundleReadyChannel})
 	return dtxproxy{IDEDaemonProxy: IDEDaemonProxy,
 		ideInterface:     XCTestManager_IDEInterface{IDEDaemonProxy, testBundleReadyChannel},

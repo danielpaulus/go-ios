@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 )
 
-func BuildAckMessage(msg DtxMessage) []byte {
+//BuildAckMessage creates a 32+ 16 byte long message that can be used as a response for a message
+//the had the ExpectsReply flag set.
+func BuildAckMessage(msg Message) []byte {
 	response := make([]byte, 48)
 	writeHeader(response, 16, msg.Identifier, msg.ChannelCode, msg.ConversationIndex+1, false)
 	binary.LittleEndian.PutUint32(response[32:], Ack)
@@ -14,13 +16,14 @@ func BuildAckMessage(msg DtxMessage) []byte {
 	return response
 }
 
+//Encode encodes the given parameters to a DtxMessage that can be sent to the device.
 func Encode(
 	Identifier int,
 	ChannelCode int,
 	ExpectsReply bool,
 	MessageType int,
 	payloadBytes []byte,
-	Auxiliary DtxPrimitiveDictionary,
+	Auxiliary PrimitiveDictionary,
 ) ([]byte, error) {
 
 	auxBytes, err := Auxiliary.ToBytes()
@@ -54,7 +57,7 @@ func writeHeader(messageBytes []byte, messageLength uint32, Identifier int, Conv
 	ChannelCode int,
 	ExpectsReply bool) {
 	binary.BigEndian.PutUint32(messageBytes, DtxMessageMagic)
-	binary.LittleEndian.PutUint32(messageBytes[4:], DtxHeaderLength)
+	binary.LittleEndian.PutUint32(messageBytes[4:], DtxMessageHeaderLength)
 	binary.LittleEndian.PutUint16(messageBytes[8:], 0)
 	binary.LittleEndian.PutUint16(messageBytes[10:], 1)
 	binary.LittleEndian.PutUint32(messageBytes[12:], uint32(messageLength))
