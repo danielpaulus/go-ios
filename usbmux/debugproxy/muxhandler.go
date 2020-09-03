@@ -84,17 +84,17 @@ func handleReadPairRecord(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnect
 }
 
 func handleConnect(connectRequest *usbmux.MuxMessage, decodedConnectRequest map[string]interface{}, p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
-	var port int
+	var port uint16
 	portFromPlist := decodedConnectRequest["PortNumber"]
 	switch portFromPlist.(type) {
 	case uint64:
-		port = int(portFromPlist.(uint64))
+		port = uint16(portFromPlist.(uint64))
 
 	case int64:
-		port = int(portFromPlist.(int64))
+		port = uint16(portFromPlist.(int64))
 	}
 
-	if int(port) == usbmux.Lockdownport {
+	if port == usbmux.Lockdownport {
 		p.log.Info("Connect to Lockdown")
 		handleConnectToLockdown(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice)
 	} else {

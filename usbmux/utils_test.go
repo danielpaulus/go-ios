@@ -2,10 +2,11 @@ package usbmux_test
 
 import (
 	"flag"
-	"github.com/danielpaulus/go-ios/usbmux"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielpaulus/go-ios/usbmux"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -17,6 +18,11 @@ type SampleData struct {
 	StringValue string
 	IntValue    int
 	FloatValue  float64
+}
+
+func TestNtohs(t *testing.T) {
+
+	assert.Equal(t, uint16(62078), usbmux.Ntohs(usbmux.Lockdownport))
 }
 
 func TestPlistConversion(t *testing.T) {
@@ -31,7 +37,7 @@ func TestPlistConversion(t *testing.T) {
 	for _, tc := range testCases {
 
 		actual := usbmux.ToPlist(tc.data)
-		println(actual)
+
 		golden := filepath.Join("test-fixture", tc.fileName+".plist")
 		if *update {
 			err := ioutil.WriteFile(golden, []byte(actual), 0644)

@@ -11,10 +11,10 @@ type connectMessage struct {
 	ProgName            string
 	LibUSBMuxVersion    uint32 `plist:"kLibUSBMuxVersion"`
 	DeviceID            uint32
-	PortNumber          uint32
+	PortNumber          uint16
 }
 
-func newConnectMessage(deviceID int, portNumber int) *connectMessage {
+func newConnectMessage(deviceID int, portNumber uint16) *connectMessage {
 	data := &connectMessage{
 		BundleID:            "go.ios.control",
 		ClientVersionString: "go-usbmux-0.0.1",
@@ -22,7 +22,7 @@ func newConnectMessage(deviceID int, portNumber int) *connectMessage {
 		ProgName:            "go-usbmux",
 		LibUSBMuxVersion:    3,
 		DeviceID:            uint32(deviceID),
-		PortNumber:          uint32(portNumber),
+		PortNumber:          portNumber,
 	}
 	return data
 }
@@ -31,7 +31,7 @@ func newConnectMessage(deviceID int, portNumber int) *connectMessage {
 //enabling the newCodec for it.
 //It returns an error containing the UsbMux error code should the connect fail.
 func (muxConn *MuxConnection) Connect(deviceID int, port uint16) error {
-	msg := newConnectMessage(deviceID, int(Ntohs(port)))
+	msg := newConnectMessage(deviceID, Ntohs(port))
 	muxConn.Send(msg)
 	resp, err := muxConn.ReadMessage()
 	if err != nil {
