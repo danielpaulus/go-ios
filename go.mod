@@ -1,6 +1,6 @@
 module github.com/danielpaulus/go-ios
 
-go 1.13
+go 1.15
 
 require (
 	github.com/Masterminds/semver v1.5.0
