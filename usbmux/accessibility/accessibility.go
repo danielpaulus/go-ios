@@ -7,10 +7,13 @@ import (
 
 const serviceName string = "com.apple.accessibility.axAuditDaemon.remoteserver"
 
-func New(device usbmux.DeviceEntry) (AccessibilityControl, error) {
+//New creates and connects to the given device, a new ControlInterface instance
+func New(device usbmux.DeviceEntry) (ControlInterface, error) {
 	conn, err := dtx.NewConnection(device, serviceName)
 	if err != nil {
-		return AccessibilityControl{}, err
+		return ControlInterface{}, err
 	}
-	return AccessibilityControl{conn.GlobalChannel()}, nil
+	control := ControlInterface{conn.GlobalChannel()}
+	err = control.init()
+	return control, err
 }

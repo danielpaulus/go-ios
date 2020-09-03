@@ -6,11 +6,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type AccessibilityControl struct {
+//ControlInterface provides a simple interface to controlling the AX service on the device
+//It only needs the global dtx channel as all AX methods are invoked on it.
+type ControlInterface struct {
 	channel *dtx.Channel
 }
 
-func (a AccessibilityControl) readhostAppStateChanged() {
+func (a ControlInterface) readhostAppStateChanged() {
 	for {
 		msg := a.channel.ReceiveMethodCall("hostAppStateChanged:")
 		stateChange, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
@@ -22,7 +24,7 @@ func (a AccessibilityControl) readhostAppStateChanged() {
 	}
 }
 
-func (a AccessibilityControl) readhostInspectorNotificationReceived() {
+func (a ControlInterface) readhostInspectorNotificationReceived() {
 	for {
 		msg := a.channel.ReceiveMethodCall("hostInspectorNotificationReceived:")
 		notification, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
@@ -34,7 +36,8 @@ func (a AccessibilityControl) readhostInspectorNotificationReceived() {
 	}
 }
 
-func (a AccessibilityControl) Init() error {
+//Init wires up event receivers and gets Info from the device
+func (a ControlInterface) init() error {
 	a.channel.RegisterMethodForRemote("hostInspectorCurrentElementChanged:")
 	a.channel.RegisterMethodForRemote("hostInspectorMonitoredEventTypeChanged:")
 	a.channel.RegisterMethodForRemote("hostAppStateChanged:")
@@ -42,10 +45,10 @@ func (a AccessibilityControl) Init() error {
 	go a.readhostAppStateChanged()
 	go a.readhostInspectorNotificationReceived()
 
-	/*err := a.notifyPublishedCapabilities()
+	err := a.notifyPublishedCapabilities()
 	if err != nil {
 		return err
-	}*/
+	}
 	//a list of methods we are allowed to call on the device
 	deviceCapabilities, err := a.deviceCapabilities()
 	if err != nil {
@@ -92,14 +95,17 @@ func (a AccessibilityControl) Init() error {
 	return nil
 }
 
-func (a AccessibilityControl) EnableSelectionMode() {
+//EnableSelectionMode enables the UI element selection mode on the device,
+//it is the same as clicking the little crosshair in AX Inspector
+func (a ControlInterface) EnableSelectionMode() {
 	a.deviceInspectorSetMonitoredEventType(2)
 	a.deviceInspectorShowVisuals(true)
 	a.awaitHostInspectorMonitoredEventTypeChanged()
 }
 
-//should receive AX notifications now
-func (a AccessibilityControl) SwitchToDevice() {
+//SwitchToDevice is the same as switching to the Device in AX inspector.
+//After running this, notifications and events should be received.
+func (a ControlInterface) SwitchToDevice() {
 	a.TurnOff()
 	resp, _ := a.deviceAccessibilitySettings()
 	log.Info("AX Settings received:", resp)
@@ -112,7 +118,8 @@ func (a AccessibilityControl) SwitchToDevice() {
 
 }
 
-func (a AccessibilityControl) TurnOff() {
+//TurnOff disable AX
+func (a ControlInterface) TurnOff() {
 	a.deviceInspectorSetMonitoredEventType(0)
 	a.awaitHostInspectorMonitoredEventTypeChanged()
 	a.deviceInspectorFocusOnElement()
@@ -122,7 +129,8 @@ func (a AccessibilityControl) TurnOff() {
 	a.deviceInspectorShowVisuals(false)
 }
 
-func (a AccessibilityControl) GetElement() {
+//GetElement moves the green selection rectangle one element further
+func (a ControlInterface) GetElement() {
 	log.Info("changing")
 	a.deviceInspectorMoveWithOptions()
 	//a.deviceInspectorMoveWithOptions()
@@ -131,7 +139,7 @@ func (a AccessibilityControl) GetElement() {
 	log.Info("item changed", resp)
 }
 
-func (a AccessibilityControl) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
+func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
 	msg := a.channel.ReceiveMethodCall("hostInspectorCurrentElementChanged:")
 	log.Info("received hostInspectorCurrentElementChanged")
 	result, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
@@ -141,20 +149,20 @@ func (a AccessibilityControl) awaitHostInspectorCurrentElementChanged() map[stri
 	return result[0].(map[string]interface{})
 }
 
-func (a AccessibilityControl) awaitHostInspectorMonitoredEventTypeChanged() {
+func (a ControlInterface) awaitHostInspectorMonitoredEventTypeChanged() {
 	msg := a.channel.ReceiveMethodCall("hostInspectorMonitoredEventTypeChanged:")
 	n, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 	log.Infof("hostInspectorMonitoredEventTypeChanged: was set to %d by the device", n[0])
 }
 
-func (a AccessibilityControl) deviceInspectorMoveWithOptions() {
+func (a ControlInterface) deviceInspectorMoveWithOptions() {
 	method := "deviceInspectorMoveWithOptions:"
 	options := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 		"ObjectType": "passthrough",
 		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
-			"allowNonAX":        nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": "false"}),
+			"allowNonAX":        nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": false}),
 			"direction":         nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": int32(4)}),
-			"includeContainers": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": "true"}),
+			"includeContainers": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": true}),
 		}),
 	})
 	//str, _ := nskeyedarchiver.ArchiveXML(options)
@@ -163,7 +171,7 @@ func (a AccessibilityControl) deviceInspectorMoveWithOptions() {
 
 }
 
-func (a AccessibilityControl) notifyPublishedCapabilities() error {
+func (a ControlInterface) notifyPublishedCapabilities() error {
 	capabs := map[string]interface{}{
 		"com.apple.private.DTXBlockCompression": uint64(2),
 		"com.apple.private.DTXConnection":       uint64(1),
@@ -172,7 +180,7 @@ func (a AccessibilityControl) notifyPublishedCapabilities() error {
 
 }
 
-func (a AccessibilityControl) deviceCapabilities() ([]string, error) {
+func (a ControlInterface) deviceCapabilities() ([]string, error) {
 	response, err := a.channel.MethodCall("deviceCapabilities", []interface{}{})
 	if err != nil {
 		return nil, err
@@ -180,7 +188,7 @@ func (a AccessibilityControl) deviceCapabilities() ([]string, error) {
 	return convertToStringList(response.Payload), nil
 }
 
-func (a AccessibilityControl) deviceAllAuditCaseIDs() ([]string, error) {
+func (a ControlInterface) deviceAllAuditCaseIDs() ([]string, error) {
 	response, err := a.channel.MethodCall("deviceAllAuditCaseIDs", []interface{}{})
 	if err != nil {
 		return nil, err
@@ -188,7 +196,7 @@ func (a AccessibilityControl) deviceAllAuditCaseIDs() ([]string, error) {
 	return convertToStringList(response.Payload), nil
 }
 
-func (a AccessibilityControl) deviceAccessibilitySettings() (map[string]interface{}, error) {
+func (a ControlInterface) deviceAccessibilitySettings() (map[string]interface{}, error) {
 	response, err := a.channel.MethodCall("deviceAccessibilitySettings", []interface{}{})
 	if err != nil {
 		return nil, err
@@ -196,7 +204,7 @@ func (a AccessibilityControl) deviceAccessibilitySettings() (map[string]interfac
 	return response.Payload[0].(map[string]interface{}), nil
 }
 
-func (a AccessibilityControl) deviceInspectorSupportedEventTypes() (uint64, error) {
+func (a ControlInterface) deviceInspectorSupportedEventTypes() (uint64, error) {
 	response, err := a.channel.MethodCall("deviceInspectorSupportedEventTypes", []interface{}{})
 	if err != nil {
 		return 0, err
@@ -204,14 +212,14 @@ func (a AccessibilityControl) deviceInspectorSupportedEventTypes() (uint64, erro
 	return response.Payload[0].(uint64), nil
 }
 
-func (a AccessibilityControl) deviceAPIVersion() (uint64, error) {
+func (a ControlInterface) deviceAPIVersion() (uint64, error) {
 	response, err := a.channel.MethodCall("deviceApiVersion", []interface{}{})
 	if err != nil {
 		return 0, err
 	}
 	return response.Payload[0].(uint64), nil
 }
-func (a AccessibilityControl) deviceInspectorCanNavWhileMonitoringEvents() (bool, error) {
+func (a ControlInterface) deviceInspectorCanNavWhileMonitoringEvents() (bool, error) {
 	response, err := a.channel.MethodCall("deviceInspectorCanNavWhileMonitoringEvents", []interface{}{})
 	if err != nil {
 		return false, err
@@ -219,7 +227,7 @@ func (a AccessibilityControl) deviceInspectorCanNavWhileMonitoringEvents() (bool
 	return response.Payload[0].(bool), nil
 }
 
-func (a AccessibilityControl) deviceSetAppMonitoringEnabled(val bool) error {
+func (a ControlInterface) deviceSetAppMonitoringEnabled(val bool) error {
 	err := a.channel.MethodCallAsync("deviceSetAppMonitoringEnabled:", []interface{}{val})
 	if err != nil {
 		return err
@@ -227,7 +235,7 @@ func (a AccessibilityControl) deviceSetAppMonitoringEnabled(val bool) error {
 	return nil
 }
 
-func (a AccessibilityControl) deviceHumanReadableDescriptionForAuditCaseID(auditCaseID string) (string, error) {
+func (a ControlInterface) deviceHumanReadableDescriptionForAuditCaseID(auditCaseID string) (string, error) {
 	response, err := a.channel.MethodCall("deviceHumanReadableDescriptionForAuditCaseID:", []interface{}{auditCaseID})
 	if err != nil {
 		return "", err
@@ -235,24 +243,24 @@ func (a AccessibilityControl) deviceHumanReadableDescriptionForAuditCaseID(audit
 	return response.Payload[0].(string), nil
 }
 
-func (a AccessibilityControl) deviceInspectorShowIgnoredElements(val bool) error {
+func (a ControlInterface) deviceInspectorShowIgnoredElements(val bool) error {
 	return a.channel.MethodCallAsync("deviceInspectorShowIgnoredElements:", []interface{}{val})
 }
-func (a AccessibilityControl) deviceSetAuditTargetPid(pid uint64) error {
+func (a ControlInterface) deviceSetAuditTargetPid(pid uint64) error {
 	return a.channel.MethodCallAsync("deviceSetAuditTargetPid:", []interface{}{pid})
 }
-func (a AccessibilityControl) deviceInspectorFocusOnElement() error {
+func (a ControlInterface) deviceInspectorFocusOnElement() error {
 	return a.channel.MethodCallAsync("deviceInspectorFocusOnElement:", []interface{}{nskeyedarchiver.NewNSNull()})
 }
-func (a AccessibilityControl) deviceInspectorPreviewOnElement() error {
+func (a ControlInterface) deviceInspectorPreviewOnElement() error {
 	return a.channel.MethodCallAsync("deviceInspectorPreviewOnElement:", []interface{}{nskeyedarchiver.NewNSNull()})
 }
-func (a AccessibilityControl) deviceHighlightIssue() error {
+func (a ControlInterface) deviceHighlightIssue() error {
 	return a.channel.MethodCallAsync("deviceHighlightIssue:", []interface{}{map[string]interface{}{}})
 }
-func (a AccessibilityControl) deviceInspectorSetMonitoredEventType(eventtype uint64) error {
+func (a ControlInterface) deviceInspectorSetMonitoredEventType(eventtype uint64) error {
 	return a.channel.MethodCallAsync("deviceInspectorSetMonitoredEventType:", []interface{}{eventtype})
 }
-func (a AccessibilityControl) deviceInspectorShowVisuals(val bool) error {
+func (a ControlInterface) deviceInspectorShowVisuals(val bool) error {
 	return a.channel.MethodCallAsync("deviceInspectorShowVisuals:", []interface{}{val})
 }

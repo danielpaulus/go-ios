@@ -16,7 +16,7 @@ func TestIT(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = conn.Init()
+
 	conn.SwitchToDevice()
 	if err != nil {
 		log.Fatal(err)

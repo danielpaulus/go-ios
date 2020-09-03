@@ -257,7 +257,6 @@ The commands work as following:
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = conn.Init()
 
 			conn.SwitchToDevice()
 
