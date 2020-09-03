@@ -12,7 +12,7 @@ import (
 const channelName = "com.apple.instruments.server.services.processcontrol"
 
 type ProcessControl struct {
-	processControlChannel dtx.DtxChannel
+	processControlChannel *dtx.DtxChannel
 }
 
 type ProcessControlDispatcher struct{}

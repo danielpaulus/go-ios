@@ -261,9 +261,9 @@ The commands work as following:
 
 			conn.SwitchToDevice()
 
-			//conn.EnableSelectionMode()
+			conn.EnableSelectionMode()
 
-			/*for i := 0; i < 10; i++ {
+			for i := 0; i < 3; i++ {
 				conn.GetElement()
 				time.Sleep(time.Second)
 			}

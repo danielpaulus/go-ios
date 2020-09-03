@@ -16,11 +16,11 @@ import (
 )
 
 type XCTestManager_IDEInterface struct {
-	IDEDaemonProxy         dtx.DtxChannel
+	IDEDaemonProxy         *dtx.DtxChannel
 	testBundleReadyChannel chan dtx.Message
 }
 type XCTestManager_DaemonConnectionInterface struct {
-	IDEDaemonProxy dtx.DtxChannel
+	IDEDaemonProxy *dtx.DtxChannel
 }
 
 func (xide XCTestManager_IDEInterface) testBundleReady() (uint64, uint64) {
@@ -65,7 +65,7 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTest
 	return nil
 }
 
-func startExecutingTestPlanWithProtocolVersion(channel dtx.DtxChannel, protocolVersion uint64) error {
+func startExecutingTestPlanWithProtocolVersion(channel *dtx.DtxChannel, protocolVersion uint64) error {
 	const objcMethodName = "_IDE_startExecutingTestPlanWithProtocolVersion:"
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
 	auxiliary := dtx.NewPrimitiveDictionary()
@@ -83,7 +83,7 @@ const ideToDaemonProxyChannelName = "dtxproxy:XCTestManager_IDEInterface:XCTestM
 type dtxproxy struct {
 	ideInterface     XCTestManager_IDEInterface
 	daemonConnection XCTestManager_DaemonConnectionInterface
-	IDEDaemonProxy   dtx.DtxChannel
+	IDEDaemonProxy   *dtx.DtxChannel
 	dtxConnection    *dtx.DtxConnection
 }
 
