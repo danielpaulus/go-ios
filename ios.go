@@ -540,7 +540,7 @@ func pairDevice(device ios.DeviceEntry) {
 
 func readPair(device ios.DeviceEntry) {
 	record := ios.ReadPairRecord(device.Properties.SerialNumber)
-	log.Info(record.String())
+	log.Info(record)
 }
 
 func convertToJSONString(data interface{}) string {

@@ -8,7 +8,6 @@
 go-ios
 usbmuxd
 main
-ios
 *.png
 
 # Test binary, build with `go test -c`
