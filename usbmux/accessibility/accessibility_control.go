@@ -167,7 +167,7 @@ func (a ControlInterface) deviceInspectorMoveWithOptions() {
 	})
 	//str, _ := nskeyedarchiver.ArchiveXML(options)
 	//println(str)
-	a.channel.MethodCallAsync(method, []interface{}{options})
+	a.channel.MethodCallAsync(method, options)
 
 }
 
@@ -176,12 +176,12 @@ func (a ControlInterface) notifyPublishedCapabilities() error {
 		"com.apple.private.DTXBlockCompression": uint64(2),
 		"com.apple.private.DTXConnection":       uint64(1),
 	}
-	return a.channel.MethodCallAsync("_notifyOfPublishedCapabilities:", []interface{}{capabs})
+	return a.channel.MethodCallAsync("_notifyOfPublishedCapabilities:", capabs)
 
 }
 
 func (a ControlInterface) deviceCapabilities() ([]string, error) {
-	response, err := a.channel.MethodCall("deviceCapabilities", []interface{}{})
+	response, err := a.channel.MethodCall("deviceCapabilities")
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func (a ControlInterface) deviceCapabilities() ([]string, error) {
 }
 
 func (a ControlInterface) deviceAllAuditCaseIDs() ([]string, error) {
-	response, err := a.channel.MethodCall("deviceAllAuditCaseIDs", []interface{}{})
+	response, err := a.channel.MethodCall("deviceAllAuditCaseIDs")
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (a ControlInterface) deviceAllAuditCaseIDs() ([]string, error) {
 }
 
 func (a ControlInterface) deviceAccessibilitySettings() (map[string]interface{}, error) {
-	response, err := a.channel.MethodCall("deviceAccessibilitySettings", []interface{}{})
+	response, err := a.channel.MethodCall("deviceAccessibilitySettings")
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func (a ControlInterface) deviceAccessibilitySettings() (map[string]interface{},
 }
 
 func (a ControlInterface) deviceInspectorSupportedEventTypes() (uint64, error) {
-	response, err := a.channel.MethodCall("deviceInspectorSupportedEventTypes", []interface{}{})
+	response, err := a.channel.MethodCall("deviceInspectorSupportedEventTypes")
 	if err != nil {
 		return 0, err
 	}
@@ -213,14 +213,14 @@ func (a ControlInterface) deviceInspectorSupportedEventTypes() (uint64, error) {
 }
 
 func (a ControlInterface) deviceAPIVersion() (uint64, error) {
-	response, err := a.channel.MethodCall("deviceApiVersion", []interface{}{})
+	response, err := a.channel.MethodCall("deviceApiVersion")
 	if err != nil {
 		return 0, err
 	}
 	return response.Payload[0].(uint64), nil
 }
 func (a ControlInterface) deviceInspectorCanNavWhileMonitoringEvents() (bool, error) {
-	response, err := a.channel.MethodCall("deviceInspectorCanNavWhileMonitoringEvents", []interface{}{})
+	response, err := a.channel.MethodCall("deviceInspectorCanNavWhileMonitoringEvents")
 	if err != nil {
 		return false, err
 	}
@@ -228,7 +228,7 @@ func (a ControlInterface) deviceInspectorCanNavWhileMonitoringEvents() (bool, er
 }
 
 func (a ControlInterface) deviceSetAppMonitoringEnabled(val bool) error {
-	err := a.channel.MethodCallAsync("deviceSetAppMonitoringEnabled:", []interface{}{val})
+	err := a.channel.MethodCallAsync("deviceSetAppMonitoringEnabled:", val)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (a ControlInterface) deviceSetAppMonitoringEnabled(val bool) error {
 }
 
 func (a ControlInterface) deviceHumanReadableDescriptionForAuditCaseID(auditCaseID string) (string, error) {
-	response, err := a.channel.MethodCall("deviceHumanReadableDescriptionForAuditCaseID:", []interface{}{auditCaseID})
+	response, err := a.channel.MethodCall("deviceHumanReadableDescriptionForAuditCaseID:", auditCaseID)
 	if err != nil {
 		return "", err
 	}
@@ -244,23 +244,23 @@ func (a ControlInterface) deviceHumanReadableDescriptionForAuditCaseID(auditCase
 }
 
 func (a ControlInterface) deviceInspectorShowIgnoredElements(val bool) error {
-	return a.channel.MethodCallAsync("deviceInspectorShowIgnoredElements:", []interface{}{val})
+	return a.channel.MethodCallAsync("deviceInspectorShowIgnoredElements:", val)
 }
 func (a ControlInterface) deviceSetAuditTargetPid(pid uint64) error {
-	return a.channel.MethodCallAsync("deviceSetAuditTargetPid:", []interface{}{pid})
+	return a.channel.MethodCallAsync("deviceSetAuditTargetPid:", pid)
 }
 func (a ControlInterface) deviceInspectorFocusOnElement() error {
-	return a.channel.MethodCallAsync("deviceInspectorFocusOnElement:", []interface{}{nskeyedarchiver.NewNSNull()})
+	return a.channel.MethodCallAsync("deviceInspectorFocusOnElement:", nskeyedarchiver.NewNSNull())
 }
 func (a ControlInterface) deviceInspectorPreviewOnElement() error {
-	return a.channel.MethodCallAsync("deviceInspectorPreviewOnElement:", []interface{}{nskeyedarchiver.NewNSNull()})
+	return a.channel.MethodCallAsync("deviceInspectorPreviewOnElement:", nskeyedarchiver.NewNSNull())
 }
 func (a ControlInterface) deviceHighlightIssue() error {
-	return a.channel.MethodCallAsync("deviceHighlightIssue:", []interface{}{map[string]interface{}{}})
+	return a.channel.MethodCallAsync("deviceHighlightIssue:", map[string]interface{}{})
 }
 func (a ControlInterface) deviceInspectorSetMonitoredEventType(eventtype uint64) error {
-	return a.channel.MethodCallAsync("deviceInspectorSetMonitoredEventType:", []interface{}{eventtype})
+	return a.channel.MethodCallAsync("deviceInspectorSetMonitoredEventType:", eventtype)
 }
 func (a ControlInterface) deviceInspectorShowVisuals(val bool) error {
-	return a.channel.MethodCallAsync("deviceInspectorShowVisuals:", []interface{}{val})
+	return a.channel.MethodCallAsync("deviceInspectorShowVisuals:", val)
 }

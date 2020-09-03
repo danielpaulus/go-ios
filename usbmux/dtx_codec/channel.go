@@ -35,7 +35,7 @@ func (d *Channel) ReceiveMethodCall(selector string) Message {
 
 //MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 //DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
-func (d *Channel) MethodCall(selector string, args []interface{}) (Message, error) {
+func (d *Channel) MethodCall(selector string, args ...interface{}) (Message, error) {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
 	auxiliary := NewPrimitiveDictionary()
 	for _, arg := range args {
@@ -51,7 +51,7 @@ func (d *Channel) MethodCall(selector string, args []interface{}) (Message, erro
 	return msg, nil
 }
 
-func (d *Channel) MethodCallAsync(selector string, args []interface{}) error {
+func (d *Channel) MethodCallAsync(selector string, args ...interface{}) error {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
 	auxiliary := NewPrimitiveDictionary()
 	for _, arg := range args {
