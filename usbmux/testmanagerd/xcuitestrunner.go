@@ -31,33 +31,28 @@ func (xide XCTestManager_IDEInterface) testBundleReady() (uint64, uint64) {
 }
 
 func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifier(sessionIdentifier uuid.UUID, protocolVersion uint64) (uint64, error) {
-	const objcMethodName = "_IDE_initiateSessionWithIdentifier:forClient:atPath:protocolVersion:"
-	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
-	auxiliary := dtx.NewPrimitiveDictionary()
-
-	auxiliary.AddNsKeyedArchivedObject(nskeyedarchiver.NewNSUUID(sessionIdentifier))
-	auxiliary.AddNsKeyedArchivedObject("thephonedoesntcarewhatisendhereitseems")
-	auxiliary.AddNsKeyedArchivedObject("/Applications/Xcode.app")
-	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
 	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName}).Debug("Launching init test Session")
-	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
-	returnValue := rply.Payload[0]
-	if val, ok := returnValue.(uint64); !ok {
-		return 0, fmt.Errorf("%s got wrong returnvalue: %s", objcMethodName, rply.Payload)
-	} else {
-		log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Debug("init test session reply")
+	rply, err := xdc.IDEDaemonProxy.MethodCall(
+		"_IDE_initiateSessionWithIdentifier:forClient:atPath:protocolVersion:",
+		nskeyedarchiver.NewNSUUID(sessionIdentifier),
+		"thephonedoesntcarewhatisendhereitseems",
+		"/Applications/Xcode.app",
+		protocolVersion)
 
-		return val, err
+	returnValue := rply.Payload[0]
+	var val uint64
+	var ok bool
+	if val, ok = returnValue.(uint64); !ok {
+		return 0, fmt.Errorf("initiateSessionWithIdentifier got wrong returnvalue: %s", rply.Payload)
 	}
+	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Debug("init test session reply")
+
+	return val, err
+
 }
 
 func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTestProcessID(pid uint64, protocolVersion uint64) error {
-	const objcMethodName = "_IDE_initiateControlSessionForTestProcessID:protocolVersion:"
-	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
-	auxiliary := dtx.NewPrimitiveDictionary()
-	auxiliary.AddNsKeyedArchivedObject(pid)
-	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
-	rply, err := xdc.IDEDaemonProxy.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
+	rply, err := xdc.IDEDaemonProxy.MethodCall("_IDE_initiateControlSessionForTestProcessID:protocolVersion:", pid, protocolVersion)
 	if err != nil {
 		return err
 	}
@@ -66,11 +61,7 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTest
 }
 
 func startExecutingTestPlanWithProtocolVersion(channel *dtx.Channel, protocolVersion uint64) error {
-	const objcMethodName = "_IDE_startExecutingTestPlanWithProtocolVersion:"
-	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
-	auxiliary := dtx.NewPrimitiveDictionary()
-	auxiliary.AddNsKeyedArchivedObject(protocolVersion)
-	rply, err := channel.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
+	rply, err := channel.MethodCall("_IDE_startExecutingTestPlanWithProtocolVersion:", protocolVersion)
 	if err != nil {
 		return err
 	}

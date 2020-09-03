@@ -5,7 +5,6 @@ import (
 
 	"github.com/danielpaulus/go-ios/usbmux"
 	dtx "github.com/danielpaulus/go-ios/usbmux/dtx_codec"
-	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -21,8 +20,6 @@ func KillApp(pid uint64, device usbmux.DeviceEntry) error {
 	conn, _ := dtx.NewConnection(device, "com.apple.instruments.remoteserver")
 	//defer conn.Close()
 	processControl := NewProcessControl(conn)
-	options := map[string]interface{}{}
-	options["StartSuspendedKey"] = uint64(0)
 	return processControl.KillProcess(pid)
 }
 
@@ -51,32 +48,23 @@ func NewProcessControl(dtxConnection *dtx.Connection) ProcessControl {
 }
 
 func (p ProcessControl) KillProcess(pid uint64) error {
-	const objcMethodName = "killPid:"
-	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
-	auxiliary := dtx.NewPrimitiveDictionary()
-
-	auxiliary.AddNsKeyedArchivedObject(pid)
-	_, err := p.processControlChannel.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
+	_, err := p.processControlChannel.MethodCall("killPid:", pid)
 	return err
 }
 
 func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (uint64, error) {
-	const objcMethodName = "launchSuspendedProcessWithDevicePath:bundleIdentifier:environment:arguments:options:"
 	//seems like the path does not matter
 	const path = "/private/"
 
-	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
-	auxiliary := dtx.NewPrimitiveDictionary()
-
-	auxiliary.AddNsKeyedArchivedObject(path)
-	auxiliary.AddNsKeyedArchivedObject(bundleID)
-	auxiliary.AddNsKeyedArchivedObject(envVars)
-	auxiliary.AddNsKeyedArchivedObject(arguments)
-	auxiliary.AddNsKeyedArchivedObject(options)
-
 	log.WithFields(log.Fields{"channel_id": channelName, "bundleID": bundleID}).Info("Launching process")
 
-	msg, err := p.processControlChannel.SendAndAwaitReply(true, dtx.Methodinvocation, payload, auxiliary)
+	msg, err := p.processControlChannel.MethodCall(
+		"launchSuspendedProcessWithDevicePath:bundleIdentifier:environment:arguments:options:",
+		path,
+		bundleID,
+		envVars,
+		arguments,
+		options)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": channelName, "error": err}).Info("failed starting process")
 	}
