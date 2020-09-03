@@ -45,8 +45,8 @@ func (msg AttachedMessage) DeviceDetached() bool {
 }
 
 //NewListen creates a new Listen Message for USBMUX
-func NewListen() *ListenType {
-	data := &ListenType{
+func NewListen() ListenType {
+	data := ListenType{
 		MessageType:         "Listen",
 		ProgName:            "go-usbmux",
 		ClientVersionString: "usbmuxd-471.8.1",

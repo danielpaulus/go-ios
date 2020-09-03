@@ -14,8 +14,8 @@ type connectMessage struct {
 	PortNumber          uint16
 }
 
-func newConnectMessage(deviceID int, portNumber uint16) *connectMessage {
-	data := &connectMessage{
+func newConnectMessage(deviceID int, portNumber uint16) connectMessage {
+	data := connectMessage{
 		BundleID:            "go.ios.control",
 		ClientVersionString: "go-usbmux-0.0.1",
 		MessageType:         "Connect",

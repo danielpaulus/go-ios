@@ -1,9 +1,9 @@
 package usbmux_test
 
-/*
 import (
-	"github.com/danielpaulus/go-ios/usbmux"
 	"testing"
+
+	"github.com/danielpaulus/go-ios/usbmux"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -29,10 +29,9 @@ func TestStringConversion(t *testing.T) {
 }
 
 func TestListDevicesCommand(t *testing.T) {
-	generified := func() interface{} { return usbmux.ListDevices() }
-	entryOne := usbmux.DeviceEntry{DeviceID: 5, MessageType: "", Properties: usbmux.DeviceProperties{SerialNumber: "udid0"}}
-	list := usbmux.DeviceList{DeviceList: []usbmux.DeviceEntry{entryOne}}
-	receivedList := GenericMockUsbmuxdIntegrationTest(t, generified, usbmux.NewReadDevices(), list).(usbmux.DeviceList)
-	assert.Equal(t, entryOne.Properties.SerialNumber, receivedList.DeviceList[0].Properties.SerialNumber)
+	/*	generified := func() interface{} { return usbmux.ListDevices() }
+		entryOne := usbmux.DeviceEntry{DeviceID: 5, MessageType: "", Properties: usbmux.DeviceProperties{SerialNumber: "udid0"}}
+		list := usbmux.DeviceList{DeviceList: []usbmux.DeviceEntry{entryOne}}
+		receivedList := GenericMockUsbmuxdIntegrationTest(t, generified, usbmux.NewReadDevices(), list).(usbmux.DeviceList)
+		assert.Equal(t, entryOne.Properties.SerialNumber, receivedList.DeviceList[0].Properties.SerialNumber)*/
 }
-*/

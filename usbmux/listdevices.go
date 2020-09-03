@@ -71,8 +71,8 @@ type DeviceProperties struct {
 
 // NewReadDevices creates a struct containing a request for a device list that can be sent
 // to UsbMuxD.
-func NewReadDevices() *ReadDevicesType {
-	data := &ReadDevicesType{
+func NewReadDevices() ReadDevicesType {
+	data := ReadDevicesType{
 		MessageType:         "ListDevices",
 		ProgName:            "go-usbmux",
 		ClientVersionString: "go-usbmux-0.0.1",

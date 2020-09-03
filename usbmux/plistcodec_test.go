@@ -1,20 +1,20 @@
 package usbmux_test
 
-/*
 import (
 	"bytes"
-	"github.com/danielpaulus/go-ios/usbmux"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielpaulus/go-ios/usbmux"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPlistCodec(t *testing.T) {
-	responseChannel := make(chan []byte)
-	codec := usbmux.NewPlistCodec(responseChannel)
+
+	codec := usbmux.NewPlistCodec()
 	testCases := map[string]struct {
 		data     interface{}
 		fileName string
@@ -36,15 +36,12 @@ func TestPlistCodec(t *testing.T) {
 			assert.Equal(t, expected, actual)
 
 			//simple test to check that decode(encode(x))==x
-			go func() {
-				err := codec.Decode(bytes.NewReader(actual))
-				assert.NoError(t, err)
-			}()
-			result := <-codec.ResponseChannel
+
+			result, err := codec.Decode(bytes.NewReader(actual))
+			assert.NoError(t, err)
 			assert.Equal(t, usbmux.ToPlist(tc.data), string(result))
 
 		}
 	}
 
 }
-*/
