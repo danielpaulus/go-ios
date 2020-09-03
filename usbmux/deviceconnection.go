@@ -109,11 +109,13 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 	First five bytes are usually: 15 03 03 XX XX where XX XX is the length of the encrypted payload
 	*/
 	header := make([]byte, 5)
-	conn.c.Read(header)
+
+	io.ReadFull(conn.c, header)
 	log.Trace(hex.Dump(header))
 	length := binary.BigEndian.Uint16(header[3:])
 	payload := make([]byte, length)
-	conn.c.Read(payload)
+
+	io.ReadFull(conn.c, payload)
 	log.Trace(hex.Dump(payload))
 
 }

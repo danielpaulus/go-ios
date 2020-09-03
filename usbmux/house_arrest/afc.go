@@ -36,14 +36,14 @@ func Decode(reader io.Reader) (AfcPacket, error) {
 	}
 	headerPayloadLength := header.This_length - afc_header_size
 	headerPayload := make([]byte, headerPayloadLength)
-	_, err = reader.Read(headerPayload)
+	_, err = io.ReadFull(reader, headerPayload)
 	if err != nil {
 		return AfcPacket{}, err
 	}
 
 	contentPayloadLength := header.Entire_length - header.This_length
 	payload := make([]byte, contentPayloadLength)
-	_, err = reader.Read(payload)
+	_, err = io.ReadFull(reader, payload)
 	if err != nil {
 		return AfcPacket{}, err
 	}
