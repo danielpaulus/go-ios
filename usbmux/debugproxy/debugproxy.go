@@ -90,8 +90,8 @@ func NewDebugProxy() *DebugProxy {
 }
 
 //Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
-func (d *DebugProxy) Launch() error {
-	pairRecord := usbmux.ReadPairRecord("b89227a71e1a97c00bcc297d33c3f58b789dbc8a")
+func (d *DebugProxy) Launch(device usbmux.DeviceEntry) error {
+	pairRecord := usbmux.ReadPairRecord(device.Properties.SerialNumber)
 	originalSocket, err := proxy_utils.MoveSock(usbmux.DefaultUsbmuxdSocket)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err, "socket": usbmux.DefaultUsbmuxdSocket}).Error("Unable to move, lacking permissions?")

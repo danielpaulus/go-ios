@@ -128,12 +128,6 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("dproxy")
-	if b {
-		startDebugProxy()
-		return
-	}
-
 	b, _ = arguments.Bool("list")
 	diagnostics, _ := arguments.Bool("diagnostics")
 	if b && !diagnostics {
@@ -146,6 +140,12 @@ The commands work as following:
 	device, err := getDeviceOrQuit(udid)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	b, _ = arguments.Bool("dproxy")
+	if b {
+		startDebugProxy(device)
+		return
 	}
 
 	b, _ = arguments.Bool("info")
@@ -299,10 +299,10 @@ func printVersion() {
 	}
 }
 
-func startDebugProxy() {
+func startDebugProxy(device usbmux.DeviceEntry) {
 	proxy := debugproxy.NewDebugProxy()
 	go func() {
-		err := proxy.Launch()
+		err := proxy.Launch(device)
 		log.WithFields(log.Fields{"error": err}).Infof("DebugProxy Terminated abnormally")
 		os.Exit(0)
 	}()
