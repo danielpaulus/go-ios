@@ -250,38 +250,42 @@ The commands work as following:
 
 	b, _ = arguments.Bool("ax")
 	if b {
-		go func() {
-			device := usbmux.ListDevices().DeviceList[0]
-
-			conn, err := accessibility.New(device)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			conn.SwitchToDevice()
-
-			conn.EnableSelectionMode()
-
-			for i := 0; i < 3; i++ {
-				conn.GetElement()
-				time.Sleep(time.Second)
-			}
-			/*	conn.GetElement()
-				time.Sleep(time.Second)
-				conn.TurnOff()*/
-			//conn.GetElement()
-			//conn.GetElement()
-
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt)
-		<-c
+		startAx(device)
 		return
 	}
 
+}
+
+func startAx(device usbmux.DeviceEntry) {
+	go func() {
+		device := usbmux.ListDevices().DeviceList[0]
+
+		conn, err := accessibility.New(device)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		conn.SwitchToDevice()
+
+		conn.EnableSelectionMode()
+
+		for i := 0; i < 3; i++ {
+			conn.GetElement()
+			time.Sleep(time.Second)
+		}
+		/*	conn.GetElement()
+			time.Sleep(time.Second)
+			conn.TurnOff()*/
+		//conn.GetElement()
+		//conn.GetElement()
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
 }
 
 func printVersion() {
