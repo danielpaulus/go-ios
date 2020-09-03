@@ -112,7 +112,7 @@ The commands work as following:
 			log.SetLevel(log.DebugLevel)
 		}
 	}
-	log.SetReportCaller(true)
+	//log.SetReportCaller(true)
 	log.Debug(arguments)
 
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
@@ -264,10 +264,10 @@ The commands work as following:
 			conn.EnableSelectionMode()
 
 			conn.GetElement()
-			time.Sleep(time.Second)
-			conn.GetElement()
-			time.Sleep(time.Second)
-			conn.TurnOff()
+			/*	time.Sleep(time.Second)
+				conn.GetElement()
+				time.Sleep(time.Second)
+				conn.TurnOff()*/
 			//conn.GetElement()
 			//conn.GetElement()
 

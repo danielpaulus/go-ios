@@ -153,10 +153,12 @@ func (a AccessibilityControl) deviceInspectorMoveWithOptions() {
 		"ObjectType": "passthrough",
 		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 			"allowNonAX":        nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": "false"}),
-			"direction":         nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": "4"}),
+			"direction":         nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": int32(4)}),
 			"includeContainers": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": "true"}),
 		}),
 	})
+	//str, _ := nskeyedarchiver.ArchiveXML(options)
+	//println(str)
 	a.channel.MethodCallAsync(method, []interface{}{options})
 
 }

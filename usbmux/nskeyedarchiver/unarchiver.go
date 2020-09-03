@@ -176,6 +176,12 @@ func resolveClass(classInfo interface{}, objects []interface{}) (string, error) 
 }
 
 func isPrimitiveObject(object interface{}) (interface{}, bool) {
+	if v, ok := object.(int32); ok {
+		return v, ok
+	}
+	if v, ok := object.(int); ok {
+		return v, ok
+	}
 	if v, ok := object.(uint64); ok {
 		return v, ok
 	}

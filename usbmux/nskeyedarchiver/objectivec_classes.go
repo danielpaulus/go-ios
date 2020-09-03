@@ -232,5 +232,5 @@ func NewNSMutableDictionary(internalDict map[string]interface{}) interface{} {
 
 func archiveNSMutableDictionary(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	mut := object.(NSMutableDictionary)
-	return serializeMap(mut.internalDict, objects, buildClassDict("NSMutableDictionary", "NSNull", "NSObject"))
+	return serializeMap(mut.internalDict, objects, buildClassDict("NSMutableDictionary", "NSDictionary", "NSObject"))
 }
