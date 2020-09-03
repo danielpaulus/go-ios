@@ -3,6 +3,7 @@ package usbmux
 import (
 	"encoding/binary"
 
+	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
 
@@ -10,7 +11,10 @@ import (
 //github.com/DHowett/go-plist library. Make sure your struct is exported.
 //It returns a string containing the plist.
 func ToPlist(data interface{}) string {
-	bytes, _ := plist.Marshal(data, plist.XMLFormat)
+	bytes, err := plist.Marshal(data, plist.XMLFormat)
+	if err != nil {
+		log.Fatal("Failed converting to plist", data, err)
+	}
 	return string(bytes)
 }
 
