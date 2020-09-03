@@ -8,11 +8,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type DtxConnection struct {
+type Connection struct {
 	dtxConnection          usbmux.DeviceConnectionInterface
 	channelCodeCounter     int
-	activeChannels         map[int]*DtxChannel
-	globalChannel          *DtxChannel
+	activeChannels         map[int]*Channel
+	globalChannel          *Channel
 	capabilities           map[string]interface{}
 	mutex                  sync.Mutex
 	requestChannelMessages chan Message
@@ -28,11 +28,11 @@ type DtxDispatcher interface {
 
 const requestChannel = "_requestChannelWithCode:identifier:"
 
-func (d *DtxConnection) Close() {
+func (d *Connection) Close() {
 	d.dtxConnection.Close()
 }
 
-func (d *DtxConnection) GlobalChannel() *DtxChannel {
+func (d *Connection) GlobalChannel() *Channel {
 	return d.globalChannel
 }
 
@@ -64,14 +64,14 @@ func notifyOfPublishedCapabilities(msg Message) {
 	log.Info("capabs")
 }
 
-func NewDtxConnection(deviceId int, udid string, serviceName string) (*DtxConnection, error) {
+func NewDtxConnection(deviceId int, udid string, serviceName string) (*Connection, error) {
 	conn, err := usbmux.ConnectToService(deviceId, udid, serviceName)
 	if err != nil {
 		return nil, err
 	}
 	requestChannelMessages := make(chan Message, 5)
-	dtxConnection := &DtxConnection{dtxConnection: conn, channelCodeCounter: 1, activeChannels: map[int]*DtxChannel{}, requestChannelMessages: requestChannelMessages}
-	globalChannel := DtxChannel{channelCode: 0,
+	dtxConnection := &Connection{dtxConnection: conn, channelCodeCounter: 1, activeChannels: map[int]*Channel{}, requestChannelMessages: requestChannelMessages}
+	globalChannel := Channel{channelCode: 0,
 		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
 		messageDispatcher: NewGlobalDispatcher(requestChannelMessages), responseWaiters: map[int]chan Message{}, registeredMethods: map[string]chan Message{}}
 	dtxConnection.globalChannel = &globalChannel
@@ -80,11 +80,11 @@ func NewDtxConnection(deviceId int, udid string, serviceName string) (*DtxConnec
 	return dtxConnection, nil
 }
 
-func (d *DtxConnection) Send(message []byte) error {
+func (d *Connection) Send(message []byte) error {
 	return d.dtxConnection.Send(message)
 }
 
-func reader(dtxConn *DtxConnection) {
+func reader(dtxConn *Connection) {
 	for {
 		reader := dtxConn.dtxConnection.Reader()
 		msg, err := ReadMessage(reader)
@@ -100,7 +100,7 @@ func reader(dtxConn *DtxConnection) {
 	}
 }
 
-func sendAckIfNeeded(dtxConn *DtxConnection, msg Message) {
+func sendAckIfNeeded(dtxConn *Connection, msg Message) {
 	if msg.ExpectsReply {
 		err := dtxConn.Send(BuildAckMessage(msg))
 		if err != nil {
@@ -109,18 +109,18 @@ func sendAckIfNeeded(dtxConn *DtxConnection, msg Message) {
 	}
 }
 
-func (d *DtxConnection) ForChannelRequest(messageDispatcher DtxDispatcher) *DtxChannel {
+func (d *Connection) ForChannelRequest(messageDispatcher DtxDispatcher) *Channel {
 	msg := <-d.requestChannelMessages
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	code := msg.Auxiliary.GetArguments()[0].(uint32)
 	identifier, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
-	channel := &DtxChannel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}}
+	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}}
 	d.activeChannels[int(code)] = channel
 	return channel
 }
 
-func (d *DtxConnection) RequestChannelIdentifier(identifier string, messageDispatcher DtxDispatcher) *DtxChannel {
+func (d *Connection) RequestChannelIdentifier(identifier string, messageDispatcher DtxDispatcher) *Channel {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	code := d.channelCodeCounter
@@ -139,7 +139,7 @@ func (d *DtxConnection) RequestChannelIdentifier(identifier string, messageDispa
 		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Error("failed requesting channel")
 	}
 	log.WithFields(log.Fields{"channel_id": identifier}).Debug("Channel open")
-	channel := &DtxChannel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}}
+	channel := &Channel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}}
 	d.activeChannels[code] = channel
 	return channel
 }

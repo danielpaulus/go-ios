@@ -16,11 +16,11 @@ import (
 )
 
 type XCTestManager_IDEInterface struct {
-	IDEDaemonProxy         *dtx.DtxChannel
+	IDEDaemonProxy         *dtx.Channel
 	testBundleReadyChannel chan dtx.Message
 }
 type XCTestManager_DaemonConnectionInterface struct {
-	IDEDaemonProxy *dtx.DtxChannel
+	IDEDaemonProxy *dtx.Channel
 }
 
 func (xide XCTestManager_IDEInterface) testBundleReady() (uint64, uint64) {
@@ -65,7 +65,7 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTest
 	return nil
 }
 
-func startExecutingTestPlanWithProtocolVersion(channel *dtx.DtxChannel, protocolVersion uint64) error {
+func startExecutingTestPlanWithProtocolVersion(channel *dtx.Channel, protocolVersion uint64) error {
 	const objcMethodName = "_IDE_startExecutingTestPlanWithProtocolVersion:"
 	payload, _ := nskeyedarchiver.ArchiveBin(objcMethodName)
 	auxiliary := dtx.NewPrimitiveDictionary()
@@ -83,8 +83,8 @@ const ideToDaemonProxyChannelName = "dtxproxy:XCTestManager_IDEInterface:XCTestM
 type dtxproxy struct {
 	ideInterface     XCTestManager_IDEInterface
 	daemonConnection XCTestManager_DaemonConnectionInterface
-	IDEDaemonProxy   *dtx.DtxChannel
-	dtxConnection    *dtx.DtxConnection
+	IDEDaemonProxy   *dtx.Channel
+	dtxConnection    *dtx.Connection
 }
 
 type ProxyDispatcher struct {
@@ -105,7 +105,7 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 	log.Debugf("dispatcher received: %s", m.Payload[0])
 }
 
-func newDtxProxy(dtxConnection *dtx.DtxConnection) dtxproxy {
+func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, ProxyDispatcher{testBundleReadyChannel})
 	return dtxproxy{IDEDaemonProxy: IDEDaemonProxy,

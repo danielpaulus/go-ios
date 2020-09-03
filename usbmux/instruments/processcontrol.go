@@ -12,7 +12,7 @@ import (
 const channelName = "com.apple.instruments.server.services.processcontrol"
 
 type ProcessControl struct {
-	processControlChannel *dtx.DtxChannel
+	processControlChannel *dtx.Channel
 }
 
 type ProcessControlDispatcher struct{}
@@ -45,7 +45,7 @@ func (p ProcessControlDispatcher) Dispatch(m dtx.Message) {
 	log.Debug(m)
 }
 
-func NewProcessControl(dtxConnection *dtx.DtxConnection) ProcessControl {
+func NewProcessControl(dtxConnection *dtx.Connection) ProcessControl {
 	processControlChannel := dtxConnection.RequestChannelIdentifier(channelName, ProcessControlDispatcher{})
 	return ProcessControl{processControlChannel: processControlChannel}
 }

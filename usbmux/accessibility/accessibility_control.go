@@ -7,7 +7,7 @@ import (
 )
 
 type AccessibilityControl struct {
-	channel *dtx.DtxChannel
+	channel *dtx.Channel
 }
 
 func (a AccessibilityControl) readhostAppStateChanged() {

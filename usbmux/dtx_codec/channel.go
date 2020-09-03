@@ -9,24 +9,24 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type DtxChannel struct {
+type Channel struct {
 	channelCode       int
 	channelName       string
 	messageIdentifier int
-	connection        *DtxConnection
+	connection        *Connection
 	messageDispatcher DtxDispatcher
 	responseWaiters   map[int]chan Message
 	registeredMethods map[string]chan Message
 	mutex             sync.Mutex
 }
 
-func (d *DtxChannel) RegisterMethodForRemote(selector string) {
+func (d *Channel) RegisterMethodForRemote(selector string) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	d.registeredMethods[selector] = make(chan Message)
 }
 
-func (d *DtxChannel) ReceiveMethodCall(selector string) Message {
+func (d *Channel) ReceiveMethodCall(selector string) Message {
 	d.mutex.Lock()
 	channel := d.registeredMethods[selector]
 	d.mutex.Unlock()
@@ -35,7 +35,7 @@ func (d *DtxChannel) ReceiveMethodCall(selector string) Message {
 
 //MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 //DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
-func (d *DtxChannel) MethodCall(selector string, args []interface{}) (Message, error) {
+func (d *Channel) MethodCall(selector string, args []interface{}) (Message, error) {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
 	auxiliary := NewPrimitiveDictionary()
 	for _, arg := range args {
@@ -51,7 +51,7 @@ func (d *DtxChannel) MethodCall(selector string, args []interface{}) (Message, e
 	return msg, nil
 }
 
-func (d *DtxChannel) MethodCallAsync(selector string, args []interface{}) error {
+func (d *Channel) MethodCallAsync(selector string, args []interface{}) error {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
 	auxiliary := NewPrimitiveDictionary()
 	for _, arg := range args {
@@ -64,7 +64,7 @@ func (d *DtxChannel) MethodCallAsync(selector string, args []interface{}) error 
 	return nil
 }
 
-func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byte, auxiliary PrimitiveDictionary) error {
+func (d *Channel) Send(expectsReply bool, messageType int, payloadBytes []byte, auxiliary PrimitiveDictionary) error {
 	d.mutex.Lock()
 
 	identifier := d.messageIdentifier
@@ -81,13 +81,13 @@ func (d *DtxChannel) Send(expectsReply bool, messageType int, payloadBytes []byt
 
 const timeout = time.Second * 5
 
-func (d *DtxChannel) AddResponseWaiter(identifier int, channel chan Message) {
+func (d *Channel) AddResponseWaiter(identifier int, channel chan Message) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	d.responseWaiters[identifier] = channel
 }
 
-func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
+func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType int, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
 	d.mutex.Lock()
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
@@ -112,7 +112,7 @@ func (d *DtxChannel) SendAndAwaitReply(expectsReply bool, messageType int, paylo
 
 }
 
-func (d *DtxChannel) Dispatch(msg Message) {
+func (d *Channel) Dispatch(msg Message) {
 
 	d.mutex.Lock()
 	if msg.Identifier >= d.messageIdentifier {
