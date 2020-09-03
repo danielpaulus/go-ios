@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"os"
 	"os/signal"
@@ -451,6 +452,9 @@ func getDeviceOrQuit(udid string) (ios.DeviceEntry, error) {
 		return deviceList.DeviceList[0], nil
 	}
 	for _, device := range deviceList.DeviceList {
+		if strings.Contains(device.Properties.SerialNumber, "-") {
+			device.Properties.SerialNumber = strings.ReplaceAll(device.Properties.SerialNumber, "-", "")
+		}
 		if device.Properties.SerialNumber == udid {
 			return device, nil
 		}
