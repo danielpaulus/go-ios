@@ -1,4 +1,4 @@
-package proxy_utils
+package debugproxy
 
 import (
 	"log"

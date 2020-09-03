@@ -11,7 +11,6 @@ import (
 	"time"
 
 	ios "github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/proxy_utils"
 
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
@@ -92,7 +91,7 @@ func NewDebugProxy() *DebugProxy {
 //Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
 func (d *DebugProxy) Launch(device ios.DeviceEntry) error {
 	pairRecord := ios.ReadPairRecord(device.Properties.SerialNumber)
-	originalSocket, err := proxy_utils.MoveSock(ios.DefaultUsbmuxdSocket)
+	originalSocket, err := MoveSock(ios.DefaultUsbmuxdSocket)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err, "socket": ios.DefaultUsbmuxdSocket}).Error("Unable to move, lacking permissions?")
 		return err
@@ -136,7 +135,7 @@ func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.P
 //Close moves /var/run/usbmuxd.real back to /var/run/usbmuxd and disconnects all active proxy connections
 func (d *DebugProxy) Close() {
 	log.Info("Moving back original socket")
-	err := proxy_utils.MoveBack(ios.DefaultUsbmuxdSocket)
+	err := MoveBack(ios.DefaultUsbmuxdSocket)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Error("Failed moving back socket")
 	}
