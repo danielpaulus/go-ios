@@ -218,7 +218,6 @@ The commands work as following:
 		if err != nil {
 			log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
 		}
-		log.Error(err)
 	}
 
 	b, _ = arguments.Bool("runtest")

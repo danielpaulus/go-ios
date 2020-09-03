@@ -1,6 +1,7 @@
 package dtx
 
 import (
+	"io"
 	"sync"
 
 	"github.com/danielpaulus/go-ios/usbmux"
@@ -107,6 +108,10 @@ func reader(dtxConn *Connection) {
 		reader := dtxConn.deviceConnection.Reader()
 		msg, err := ReadMessage(reader)
 		if err != nil {
+			if err == io.EOF {
+				log.Debug("Closing DTX Connection")
+				return
+			}
 			log.Fatal(err)
 		}
 		//TODO: move this to the channel level, the connection probably should not auto ack messages
