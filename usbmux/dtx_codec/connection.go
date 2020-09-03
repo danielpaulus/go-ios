@@ -9,7 +9,7 @@ import (
 )
 
 type Connection struct {
-	dtxConnection          usbmux.DeviceConnectionInterface
+	deviceConnection       usbmux.DeviceConnectionInterface
 	channelCodeCounter     int
 	activeChannels         map[int]*Channel
 	globalChannel          *Channel
@@ -18,43 +18,51 @@ type Connection struct {
 	requestChannelMessages chan Message
 }
 
+//Dispatcher is a simple interface containing a Dispatch func to receive dtx.Messages
+type Dispatcher interface {
+	Dispatch(msg Message)
+}
+
 type GlobalDispatcher struct {
 	dispatchFunctions      map[string]func(Message)
 	requestChannelMessages chan Message
 }
-type DtxDispatcher interface {
-	Dispatch(msg Message)
-}
 
 const requestChannel = "_requestChannelWithCode:identifier:"
 
+//Close closes the underlying deviceConnection
 func (d *Connection) Close() {
-	d.dtxConnection.Close()
+	d.deviceConnection.Close()
 }
 
+//GlobalChannel returns the connections automatically created global channel.
 func (d *Connection) GlobalChannel() *Channel {
 	return d.globalChannel
 }
 
-func NewGlobalDispatcher(requestChannelMessages chan Message) DtxDispatcher {
+//NewGlobalDispatcher create a Dispatcher for the GlobalChannel
+func NewGlobalDispatcher(requestChannelMessages chan Message) Dispatcher {
 	dispatcher := GlobalDispatcher{dispatchFunctions: map[string]func(Message){},
 		requestChannelMessages: requestChannelMessages}
 	const notifyPublishedCaps = "_notifyOfPublishedCapabilities:"
 	dispatcher.dispatchFunctions[notifyPublishedCaps] = notifyOfPublishedCapabilities
 	return dispatcher
 }
+
+//Dispatch prints log messages and errors when they are received and also creates local Channels when requested by the device.
 func (g GlobalDispatcher) Dispatch(msg Message) {
 	if msg.Payload != nil {
 		if requestChannel == msg.Payload[0] {
 			g.requestChannelMessages <- msg
 		}
+		//TODO: use the dispatchFunctions map
 		if "outputReceived:fromProcess:atTime:" == msg.Payload[0] {
 			msg, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 			log.Info(msg[0])
 			return
 		}
 	}
-	log.Infof("Global Dispatcher Received: %s %s %s", msg.Payload[0], msg, msg.Auxiliary)
+	log.Debugf("Global Dispatcher Received: %s %s %s", msg.Payload[0], msg, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}
@@ -64,13 +72,14 @@ func notifyOfPublishedCapabilities(msg Message) {
 	log.Info("capabs")
 }
 
-func NewDtxConnection(deviceId int, udid string, serviceName string) (*Connection, error) {
-	conn, err := usbmux.ConnectToService(deviceId, udid, serviceName)
+//NewConnection connects and starts reading from a Dtx based service on the device
+func NewConnection(device usbmux.DeviceEntry, serviceName string) (*Connection, error) {
+	conn, err := usbmux.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
 	if err != nil {
 		return nil, err
 	}
 	requestChannelMessages := make(chan Message, 5)
-	dtxConnection := &Connection{dtxConnection: conn, channelCodeCounter: 1, activeChannels: map[int]*Channel{}, requestChannelMessages: requestChannelMessages}
+	dtxConnection := &Connection{deviceConnection: conn, channelCodeCounter: 1, activeChannels: map[int]*Channel{}, requestChannelMessages: requestChannelMessages}
 	globalChannel := Channel{channelCode: 0,
 		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
 		messageDispatcher: NewGlobalDispatcher(requestChannelMessages), responseWaiters: map[int]chan Message{}, registeredMethods: map[string]chan Message{}}
@@ -80,17 +89,19 @@ func NewDtxConnection(deviceId int, udid string, serviceName string) (*Connectio
 	return dtxConnection, nil
 }
 
+//Send sends the byte slice directly to the device using the underlying DeviceConnectionInterface
 func (d *Connection) Send(message []byte) error {
-	return d.dtxConnection.Send(message)
+	return d.deviceConnection.Send(message)
 }
 
 func reader(dtxConn *Connection) {
 	for {
-		reader := dtxConn.dtxConnection.Reader()
+		reader := dtxConn.deviceConnection.Reader()
 		msg, err := ReadMessage(reader)
 		if err != nil {
 			log.Fatal(err)
 		}
+		//TODO: move this to the channel level, the connection probably should not auto ack messages
 		sendAckIfNeeded(dtxConn, msg)
 		if channel, ok := dtxConn.activeChannels[msg.ChannelCode]; ok {
 			channel.Dispatch(msg)
@@ -109,18 +120,19 @@ func sendAckIfNeeded(dtxConn *Connection, msg Message) {
 	}
 }
 
-func (d *Connection) ForChannelRequest(messageDispatcher DtxDispatcher) *Channel {
+func (d *Connection) ForChannelRequest(messageDispatcher Dispatcher) *Channel {
 	msg := <-d.requestChannelMessages
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	code := msg.Auxiliary.GetArguments()[0].(uint32)
 	identifier, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
+	//TODO: Setting the channel code here manually to -1 for making testmanagerd work. For some reason it requests the TestDriver proxy channel with code 1 but sends messages on -1. Should probably be fixed somehow
 	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: d, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}}
 	d.activeChannels[int(code)] = channel
 	return channel
 }
 
-func (d *Connection) RequestChannelIdentifier(identifier string, messageDispatcher DtxDispatcher) *Channel {
+func (d *Connection) RequestChannelIdentifier(identifier string, messageDispatcher Dispatcher) *Channel {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	code := d.channelCodeCounter

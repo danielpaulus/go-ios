@@ -8,7 +8,7 @@ import (
 const serviceName string = "com.apple.accessibility.axAuditDaemon.remoteserver"
 
 func New(device usbmux.DeviceEntry) (AccessibilityControl, error) {
-	conn, err := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, serviceName)
+	conn, err := dtx.NewConnection(device, serviceName)
 	if err != nil {
 		return AccessibilityControl{}, err
 	}

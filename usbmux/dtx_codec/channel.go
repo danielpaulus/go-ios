@@ -14,7 +14,7 @@ type Channel struct {
 	channelName       string
 	messageIdentifier int
 	connection        *Connection
-	messageDispatcher DtxDispatcher
+	messageDispatcher Dispatcher
 	responseWaiters   map[int]chan Message
 	registeredMethods map[string]chan Message
 	mutex             sync.Mutex

@@ -142,7 +142,7 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	if err != nil {
 		return err
 	}
-	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, testmanagerd)
+	conn, _ := dtx.NewConnection(device, testmanagerd)
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxy(conn)
 	protocolVersion, err := ideDaemonProxy.daemonConnection.initiateSessionWithIdentifier(testSessionId, 29)
@@ -159,7 +159,7 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	channel := ideDaemonProxy.dtxConnection.ForChannelRequest(ProxyDispatcher{})
 
 	log.Infof("ProtocolVersion:%d MinimalVersion:%d", protocolVersion, minimalVersion)
-	conn2, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, testmanagerd)
+	conn2, _ := dtx.NewConnection(device, testmanagerd)
 	defer conn2.Close()
 	ideDaemonProxy2 := newDtxProxy(conn2)
 	ideDaemonProxy2.daemonConnection.initiateControlSessionForTestProcessID(pid, protocolVersion)

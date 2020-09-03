@@ -18,7 +18,7 @@ type ProcessControl struct {
 type ProcessControlDispatcher struct{}
 
 func KillApp(pid uint64, device usbmux.DeviceEntry) error {
-	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, "com.apple.instruments.remoteserver")
+	conn, _ := dtx.NewConnection(device, "com.apple.instruments.remoteserver")
 	//defer conn.Close()
 	processControl := NewProcessControl(conn)
 	options := map[string]interface{}{}
@@ -27,7 +27,7 @@ func KillApp(pid uint64, device usbmux.DeviceEntry) error {
 }
 
 func LaunchApp(bundleID string, device usbmux.DeviceEntry) (uint64, error) {
-	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, "com.apple.instruments.remoteserver")
+	conn, _ := dtx.NewConnection(device, "com.apple.instruments.remoteserver")
 	//defer conn.Close()
 	processControl := NewProcessControl(conn)
 	options := map[string]interface{}{}
@@ -36,7 +36,7 @@ func LaunchApp(bundleID string, device usbmux.DeviceEntry) (uint64, error) {
 }
 
 func LaunchAppWithArgs(bundleID string, device usbmux.DeviceEntry, args []interface{}, env map[string]interface{}, opts map[string]interface{}) (uint64, error) {
-	conn, _ := dtx.NewDtxConnection(device.DeviceID, device.Properties.SerialNumber, "com.apple.instruments.remoteserver")
+	conn, _ := dtx.NewConnection(device, "com.apple.instruments.remoteserver")
 	//defer conn.Close()
 	return NewProcessControl(conn).StartProcess(bundleID, env, args, opts)
 }
