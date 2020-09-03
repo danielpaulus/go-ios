@@ -19,17 +19,13 @@ type Connection struct {
 //New returns a new SysLog Connection for the given DeviceID and Udid
 //It will create LogReader as a buffered Channel because Syslog is very verbose.
 func New(deviceID int, udid string, pairRecord ios.PairRecord) (*Connection, error) {
-	startServiceResponse, err := ios.StartService(deviceID, udid, serviceName)
-
-	muxConn := ios.NewUsbMuxConnection()
-
-	err = muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, pairRecord)
+	deviceConn, err := ios.ConnectToService(deviceID, udid, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}
 
 	var screenShotrConn Connection
-	screenShotrConn.deviceConn = muxConn.Close()
+	screenShotrConn.deviceConn = deviceConn
 	screenShotrConn.plistCodec = ios.NewPlistCodec()
 	reader := screenShotrConn.deviceConn.Reader()
 	screenShotrConn.readVersion(reader)
@@ -64,6 +60,7 @@ func (screenShotrConn *Connection) readVersion(reader io.Reader) error {
 	return nil
 }
 
+//TakeScreenshot uses Screenshotr to get a screenshot as a byteslice
 func (screenShotrConn *Connection) TakeScreenshot() ([]uint8, error) {
 	reader := screenShotrConn.deviceConn.Reader()
 	bytes, err := screenShotrConn.plistCodec.Encode(newScreenShotRequest())
@@ -81,6 +78,7 @@ func (screenShotrConn *Connection) TakeScreenshot() ([]uint8, error) {
 	return screenshotBytes, nil
 }
 
+//Close closes the underlying DeviceConnection
 func (screenShotrConn *Connection) Close() {
 	screenShotrConn.deviceConn.Close()
 }
