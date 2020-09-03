@@ -107,8 +107,15 @@ func serializeMap(mapObject map[string]interface{}, objects []interface{}, class
 
 	keyRefs := make([]plist.UID, len(mapObject))
 
+	i := 0
+	keys := make([]string, len(mapObject))
+	for k := range mapObject {
+		keys[i] = k
+		i++
+	}
+
 	index = 0
-	for key, _ := range mapObject {
+	for _, key := range keys {
 		var uid plist.UID
 		objects, uid = archive(key, objects)
 		keyRefs[index] = uid
@@ -118,9 +125,9 @@ func serializeMap(mapObject map[string]interface{}, objects []interface{}, class
 
 	index = 0
 	valueRefs := make([]plist.UID, len(mapObject))
-	for _, value := range mapObject {
+	for _, key := range keys {
 		var uid plist.UID
-		objects, uid = archive(value, objects)
+		objects, uid = archive(mapObject[key], objects)
 		valueRefs[index] = uid
 		index++
 	}
