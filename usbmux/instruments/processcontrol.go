@@ -3,7 +3,7 @@ package instruments
 import (
 	"fmt"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	dtx "github.com/danielpaulus/go-ios/usbmux/dtx_codec"
 	log "github.com/sirupsen/logrus"
 )
@@ -18,7 +18,7 @@ type processControl struct {
 type processControlDispatcher struct{}
 
 //KillApp kills an app with the given PID on the given device.
-func KillApp(pid uint64, device usbmux.DeviceEntry) error {
+func KillApp(pid uint64, device ios.DeviceEntry) error {
 	conn, _ := dtx.NewConnection(device, serviceName)
 	//defer conn.Close()
 	processControl := newProcessControl(conn)
@@ -27,7 +27,7 @@ func KillApp(pid uint64, device usbmux.DeviceEntry) error {
 
 //LaunchApp launches the app with the given bundleID on the given device.LaunchApp
 //Use LaunchAppWithArgs for passing arguments and envVars. It returns the PID of the created app process.
-func LaunchApp(bundleID string, device usbmux.DeviceEntry) (uint64, error) {
+func LaunchApp(bundleID string, device ios.DeviceEntry) (uint64, error) {
 	conn, _ := dtx.NewConnection(device, serviceName)
 	//defer conn.Close()const
 	processControl := newProcessControl(conn)
@@ -37,7 +37,7 @@ func LaunchApp(bundleID string, device usbmux.DeviceEntry) (uint64, error) {
 }
 
 //LaunchAppWithArgs same as LaunchApp but passes arguments, envVars and options.
-func LaunchAppWithArgs(bundleID string, device usbmux.DeviceEntry, args []interface{}, env map[string]interface{}, opts map[string]interface{}) (uint64, error) {
+func LaunchAppWithArgs(bundleID string, device ios.DeviceEntry, args []interface{}, env map[string]interface{}, opts map[string]interface{}) (uint64, error) {
 	conn, _ := dtx.NewConnection(device, serviceName)
 	//defer conn.Close()
 	return newProcessControl(conn).StartProcess(bundleID, env, args, opts)

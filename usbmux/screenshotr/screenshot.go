@@ -4,24 +4,24 @@ import (
 	"errors"
 	"io"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 )
 
 const serviceName string = "com.apple.mobile.screenshotr"
 
 //Connection exposes the LogReader channel which send the LogMessages as strings.
 type Connection struct {
-	deviceConn usbmux.DeviceConnectionInterface
-	plistCodec usbmux.PlistCodec
+	deviceConn ios.DeviceConnectionInterface
+	plistCodec ios.PlistCodec
 	version    versionInfo
 }
 
 //New returns a new SysLog Connection for the given DeviceID and Udid
 //It will create LogReader as a buffered Channel because Syslog is very verbose.
-func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, error) {
-	startServiceResponse, err := usbmux.StartService(deviceID, udid, serviceName)
+func New(deviceID int, udid string, pairRecord ios.PairRecord) (*Connection, error) {
+	startServiceResponse, err := ios.StartService(deviceID, udid, serviceName)
 
-	muxConn := usbmux.NewUsbMuxConnection()
+	muxConn := ios.NewUsbMuxConnection()
 
 	err = muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, pairRecord)
 	if err != nil {
@@ -30,7 +30,7 @@ func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, 
 
 	var screenShotrConn Connection
 	screenShotrConn.deviceConn = muxConn.Close()
-	screenShotrConn.plistCodec = usbmux.NewPlistCodec()
+	screenShotrConn.plistCodec = ios.NewPlistCodec()
 	reader := screenShotrConn.deviceConn.Reader()
 	screenShotrConn.readVersion(reader)
 	bytes, err := screenShotrConn.plistCodec.Encode(newVersionExchangeRequest(screenShotrConn.version.major))

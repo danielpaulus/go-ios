@@ -1,24 +1,25 @@
-package usbmux_test
+package ios_test
 
 import (
-	"github.com/danielpaulus/go-ios/usbmux"
 	"testing"
+
+	ios "github.com/danielpaulus/go-ios/usbmux"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMuxResponse(t *testing.T) {
 	testCases := map[string]struct {
-		muxResponse usbmux.MuxResponse
+		muxResponse ios.MuxResponse
 		successful  bool
 	}{
-		"successful response":   {usbmux.MuxResponse{MessageType: "random", Number: 0}, true},
-		"unsuccessful response": {usbmux.MuxResponse{MessageType: "random", Number: 1}, false},
+		"successful response":   {ios.MuxResponse{MessageType: "random", Number: 0}, true},
+		"unsuccessful response": {ios.MuxResponse{MessageType: "random", Number: 1}, false},
 	}
 
 	for _, tc := range testCases {
-		bytes := []byte(usbmux.ToPlist(tc.muxResponse))
-		actual := usbmux.MuxResponsefromBytes(bytes)
+		bytes := []byte(ios.ToPlist(tc.muxResponse))
+		actual := ios.MuxResponsefromBytes(bytes)
 		assert.Equal(t, tc.muxResponse, actual)
 		assert.Equal(t, tc.successful, actual.IsSuccessFull())
 	}

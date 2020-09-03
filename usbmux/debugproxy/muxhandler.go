@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	log "github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
-func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
+func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *ios.MuxConnection, muxToDevice *ios.MuxConnection) {
 	for {
 		request, err := muxOnUnixSocket.ReadMessage()
 		if err != nil {
@@ -64,7 +64,7 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnec
 	}
 }
 
-func handleReadPairRecord(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
+func handleReadPairRecord(p *ProxyConnection, muxOnUnixSocket *ios.MuxConnection, muxToDevice *ios.MuxConnection) {
 	response, err := muxToDevice.ReadMessage()
 	var decodedResponse map[string]interface{}
 	decoder := plist.NewDecoder(bytes.NewReader(response.Payload))
@@ -72,10 +72,10 @@ func handleReadPairRecord(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnect
 	if err != nil {
 		p.log.Info("Failed decoding MuxMessage", decodedResponse, err)
 	}
-	pairRecord := usbmux.PairRecordfromBytes(decodedResponse["PairRecordData"].([]byte))
+	pairRecord := ios.PairRecordfromBytes(decodedResponse["PairRecordData"].([]byte))
 	pairRecord.DeviceCertificate = pairRecord.HostCertificate
-	decodedResponse["PairRecordData"] = []byte(usbmux.ToPlist(pairRecord))
-	newPayload := []byte(usbmux.ToPlist(decodedResponse))
+	decodedResponse["PairRecordData"] = []byte(ios.ToPlist(pairRecord))
+	newPayload := []byte(ios.ToPlist(decodedResponse))
 	response.Payload = newPayload
 	response.Header.Length = uint32(len(newPayload) + 16)
 	p.logJSONMessageFromDevice(map[string]interface{}{"header": response.Header, "payload": decodedResponse, "type": "USBMUX"})
@@ -83,7 +83,7 @@ func handleReadPairRecord(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnect
 	err = muxOnUnixSocket.SendMuxMessage(*response)
 }
 
-func handleConnect(connectRequest *usbmux.MuxMessage, decodedConnectRequest map[string]interface{}, p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
+func handleConnect(connectRequest *ios.MuxMessage, decodedConnectRequest map[string]interface{}, p *ProxyConnection, muxOnUnixSocket *ios.MuxConnection, muxToDevice *ios.MuxConnection) {
 	var port uint16
 	portFromPlist := decodedConnectRequest["PortNumber"]
 	switch portFromPlist.(type) {
@@ -94,11 +94,11 @@ func handleConnect(connectRequest *usbmux.MuxMessage, decodedConnectRequest map[
 		port = uint16(portFromPlist.(int64))
 	}
 
-	if port == usbmux.Lockdownport {
+	if port == ios.Lockdownport {
 		p.log.Info("Connect to Lockdown")
 		handleConnectToLockdown(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice)
 	} else {
-		info, err := p.debugProxy.retrieveServiceInfoByPort(usbmux.Ntohs(uint16(port)))
+		info, err := p.debugProxy.retrieveServiceInfoByPort(ios.Ntohs(uint16(port)))
 		if err != nil {
 			p.log.Fatal("ServiceInfo for port not found, this is a bug :-)")
 		}
@@ -107,7 +107,7 @@ func handleConnect(connectRequest *usbmux.MuxMessage, decodedConnectRequest map[
 	}
 }
 
-func handleConnectToLockdown(connectRequest *usbmux.MuxMessage, decodedConnectRequest map[string]interface{}, p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
+func handleConnectToLockdown(connectRequest *ios.MuxMessage, decodedConnectRequest map[string]interface{}, p *ProxyConnection, muxOnUnixSocket *ios.MuxConnection, muxToDevice *ios.MuxConnection) {
 	err := muxToDevice.SendMuxMessage(*connectRequest)
 	if err != nil {
 		p.log.Fatal("Failed sending muxmessage to device")
@@ -115,12 +115,12 @@ func handleConnectToLockdown(connectRequest *usbmux.MuxMessage, decodedConnectRe
 	connectResponse, err := muxToDevice.ReadMessage()
 	muxOnUnixSocket.SendMuxMessage(*connectResponse)
 
-	lockdownToDevice := usbmux.NewLockDownConnection(muxToDevice.Close())
-	lockdownOnUnixSocket := usbmux.NewLockDownConnection(muxOnUnixSocket.Close())
+	lockdownToDevice := ios.NewLockDownConnection(muxToDevice.Close())
+	lockdownOnUnixSocket := ios.NewLockDownConnection(muxOnUnixSocket.Close())
 	proxyLockDownConnection(p, lockdownOnUnixSocket, lockdownToDevice)
 }
 
-func handleListen(p *ProxyConnection, muxOnUnixSocket *usbmux.MuxConnection, muxToDevice *usbmux.MuxConnection) {
+func handleListen(p *ProxyConnection, muxOnUnixSocket *ios.MuxConnection, muxToDevice *ios.MuxConnection) {
 	go func() {
 		//use this to detect when the conn is closed. There shouldn't be any messages received ever.
 		_, err := muxOnUnixSocket.ReadMessage()

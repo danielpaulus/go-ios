@@ -5,7 +5,7 @@ import (
 	"path"
 
 	"github.com/Masterminds/semver"
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	dtx "github.com/danielpaulus/go-ios/usbmux/dtx_codec"
 	"github.com/danielpaulus/go-ios/usbmux/house_arrest"
 	"github.com/danielpaulus/go-ios/usbmux/installationproxy"
@@ -116,19 +116,19 @@ const testBundleSuffix = "UITests.xctrunner"
 }
 */
 
-func RunWDA(device usbmux.DeviceEntry) error {
+func RunWDA(device ios.DeviceEntry) error {
 
 	return runXCUIWithBundleIds("com.facebook.WebDriverAgentRunner.xctrunner", "com.facebook.WebDriverAgentRunner.xctrunner", "WebDriverAgentRunner.xctest", device)
 }
 
-func RunXCUITest(bundleID string, device usbmux.DeviceEntry) error {
+func RunXCUITest(bundleID string, device ios.DeviceEntry) error {
 	testRunnerBundleID := bundleID + testBundleSuffix
 	return runXCUIWithBundleIds(bundleID, testRunnerBundleID, "", device)
 }
 
 var closeChan = make(chan interface{})
 
-func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device usbmux.DeviceEntry) error {
+func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device ios.DeviceEntry) error {
 	testSessionId, _, xctestConfigPath, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
@@ -171,7 +171,7 @@ func CloseXCUITestRunner() {
 	closeChan <- signal
 }
 
-func startTestRunner(device usbmux.DeviceEntry, xctestConfigPath string, bundleID string) (uint64, error) {
+func startTestRunner(device ios.DeviceEntry, xctestConfigPath string, bundleID string) (uint64, error) {
 	args := []interface{}{}
 	env := map[string]interface{}{
 		"XCTestConfigurationFilePath": xctestConfigPath,
@@ -185,8 +185,8 @@ func startTestRunner(device usbmux.DeviceEntry, xctestConfigPath string, bundleI
 
 }
 
-func setupXcuiTest(device usbmux.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, semver.Version, string, error) {
-	version := usbmux.GetValues(device).Value.ProductVersion
+func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, semver.Version, string, error) {
+	version := ios.GetValues(device).Value.ProductVersion
 	testSessionID := uuid.New()
 
 	v, err := semver.NewVersion(version)

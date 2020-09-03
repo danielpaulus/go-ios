@@ -4,7 +4,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
 )
@@ -12,7 +12,7 @@ import (
 //Connection manages channels, including the GlobalChannel, for a DtxConnection and dispatches received messages
 //to the right channel.
 type Connection struct {
-	deviceConnection       usbmux.DeviceConnectionInterface
+	deviceConnection       ios.DeviceConnectionInterface
 	channelCodeCounter     int
 	activeChannels         map[int]*Channel
 	globalChannel          *Channel
@@ -77,8 +77,8 @@ func notifyOfPublishedCapabilities(msg Message) {
 }
 
 //NewConnection connects and starts reading from a Dtx based service on the device
-func NewConnection(device usbmux.DeviceEntry, serviceName string) (*Connection, error) {
-	conn, err := usbmux.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
+func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, error) {
+	conn, err := ios.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
 	if err != nil {
 		return nil, err
 	}

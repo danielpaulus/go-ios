@@ -1,10 +1,10 @@
-package usbmux_test
+package ios_test
 
 import (
 	"io"
 	"testing"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -12,7 +12,7 @@ func TestCodec(t *testing.T) {
 	//mc := new(manualClientMock)
 	//	mc.On("GetSessionInfo", mock.Anything, mock.Anything).Return(manualclient.Session{}, errors.New("Fail"))
 
-	//muxConn.Send(usbmux.NewReadDevices())
+	//muxConn.Send(ios.NewReadDevices())
 	/*	golden := filepath.Join("test-fixture", "readdevices.bin")
 		if *update {
 			err := ioutil.WriteFile(golden, []byte(actual), 0644)
@@ -32,7 +32,7 @@ func TestCodec(t *testing.T) {
 				}
 			}()*/
 
-	//assert.ElementsMatch(t, decoded, []byte(usbmux.ToPlist(usbmux.NewReadDevices())))
+	//assert.ElementsMatch(t, decoded, []byte(ios.ToPlist(ios.NewReadDevices())))
 }
 
 type DeviceConnectionMock struct {
@@ -54,13 +54,13 @@ func (mock *DeviceConnectionMock) Reader() io.Reader {
 func (mock *DeviceConnectionMock) Writer() io.Writer {
 	return nil
 }
-func (mock *DeviceConnectionMock) EnableSessionSsl(pairRecord usbmux.PairRecord) error {
+func (mock *DeviceConnectionMock) EnableSessionSsl(pairRecord ios.PairRecord) error {
 	return nil
 }
-func (mock *DeviceConnectionMock) EnableSessionSslServerMode(pairRecord usbmux.PairRecord) {}
-func (mock *DeviceConnectionMock) EnableSessionSslHandshakeOnly(pairRecord usbmux.PairRecord) error {
+func (mock *DeviceConnectionMock) EnableSessionSslServerMode(pairRecord ios.PairRecord) {}
+func (mock *DeviceConnectionMock) EnableSessionSslHandshakeOnly(pairRecord ios.PairRecord) error {
 	return nil
 }
-func (mock *DeviceConnectionMock) EnableSessionSslServerModeHandshakeOnly(pairRecord usbmux.PairRecord) {
+func (mock *DeviceConnectionMock) EnableSessionSslServerModeHandshakeOnly(pairRecord ios.PairRecord) {
 }
 func (mock *DeviceConnectionMock) DisableSessionSSL() {}

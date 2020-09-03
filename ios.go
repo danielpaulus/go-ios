@@ -11,7 +11,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 
 	"github.com/danielpaulus/go-ios/usbmux/accessibility"
 	"github.com/danielpaulus/go-ios/usbmux/debugproxy"
@@ -255,9 +255,9 @@ The commands work as following:
 
 }
 
-func startAx(device usbmux.DeviceEntry) {
+func startAx(device ios.DeviceEntry) {
 	go func() {
-		device := usbmux.ListDevices().DeviceList[0]
+		device := ios.ListDevices().DeviceList[0]
 
 		conn, err := accessibility.New(device)
 		if err != nil {
@@ -298,7 +298,7 @@ func printVersion() {
 	}
 }
 
-func startDebugProxy(device usbmux.DeviceEntry) {
+func startDebugProxy(device ios.DeviceEntry) {
 	proxy := debugproxy.NewDebugProxy()
 	go func() {
 		err := proxy.Launch(device)
@@ -312,16 +312,16 @@ func startDebugProxy(device usbmux.DeviceEntry) {
 	proxy.Close()
 }
 
-func startForwarding(device usbmux.DeviceEntry, hostPort int, targetPort int) {
+func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
 	forward.Forward(device, uint16(hostPort), uint16(targetPort))
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
 }
 
-func printDiagnostics(device usbmux.DeviceEntry) {
+func printDiagnostics(device ios.DeviceEntry) {
 	log.Debug("print diagnostics")
-	diagnosticsService, err := diagnostics.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+	diagnosticsService, err := diagnostics.New(device.DeviceID, device.Properties.SerialNumber, ios.ReadPairRecord(device.Properties.SerialNumber))
 	if err != nil {
 		log.Fatalf("Starting diagnostics service failed with: %s", err)
 	}
@@ -332,7 +332,7 @@ func printDiagnostics(device usbmux.DeviceEntry) {
 	fmt.Println(convertToJSONString(values))
 }
 
-func printDeviceDate(device usbmux.DeviceEntry) {
+func printDeviceDate(device ios.DeviceEntry) {
 	allValues := getValues(device)
 
 	formatedDate := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).Format(time.RFC850)
@@ -343,7 +343,7 @@ func printDeviceDate(device usbmux.DeviceEntry) {
 	}
 
 }
-func printInstalledApps(device usbmux.DeviceEntry, system bool) {
+func printInstalledApps(device ios.DeviceEntry, system bool) {
 	svc, _ := installationproxy.New(device)
 	if !system {
 		response, err := svc.BrowseUserApps()
@@ -360,7 +360,7 @@ func printInstalledApps(device usbmux.DeviceEntry, system bool) {
 	log.Info(response)*/
 }
 
-func printDeviceName(device usbmux.DeviceEntry) {
+func printDeviceName(device ios.DeviceEntry) {
 	allValues := getValues(device)
 	if JSONdisabled {
 		println(allValues.Value.DeviceName)
@@ -371,9 +371,9 @@ func printDeviceName(device usbmux.DeviceEntry) {
 	}
 }
 
-func saveScreenshot(device usbmux.DeviceEntry, outputPath string) {
+func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 	log.Debug("take screenshot")
-	screenshotrService, err := screenshotr.New(device.DeviceID, device.Properties.SerialNumber, usbmux.ReadPairRecord(device.Properties.SerialNumber))
+	screenshotrService, err := screenshotr.New(device.DeviceID, device.Properties.SerialNumber, ios.ReadPairRecord(device.Properties.SerialNumber))
 	if err != nil {
 		log.Fatalf("Starting Screenshotr failed with: %s", err)
 	}
@@ -398,7 +398,7 @@ func saveScreenshot(device usbmux.DeviceEntry, outputPath string) {
 }
 
 func printDeviceList(details bool) {
-	deviceList := usbmux.ListDevices()
+	deviceList := ios.ListDevices()
 
 	if details {
 		if JSONdisabled {
@@ -422,7 +422,7 @@ type detailsEntry struct {
 	ProductVersion string
 }
 
-func outputDetailedList(deviceList usbmux.DeviceList) {
+func outputDetailedList(deviceList ios.DeviceList) {
 	result := make([]detailsEntry, len(deviceList.DeviceList))
 	for i, device := range deviceList.DeviceList {
 		udid := device.Properties.SerialNumber
@@ -434,7 +434,7 @@ func outputDetailedList(deviceList usbmux.DeviceList) {
 	}))
 }
 
-func outputDetailedListNoJSON(deviceList usbmux.DeviceList) {
+func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 	for _, device := range deviceList.DeviceList {
 		udid := device.Properties.SerialNumber
 		allValues := getValues(device)
@@ -442,12 +442,12 @@ func outputDetailedListNoJSON(deviceList usbmux.DeviceList) {
 	}
 }
 
-func getDeviceOrQuit(udid string) (usbmux.DeviceEntry, error) {
+func getDeviceOrQuit(udid string) (ios.DeviceEntry, error) {
 	log.Debugf("Looking for device '%s'", udid)
-	deviceList := usbmux.ListDevices()
+	deviceList := ios.ListDevices()
 	if udid == "" {
 		if len(deviceList.DeviceList) == 0 {
-			return usbmux.DeviceEntry{}, errors.New("no iOS devices are attached to this host")
+			return ios.DeviceEntry{}, errors.New("no iOS devices are attached to this host")
 		}
 		return deviceList.DeviceList[0], nil
 	}
@@ -456,11 +456,11 @@ func getDeviceOrQuit(udid string) (usbmux.DeviceEntry, error) {
 			return device, nil
 		}
 	}
-	return usbmux.DeviceEntry{}, fmt.Errorf("Device '%s' not found. Is it attached to the machine?", udid)
+	return ios.DeviceEntry{}, fmt.Errorf("Device '%s' not found. Is it attached to the machine?", udid)
 }
 
 func startListening() {
-	muxConnection := usbmux.NewUsbMuxConnection()
+	muxConnection := ios.NewUsbMuxConnection()
 	defer muxConnection.Close()
 	attachedReceiver, err := muxConnection.Listen()
 	if err != nil {
@@ -477,12 +477,12 @@ func startListening() {
 
 }
 
-func printDeviceInfo(device usbmux.DeviceEntry) {
+func printDeviceInfo(device ios.DeviceEntry) {
 	allValues := getValues(device)
 	fmt.Println(convertToJSONString(allValues.Value))
 }
 
-func runSyslog(device usbmux.DeviceEntry) {
+func runSyslog(device ios.DeviceEntry) {
 	log.Debug("Run Syslog.")
 
 	syslogConnection, err := syslog.New(device.DeviceID, device.Properties.SerialNumber)
@@ -508,8 +508,8 @@ func runSyslog(device usbmux.DeviceEntry) {
 	<-c
 }
 
-func getValues(device usbmux.DeviceEntry) usbmux.GetAllValuesResponse {
-	muxConnection := usbmux.NewUsbMuxConnection()
+func getValues(device ios.DeviceEntry) ios.GetAllValuesResponse {
+	muxConnection := ios.NewUsbMuxConnection()
 	defer muxConnection.Close()
 
 	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
@@ -528,9 +528,9 @@ func getValues(device usbmux.DeviceEntry) usbmux.GetAllValuesResponse {
 	return allValues
 }
 
-func pairDevice(device usbmux.DeviceEntry) {
+func pairDevice(device ios.DeviceEntry) {
 	println("not yet copied from branch go-ios-old")
-	// err := usbmux.Pair(device)
+	// err := ios.Pair(device)
 	// if err != nil {
 	// 	println(err)
 	// } else {
@@ -539,8 +539,8 @@ func pairDevice(device usbmux.DeviceEntry) {
 
 }
 
-func readPair(device usbmux.DeviceEntry) {
-	record := usbmux.ReadPairRecord(device.Properties.SerialNumber)
+func readPair(device ios.DeviceEntry) {
+	record := ios.ReadPairRecord(device.Properties.SerialNumber)
 	log.Info(record.String())
 }
 

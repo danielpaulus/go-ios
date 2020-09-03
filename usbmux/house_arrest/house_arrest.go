@@ -9,19 +9,19 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	"howett.net/plist"
 )
 
 const serviceName = "com.apple.mobile.house_arrest"
 
 type Connection struct {
-	deviceConn    usbmux.DeviceConnectionInterface
+	deviceConn    ios.DeviceConnectionInterface
 	packageNumber uint64
 }
 
-func New(device usbmux.DeviceEntry, bundleID string) (*Connection, error) {
-	deviceConn, err := usbmux.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
+func New(device ios.DeviceEntry, bundleID string) (*Connection, error) {
+	deviceConn, err := ios.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}
@@ -32,8 +32,8 @@ func New(device usbmux.DeviceEntry, bundleID string) (*Connection, error) {
 	return &Connection{deviceConn: deviceConn}, nil
 }
 
-func vendContainer(deviceConn usbmux.DeviceConnectionInterface, bundleID string) error {
-	plistCodec := usbmux.NewPlistCodec()
+func vendContainer(deviceConn ios.DeviceConnectionInterface, bundleID string) error {
+	plistCodec := ios.NewPlistCodec()
 	vendContainer := map[string]interface{}{"Command": "VendContainer", "Identifier": bundleID}
 	msg, err := plistCodec.Encode(vendContainer)
 	if err != nil {

@@ -5,17 +5,17 @@ import (
 	"io"
 	"net"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	log "github.com/sirupsen/logrus"
 )
 
 type iosproxy struct {
 	tcpConn    net.Conn
-	deviceConn usbmux.DeviceConnectionInterface
+	deviceConn ios.DeviceConnectionInterface
 }
 
 //Forward forwards every connection made to the hostPort to whatever service runs inside an app on the device on phonePort.
-func Forward(device usbmux.DeviceEntry, hostPort uint16, phonePort uint16) error {
+func Forward(device ios.DeviceEntry, hostPort uint16, phonePort uint16) error {
 
 	log.Infof("Start listening on port %d forwarding to port %d on device", hostPort, phonePort)
 	l, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", hostPort))
@@ -41,7 +41,7 @@ func connectionAccept(l net.Listener, deviceID int, phonePort uint16) {
 }
 
 func startNewProxyConnection(clientConn net.Conn, deviceID int, phonePort uint16) {
-	usbmuxConn := usbmux.NewUsbMuxConnection()
+	usbmuxConn := ios.NewUsbMuxConnection()
 	muxError := usbmuxConn.Connect(deviceID, phonePort)
 	if muxError != nil {
 		log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn), "err": muxError, "phonePort": phonePort}).Infof("could not connect to phone")

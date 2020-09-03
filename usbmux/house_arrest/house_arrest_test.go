@@ -12,7 +12,7 @@ import (
 
 
 func TestIT(t *testing.T) {
-	device := usbmux.ListDevices().DeviceList[0]
+	device := ios.ListDevices().DeviceList[0]
 	conn, err := house_arrest.New(device.DeviceID, device.Properties.SerialNumber, "d.blaUITests.xctrunner")
 	list, err := conn.ListFiles("tmp")
 	log.Info(list)

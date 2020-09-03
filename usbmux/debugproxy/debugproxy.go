@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	"github.com/danielpaulus/go-ios/usbmux/proxy_utils"
 
 	"github.com/sirupsen/logrus"
@@ -37,7 +37,7 @@ type PhoneServiceInformation struct {
 //ProxyConnection keeps track of the pairRecord and uses an ID to identify connections.
 type ProxyConnection struct {
 	id         string
-	pairRecord usbmux.PairRecord
+	pairRecord ios.PairRecord
 	debugProxy *DebugProxy
 	info       ConnectionInfo
 	log        *logrus.Entry
@@ -90,16 +90,16 @@ func NewDebugProxy() *DebugProxy {
 }
 
 //Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
-func (d *DebugProxy) Launch(device usbmux.DeviceEntry) error {
-	pairRecord := usbmux.ReadPairRecord(device.Properties.SerialNumber)
-	originalSocket, err := proxy_utils.MoveSock(usbmux.DefaultUsbmuxdSocket)
+func (d *DebugProxy) Launch(device ios.DeviceEntry) error {
+	pairRecord := ios.ReadPairRecord(device.Properties.SerialNumber)
+	originalSocket, err := proxy_utils.MoveSock(ios.DefaultUsbmuxdSocket)
 	if err != nil {
-		log.WithFields(log.Fields{"error": err, "socket": usbmux.DefaultUsbmuxdSocket}).Error("Unable to move, lacking permissions?")
+		log.WithFields(log.Fields{"error": err, "socket": ios.DefaultUsbmuxdSocket}).Error("Unable to move, lacking permissions?")
 		return err
 	}
 
 	d.setupDirectory()
-	listener, err := net.Listen("unix", usbmux.DefaultUsbmuxdSocket)
+	listener, err := net.Listen("unix", ios.DefaultUsbmuxdSocket)
 	if err != nil {
 		log.Fatal("Could not listen on usbmuxd socket, do I have access permissions?", err)
 		return err
@@ -124,9 +124,9 @@ func (d *DebugProxy) Launch(device usbmux.DeviceEntry) error {
 	}
 }
 
-func startProxyConnection(conn net.Conn, originalSocket string, pairRecord usbmux.PairRecord, debugProxy *DebugProxy, info ConnectionInfo) {
-	connListeningOnUnixSocket := usbmux.NewUsbMuxConnectionWithConn(conn)
-	connectionToDevice := usbmux.NewUsbMuxConnectionToSocket(originalSocket)
+func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.PairRecord, debugProxy *DebugProxy, info ConnectionInfo) {
+	connListeningOnUnixSocket := ios.NewUsbMuxConnectionWithConn(conn)
+	connectionToDevice := ios.NewUsbMuxConnectionToSocket(originalSocket)
 
 	p := ProxyConnection{info.ID, pairRecord, debugProxy, info, log.WithFields(log.Fields{"id": info.ID}), sync.Mutex{}, false}
 
@@ -136,7 +136,7 @@ func startProxyConnection(conn net.Conn, originalSocket string, pairRecord usbmu
 //Close moves /var/run/usbmuxd.real back to /var/run/usbmuxd and disconnects all active proxy connections
 func (d *DebugProxy) Close() {
 	log.Info("Moving back original socket")
-	err := proxy_utils.MoveBack(usbmux.DefaultUsbmuxdSocket)
+	err := proxy_utils.MoveBack(ios.DefaultUsbmuxdSocket)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Error("Failed moving back socket")
 	}

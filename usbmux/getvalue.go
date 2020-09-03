@@ -1,4 +1,4 @@
-package usbmux
+package ios
 
 //BasebandKeyHashInformationType containing some baseband related
 //data directly from the ios device

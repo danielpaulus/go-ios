@@ -1,24 +1,24 @@
-package usbmux_test
+package ios_test
 
 import (
 	"testing"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStringConversion(t *testing.T) {
-	entryOne := usbmux.DeviceEntry{DeviceID: 5, MessageType: "", Properties: usbmux.DeviceProperties{SerialNumber: "udid0"}}
-	entryTwo := usbmux.DeviceEntry{DeviceID: 5, MessageType: "", Properties: usbmux.DeviceProperties{SerialNumber: "udid1"}}
+	entryOne := ios.DeviceEntry{DeviceID: 5, MessageType: "", Properties: ios.DeviceProperties{SerialNumber: "udid0"}}
+	entryTwo := ios.DeviceEntry{DeviceID: 5, MessageType: "", Properties: ios.DeviceProperties{SerialNumber: "udid1"}}
 
 	testCases := map[string]struct {
-		devices        usbmux.DeviceList
+		devices        ios.DeviceList
 		expectedOutput string
 	}{
-		"zero entries":          {usbmux.DeviceList{DeviceList: make([]usbmux.DeviceEntry, 0)}, ""},
-		"one entry":             {usbmux.DeviceList{DeviceList: []usbmux.DeviceEntry{entryOne}}, "udid0\n"},
-		"more than one entries": {usbmux.DeviceList{DeviceList: []usbmux.DeviceEntry{entryOne, entryTwo}}, "udid0\nudid1\n"},
+		"zero entries":          {ios.DeviceList{DeviceList: make([]ios.DeviceEntry, 0)}, ""},
+		"one entry":             {ios.DeviceList{DeviceList: []ios.DeviceEntry{entryOne}}, "udid0\n"},
+		"more than one entries": {ios.DeviceList{DeviceList: []ios.DeviceEntry{entryOne, entryTwo}}, "udid0\nudid1\n"},
 	}
 
 	for _, tc := range testCases {
@@ -29,9 +29,9 @@ func TestStringConversion(t *testing.T) {
 }
 
 func TestListDevicesCommand(t *testing.T) {
-	/*	generified := func() interface{} { return usbmux.ListDevices() }
-		entryOne := usbmux.DeviceEntry{DeviceID: 5, MessageType: "", Properties: usbmux.DeviceProperties{SerialNumber: "udid0"}}
-		list := usbmux.DeviceList{DeviceList: []usbmux.DeviceEntry{entryOne}}
-		receivedList := GenericMockUsbmuxdIntegrationTest(t, generified, usbmux.NewReadDevices(), list).(usbmux.DeviceList)
+	/*	generified := func() interface{} { return ios.ListDevices() }
+		entryOne := ios.DeviceEntry{DeviceID: 5, MessageType: "", Properties: ios.DeviceProperties{SerialNumber: "udid0"}}
+		list := ios.DeviceList{DeviceList: []ios.DeviceEntry{entryOne}}
+		receivedList := GenericMockUsbmuxdIntegrationTest(t, generified, ios.NewReadDevices(), list).(ios.DeviceList)
 		assert.Equal(t, entryOne.Properties.SerialNumber, receivedList.DeviceList[0].Properties.SerialNumber)*/
 }

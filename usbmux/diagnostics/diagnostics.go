@@ -1,20 +1,20 @@
 package diagnostics
 
-import "github.com/danielpaulus/go-ios/usbmux"
+import ios "github.com/danielpaulus/go-ios/usbmux"
 
 const serviceName = "com.apple.mobile.diagnostics_relay"
 
 type Connection struct {
-	deviceConn usbmux.DeviceConnectionInterface
-	plistCodec usbmux.PlistCodec
+	deviceConn ios.DeviceConnectionInterface
+	plistCodec ios.PlistCodec
 }
 
-func New(deviceID int, udid string, pairRecord usbmux.PairRecord) (*Connection, error) {
-	deviceConn, err := usbmux.ConnectToService(deviceID, udid, serviceName)
+func New(deviceID int, udid string, pairRecord ios.PairRecord) (*Connection, error) {
+	deviceConn, err := ios.ConnectToService(deviceID, udid, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}
-	return &Connection{deviceConn: deviceConn, plistCodec: usbmux.NewPlistCodec()}, nil
+	return &Connection{deviceConn: deviceConn, plistCodec: ios.NewPlistCodec()}, nil
 }
 
 func (diagnosticsConn *Connection) AllValues() (allDiagnosticsResponse, error) {

@@ -3,27 +3,27 @@ package installationproxy
 import (
 	"bytes"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	"howett.net/plist"
 )
 
 const serviceName = "com.apple.mobile.installation_proxy"
 
 type Connection struct {
-	deviceConn usbmux.DeviceConnectionInterface
-	plistCodec usbmux.PlistCodec
+	deviceConn ios.DeviceConnectionInterface
+	plistCodec ios.PlistCodec
 }
 
 func (c *Connection) Close() {
 	c.deviceConn.Close()
 }
 
-func New(device usbmux.DeviceEntry) (*Connection, error) {
-	deviceConn, err := usbmux.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
+func New(device ios.DeviceEntry) (*Connection, error) {
+	deviceConn, err := ios.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}
-	return &Connection{deviceConn: deviceConn, plistCodec: usbmux.NewPlistCodec()}, nil
+	return &Connection{deviceConn: deviceConn, plistCodec: ios.NewPlistCodec()}, nil
 }
 func (conn *Connection) BrowseUserApps() ([]AppInfo, error) {
 	return conn.browseApps(browseUserApps())

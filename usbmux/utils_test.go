@@ -1,4 +1,4 @@
-package usbmux_test
+package ios_test
 
 import (
 	"flag"
@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +22,7 @@ type SampleData struct {
 
 func TestNtohs(t *testing.T) {
 
-	assert.Equal(t, uint16(62078), usbmux.Ntohs(usbmux.Lockdownport))
+	assert.Equal(t, uint16(62078), ios.Ntohs(ios.Lockdownport))
 }
 
 func TestPlistConversion(t *testing.T) {
@@ -31,12 +31,12 @@ func TestPlistConversion(t *testing.T) {
 		fileName string
 	}{
 		"randomData":     {SampleData{"d", 4, 0.2}, "sample-plist-primitives"},
-		"UsbMuxResponse": {usbmux.MuxResponse{"ErrorName", 5}, "usbmuxresponse"},
+		"UsbMuxResponse": {ios.MuxResponse{"ErrorName", 5}, "usbmuxresponse"},
 	}
 
 	for _, tc := range testCases {
 
-		actual := usbmux.ToPlist(tc.data)
+		actual := ios.ToPlist(tc.data)
 
 		golden := filepath.Join("test-fixture", tc.fileName+".plist")
 		if *update {

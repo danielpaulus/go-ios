@@ -5,7 +5,7 @@ import (
 	"io"
 	"path"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -33,7 +33,7 @@ func getServiceConfigForName(serviceName string) serviceConfig {
 }
 
 type BinaryForwardingProxy struct {
-	deviceConn usbmux.DeviceConnectionInterface
+	deviceConn ios.DeviceConnectionInterface
 	decoder    decoder
 }
 
@@ -54,11 +54,11 @@ func (b *BinaryForwardingProxy) ReadMessage() ([]byte, error) {
 	}
 	return buffer[0:n], nil
 }
-func handleConnectToService(connectRequest *usbmux.MuxMessage,
+func handleConnectToService(connectRequest *ios.MuxMessage,
 	decodedConnectRequest map[string]interface{},
 	p *ProxyConnection,
-	muxOnUnixSocket *usbmux.MuxConnection,
-	muxToDevice *usbmux.MuxConnection,
+	muxOnUnixSocket *ios.MuxConnection,
+	muxToDevice *ios.MuxConnection,
 	serviceInfo PhoneServiceInformation) {
 	err := muxToDevice.SendMuxMessage(*connectRequest)
 	if err != nil {

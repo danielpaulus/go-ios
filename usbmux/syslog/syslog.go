@@ -6,14 +6,14 @@ import (
 	"io"
 	"log"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 )
 
 const serviceName string = "com.apple.syslog_relay"
 
 //Connection exposes the LogReader channel which send the LogMessages as strings.
 type Connection struct {
-	deviceConn     usbmux.DeviceConnectionInterface
+	deviceConn     ios.DeviceConnectionInterface
 	logReader      chan string
 	bufferedReader *bufio.Reader
 }
@@ -21,7 +21,7 @@ type Connection struct {
 //New returns a new SysLog Connection for the given DeviceID and Udid
 //It will create LogReader as a buffered Channel because Syslog is very verbose.
 func New(deviceID int, udid string) (*Connection, error) {
-	deviceConn, err := usbmux.ConnectToService(deviceID, udid, serviceName)
+	deviceConn, err := ios.ConnectToService(deviceID, udid, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}

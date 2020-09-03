@@ -1,4 +1,4 @@
-package usbmux_test
+package ios_test
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -14,12 +14,12 @@ import (
 
 func TestPlistCodec(t *testing.T) {
 
-	codec := usbmux.NewPlistCodec()
+	codec := ios.NewPlistCodec()
 	testCases := map[string]struct {
 		data     interface{}
 		fileName string
 	}{
-		"BasebandKeyHashInformationType example": {usbmux.BasebandKeyHashInformationType{5, make([]byte, 1), 4}, "sample-plist-plistcodec-basebandkeyhashinfotype"},
+		"BasebandKeyHashInformationType example": {ios.BasebandKeyHashInformationType{5, make([]byte, 1), 4}, "sample-plist-plistcodec-basebandkeyhashinfotype"},
 	}
 
 	for _, tc := range testCases {
@@ -39,7 +39,7 @@ func TestPlistCodec(t *testing.T) {
 
 			result, err := codec.Decode(bytes.NewReader(actual))
 			assert.NoError(t, err)
-			assert.Equal(t, usbmux.ToPlist(tc.data), string(result))
+			assert.Equal(t, ios.ToPlist(tc.data), string(result))
 
 		}
 	}

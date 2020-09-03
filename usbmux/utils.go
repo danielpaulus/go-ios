@@ -1,4 +1,4 @@
-package usbmux
+package ios
 
 import (
 	"encoding/binary"

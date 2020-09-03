@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	log "github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
-func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *usbmux.LockDownConnection, lockdownToDevice *usbmux.LockDownConnection) {
+func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *ios.LockDownConnection, lockdownToDevice *ios.LockDownConnection) {
 	for {
 		request, err := lockdownOnUnixSocket.ReadMessage()
 		if err != nil {

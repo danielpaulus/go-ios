@@ -1,4 +1,4 @@
-package usbmux_test
+package ios_test
 
 /*
 import (

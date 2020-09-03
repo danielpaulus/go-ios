@@ -5,12 +5,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/danielpaulus/go-ios/usbmux"
+	ios "github.com/danielpaulus/go-ios/usbmux"
 	"github.com/danielpaulus/go-ios/usbmux/accessibility"
 )
 
 func TestIT(t *testing.T) {
-	device := usbmux.ListDevices().DeviceList[0]
+	device := ios.ListDevices().DeviceList[0]
 
 	conn, err := accessibility.New(device)
 	if err != nil {
