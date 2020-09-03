@@ -56,7 +56,7 @@ Usage:
   ios launch <bundleID>
   ios runtest <bundleID>  
   ios runwda [options]
-  ios ax
+  ios ax [options]
   ios -h | --help
   ios --version | version [options]
 
@@ -261,9 +261,9 @@ The commands work as following:
 
 			conn.SwitchToDevice()
 
-			conn.EnableSelectionMode()
+			//conn.EnableSelectionMode()
 
-			for i := 0; i < 10; i++ {
+			/*for i := 0; i < 10; i++ {
 				conn.GetElement()
 				time.Sleep(time.Second)
 			}

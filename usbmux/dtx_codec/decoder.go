@@ -8,7 +8,6 @@ import (
 	"io"
 
 	"github.com/danielpaulus/go-ios/usbmux/nskeyedarchiver"
-	log "github.com/sirupsen/logrus"
 )
 
 type DtxMessage struct {
@@ -199,8 +198,7 @@ func ReadMessage(reader io.Reader) (DtxMessage, error) {
 	result.RawBytes = make([]byte, 0)
 	if result.HasPayload() {
 		payloadBytes := make([]byte, result.PayloadLength())
-		n, err := io.ReadFull(reader, payloadBytes)
-		log.Info(n)
+		_, err := io.ReadFull(reader, payloadBytes)
 		if err != nil {
 			return DtxMessage{}, err
 		}
