@@ -1,7 +1,6 @@
 package usbmux
 
 import (
-	"bytes"
 	"encoding/binary"
 
 	plist "howett.net/plist"
@@ -11,10 +10,8 @@ import (
 //github.com/DHowett/go-plist library. Make sure your struct is exported.
 //It returns a string containing the plist.
 func ToPlist(data interface{}) string {
-	buf := &bytes.Buffer{}
-	encoder := plist.NewEncoder(buf)
-	encoder.Encode(data)
-	return buf.String()
+	bytes, _ := plist.Marshal(data, plist.XMLFormat)
+	return string(bytes)
 }
 
 //Ntohs is a re-implementation of the C function Ntohs.

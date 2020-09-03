@@ -46,7 +46,7 @@ func TestPlistConversion(t *testing.T) {
 			}
 		}
 		expected, _ := ioutil.ReadFile(golden)
-		assert.Equal(t, actual, string(expected))
+		assert.Equal(t, string(expected), actual)
 	}
 
 }
