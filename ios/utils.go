@@ -11,11 +11,18 @@ import (
 //github.com/DHowett/go-plist library. Make sure your struct is exported.
 //It returns a string containing the plist.
 func ToPlist(data interface{}) string {
+	return string(ToPlistBytes(data))
+}
+
+//ToPlistBytes converts a given struct to a Plist using the
+//github.com/DHowett/go-plist library. Make sure your struct is exported.
+//It returns a byte slice containing the plist.
+func ToPlistBytes(data interface{}) []byte {
 	bytes, err := plist.Marshal(data, plist.XMLFormat)
 	if err != nil {
 		log.Fatal("Failed converting to plist", data, err)
 	}
-	return string(bytes)
+	return bytes
 }
 
 //Ntohs is a re-implementation of the C function Ntohs.

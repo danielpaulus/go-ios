@@ -49,7 +49,7 @@ func startNewProxyConnection(clientConn net.Conn, deviceID int, phonePort uint16
 		return
 	}
 	log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn), "phonePort": phonePort}).Infof("Connected to port")
-	deviceConn := usbmuxConn.Close()
+	deviceConn := usbmuxConn.ReleaseDeviceConnection()
 
 	//proxyConn := iosproxy{clientConn, deviceConn}
 	go func() {

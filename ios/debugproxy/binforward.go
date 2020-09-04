@@ -68,12 +68,12 @@ func handleConnectToService(connectRequest ios.UsbMuxMessage,
 	muxOnUnixSocket.SendMuxMessage(connectResponse)
 
 	serviceConfig := getServiceConfigForName(serviceInfo.ServiceName)
-	binToDevice := BinaryForwardingProxy{muxToDevice.Close(), serviceConfig.codec(
+	binToDevice := BinaryForwardingProxy{muxToDevice.ReleaseDeviceConnection(), serviceConfig.codec(
 		path.Join(p.info.ConnectionPath, "from-device.json"),
 		path.Join(p.info.ConnectionPath, "from-device.bin"),
 		*p.log,
 	)}
-	binOnUnixSocket := BinaryForwardingProxy{muxOnUnixSocket.Close(), serviceConfig.codec(
+	binOnUnixSocket := BinaryForwardingProxy{muxOnUnixSocket.ReleaseDeviceConnection(), serviceConfig.codec(
 		path.Join(p.info.ConnectionPath, "to-device.json"),
 		path.Join(p.info.ConnectionPath, "to-device.bin"),
 		*p.log,

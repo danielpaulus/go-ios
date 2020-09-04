@@ -1,39 +1,94 @@
 package ios_test
 
 import (
+	"bytes"
+	"errors"
 	"io"
 	"testing"
 
 	ios "github.com/danielpaulus/go-ios/ios"
+	"github.com/stretchr/testify/assert"
 	mock "github.com/stretchr/testify/mock"
 )
 
+func TestReleaseDeviceConnection(t *testing.T) {
+	mc := new(DeviceConnectionMock)
+	muxConn := ios.NewUsbMuxConnection(mc)
+	deviceConn := muxConn.ReleaseDeviceConnection()
+	assert.Equal(t, mc, deviceConn)
+	err := muxConn.Send("")
+	assert.Equal(t, io.EOF, err)
+	err = muxConn.SendMuxMessage(ios.UsbMuxMessage{})
+	assert.Equal(t, io.EOF, err)
+	_, err = muxConn.ReadMessage()
+	assert.Equal(t, io.EOF, err)
+}
+
 func TestCodec(t *testing.T) {
-	//mc := new(DeviceConnectionMock)
+	mc := new(DeviceConnectionMock)
+	buf := new(bytes.Buffer)
+	mc.On("Writer").Return(buf)
+	mc.On("Reader").Return(buf)
 
-	//	mc.On("GetSessionInfo", mock.Anything, mock.Anything).Return(manualclient.Session{}, errors.New("Fail"))
+	muxConn := ios.NewUsbMuxConnection(mc)
+	muxConn.Send(ios.NewReadDevices())
 
-	//muxConn.Send(ios.NewReadDevices())
-	/*	golden := filepath.Join("test-fixture", "readdevices.bin")
-		if *update {
-			err := ioutil.WriteFile(golden, []byte(actual), 0644)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		expected, _ := ioutil.ReadFile(golden)
-		assert.ElementsMatch(t, actual, expected)
+	msg, err := muxConn.ReadMessage()
+	assert.NoError(t, err)
+	firstTag := msg.Header.Tag
+	assert.Equal(t, msg.Header.Length, uint32(len(msg.Payload)+16))
 
-		f, err := os.Open(golden)
-		if assert.NoError(t, err) {
-			go func() {
-				err := muxConn.Decode(f)
-				if err != nil {
-					log.Fatal("USBMux decoder failed in unit test")
-				}
-			}()*/
+	buf.Reset()
+	muxConn.Send(ios.NewReadDevices())
+	msg, err = muxConn.ReadMessage()
+	assert.NoError(t, err)
+	secondTag := msg.Header.Tag
 
-	//assert.ElementsMatch(t, decoded, []byte(ios.ToPlist(ios.NewReadDevices())))
+	assert.Equal(t, firstTag+1, secondTag)
+
+	buf.Reset()
+	randomTag := uint32(5000)
+	msg.Header.Tag = randomTag
+	muxConn.SendMuxMessage(msg)
+	msg, err = muxConn.ReadMessage()
+	assert.NoError(t, err)
+	assert.Equal(t, randomTag, msg.Header.Tag)
+}
+
+func TestErrors(t *testing.T) {
+	mc := new(DeviceConnectionMock)
+	writerMock := new(WriterMock)
+	readerMock := new(ReaderMock)
+
+	expectedError := errors.New("error")
+	writerMock.On("Write", mock.Anything).Return(0, expectedError)
+	readerMock.On("Read", mock.Anything).Return(0, expectedError)
+	mc.On("Writer").Return(writerMock)
+	mc.On("Reader").Return(readerMock)
+
+	muxConn := ios.NewUsbMuxConnection(mc)
+	err := muxConn.Send(ios.NewReadDevices())
+	assert.Error(t, err)
+	_, err = muxConn.ReadMessage()
+	assert.Error(t, err)
+}
+
+type ReaderMock struct {
+	mock.Mock
+}
+
+func (mock *ReaderMock) Read(p []byte) (n int, err error) {
+	args := mock.Called(p)
+	return args.Int(0), args.Error(1)
+}
+
+type WriterMock struct {
+	mock.Mock
+}
+
+func (mock *WriterMock) Write(p []byte) (n int, err error) {
+	args := mock.Called(p)
+	return args.Int(0), args.Error(1)
 }
 
 type DeviceConnectionMock struct {

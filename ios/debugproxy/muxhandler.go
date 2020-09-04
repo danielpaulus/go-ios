@@ -13,8 +13,8 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnec
 	for {
 		request, err := muxOnUnixSocket.ReadMessage()
 		if err != nil {
-			muxOnUnixSocket.Close().Close()
-			muxToDevice.Close().Close()
+			muxOnUnixSocket.ReleaseDeviceConnection().Close()
+			muxToDevice.ReleaseDeviceConnection().Close()
 			if err == io.EOF {
 				p.LogClosed()
 				return
@@ -115,8 +115,8 @@ func handleConnectToLockdown(connectRequest ios.UsbMuxMessage, decodedConnectReq
 	connectResponse, err := muxToDevice.ReadMessage()
 	muxOnUnixSocket.SendMuxMessage(connectResponse)
 
-	lockdownToDevice := ios.NewLockDownConnection(muxToDevice.Close())
-	lockdownOnUnixSocket := ios.NewLockDownConnection(muxOnUnixSocket.Close())
+	lockdownToDevice := ios.NewLockDownConnection(muxToDevice.ReleaseDeviceConnection())
+	lockdownOnUnixSocket := ios.NewLockDownConnection(muxOnUnixSocket.ReleaseDeviceConnection())
 	proxyLockDownConnection(p, lockdownOnUnixSocket, lockdownToDevice)
 }
 
@@ -125,8 +125,8 @@ func handleListen(p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnection, mux
 		//use this to detect when the conn is closed. There shouldn't be any messages received ever.
 		_, err := muxOnUnixSocket.ReadMessage()
 		if err == io.EOF {
-			muxOnUnixSocket.Close().Close()
-			muxToDevice.Close().Close()
+			muxOnUnixSocket.ReleaseDeviceConnection().Close()
+			muxToDevice.ReleaseDeviceConnection().Close()
 			p.LogClosed()
 			return
 		}
@@ -137,8 +137,8 @@ func handleListen(p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnection, mux
 		response, err := muxToDevice.ReadMessage()
 		if err != nil {
 			//TODO: ugly, improve
-			d := muxOnUnixSocket.Close()
-			d1 := muxToDevice.Close()
+			d := muxOnUnixSocket.ReleaseDeviceConnection()
+			d1 := muxToDevice.ReleaseDeviceConnection()
 			if d != nil {
 				d.Close()
 			}

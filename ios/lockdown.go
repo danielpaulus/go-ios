@@ -34,7 +34,7 @@ func newGetValue(key string) *getValue {
 
 func GetValues(device DeviceEntry) GetAllValuesResponse {
 	muxConnection := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
-	defer muxConnection.Close()
+	defer muxConnection.ReleaseDeviceConnection()
 
 	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
 

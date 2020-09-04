@@ -1,22 +1,20 @@
 package ios
 
 import (
-	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
-	"howett.net/plist"
 )
 
-//DefaultUsbmuxdSocket this is the unix domain socket address to connect to. The default is "/var/run/usbmuxd"
+//DefaultUsbmuxdSocket this is the unix domain socket address to connect to.
 const DefaultUsbmuxdSocket = "/var/run/usbmuxd"
 
-//UsbMuxConnection provides a Send Method for sending Messages to UsbMuxD and a ResponseChannel to
-//receive the responses.
+//UsbMuxConnection can send and read messages to the usbmuxd process to manage pairrecors, listen for device changes
+//and connect to services on the phone. Usually messages follow a  request-response pattern. there is a tag integer
+//in the message header, that is increased with every sent message.
 type UsbMuxConnection struct {
 	//tag will be incremented for every message, so responses can be correlated to requests
 	tag        uint32
@@ -30,8 +28,9 @@ func NewUsbMuxConnection(deviceConn DeviceConnectionInterface) *UsbMuxConnection
 	return muxConn
 }
 
-//Close dereferences this MuxConn from the underlying DeviceConnections and it returns the DeviceConnection for later use.
-func (muxConn *UsbMuxConnection) Close() DeviceConnectionInterface {
+//ReleaseDeviceConnection dereferences this UsbMuxConnection from the underlying DeviceConnection and it returns the DeviceConnection for later use.
+//This UsbMuxConnection cannot be used after calling this.
+func (muxConn *UsbMuxConnection) ReleaseDeviceConnection() DeviceConnectionInterface {
 	conn := muxConn.deviceConn
 	muxConn.deviceConn = nil
 	return conn
@@ -51,80 +50,70 @@ type UsbMuxHeader struct {
 	Tag     uint32
 }
 
-func newUsbmuxHeader(length uint32, tag uint32) UsbMuxHeader {
-	return UsbMuxHeader{Length: length, Request: 8, Version: 1, Tag: tag}
-}
-
-func getHeader(length int, tag uint32) []byte {
-	buf := new(bytes.Buffer)
-	header := newUsbmuxHeader(16+uint32(length), tag)
-	tag++
-	errs := binary.Write(buf, binary.LittleEndian, header)
-	if errs != nil {
-		log.Fatalf("binary.Write failed: %v", errs)
-	}
-	return buf.Bytes()
-}
-
-// Send sends and encodes a Plist using the usbmux Encoder
+// Send sends and encodes a Plist using the usbmux Encoder. Increases the connection tag by one.
 func (muxConn *UsbMuxConnection) Send(msg interface{}) error {
-	bytes, err := muxConn.Encode(msg)
+	if muxConn.deviceConn == nil {
+		return io.EOF
+	}
+	writer := muxConn.deviceConn.Writer()
+	muxConn.tag++
+	err := muxConn.encode(msg, writer)
 	if err != nil {
 		log.Error("Error sending mux")
 		return err
 	}
-	return muxConn.deviceConn.Send(bytes)
+	return nil
 }
 
-//SendMuxMessage serializes and sends a MuxMessage to the underlying DeviceConnection.
+//SendMuxMessage serializes and sends a UsbMuxMessage to the underlying DeviceConnection.
+//This does not increase the tag on the connection. Is used mainly by the debug proxy to
+//forward messages between device and host
 func (muxConn *UsbMuxConnection) SendMuxMessage(msg UsbMuxMessage) error {
 	if muxConn.deviceConn == nil {
 		return io.EOF
 	}
-	err := binary.Write(muxConn.deviceConn.Writer(), binary.LittleEndian, msg.Header)
+	writer := muxConn.deviceConn.Writer()
+	err := binary.Write(writer, binary.LittleEndian, msg.Header)
 	if err != nil {
 		return err
 	}
-	return muxConn.deviceConn.Send(msg.Payload)
+	_, err = writer.Write(msg.Payload)
+	return err
 }
 
 //ReadMessage blocks until the next muxMessage is available on the underlying DeviceConnection and returns it.
 func (muxConn *UsbMuxConnection) ReadMessage() (UsbMuxMessage, error) {
+	if muxConn.deviceConn == nil {
+		return UsbMuxMessage{}, io.EOF
+	}
 	reader := muxConn.deviceConn.Reader()
-	msg, err := muxConn.Decode(reader)
+	msg, err := muxConn.decode(reader)
 	if err != nil {
 		return UsbMuxMessage{}, err
 	}
 	return msg, nil
 }
 
-//Encode serializes a MuxMessage struct to a Plist and returns the []byte of its
-//string representation
-func (muxConn *UsbMuxConnection) Encode(message interface{}) ([]byte, error) {
+//encode serializes a MuxMessage struct to a Plist and writes it to the io.Writer.
+func (muxConn *UsbMuxConnection) encode(message interface{}, writer io.Writer) error {
 	log.Debug("UsbMux send", reflect.TypeOf(message), " on ", &muxConn.deviceConn)
-	//stringContent := ToPlist(message)
-
-	var err error
-	mbytes, err := plist.MarshalIndent(message, plist.XMLFormat, " ")
-
-	var buffer bytes.Buffer
-
-	headerBytes := getHeader(len(mbytes), muxConn.tag)
-	buffer.Write(headerBytes)
-	_, err = buffer.Write(mbytes)
+	mbytes := ToPlistBytes(message)
+	err := writeHeader(len(mbytes), muxConn.tag, writer)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return buffer.Bytes(), nil
+	_, err = writer.Write(mbytes)
+	return err
 }
 
-//Decode reads all bytes for the next MuxMessage from r io.Reader and
-//sends them to the ResponseChannel
-func (muxConn UsbMuxConnection) Decode(r io.Reader) (UsbMuxMessage, error) {
-	if r == nil {
-		return UsbMuxMessage{}, errors.New("Reader was nil")
-	}
+func writeHeader(length int, tag uint32, writer io.Writer) error {
+	header := UsbMuxHeader{Length: 16 + uint32(length), Request: 8, Version: 1, Tag: tag}
+	return binary.Write(writer, binary.LittleEndian, header)
+}
 
+//decode reads all bytes for the next MuxMessage from r io.Reader and
+//returns a UsbMuxMessage
+func (muxConn UsbMuxConnection) decode(r io.Reader) (UsbMuxMessage, error) {
 	var muxHeader UsbMuxHeader
 
 	err := binary.Read(r, binary.LittleEndian, &muxHeader)

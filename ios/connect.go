@@ -111,5 +111,5 @@ func ConnectToService(deviceID int, udid string, serviceName string) (DeviceConn
 	if err != nil {
 		return nil, err
 	}
-	return muxConn.Close(), nil
+	return muxConn.ReleaseDeviceConnection(), nil
 }

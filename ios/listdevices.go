@@ -96,6 +96,6 @@ func (muxConn *UsbMuxConnection) ListDevices() DeviceList {
 //currently connected iOS devices using a new UsbMuxConnection
 func ListDevices() DeviceList {
 	muxConnection := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
-	defer muxConnection.Close()
+	defer muxConnection.ReleaseDeviceConnection()
 	return muxConnection.ListDevices()
 }

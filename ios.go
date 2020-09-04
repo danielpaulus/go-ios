@@ -460,7 +460,7 @@ func getDeviceOrQuit(udid string) (ios.DeviceEntry, error) {
 
 func startListening() {
 	muxConnection := ios.NewUsbMuxConnection(ios.NewDeviceConnection(ios.DefaultUsbmuxdSocket))
-	defer muxConnection.Close()
+	defer muxConnection.ReleaseDeviceConnection()
 	attachedReceiver, err := muxConnection.Listen()
 	if err != nil {
 		log.Fatal("Failed issuing Listen command", err)
@@ -509,7 +509,7 @@ func runSyslog(device ios.DeviceEntry) {
 
 func getValues(device ios.DeviceEntry) ios.GetAllValuesResponse {
 	muxConnection := ios.NewUsbMuxConnection(ios.NewDeviceConnection(ios.DefaultUsbmuxdSocket))
-	defer muxConnection.Close()
+	defer muxConnection.ReleaseDeviceConnection()
 
 	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
 
