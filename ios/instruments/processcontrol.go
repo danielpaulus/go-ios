@@ -3,7 +3,7 @@ package instruments
 import (
 	"fmt"
 
-	ios "github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	log "github.com/sirupsen/logrus"
 )
@@ -11,55 +11,46 @@ import (
 const serviceName string = "com.apple.instruments.remoteserver"
 const processControlChannelName = "com.apple.instruments.server.services.processcontrol"
 
-type processControl struct {
+type ProcessControl struct {
 	processControlChannel *dtx.Channel
+	conn                  *dtx.Connection
 }
 
 type processControlDispatcher struct{}
 
-//KillApp kills an app with the given PID on the given device.
-func KillApp(pid uint64, device ios.DeviceEntry) error {
-	conn, _ := dtx.NewConnection(device, serviceName)
-	//defer conn.Close()
-	processControl := newProcessControl(conn)
-	return processControl.KillProcess(pid)
-}
-
 //LaunchApp launches the app with the given bundleID on the given device.LaunchApp
 //Use LaunchAppWithArgs for passing arguments and envVars. It returns the PID of the created app process.
-func LaunchApp(bundleID string, device ios.DeviceEntry) (uint64, error) {
-	conn, _ := dtx.NewConnection(device, serviceName)
-	//defer conn.Close()const
-	processControl := newProcessControl(conn)
+func (p *ProcessControl) LaunchApp(bundleID string) (uint64, error) {
 	options := map[string]interface{}{}
 	options["StartSuspendedKey"] = uint64(0)
-	return processControl.StartProcess(bundleID, map[string]interface{}{}, []interface{}{}, options)
+	return p.StartProcess(bundleID, map[string]interface{}{}, []interface{}{}, options)
 }
 
-//LaunchAppWithArgs same as LaunchApp but passes arguments, envVars and options.
-func LaunchAppWithArgs(bundleID string, device ios.DeviceEntry, args []interface{}, env map[string]interface{}, opts map[string]interface{}) (uint64, error) {
-	conn, _ := dtx.NewConnection(device, serviceName)
-	//defer conn.Close()
-	return newProcessControl(conn).StartProcess(bundleID, env, args, opts)
+func (p *ProcessControl) Close() {
+	p.conn.Close()
 }
 
 func (p processControlDispatcher) Dispatch(m dtx.Message) {
 	log.Debug(m)
 }
 
-func newProcessControl(dtxConnection *dtx.Connection) processControl {
-	processControlChannel := dtxConnection.RequestChannelIdentifier(processControlChannelName, processControlDispatcher{})
-	return processControl{processControlChannel: processControlChannel}
+func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
+	dtxConn, err := dtx.NewConnection(device, serviceName)
+	if err != nil {
+		return nil, err
+	}
+	processControlChannel := dtxConn.RequestChannelIdentifier(processControlChannelName, processControlDispatcher{})
+	return &ProcessControl{processControlChannel: processControlChannel, conn: dtxConn}, nil
 }
 
 //KillProcess kills the process on the device.
-func (p processControl) KillProcess(pid uint64) error {
+func (p ProcessControl) KillProcess(pid uint64) error {
 	_, err := p.processControlChannel.MethodCall("killPid:", pid)
 	return err
 }
 
 //StartProcess launches an app on the device using the bundleID and optional envvars, arguments and options. It returns the PID.
-func (p processControl) StartProcess(bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (uint64, error) {
+func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (uint64, error) {
 	//seems like the path does not matter
 	const path = "/private/"
 

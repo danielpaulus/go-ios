@@ -2,6 +2,8 @@ package ios
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -33,4 +35,22 @@ func Ntohs(port uint16) uint16 {
 	buf := make([]byte, 2)
 	binary.BigEndian.PutUint16(buf, port)
 	return binary.LittleEndian.Uint16(buf)
+}
+
+//GetDevice returns the device for udid. If udid equals emptystring, it returns the first device in the list.
+func GetDevice(udid string) (DeviceEntry, error) {
+	log.Debugf("Looking for device '%s'", udid)
+	deviceList := ListDevices()
+	if udid == "" {
+		if len(deviceList.DeviceList) == 0 {
+			return DeviceEntry{}, errors.New("no iOS devices are attached to this host")
+		}
+		return deviceList.DeviceList[0], nil
+	}
+	for _, device := range deviceList.DeviceList {
+		if device.Properties.SerialNumber == udid {
+			return device, nil
+		}
+	}
+	return DeviceEntry{}, fmt.Errorf("Device '%s' not found. Is it attached to the machine?", udid)
 }

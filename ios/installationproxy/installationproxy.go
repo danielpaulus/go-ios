@@ -29,10 +29,9 @@ func (conn *Connection) BrowseUserApps() ([]AppInfo, error) {
 	return conn.browseApps(browseUserApps())
 }
 
-/*
-func (conn *Connection) BrowseSystemApps() (BrowseResponse, error) {
+func (conn *Connection) BrowseSystemApps() ([]AppInfo, error) {
 	return conn.browseApps(browseSystemApps())
-}*/
+}
 
 func (conn *Connection) browseApps(request interface{}) ([]AppInfo, error) {
 	reader := conn.deviceConn.Reader()

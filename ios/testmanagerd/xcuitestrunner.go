@@ -141,7 +141,12 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	if err != nil {
 		return err
 	}
-	pid, err := startTestRunner(device, xctestConfigPath, testRunnerBundleID)
+	pControl, err := instruments.NewProcessControl(device)
+	defer pControl.Close()
+	if err != nil {
+		return err
+	}
+	pid, err := startTestRunner(pControl, xctestConfigPath, testRunnerBundleID)
 	if err != nil {
 		return err
 	}
@@ -157,7 +162,7 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	startExecutingTestPlanWithProtocolVersion(channel, protocolVersion)
 	<-closeChan
 	log.Infof("Killing WDA Runner pid %d ...", pid)
-	err = instruments.KillApp(pid, device)
+	err = pControl.KillProcess(pid)
 	if err != nil {
 		return err
 	}
@@ -171,7 +176,7 @@ func CloseXCUITestRunner() {
 	closeChan <- signal
 }
 
-func startTestRunner(device ios.DeviceEntry, xctestConfigPath string, bundleID string) (uint64, error) {
+func startTestRunner(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string) (uint64, error) {
 	args := []interface{}{}
 	env := map[string]interface{}{
 		"XCTestConfigurationFilePath": xctestConfigPath,
@@ -181,7 +186,7 @@ func startTestRunner(device ios.DeviceEntry, xctestConfigPath string, bundleID s
 		"ActivateSuspended": uint64(1),
 	}
 
-	return instruments.LaunchAppWithArgs(bundleID, device, args, env, opts)
+	return pControl.StartProcess(bundleID, env, args, opts)
 
 }
 

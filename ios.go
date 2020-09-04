@@ -2,11 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 
 	"os"
 	"os/signal"
@@ -137,7 +135,7 @@ The commands work as following:
 	}
 
 	udid, _ := arguments.String("--udid")
-	device, err := getDeviceOrQuit(udid)
+	device, err := ios.GetDevice(udid)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -214,10 +212,18 @@ The commands work as following:
 	b, _ = arguments.Bool("launch")
 	if b {
 		bundleID, _ := arguments.String("<bundleID>")
-		pid, err := instruments.LaunchApp(bundleID, device)
-		if err != nil {
-			log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
+		if bundleID == "" {
+			log.Fatal("please provide a bundleID")
 		}
+		pControl, err := instruments.NewProcessControl(device)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pid, err := pControl.LaunchApp(bundleID)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
 	}
 
 	b, _ = arguments.Bool("runtest")
@@ -353,11 +359,11 @@ func printInstalledApps(device ios.DeviceEntry, system bool) {
 		log.Info(response)
 		return
 	}
-	/*response, err := svc.BrowseSystemApps()
+	response, err := svc.BrowseSystemApps()
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Info(response)*/
+	log.Info(response)
 }
 
 func printDeviceName(device ios.DeviceEntry) {
@@ -440,26 +446,6 @@ func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 		allValues := getValues(device)
 		fmt.Printf("%s  %s  %s %s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion)
 	}
-}
-
-func getDeviceOrQuit(udid string) (ios.DeviceEntry, error) {
-	log.Debugf("Looking for device '%s'", udid)
-	deviceList := ios.ListDevices()
-	if udid == "" {
-		if len(deviceList.DeviceList) == 0 {
-			return ios.DeviceEntry{}, errors.New("no iOS devices are attached to this host")
-		}
-		return deviceList.DeviceList[0], nil
-	}
-	for _, device := range deviceList.DeviceList {
-		if strings.Contains(device.Properties.SerialNumber, "-") {
-			device.Properties.SerialNumber = strings.ReplaceAll(device.Properties.SerialNumber, "-", "")
-		}
-		if device.Properties.SerialNumber == udid {
-			return device, nil
-		}
-	}
-	return ios.DeviceEntry{}, fmt.Errorf("Device '%s' not found. Is it attached to the machine?", udid)
 }
 
 func startListening() {

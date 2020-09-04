@@ -66,7 +66,7 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 			return
 		}
 	}
-	log.Debugf("Global Dispatcher Received: %s %s %s", msg.Payload[0], msg, msg.Auxiliary)
+	log.Debugf("Global Dispatcher Received: %s %s %s", msg.Payload, msg, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}
@@ -108,11 +108,10 @@ func reader(dtxConn *Connection) {
 		reader := dtxConn.deviceConnection.Reader()
 		msg, err := ReadMessage(reader)
 		if err != nil {
-			if err == io.EOF {
+			if err == io.EOF || err.Error() == "use of closed network connection" {
 				log.Debug("Closing DTX Connection")
 				return
 			}
-			log.Fatal(err)
 		}
 		//TODO: move this to the channel level, the connection probably should not auto ack messages
 		sendAckIfNeeded(dtxConn, msg)
