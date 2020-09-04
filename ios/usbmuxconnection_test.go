@@ -39,28 +39,42 @@ type DeviceConnectionMock struct {
 	mock.Mock
 }
 
-func (mock *DeviceConnectionMock) Connect() {}
+func (mock *DeviceConnectionMock) Connect() {
+	mock.Called()
+}
 func (mock *DeviceConnectionMock) ConnectToSocketAddress(socketAddress string) {
+	mock.Called(socketAddress)
 
 }
-func (mock *DeviceConnectionMock) Close() {}
+func (mock *DeviceConnectionMock) Close() {
+	mock.Called()
+}
 func (mock *DeviceConnectionMock) Send(message []byte) error {
-
-	return nil
+	args := mock.Called(message)
+	return args.Error(0)
 }
 func (mock *DeviceConnectionMock) Reader() io.Reader {
-	return nil
+	args := mock.Called()
+	return args.Get(0).(io.Reader)
 }
 func (mock *DeviceConnectionMock) Writer() io.Writer {
-	return nil
+	args := mock.Called()
+	return args.Get(0).(io.Writer)
 }
 func (mock *DeviceConnectionMock) EnableSessionSsl(pairRecord ios.PairRecord) error {
-	return nil
+	args := mock.Called(pairRecord)
+	return args.Error(0)
 }
-func (mock *DeviceConnectionMock) EnableSessionSslServerMode(pairRecord ios.PairRecord) {}
+func (mock *DeviceConnectionMock) EnableSessionSslServerMode(pairRecord ios.PairRecord) {
+	mock.Called(pairRecord)
+}
 func (mock *DeviceConnectionMock) EnableSessionSslHandshakeOnly(pairRecord ios.PairRecord) error {
-	return nil
+	args := mock.Called(pairRecord)
+	return args.Error(0)
 }
 func (mock *DeviceConnectionMock) EnableSessionSslServerModeHandshakeOnly(pairRecord ios.PairRecord) {
+	mock.Called(pairRecord)
 }
-func (mock *DeviceConnectionMock) DisableSessionSSL() {}
+func (mock *DeviceConnectionMock) DisableSessionSSL() {
+	mock.Called()
+}
