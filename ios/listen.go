@@ -50,7 +50,7 @@ func NewListen() ListenType {
 		MessageType:         "Listen",
 		ProgName:            "go-usbmux",
 		ClientVersionString: "usbmuxd-471.8.1",
-		//dunno if conntype is needed
+		//Seems like Conntype is not really needed
 		ConnType:          1,
 		kLibUSBMuxVersion: 3,
 	}

@@ -13,6 +13,7 @@ import (
 )
 
 var update = flag.Bool("update", false, "update golden files")
+var integration = flag.Bool("integration", false, "run integration tests")
 
 type SampleData struct {
 	StringValue string

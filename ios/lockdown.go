@@ -1,67 +1,28 @@
 package ios
 
 import (
-	"bytes"
-
 	log "github.com/sirupsen/logrus"
-	plist "howett.net/plist"
 )
 
+//Lockdownport is the port of the always running lockdownd on the iOS device.
 const Lockdownport uint16 = 32498
 
 //LockDownConnection allows you to interact with the Lockdown service on the phone.
-//The UsbMuxConnection used to create this LockDownConnection cannot be used anymore.
+//You can use this to grab basic info from the device and start other services on the phone.
 type LockDownConnection struct {
 	deviceConnection DeviceConnectionInterface
 	sessionID        string
 	plistCodec       PlistCodec
 }
 
-type getValue struct {
-	Label   string
-	Key     string `plist:"Key,omitempty"`
-	Request string
-}
-
-func newGetValue(key string) *getValue {
-	data := &getValue{
-		Label:   "go.ios.control",
-		Key:     key,
-		Request: "GetValue",
-	}
-	return data
-}
-
-func GetValues(device DeviceEntry) GetAllValuesResponse {
-	muxConnection := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
-	defer muxConnection.ReleaseDeviceConnection()
-
-	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
-
-	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	lockdownConnection.StartSession(pairRecord)
-
-	allValues, err := lockdownConnection.GetValues()
-	if err != nil {
-		log.Fatal(err)
-	}
-	lockdownConnection.StopSession()
-	return allValues
-}
-
 //NewLockDownConnection creates a new LockDownConnection with empty sessionId and a PlistCodec.
 func NewLockDownConnection(dev DeviceConnectionInterface) *LockDownConnection {
-	return &LockDownConnection{dev, "", NewPlistCodec()}
+	return &LockDownConnection{deviceConnection: dev, plistCodec: NewPlistCodec()}
 }
 
-//Close dereferences this LockDownConnection from the underlying DeviceConnection and it returns the DeviceConnection for later use.
-func (lockDownConn *LockDownConnection) Close() DeviceConnectionInterface {
-	conn := lockDownConn.deviceConnection
-	lockDownConn.deviceConnection = nil
-	return conn
+//Close closes the underlying DeviceConnection
+func (lockDownConn *LockDownConnection) Close() {
+	lockDownConn.deviceConnection.Close()
 }
 
 //DisableSessionSSL see documentation in DeviceConnection
@@ -69,9 +30,12 @@ func (lockDownConn LockDownConnection) DisableSessionSSL() {
 	lockDownConn.deviceConnection.DisableSessionSSL()
 }
 
+//EnableSessionSsl see documentation in DeviceConnection
 func (lockDownConn LockDownConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	return lockDownConn.deviceConnection.EnableSessionSsl(pairRecord)
 }
+
+//EnableSessionSslServerMode see documentation in DeviceConnection
 func (lockDownConn LockDownConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
 	lockDownConn.deviceConnection.EnableSessionSslServerMode(pairRecord)
 
@@ -96,51 +60,4 @@ func (lockDownConn *LockDownConnection) ReadMessage() ([]byte, error) {
 		return make([]byte, 0), err
 	}
 	return resp, err
-}
-
-//GetValues retrieves a GetAllValuesResponse containing all values lockdown returns
-func (lockDownConn *LockDownConnection) GetValues() (GetAllValuesResponse, error) {
-	lockDownConn.Send(newGetValue(""))
-	resp, err := lockDownConn.ReadMessage()
-
-	response := getAllValuesResponseFromBytes(resp)
-	return response, err
-}
-
-//GetProductVersion returns the ProductVersion of the device f.ex. "10.3"
-func (lockDownConn *LockDownConnection) GetProductVersion() string {
-	msg, err := lockDownConn.GetValue("ProductVersion")
-	if err != nil {
-		log.Fatal("Failed getting ProductVersion", err)
-	}
-	return msg.(string)
-}
-
-//GetValue gets and returns the string value for the lockdown key
-func (lockDownConn *LockDownConnection) GetValue(key string) (interface{}, error) {
-	lockDownConn.Send(newGetValue(key))
-	resp, err := lockDownConn.ReadMessage()
-	response := getValueResponsefromBytes(resp)
-	return response.Value, err
-}
-
-//GetValueResponse contains the response for a GetValue Request
-type GetValueResponse struct {
-	Key     string
-	Request string
-	Value   interface{}
-}
-
-func getValueResponsefromBytes(plistBytes []byte) GetValueResponse {
-	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
-	var getValueResponse GetValueResponse
-	_ = decoder.Decode(&getValueResponse)
-	return getValueResponse
-}
-
-func getAllValuesResponseFromBytes(plistBytes []byte) GetAllValuesResponse {
-	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
-	var getAllValuesResponse GetAllValuesResponse
-	_ = decoder.Decode(&getAllValuesResponse)
-	return getAllValuesResponse
 }

@@ -27,11 +27,3 @@ func TestStringConversion(t *testing.T) {
 	}
 
 }
-
-func TestListDevicesCommand(t *testing.T) {
-	/*	generified := func() interface{} { return ios.ListDevices() }
-		entryOne := ios.DeviceEntry{DeviceID: 5, MessageType: "", Properties: ios.DeviceProperties{SerialNumber: "udid0"}}
-		list := ios.DeviceList{DeviceList: []ios.DeviceEntry{entryOne}}
-		receivedList := GenericMockUsbmuxdIntegrationTest(t, generified, ios.NewReadDevices(), list).(ios.DeviceList)
-		assert.Equal(t, entryOne.Properties.SerialNumber, receivedList.DeviceList[0].Properties.SerialNumber)*/
-}

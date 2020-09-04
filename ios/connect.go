@@ -53,30 +53,6 @@ var serviceConfigurations = map[string]bool{
 	"com.apple.debugserver":                              true,
 }
 
-//ConnectWithStartServiceResponse issues a Connect Message to UsbMuxd for the given deviceID on the given port
-//enabling the newCodec for it. It also enables SSL on the new service connection if requested by StartServiceResponse.
-//It returns an error containing the UsbMux error code should the connect fail.
-func (muxConn *UsbMuxConnection) ConnectWithStartServiceResponse(deviceID int, startServiceResponse StartServiceResponse, pairRecord PairRecord) error {
-	err := muxConn.Connect(deviceID, startServiceResponse.Port)
-	if err != nil {
-		return err
-	}
-
-	var sslerr error
-	if startServiceResponse.EnableServiceSSL {
-		if _, ok := serviceConfigurations[startServiceResponse.Service]; ok {
-			sslerr = muxConn.deviceConn.EnableSessionSslHandshakeOnly(pairRecord)
-		} else {
-			sslerr = muxConn.deviceConn.EnableSessionSsl(pairRecord)
-		}
-		if sslerr != nil {
-			return sslerr
-		}
-	}
-
-	return nil
-}
-
 //ConnectLockdown connects this Usbmux connection to the LockDown service that
 // always runs on the device on the same port. The connect call needs the deviceID which can be
 // retrieved from a DeviceList using the ListDevices function. After this function
@@ -107,9 +83,33 @@ func ConnectToService(deviceID int, udid string, serviceName string) (DeviceConn
 	pairRecord := ReadPairRecord(udid)
 
 	muxConn := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
-	err = muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, pairRecord)
+	err = muxConn.connectWithStartServiceResponse(deviceID, *startServiceResponse, pairRecord)
 	if err != nil {
 		return nil, err
 	}
 	return muxConn.ReleaseDeviceConnection(), nil
+}
+
+//connectWithStartServiceResponse issues a Connect Message to UsbMuxd for the given deviceID on the given port
+//enabling the newCodec for it. It also enables SSL on the new service connection if requested by StartServiceResponse.
+//It returns an error containing the UsbMux error code should the connect fail.
+func (muxConn *UsbMuxConnection) connectWithStartServiceResponse(deviceID int, startServiceResponse StartServiceResponse, pairRecord PairRecord) error {
+	err := muxConn.Connect(deviceID, startServiceResponse.Port)
+	if err != nil {
+		return err
+	}
+
+	var sslerr error
+	if startServiceResponse.EnableServiceSSL {
+		if _, ok := serviceConfigurations[startServiceResponse.Service]; ok {
+			sslerr = muxConn.deviceConn.EnableSessionSslHandshakeOnly(pairRecord)
+		} else {
+			sslerr = muxConn.deviceConn.EnableSessionSsl(pairRecord)
+		}
+		if sslerr != nil {
+			return sslerr
+		}
+	}
+
+	return nil
 }

@@ -117,18 +117,20 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 
 //EnableSessionSslServerMode wraps the underlying net.Conn in a server tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
-	tlsConn, _ := conn.createServerTlsConn(pairRecord)
+	tlsConn, _ := conn.createServerTLSConn(pairRecord)
 	conn.unencryptedConn = conn.c
 	conn.c = net.Conn(tlsConn)
 }
 
+//EnableSessionSslServerModeHandshakeOnly enables SSL only for the Handshake and then falls back to plaintext
+//DTX based services do that currently. Server mode is needed only in the debugproxy.
 func (conn *DeviceConnection) EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord) {
-	conn.createServerTlsConn(pairRecord)
+	conn.createServerTLSConn(pairRecord)
 }
 
 //EnableSessionSsl wraps the underlying net.Conn in a client tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
-	tlsConn, err := conn.createClientTlsConn(pairRecord)
+	tlsConn, err := conn.createClientTLSConn(pairRecord)
 	if err != nil {
 		return err
 	}
@@ -137,15 +139,17 @@ func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	return nil
 }
 
+//EnableSessionSslHandshakeOnly enables SSL only for the Handshake and then falls back to plaintext
+//DTX based services do that currently
 func (conn *DeviceConnection) EnableSessionSslHandshakeOnly(pairRecord PairRecord) error {
-	_, err := conn.createClientTlsConn(pairRecord)
+	_, err := conn.createClientTLSConn(pairRecord)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (conn *DeviceConnection) createClientTlsConn(pairRecord PairRecord) (*tls.Conn, error) {
+func (conn *DeviceConnection) createClientTLSConn(pairRecord PairRecord) (*tls.Conn, error) {
 	cert5, err := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
 	if err != nil {
 		log.Error("Error SSL:" + err.Error())
@@ -170,7 +174,7 @@ func (conn *DeviceConnection) createClientTlsConn(pairRecord PairRecord) (*tls.C
 	return tlsConn, nil
 }
 
-func (conn *DeviceConnection) createServerTlsConn(pairRecord PairRecord) (*tls.Conn, error) {
+func (conn *DeviceConnection) createServerTLSConn(pairRecord PairRecord) (*tls.Conn, error) {
 	//we can just use the hostcert and key here, normally the device has its own pair of cert and key
 	//but we do not know the device private key. funny enough, host has been signed by the same root cert
 	//so it will be accepted by clients

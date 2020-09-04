@@ -1,5 +1,12 @@
 package ios
 
+import (
+	"bytes"
+
+	log "github.com/sirupsen/logrus"
+	plist "howett.net/plist"
+)
+
 //BasebandKeyHashInformationType containing some baseband related
 //data directly from the ios device
 type BasebandKeyHashInformationType struct {
@@ -99,4 +106,87 @@ type AllValuesType struct {
 	KCTPostponementInfoPRLName                  int    `plist:"kCTPostponementInfoPRLName"`
 	KCTPostponementInfoServiceProvisioningState bool   `plist:"kCTPostponementInfoServiceProvisioningState"`
 	KCTPostponementStatus                       string `plist:"kCTPostponementStatus"`
+}
+
+type getValue struct {
+	Label   string
+	Key     string `plist:"Key,omitempty"`
+	Request string
+}
+
+func newGetValue(key string) getValue {
+	data := getValue{
+		Label:   "go.ios.control",
+		Key:     key,
+		Request: "GetValue",
+	}
+	return data
+}
+
+//GetValues retrieves a GetAllValuesResponse containing all values lockdown returns
+func (lockDownConn *LockDownConnection) GetValues() (GetAllValuesResponse, error) {
+	lockDownConn.Send(newGetValue(""))
+	resp, err := lockDownConn.ReadMessage()
+
+	response := getAllValuesResponseFromBytes(resp)
+	return response, err
+}
+
+//GetProductVersion returns the ProductVersion of the device f.ex. "10.3"
+func (lockDownConn *LockDownConnection) GetProductVersion() string {
+	msg, err := lockDownConn.GetValue("ProductVersion")
+	if err != nil {
+		log.Fatal("Failed getting ProductVersion", err)
+	}
+	return msg.(string)
+}
+
+//GetValue gets and returns the string value for the lockdown key
+func (lockDownConn *LockDownConnection) GetValue(key string) (interface{}, error) {
+	lockDownConn.Send(newGetValue(key))
+	resp, err := lockDownConn.ReadMessage()
+	response := getValueResponsefromBytes(resp)
+	return response.Value, err
+}
+
+//GetValueResponse contains the response for a GetValue Request
+type GetValueResponse struct {
+	Key     string
+	Request string
+	Value   interface{}
+}
+
+func getValueResponsefromBytes(plistBytes []byte) GetValueResponse {
+	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
+	var getValueResponse GetValueResponse
+	_ = decoder.Decode(&getValueResponse)
+	return getValueResponse
+}
+
+func getAllValuesResponseFromBytes(plistBytes []byte) GetAllValuesResponse {
+	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
+	var getAllValuesResponse GetAllValuesResponse
+	_ = decoder.Decode(&getAllValuesResponse)
+	return getAllValuesResponse
+}
+
+//GetValues returns all values of deviceInformation from lockdown
+func GetValues(device DeviceEntry) GetAllValuesResponse {
+	muxConnection := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
+	defer muxConnection.ReleaseDeviceConnection()
+
+	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
+
+	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	lockdownConnection.StartSession(pairRecord)
+
+	allValues, err := lockdownConnection.GetValues()
+	if err != nil {
+		log.Fatal(err)
+	}
+	lockdownConnection.StopSession()
+	return allValues
 }

@@ -13,8 +13,8 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *ios.LockD
 	for {
 		request, err := lockdownOnUnixSocket.ReadMessage()
 		if err != nil {
-			lockdownOnUnixSocket.Close().Close()
-			lockdownToDevice.Close().Close()
+			lockdownOnUnixSocket.Close()
+			lockdownToDevice.Close()
 			if err == io.EOF {
 				p.LogClosed()
 				return
