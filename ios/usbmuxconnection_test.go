@@ -40,10 +40,6 @@ type DeviceConnectionMock struct {
 	mock.Mock
 }
 
-func (mock *DeviceConnectionMock) ConnectToSocketAddress(socketAddress string) {
-	mock.Called(socketAddress)
-
-}
 func (mock *DeviceConnectionMock) Close() {
 	mock.Called()
 }

@@ -12,7 +12,6 @@ import (
 
 // DeviceConnectionInterface contains a physical network connection to a usbmuxd socket.
 type DeviceConnectionInterface interface {
-	ConnectToSocketAddress(socketAddress string)
 	Close()
 	Send(message []byte) error
 	Reader() io.Reader
@@ -34,7 +33,7 @@ type DeviceConnection struct {
 //NewDeviceConnection creates a new DeviceConnection pointing to the given socket waiting for a call to Connect()
 func NewDeviceConnection(socketToConnectTo string) *DeviceConnection {
 	conn := &DeviceConnection{}
-	conn.ConnectToSocketAddress(socketToConnectTo)
+	conn.connectToSocketAddress(socketToConnectTo)
 	return conn
 }
 
@@ -44,7 +43,7 @@ func NewDeviceConnectionWithConn(conn net.Conn) *DeviceConnection {
 }
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
-func (conn *DeviceConnection) ConnectToSocketAddress(socketAddress string) {
+func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) {
 	c, err := net.Dial("unix", socketAddress)
 	if err != nil {
 		log.Fatal("Could not connect to usbmuxd socket, is it running?", err)
