@@ -461,7 +461,7 @@ func getDeviceOrQuit(udid string) (ios.DeviceEntry, error) {
 	}
 	for _, device := range deviceList.DeviceList {
 		device.Properties.SerialNumber = strings.ReplaceAll(device.Properties.SerialNumber, "-", "")
-		udid = strings.ReplaceAll(udud, "-", "")
+		udid = strings.ReplaceAll(udid, "-", "")
 		if device.Properties.SerialNumber == udid {
 			return device, nil
 		}
