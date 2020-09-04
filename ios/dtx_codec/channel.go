@@ -113,7 +113,6 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType int, payloadB
 }
 
 func (d *Channel) Dispatch(msg Message) {
-
 	d.mutex.Lock()
 	if msg.Identifier >= d.messageIdentifier {
 		d.messageIdentifier = msg.Identifier + 1

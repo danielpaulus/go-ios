@@ -11,8 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLaunch(t *testing.T) {
-
+func TestLaunchAndKill(t *testing.T) {
 	device, err := ios.GetDevice("")
 	if err != nil {
 		log.Fatal(err)

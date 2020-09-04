@@ -1,11 +1,20 @@
+// +build integration
+
 package accessibility_test
 
 import (
 	"testing"
+
+	ios "github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/accessibility"
+	log "github.com/sirupsen/logrus"
 )
 
 func TestIT(t *testing.T) {
-	/*device := ios.ListDevices().DeviceList[0]
+	device, err := ios.GetDevice("")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	conn, err := accessibility.New(device)
 	if err != nil {
@@ -20,7 +29,7 @@ func TestIT(t *testing.T) {
 	conn.GetElement()
 	conn.GetElement()
 	conn.TurnOff()
-	*/
+
 	//conn.EnableSelectionMode()
 
 }

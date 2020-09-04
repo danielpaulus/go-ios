@@ -5,6 +5,16 @@
 # go-ios
 Is a port of the wonderful https://www.libimobiledevice.org to golang, so you can control iOS devices using go :-)
 
+To run integration tests: `go test ./... --tags=integration`
+To setup vscode to run integration tests: `touch ./vscode/settings.json`
+and add 
+```
+{
+"go.testTags" : "integration"
+}
+``` 
+to it. 
+
 ```
 iOS client v 0.01
 
