@@ -459,7 +459,7 @@ func getDeviceOrQuit(udid string) (ios.DeviceEntry, error) {
 }
 
 func startListening() {
-	muxConnection := ios.NewUsbMuxConnection()
+	muxConnection := ios.NewUsbMuxConnection(ios.NewDeviceConnection(ios.DefaultUsbmuxdSocket))
 	defer muxConnection.Close()
 	attachedReceiver, err := muxConnection.Listen()
 	if err != nil {
@@ -508,7 +508,7 @@ func runSyslog(device ios.DeviceEntry) {
 }
 
 func getValues(device ios.DeviceEntry) ios.GetAllValuesResponse {
-	muxConnection := ios.NewUsbMuxConnection()
+	muxConnection := ios.NewUsbMuxConnection(ios.NewDeviceConnection(ios.DefaultUsbmuxdSocket))
 	defer muxConnection.Close()
 
 	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)

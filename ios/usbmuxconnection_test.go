@@ -9,7 +9,8 @@ import (
 )
 
 func TestCodec(t *testing.T) {
-	//mc := new(manualClientMock)
+	//mc := new(DeviceConnectionMock)
+
 	//	mc.On("GetSessionInfo", mock.Anything, mock.Anything).Return(manualclient.Session{}, errors.New("Fail"))
 
 	//muxConn.Send(ios.NewReadDevices())
@@ -39,9 +40,6 @@ type DeviceConnectionMock struct {
 	mock.Mock
 }
 
-func (mock *DeviceConnectionMock) Connect() {
-	mock.Called()
-}
 func (mock *DeviceConnectionMock) ConnectToSocketAddress(socketAddress string) {
 	mock.Called(socketAddress)
 

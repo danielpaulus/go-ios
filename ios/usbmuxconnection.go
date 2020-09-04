@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
@@ -14,7 +13,7 @@ import (
 )
 
 //DefaultUsbmuxdSocket this is the unix domain socket address to connect to. The default is "/var/run/usbmuxd"
-var DefaultUsbmuxdSocket = "/var/run/usbmuxd"
+const DefaultUsbmuxdSocket = "/var/run/usbmuxd"
 
 //UsbMuxConnection provides a Send Method for sending Messages to UsbMuxD and a ResponseChannel to
 //receive the responses.
@@ -24,28 +23,10 @@ type UsbMuxConnection struct {
 	deviceConn DeviceConnectionInterface
 }
 
-//NewUsbMuxConnection creates a new UsbMuxConnection by connecting to the usbmuxd Socket.
-func NewUsbMuxConnection() *UsbMuxConnection {
-	return NewUsbMuxConnectionToSocket(DefaultUsbmuxdSocket)
-}
-
-//NewUsbMuxConnectionToSocket creates a new UsbMuxConnection by connecting to the specified usbmuxd Socket.
-func NewUsbMuxConnectionToSocket(socket string) *UsbMuxConnection {
-	muxConnection := &UsbMuxConnection{tag: 0, deviceConn: NewDeviceConnection(socket)}
-	muxConnection.deviceConn.Connect()
-	return muxConnection
-}
-
-//NewUsbMuxConnectionWithConn creates a new MuxConnection in listening mode for proxy use.
-func NewUsbMuxConnectionWithConn(c net.Conn) *UsbMuxConnection {
-	return &UsbMuxConnection{tag: 0, deviceConn: NewDeviceConnectionWithConn(c)}
-}
-
-// NewUsbMuxConnectionWithDeviceConnection creates a new MuxConnection with from an already initialized DeviceConnectionInterface
-// (only needed for testing)
-func NewUsbMuxConnectionWithDeviceConnection(deviceConn DeviceConnectionInterface) *UsbMuxConnection {
+// NewUsbMuxConnection creates a new UsbMuxConnection with from an already initialized DeviceConnectionInterface
+// and
+func NewUsbMuxConnection(deviceConn DeviceConnectionInterface) *UsbMuxConnection {
 	muxConn := &UsbMuxConnection{tag: 0, deviceConn: deviceConn}
-	muxConn.deviceConn.Connect()
 	return muxConn
 }
 

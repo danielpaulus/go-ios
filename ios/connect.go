@@ -106,7 +106,7 @@ func ConnectToService(deviceID int, udid string, serviceName string) (DeviceConn
 	}
 	pairRecord := ReadPairRecord(udid)
 
-	muxConn := NewUsbMuxConnection()
+	muxConn := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
 	err = muxConn.ConnectWithStartServiceResponse(deviceID, *startServiceResponse, pairRecord)
 	if err != nil {
 		return nil, err

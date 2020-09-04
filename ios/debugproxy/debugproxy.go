@@ -124,8 +124,8 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry) error {
 }
 
 func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.PairRecord, debugProxy *DebugProxy, info ConnectionInfo) {
-	connListeningOnUnixSocket := ios.NewUsbMuxConnectionWithConn(conn)
-	connectionToDevice := ios.NewUsbMuxConnectionToSocket(originalSocket)
+	connListeningOnUnixSocket := ios.NewUsbMuxConnection(ios.NewDeviceConnectionWithConn(conn))
+	connectionToDevice := ios.NewUsbMuxConnection(ios.NewDeviceConnection(originalSocket))
 
 	p := ProxyConnection{info.ID, pairRecord, debugProxy, info, log.WithFields(log.Fields{"id": info.ID}), sync.Mutex{}, false}
 

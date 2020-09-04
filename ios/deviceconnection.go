@@ -12,7 +12,6 @@ import (
 
 // DeviceConnectionInterface contains a physical network connection to a usbmuxd socket.
 type DeviceConnectionInterface interface {
-	Connect()
 	ConnectToSocketAddress(socketAddress string)
 	Close()
 	Send(message []byte) error
@@ -30,21 +29,18 @@ type DeviceConnectionInterface interface {
 type DeviceConnection struct {
 	c               net.Conn
 	unencryptedConn net.Conn
-	muxSocket       string
 }
 
 //NewDeviceConnection creates a new DeviceConnection pointing to the given socket waiting for a call to Connect()
 func NewDeviceConnection(socketToConnectTo string) *DeviceConnection {
-	return &DeviceConnection{muxSocket: socketToConnectTo}
+	conn := &DeviceConnection{}
+	conn.ConnectToSocketAddress(socketToConnectTo)
+	return conn
 }
 
+//NewDeviceConnectionWithConn create a DeviceConnection with a already connected network conn.
 func NewDeviceConnectionWithConn(conn net.Conn) *DeviceConnection {
-	return &DeviceConnection{muxSocket: "", c: conn}
-}
-
-//Connect connects to the USB multiplexer daemon using  the default address: '/var/run/usbmuxd'
-func (conn *DeviceConnection) Connect() {
-	conn.ConnectToSocketAddress(conn.muxSocket)
+	return &DeviceConnection{c: conn}
 }
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
