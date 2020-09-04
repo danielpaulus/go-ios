@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"os"
 	"os/signal"
@@ -446,6 +448,25 @@ func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 		allValues := getValues(device)
 		fmt.Printf("%s  %s  %s %s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion)
 	}
+}
+
+func getDeviceOrQuit(udid string) (ios.DeviceEntry, error) {
+	log.Debugf("Looking for device '%s'", udid)
+	deviceList := ios.ListDevices()
+	if udid == "" {
+		if len(deviceList.DeviceList) == 0 {
+			return ios.DeviceEntry{}, errors.New("no iOS devices are attached to this host")
+		}
+		return deviceList.DeviceList[0], nil
+	}
+	for _, device := range deviceList.DeviceList {
+		device.Properties.SerialNumber = strings.ReplaceAll(device.Properties.SerialNumber, "-", "")
+		udid = strings.ReplaceAll(udud, "-", "")
+		if device.Properties.SerialNumber == udid {
+			return device, nil
+		}
+	}
+	return ios.DeviceEntry{}, fmt.Errorf("Device '%s' not found. Is it attached to the machine?", udid)
 }
 
 func startListening() {
