@@ -2,6 +2,7 @@ package ios
 
 import (
 	"bytes"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -20,32 +21,36 @@ type StartServiceResponse struct {
 	Request          string
 	Service          string
 	EnableServiceSSL bool
+	Error            string
 }
 
-func getStartServiceResponsefromBytes(plistBytes []byte) *StartServiceResponse {
+func getStartServiceResponsefromBytes(plistBytes []byte) StartServiceResponse {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var data StartServiceResponse
 	_ = decoder.Decode(&data)
-	return &data
+	return data
 }
 
 //StartService sends a StartServiceRequest using the provided serviceName
 //and returns the Port of the services in a BigEndian Integer.
 //This port cann be used with a new UsbMuxClient and the Connect call.
-func (lockDownConn *LockDownConnection) StartService(serviceName string) (*StartServiceResponse, error) {
+func (lockDownConn *LockDownConnection) StartService(serviceName string) (StartServiceResponse, error) {
 	lockDownConn.Send(startServiceRequest{Label: "go.ios.control", Request: "StartService", Service: serviceName})
 	resp, err := lockDownConn.ReadMessage()
 	if err != nil {
-		return &StartServiceResponse{}, err
+		return StartServiceResponse{}, err
 	}
 	response := getStartServiceResponsefromBytes(resp)
+	if response.Error != "" {
+		return StartServiceResponse{}, fmt.Errorf("Could not start service:%s with reason:'%s'. Have you mounted the Developer Image?", serviceName, response.Error)
+	}
 	log.WithFields(log.Fields{"Port": response.Port, "Request": response.Request, "Service": response.Service, "EnableServiceSSL": response.EnableServiceSSL}).Debug("Service started on device")
 	return response, nil
 }
 
 //StartService conveniently starts a service on a device and cleans up the used UsbMuxconnection.
 //It returns the service port as a uint16 in BigEndian byte order.
-func StartService(deviceID int, udid string, serviceName string) (*StartServiceResponse, error) {
+func StartService(deviceID int, udid string, serviceName string) (StartServiceResponse, error) {
 	muxConnection := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
 	defer muxConnection.ReleaseDeviceConnection()
 	pairRecord := muxConnection.ReadPair(udid)

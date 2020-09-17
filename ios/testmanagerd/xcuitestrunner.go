@@ -133,7 +133,10 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	if err != nil {
 		return err
 	}
-	conn, _ := dtx.NewConnection(device, testmanagerd)
+	conn, err := dtx.NewConnection(device, testmanagerd)
+	if err != nil {
+		return err
+	}
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxy(conn)
 	protocolVersion, err := ideDaemonProxy.daemonConnection.initiateSessionWithIdentifier(testSessionId, 29)
