@@ -2,6 +2,8 @@ package ios
 
 import (
 	"fmt"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type connectMessage struct {
@@ -112,4 +114,18 @@ func (muxConn *UsbMuxConnection) connectWithStartServiceResponse(deviceID int, s
 	}
 
 	return nil
+}
+
+func ConnectLockdownWithSession(device DeviceEntry) *LockDownConnection {
+	muxConnection := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
+	defer muxConnection.ReleaseDeviceConnection()
+
+	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
+
+	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	lockdownConnection.StartSession(pairRecord)
+	return lockdownConnection
 }

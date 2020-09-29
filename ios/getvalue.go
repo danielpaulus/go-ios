@@ -2,6 +2,7 @@ package ios
 
 import (
 	"bytes"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -112,6 +113,8 @@ type getValue struct {
 	Label   string
 	Key     string `plist:"Key,omitempty"`
 	Request string
+	Domain  string `plist:"Domain,omitempty"`
+	Value   string `plist:"Value,omitempty"`
 }
 
 func newGetValue(key string) getValue {
@@ -121,6 +124,59 @@ func newGetValue(key string) getValue {
 		Request: "GetValue",
 	}
 	return data
+}
+
+func newSetValue(key string, domain string, value string) getValue {
+	data := getValue{
+		Label:   "go.ios.control",
+		Key:     key,
+		Domain:  domain,
+		Request: "SetValue",
+		Value:   value,
+	}
+	return data
+}
+
+type LanguageConfiguration struct {
+	Language string
+	Locale   string
+}
+
+func SetLanguage(device DeviceEntry, config LanguageConfiguration) error {
+	if config.Locale == "" && config.Language == "" {
+		log.Debug("SetLanguage called with empty config, no changes made")
+		return nil
+	}
+	lockDownConn := ConnectLockdownWithSession(device)
+	defer lockDownConn.StopSession()
+	if config.Locale != "" {
+		err := lockDownConn.SetValueForDomain("Locale", "com.apple.international", config.Locale)
+		if err != nil {
+			return err
+		}
+	}
+	if config.Language != "" {
+		err := lockDownConn.SetValueForDomain("Language", "com.apple.international", config.Language)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func GetLanguage(device DeviceEntry) (LanguageConfiguration, error) {
+	lockDownConn := ConnectLockdownWithSession(device)
+	defer lockDownConn.StopSession()
+	languageResp, err := lockDownConn.GetValueForDomain("Language", "com.apple.international")
+	if err != nil {
+		return LanguageConfiguration{}, err
+	}
+	localeResp, err := lockDownConn.GetValueForDomain("Locale", "com.apple.international")
+	if err != nil {
+		return LanguageConfiguration{}, err
+	}
+
+	return LanguageConfiguration{Language: languageResp.(string), Locale: localeResp.(string)}, nil
 }
 
 //GetValues retrieves a GetAllValuesResponse containing all values lockdown returns
@@ -149,10 +205,32 @@ func (lockDownConn *LockDownConnection) GetValue(key string) (interface{}, error
 	return response.Value, err
 }
 
+func (lockDownConn *LockDownConnection) GetValueForDomain(key string, domain string) (interface{}, error) {
+	gv := newGetValue(key)
+	gv.Domain = domain
+	lockDownConn.Send(gv)
+	resp, err := lockDownConn.ReadMessage()
+	response := getValueResponsefromBytes(resp)
+	return response.Value, err
+}
+
+func (lockDownConn *LockDownConnection) SetValueForDomain(key string, domain string, value string) error {
+	gv := newSetValue(key, domain, value)
+	lockDownConn.Send(gv)
+	resp, err := lockDownConn.ReadMessage()
+	response := getValueResponsefromBytes(resp)
+	if response.Error != "" {
+		return fmt.Errorf("Failed setting '%s' to '%s' with err: %s", key, value, response.Error)
+	}
+	return err
+}
+
 //GetValueResponse contains the response for a GetValue Request
 type GetValueResponse struct {
 	Key     string
 	Request string
+	Error   string
+	Domain  string
 	Value   interface{}
 }
 

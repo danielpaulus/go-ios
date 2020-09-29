@@ -47,6 +47,7 @@ Usage:
   ios screenshot [options] [--output=<outfile>]
   ios devicename [options] 
   ios date [options]
+  ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios diagnostics list [options]
   ios pair [options]
   ios forward [options] <hostPort> <targetPort>
@@ -79,6 +80,7 @@ The commands work as following:
    ios screenshot [options] [--output=<outfile>]      Takes a screenshot and writes it to the current dir or to <outfile>
    ios devicename [options]                           Prints the devicename
    ios date [options]                                 Prints the device date
+   ios lang [options] [--set=<locale>]                Gets and sets device language and locale
    ios diagnostics list [options]                     List diagnostic infos
    ios pair [options]                                 Pairs the device and potentially triggers the pairing dialog
    ios forward [options] <hostPort> <targetPort>      Similar to iproxy, forward a TCP connection to the device.
@@ -140,6 +142,15 @@ The commands work as following:
 	device, err := ios.GetDevice(udid)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	b, _ = arguments.Bool("lang")
+	if b {
+		locale, _ := arguments.String("--setlocale")
+		newlang, _ := arguments.String("--setlang")
+		log.Debugf("lang --setlocale:%s --setlang:%s", locale, newlang)
+		language(device, locale, newlang)
+		return
 	}
 
 	b, _ = arguments.Bool("dproxy")
@@ -261,6 +272,19 @@ The commands work as following:
 		return
 	}
 
+}
+
+func language(device ios.DeviceEntry, locale string, language string) {
+	err := ios.SetLanguage(device, ios.LanguageConfiguration{Language: language, Locale: locale})
+	if err != nil {
+		log.Fatal(err)
+	}
+	lang, err := ios.GetLanguage(device)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(convertToJSONString(lang))
 }
 
 func startAx(device ios.DeviceEntry) {
