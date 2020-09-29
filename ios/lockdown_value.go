@@ -210,21 +210,12 @@ func getAllValuesResponseFromBytes(plistBytes []byte) GetAllValuesResponse {
 
 //GetValues returns all values of deviceInformation from lockdown
 func GetValues(device DeviceEntry) GetAllValuesResponse {
-	muxConnection := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
-	defer muxConnection.ReleaseDeviceConnection()
-
-	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
-
-	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	lockdownConnection.StartSession(pairRecord)
+	lockdownConnection := ConnectLockdownWithSession(device)
+	defer lockdownConnection.Close()
 
 	allValues, err := lockdownConnection.GetValues()
 	if err != nil {
 		log.Fatal(err)
 	}
-	lockdownConnection.StopSession()
 	return allValues
 }

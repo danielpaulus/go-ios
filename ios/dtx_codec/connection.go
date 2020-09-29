@@ -78,7 +78,7 @@ func notifyOfPublishedCapabilities(msg Message) {
 
 //NewConnection connects and starts reading from a Dtx based service on the device
 func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, error) {
-	conn, err := ios.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
+	conn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return nil, err
 	}

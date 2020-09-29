@@ -77,15 +77,15 @@ func (muxConn *UsbMuxConnection) ConnectLockdown(deviceID int) (*LockDownConnect
 }
 
 //ConnectToService connects to a service on the phone and returns the ready to use DeviceConnectionInterface
-func ConnectToService(deviceID int, udid string, serviceName string) (DeviceConnectionInterface, error) {
-	startServiceResponse, err := StartService(deviceID, udid, serviceName)
+func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
+	startServiceResponse, err := StartService(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
-	pairRecord := ReadPairRecord(udid)
+	pairRecord := ReadPairRecord(device.Properties.SerialNumber)
 
 	muxConn := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
-	err = muxConn.connectWithStartServiceResponse(deviceID, startServiceResponse, pairRecord)
+	err = muxConn.connectWithStartServiceResponse(device.DeviceID, startServiceResponse, pairRecord)
 	if err != nil {
 		return nil, err
 	}

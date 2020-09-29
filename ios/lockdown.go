@@ -22,6 +22,7 @@ func NewLockDownConnection(dev DeviceConnectionInterface) *LockDownConnection {
 
 //Close closes the underlying DeviceConnection
 func (lockDownConn *LockDownConnection) Close() {
+	lockDownConn.StopSession()
 	lockDownConn.deviceConnection.Close()
 }
 

@@ -9,8 +9,8 @@ type Connection struct {
 	plistCodec ios.PlistCodec
 }
 
-func New(deviceID int, udid string, pairRecord ios.PairRecord) (*Connection, error) {
-	deviceConn, err := ios.ConnectToService(deviceID, udid, serviceName)
+func New(device ios.DeviceEntry) (*Connection, error) {
+	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}

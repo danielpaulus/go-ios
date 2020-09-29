@@ -18,8 +18,8 @@ type Connection struct {
 
 //New returns a new SysLog Connection for the given DeviceID and Udid
 //It will create LogReader as a buffered Channel because Syslog is very verbose.
-func New(deviceID int, udid string, pairRecord ios.PairRecord) (*Connection, error) {
-	deviceConn, err := ios.ConnectToService(deviceID, udid, serviceName)
+func New(device ios.DeviceEntry) (*Connection, error) {
+	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}

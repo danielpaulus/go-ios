@@ -21,7 +21,7 @@ type Connection struct {
 }
 
 func New(device ios.DeviceEntry, bundleID string) (*Connection, error) {
-	deviceConn, err := ios.ConnectToService(device.DeviceID, device.Properties.SerialNumber, serviceName)
+	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}

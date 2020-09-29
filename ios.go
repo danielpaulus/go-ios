@@ -362,7 +362,7 @@ func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
 
 func printDiagnostics(device ios.DeviceEntry) {
 	log.Debug("print diagnostics")
-	diagnosticsService, err := diagnostics.New(device.DeviceID, device.Properties.SerialNumber, ios.ReadPairRecord(device.Properties.SerialNumber))
+	diagnosticsService, err := diagnostics.New(device)
 	if err != nil {
 		log.Fatalf("Starting diagnostics service failed with: %s", err)
 	}
@@ -374,7 +374,7 @@ func printDiagnostics(device ios.DeviceEntry) {
 }
 
 func printDeviceDate(device ios.DeviceEntry) {
-	allValues := getValues(device)
+	allValues := ios.GetValues(device)
 
 	formatedDate := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).Format(time.RFC850)
 	if JSONdisabled {
@@ -402,7 +402,7 @@ func printInstalledApps(device ios.DeviceEntry, system bool) {
 }
 
 func printDeviceName(device ios.DeviceEntry) {
-	allValues := getValues(device)
+	allValues := ios.GetValues(device)
 	if JSONdisabled {
 		println(allValues.Value.DeviceName)
 	} else {
@@ -414,7 +414,7 @@ func printDeviceName(device ios.DeviceEntry) {
 
 func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 	log.Debug("take screenshot")
-	screenshotrService, err := screenshotr.New(device.DeviceID, device.Properties.SerialNumber, ios.ReadPairRecord(device.Properties.SerialNumber))
+	screenshotrService, err := screenshotr.New(device)
 	if err != nil {
 		log.Fatalf("Starting Screenshotr failed with: %s", err)
 	}
@@ -467,7 +467,7 @@ func outputDetailedList(deviceList ios.DeviceList) {
 	result := make([]detailsEntry, len(deviceList.DeviceList))
 	for i, device := range deviceList.DeviceList {
 		udid := device.Properties.SerialNumber
-		allValues := getValues(device)
+		allValues := ios.GetValues(device)
 		result[i] = detailsEntry{udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion}
 	}
 	fmt.Println(convertToJSONString(map[string][]detailsEntry{
@@ -478,7 +478,7 @@ func outputDetailedList(deviceList ios.DeviceList) {
 func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 	for _, device := range deviceList.DeviceList {
 		udid := device.Properties.SerialNumber
-		allValues := getValues(device)
+		allValues := ios.GetValues(device)
 		fmt.Printf("%s  %s  %s %s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion)
 	}
 }
@@ -521,14 +521,14 @@ func startListening() {
 }
 
 func printDeviceInfo(device ios.DeviceEntry) {
-	allValues := getValues(device)
+	allValues := ios.GetValues(device)
 	fmt.Println(convertToJSONString(allValues.Value))
 }
 
 func runSyslog(device ios.DeviceEntry) {
 	log.Debug("Run Syslog.")
 
-	syslogConnection, err := syslog.New(device.DeviceID, device.Properties.SerialNumber)
+	syslogConnection, err := syslog.New(device)
 	if err != nil {
 		log.Fatalf("Syslog connection failed, %s", err)
 	}
@@ -549,26 +549,6 @@ func runSyslog(device ios.DeviceEntry) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
-}
-
-func getValues(device ios.DeviceEntry) ios.GetAllValuesResponse {
-	muxConnection := ios.NewUsbMuxConnection(ios.NewDeviceConnection(ios.DefaultUsbmuxdSocket))
-	defer muxConnection.ReleaseDeviceConnection()
-
-	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
-
-	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	lockdownConnection.StartSession(pairRecord)
-
-	allValues, err := lockdownConnection.GetValues()
-	if err != nil {
-		log.Fatal(err)
-	}
-	lockdownConnection.StopSession()
-	return allValues
 }
 
 func pairDevice(device ios.DeviceEntry) {
