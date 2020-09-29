@@ -19,6 +19,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
+	"github.com/danielpaulus/go-ios/ios/notificationproxy"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
@@ -275,11 +276,19 @@ The commands work as following:
 }
 
 func language(device ios.DeviceEntry, locale string, language string) {
-	err := ios.SetLanguage(device, ios.LanguageConfiguration{Language: language, Locale: locale})
+	lang, err := ios.GetLanguage(device)
 	if err != nil {
 		log.Fatal(err)
 	}
-	lang, err := ios.GetLanguage(device)
+	err = ios.SetLanguage(device, ios.LanguageConfiguration{Language: language, Locale: locale})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if lang.Language != language && language != "" {
+		log.Debugf("Language should be changed from %s to %s waiting for Springboard to reboot", lang.Language, language)
+		notificationproxy.WaitUntilSpringboardStarted(device)
+	}
+	lang, err = ios.GetLanguage(device)
 	if err != nil {
 		log.Fatal(err)
 	}

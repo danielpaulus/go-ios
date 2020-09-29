@@ -40,7 +40,7 @@ type AllValuesType struct {
 	ActivationState                             string
 	ActivationStateAcknowledged                 bool
 	BasebandActivationTicketVersion             string
-	BasebandCertId                              int
+	BasebandCertID                              int `plist:"BasebandCertId"`
 	BasebandChipID                              int
 	BasebandKeyHashInformation                  BasebandKeyHashInformationType
 	BasebandMasterKeyHash                       string
@@ -49,7 +49,7 @@ type AllValuesType struct {
 	BasebandStatus                              string
 	BasebandVersion                             string
 	BluetoothAddress                            string
-	BoardId                                     int
+	BoardID                                     int `plist:"BoardId"`
 	BrickState                                  bool
 	BuildVersion                                string
 	CPUArchitecture                             string
@@ -109,7 +109,7 @@ type AllValuesType struct {
 	KCTPostponementStatus                       string `plist:"kCTPostponementStatus"`
 }
 
-type getValue struct {
+type valueRequest struct {
 	Label   string
 	Key     string `plist:"Key,omitempty"`
 	Request string
@@ -117,8 +117,8 @@ type getValue struct {
 	Value   string `plist:"Value,omitempty"`
 }
 
-func newGetValue(key string) getValue {
-	data := getValue{
+func newGetValue(key string) valueRequest {
+	data := valueRequest{
 		Label:   "go.ios.control",
 		Key:     key,
 		Request: "GetValue",
@@ -126,8 +126,8 @@ func newGetValue(key string) getValue {
 	return data
 }
 
-func newSetValue(key string, domain string, value string) getValue {
-	data := getValue{
+func newSetValue(key string, domain string, value string) valueRequest {
+	data := valueRequest{
 		Label:   "go.ios.control",
 		Key:     key,
 		Domain:  domain,
@@ -135,48 +135,6 @@ func newSetValue(key string, domain string, value string) getValue {
 		Value:   value,
 	}
 	return data
-}
-
-type LanguageConfiguration struct {
-	Language string
-	Locale   string
-}
-
-func SetLanguage(device DeviceEntry, config LanguageConfiguration) error {
-	if config.Locale == "" && config.Language == "" {
-		log.Debug("SetLanguage called with empty config, no changes made")
-		return nil
-	}
-	lockDownConn := ConnectLockdownWithSession(device)
-	defer lockDownConn.StopSession()
-	if config.Locale != "" {
-		err := lockDownConn.SetValueForDomain("Locale", "com.apple.international", config.Locale)
-		if err != nil {
-			return err
-		}
-	}
-	if config.Language != "" {
-		err := lockDownConn.SetValueForDomain("Language", "com.apple.international", config.Language)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func GetLanguage(device DeviceEntry) (LanguageConfiguration, error) {
-	lockDownConn := ConnectLockdownWithSession(device)
-	defer lockDownConn.StopSession()
-	languageResp, err := lockDownConn.GetValueForDomain("Language", "com.apple.international")
-	if err != nil {
-		return LanguageConfiguration{}, err
-	}
-	localeResp, err := lockDownConn.GetValueForDomain("Locale", "com.apple.international")
-	if err != nil {
-		return LanguageConfiguration{}, err
-	}
-
-	return LanguageConfiguration{Language: languageResp.(string), Locale: localeResp.(string)}, nil
 }
 
 //GetValues retrieves a GetAllValuesResponse containing all values lockdown returns
@@ -205,6 +163,7 @@ func (lockDownConn *LockDownConnection) GetValue(key string) (interface{}, error
 	return response.Value, err
 }
 
+//GetValueForDomain gets and returns the string value for the lockdown key and domain
 func (lockDownConn *LockDownConnection) GetValueForDomain(key string, domain string) (interface{}, error) {
 	gv := newGetValue(key)
 	gv.Domain = domain
@@ -214,6 +173,7 @@ func (lockDownConn *LockDownConnection) GetValueForDomain(key string, domain str
 	return response.Value, err
 }
 
+//SetValueForDomain sets the string value for the lockdown key and domain. If the device returns an error it will be returned as a go error.
 func (lockDownConn *LockDownConnection) SetValueForDomain(key string, domain string, value string) error {
 	gv := newSetValue(key, domain, value)
 	lockDownConn.Send(gv)
@@ -225,8 +185,8 @@ func (lockDownConn *LockDownConnection) SetValueForDomain(key string, domain str
 	return err
 }
 
-//GetValueResponse contains the response for a GetValue Request
-type GetValueResponse struct {
+//ValueResponse contains the response for a GetValue or SetValue Request
+type ValueResponse struct {
 	Key     string
 	Request string
 	Error   string
@@ -234,9 +194,9 @@ type GetValueResponse struct {
 	Value   interface{}
 }
 
-func getValueResponsefromBytes(plistBytes []byte) GetValueResponse {
+func getValueResponsefromBytes(plistBytes []byte) ValueResponse {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
-	var getValueResponse GetValueResponse
+	var getValueResponse ValueResponse
 	_ = decoder.Decode(&getValueResponse)
 	return getValueResponse
 }
