@@ -20,6 +20,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/notificationproxy"
+	"github.com/danielpaulus/go-ios/ios/pcap"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
@@ -54,6 +55,7 @@ Usage:
   ios forward [options] <hostPort> <targetPort>
   ios dproxy
   ios readpair
+  ios pcap [options]
   ios apps [--system]
   ios launch <bundleID>
   ios runtest <bundleID>  
@@ -143,6 +145,12 @@ The commands work as following:
 	device, err := ios.GetDevice(udid)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	b, _ = arguments.Bool("pcap")
+	if b {
+		pcap.Start(device)
+		return
 	}
 
 	b, _ = arguments.Bool("lang")
