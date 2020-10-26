@@ -100,7 +100,7 @@ func handleConnect(connectRequest ios.UsbMuxMessage, decodedConnectRequest map[s
 	} else {
 		info, err := p.debugProxy.retrieveServiceInfoByPort(ios.Ntohs(uint16(port)))
 		if err != nil {
-			p.log.Fatal("ServiceInfo for port not found, this is a bug :-)")
+			p.log.Fatalf("ServiceInfo for port: %d not found, this is a bug :-)reqheader: %+v repayload: %x", port, connectRequest.Header, connectRequest.Payload)
 		}
 		p.log.Infof("Connection to service detected %s", info)
 		handleConnectToService(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice, info)

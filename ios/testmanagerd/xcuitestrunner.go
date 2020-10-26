@@ -89,6 +89,10 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testBundleReadyWithProtocolVersion:minimumVersion:":
 			p.testBundleReadyChannel <- m
 			return
+		case "_XCT_logDebugMessage:":
+			mbytes := m.Auxiliary.GetArguments()[0].([]byte)
+			data, _ := nskeyedarchiver.Unarchive(mbytes)
+			log.Info(data)
 		default:
 			log.Warnf("Method invocation not implement for selector:%s", method)
 		}

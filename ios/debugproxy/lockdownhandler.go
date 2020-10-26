@@ -52,7 +52,7 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *ios.LockD
 			lockdownToDevice.EnableSessionSsl(p.pairRecord)
 			lockdownOnUnixSocket.EnableSessionSslServerMode(p.pairRecord)
 		}
-		if decodedResponse["Request"] == "StartService" {
+		if decodedResponse["Request"] == "StartService" && decodedResponse["Error"] == nil {
 
 			useSSL := false
 			if decodedResponse["EnableServiceSSL"] != nil {
