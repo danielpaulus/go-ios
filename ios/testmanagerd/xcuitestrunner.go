@@ -111,6 +111,7 @@ func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
 }
 
 const testmanagerd = "com.apple.testmanagerd.lockdown"
+const testmanagerdiOS14 = "com.apple.testmanagerd.lockdown.secure"
 
 const testBundleSuffix = "UITests.xctrunner"
 

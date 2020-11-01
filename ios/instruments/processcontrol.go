@@ -9,6 +9,7 @@ import (
 )
 
 const serviceName string = "com.apple.instruments.remoteserver"
+const serviceNameiOS14 string = "com.apple.instruments.remoteserver.DVTSecureSocketProxy"
 const processControlChannelName = "com.apple.instruments.server.services.processcontrol"
 
 type ProcessControl struct {
@@ -37,7 +38,11 @@ func (p processControlDispatcher) Dispatch(m dtx.Message) {
 func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
 	dtxConn, err := dtx.NewConnection(device, serviceName)
 	if err != nil {
-		return nil, err
+		log.Info("Failed connecting to instruments, trying secure instruments..")
+		dtxConn, err = dtx.NewConnection(device, serviceNameiOS14)
+		if err != nil {
+			return nil, err
+		}
 	}
 	processControlChannel := dtxConn.RequestChannelIdentifier(processControlChannelName, processControlDispatcher{})
 	return &ProcessControl{processControlChannel: processControlChannel, conn: dtxConn}, nil

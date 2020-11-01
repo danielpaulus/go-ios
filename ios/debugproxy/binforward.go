@@ -18,11 +18,12 @@ type serviceConfig struct {
 //In addition, DTX based services only execute a SSL Handshake
 //and then go back to sending unencrypted data right after the handshake.
 var serviceConfigurations = map[string]serviceConfig{
-	"com.apple.instruments.remoteserver":                 {NewDtxDecoder, true},
-	"com.apple.accessibility.axAuditDaemon.remoteserver": {NewDtxDecoder, true},
-	"com.apple.testmanagerd.lockdown":                    {NewDtxDecoder, true},
-	"com.apple.debugserver":                              {NewBinDumpOnly, true},
-	"bindumper":                                          {NewBinDumpOnly, false},
+	"com.apple.instruments.remoteserver":                      {NewDtxDecoder, true},
+	"com.apple.accessibility.axAuditDaemon.remoteserver":      {NewDtxDecoder, true},
+	"com.apple.testmanagerd.lockdown":                         {NewDtxDecoder, true},
+	"com.apple.debugserver":                                   {NewBinDumpOnly, true},
+	"com.apple.instruments.remoteserver.DVTSecureSocketProxy": {NewDtxDecoder, false},
+	"bindumper": {NewBinDumpOnly, false},
 }
 
 func getServiceConfigForName(serviceName string) serviceConfig {
