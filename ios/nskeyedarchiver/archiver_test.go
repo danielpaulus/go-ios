@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+//TODO currently only partially decoding XCTestConfig is supported, fix later
 func TestXCTestconfig(t *testing.T) {
 	uuid := uuid.New()
 	config := nskeyedarchiver.NewXCTestConfiguration("productmodulename", uuid, "targetAppBundle", "targetAppPath", "testBundleUrl")
@@ -25,7 +26,35 @@ func TestXCTestconfig(t *testing.T) {
 	}
 	print(result)
 	log.Info(uuid.String())
+	res, err := nskeyedarchiver.Unarchive([]byte(result))
+	assert.NoError(t, err)
+	log.Info(res)
+
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/xctestconfiguration.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
 }
+
+//TODO currently uint64 dicts are decoded by converting the keys to strings, might wanna fix this later
+func TestIntKeyDictionary(t *testing.T) {
+
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/uint64-key-dictionary.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
 func TestArchiverStringArray(t *testing.T) {
 	arr := []interface{}{"a", "n", "c"}
 	b, err := nskeyedarchiver.ArchiveXML(arr)

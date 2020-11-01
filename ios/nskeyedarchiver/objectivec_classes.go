@@ -2,10 +2,11 @@ package nskeyedarchiver
 
 import (
 	"fmt"
-	"log"
+
 	"time"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
@@ -19,6 +20,7 @@ func SetupDecoders() {
 			"NSError":                   NewNSError,
 			"NSNull":                    NewNSNullFromArchived,
 			"NSDate":                    NewNSDate,
+			"XCTestConfiguration":       NewXCTestConfigurationFromBytes,
 		}
 	}
 }
@@ -166,6 +168,26 @@ func NewDTActivityTraceTapMessage(object map[string]interface{}, objects []inter
 	ref := object["DTTapMessagePlist"].(plist.UID)
 	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
 	return DTActivityTraceTapMessage{DTTapMessagePlist: plist}
+}
+
+//TODO: make this nice, partially extracting objects is not really cool
+type PartiallyExtractedXcTestConfig struct {
+	values map[string]interface{}
+}
+
+func NewXCTestConfigurationFromBytes(object map[string]interface{}, objects []interface{}) interface{} {
+
+	config := make(map[string]interface{}, len(object))
+	for k, v := range object {
+		value := v
+		uid, ok := v.(plist.UID)
+		if ok {
+			value = objects[uid]
+		}
+		config[k] = value
+	}
+
+	return PartiallyExtractedXcTestConfig{config}
 }
 
 type NSError struct {

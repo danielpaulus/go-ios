@@ -3,6 +3,7 @@ package nskeyedarchiver
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
 
@@ -159,10 +160,18 @@ func extractDictionary(object map[string]interface{}, objects []interface{}) (ma
 		return nil, err
 	}
 	mapSize := len(keys)
-	if _, ok := keys[0].(string); !ok {
-		return nil, fmt.Errorf("Dictionary with non string keys")
-	}
 	result := make(map[string]interface{}, mapSize)
+
+	if _, ok := keys[0].(string); !ok {
+		log.Warn("non string key dict found, lazy decoding by converting keys to strings :-), fix later")
+		for i := 0; i < mapSize; i++ {
+			key := keys[i].(uint64)
+			result[fmt.Sprintf("uint64{%d}", key)] = values[i]
+		}
+
+		return result, nil
+	}
+
 	for i := 0; i < mapSize; i++ {
 		result[keys[i].(string)] = values[i]
 	}
