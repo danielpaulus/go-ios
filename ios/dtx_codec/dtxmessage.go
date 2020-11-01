@@ -62,6 +62,8 @@ type AuxiliaryHeader struct {
 const (
 	//Ack is the messagetype for a 16 byte long acknowleding DtxMessage.
 	Ack = 0x0
+	//Uknown
+	UnknownTypeOne = 0x1
 	//Methodinvocation is the messagetype for a remote procedure call style DtxMessage.
 	Methodinvocation = 0x2
 	//ResponseWithReturnValueInPayload is the response for a method call that has a return value

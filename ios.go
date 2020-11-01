@@ -164,6 +164,7 @@ The commands work as following:
 
 	b, _ = arguments.Bool("dproxy")
 	if b {
+		JSONdisabled = true
 		startDebugProxy(device)
 		return
 	}

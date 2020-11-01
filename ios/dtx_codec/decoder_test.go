@@ -101,6 +101,29 @@ func TestAXDump(t *testing.T) {
 
 }
 
+func TestType1Message(t *testing.T) {
+
+	//dat, err := ioutil.ReadFile("fixtures/broken-message-from-ax-1.bin")
+	//dat, err := ioutil.ReadFile("fixtures/nsmutablestring.bin")
+	//dat, err := ioutil.ReadFile("fixtures/nsnull.bin")
+	dat, err := ioutil.ReadFile("fixtures/unknown-d-h-h-message.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	var remainingBytes []byte
+	remainingBytes = dat
+	for len(remainingBytes) > 0 {
+		msg, s, err := dtx.DecodeNonBlocking(remainingBytes)
+		log.Info(msg)
+		remainingBytes = s
+		if !assert.NoError(t, err) {
+			log.Fatal("whet", err)
+		}
+	}
+
+}
+
 func TestDecoder(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/notifyOfPublishedCapabilites")
 	if err != nil {

@@ -63,7 +63,7 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *ios.LockD
 				ServiceName: decodedResponse["Service"].(string),
 				UseSSL:      useSSL}
 
-			p.log.Infof("Detected Service Start:%s", info)
+			p.log.Debugf("Detected Service Start:%s", info)
 			p.debugProxy.storeServiceInformation(info)
 
 		}

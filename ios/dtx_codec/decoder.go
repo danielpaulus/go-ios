@@ -198,7 +198,9 @@ func (d Message) parsePayloadBytes(messageBytes []byte) ([]interface{}, error) {
 	if !d.HasAuxiliary() && d.HasPayload() {
 		offset = 48
 	}
-
+	if d.PayloadHeader.MessageType == UnknownTypeOne {
+		return []interface{}{messageBytes[offset:]}, nil
+	}
 	return nskeyedarchiver.Unarchive(messageBytes[offset:])
 }
 

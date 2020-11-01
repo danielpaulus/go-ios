@@ -41,6 +41,30 @@ func TestXCTestconfig(t *testing.T) {
 	log.Info(unarchivedObject)
 }
 
+func TestXCTCaps(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/XCTCapabilities.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestDTTapHeartbeatMessage(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/DTTapHeartbeatMessage.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
 //TODO currently uint64 dicts are decoded by converting the keys to strings, might wanna fix this later
 func TestIntKeyDictionary(t *testing.T) {
 

@@ -57,7 +57,7 @@ func (p *ProxyConnection) LogClosed() {
 		return
 	}
 	p.closed = true
-	p.log.Info("Connection closed")
+	p.log.Trace("Connection closed")
 }
 
 func (d *DebugProxy) storeServiceInformation(serviceInfo PhoneServiceInformation) {

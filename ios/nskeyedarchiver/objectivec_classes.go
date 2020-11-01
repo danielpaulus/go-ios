@@ -21,6 +21,8 @@ func SetupDecoders() {
 			"NSNull":                    NewNSNullFromArchived,
 			"NSDate":                    NewNSDate,
 			"XCTestConfiguration":       NewXCTestConfigurationFromBytes,
+			"DTTapHeartbeatMessage":     NewDTTapHeartbeatMessage,
+			"XCTCapabilities":           NewXCTCapabilities,
 		}
 	}
 }
@@ -211,6 +213,26 @@ const nsReferenceDate = 978307200000
 
 type NSDate struct {
 	timestamp time.Time
+}
+
+type DTTapHeartbeatMessage struct {
+	DTTapMessagePlist map[string]interface{}
+}
+
+type XCTCapabilities struct {
+	CapabilitiesDictionary map[string]interface{}
+}
+
+func NewXCTCapabilities(object map[string]interface{}, objects []interface{}) interface{} {
+	ref := object["capabilities-dictionary"].(plist.UID)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	return XCTCapabilities{CapabilitiesDictionary: plist}
+}
+
+func NewDTTapHeartbeatMessage(object map[string]interface{}, objects []interface{}) interface{} {
+	ref := object["DTTapMessagePlist"].(plist.UID)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	return DTTapHeartbeatMessage{DTTapMessagePlist: plist}
 }
 
 func NewNSDate(object map[string]interface{}, objects []interface{}) interface{} {

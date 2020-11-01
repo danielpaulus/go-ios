@@ -95,7 +95,7 @@ func handleConnect(connectRequest ios.UsbMuxMessage, decodedConnectRequest map[s
 	}
 
 	if port == ios.Lockdownport {
-		p.log.Info("Connect to Lockdown")
+		p.log.Trace("Connect to Lockdown")
 		handleConnectToLockdown(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice)
 	} else {
 		info, err := p.debugProxy.retrieveServiceInfoByPort(ios.Ntohs(uint16(port)))
