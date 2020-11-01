@@ -138,9 +138,14 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	if err != nil {
 		return err
 	}
-	conn, err := dtx.NewConnection(device, testmanagerd)
+
+	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
 	if err != nil {
-		return err
+		log.Debugf("Failed connecting to %s with %v, trying %s", testmanagerdiOS14, err, testmanagerd)
+		conn, err = dtx.NewConnection(device, testmanagerd)
+		if err != nil {
+			return err
+		}
 	}
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxy(conn)
