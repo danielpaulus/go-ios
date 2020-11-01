@@ -23,6 +23,8 @@ func SetupDecoders() {
 			"XCTestConfiguration":       NewXCTestConfigurationFromBytes,
 			"DTTapHeartbeatMessage":     NewDTTapHeartbeatMessage,
 			"XCTCapabilities":           NewXCTCapabilities,
+			"NSUUID":                    NewNSUUIDFromBytes,
+			"XCActivityRecord":          DecodeXCActivityRecord,
 		}
 	}
 }
@@ -109,6 +111,66 @@ func archiveXcTestConfiguration(xctestconfigInterface interface{}, objects []int
 
 type NSUUID struct {
 	uuidbytes []byte
+}
+
+func (n NSUUID) String() string {
+	uid, err := uuid.FromBytes(n.uuidbytes)
+	if err != nil {
+		return fmt.Sprintf("Failed converting %x to uuid with %+v", n.uuidbytes, err)
+	}
+	return uid.String()
+}
+
+type XCActivityRecord struct {
+	/*
+			finish":<interface {}(howett.net/plist.UID)>)
+		"start":<interface {}(howett.net/plist.UID)>)
+
+		"title":<interface {}(howett.net/plist.UID)>)
+
+		"uuid":<interface {}(howett.net/plist.UID)>)
+
+		"activityType":<interface {}(howett.net/plist.UID)>)
+
+		"attachments":<interface {}(howett.net/plist.UID)>)
+
+	*/
+	Finish       interface{}
+	Start        interface{}
+	Title        string
+	UUID         NSUUID
+	ActivityType string
+	Attachments  interface{}
+}
+
+func DecodeXCActivityRecord(object map[string]interface{}, objects []interface{}) interface{} {
+	finish_ref := object["finish"].(plist.UID)
+	finish := objects[finish_ref]
+
+	start_ref := object["start"].(plist.UID)
+	start := objects[start_ref]
+
+	uuid_ref := object["uuid"].(plist.UID)
+	uuid_raw := objects[uuid_ref].(map[string]interface{})
+	uuid := NewNSUUIDFromBytes(uuid_raw, objects).(NSUUID)
+
+	title_ref := object["title"].(plist.UID)
+	title := objects[title_ref].(string)
+
+	attachments_ref := object["attachments"].(plist.UID)
+	attachments := objects[attachments_ref]
+
+	activityType_ref := object["activityType"].(plist.UID)
+	activityType := objects[activityType_ref].(string)
+
+	log.Info(objects[9])
+
+	return XCActivityRecord{Finish: finish, Start: start, UUID: uuid, Title: title, Attachments: attachments, ActivityType: activityType}
+}
+
+func NewNSUUIDFromBytes(object map[string]interface{}, objects []interface{}) interface{} {
+	val := object["NS.uuidbytes"].([]byte)
+	return NSUUID{uuidbytes: val}
 }
 
 func NewNSUUID(id uuid.UUID) NSUUID {

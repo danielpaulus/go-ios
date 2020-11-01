@@ -100,7 +100,7 @@ func (f *dtxDecoder) decode(data []byte) {
 		}
 		aux.RawBytes = nil
 		jsonMetaInfo := MessageWithMetaInfo{aux, "dtx", time.Now(), offset, len(msg.RawBytes)}
-		f.log.WithFields(log.Fields{"p": f.jsonFilePath}).Infof("%s %s", msg.Payload, msg.Auxiliary)
+		logDtxMessageNice(f.log, msg)
 		jsonmsg, err := json.Marshal(jsonMetaInfo)
 		file.Write(jsonmsg)
 		io.WriteString(file, "\n")
@@ -108,6 +108,27 @@ func (f *dtxDecoder) decode(data []byte) {
 
 		written += len(msg.RawBytes)
 	}
+}
+
+func logDtxMessageNice(log log.Entry, msg dtx.Message) {
+	if msg.PayloadHeader.MessageType == dtx.Methodinvocation {
+		log.Infof("%s %s", msg.Payload[0], msg.Auxiliary)
+		return
+	}
+	if msg.PayloadHeader.MessageType == dtx.Ack {
+		log.Infof("Ack")
+		return
+	}
+	if msg.PayloadHeader.MessageType == dtx.UnknownTypeOne {
+		log.Infof("type1: %x", msg.Payload[0])
+		return
+	}
+	if msg.PayloadHeader.MessageType == dtx.ResponseWithReturnValueInPayload {
+		log.Infof("response: %s", msg.Payload[0])
+		return
+	}
+	log.Infof("%+v", msg)
+
 }
 
 type binaryOnlyDumper struct {

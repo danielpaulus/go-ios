@@ -111,22 +111,26 @@ func writeEntry(valuetype uint32, value interface{}, buf io.Writer) error {
 func (d PrimitiveDictionary) String() string {
 	result := "["
 	for i, v := range d.valueTypes {
-		var prettyString []byte
+		var prettyString string
 		if v == t_bytearray {
 			bytes := d.values[i].([]byte)
-			prettyString = bytes
+			prettyString = fmt.Sprintf("%x", bytes)
 			msg, err := archiver.Unarchive(bytes)
 			if err == nil {
-				prettyString, _ = json.Marshal(msg)
+				jsonBytes, _ := json.Marshal(msg[0])
+				prettyString = string(jsonBytes)
+			} else {
+				log.Warnf("failed decoding with %+v", err)
+
 			}
-			result += fmt.Sprintf("{t:%s, v:%s},\n", toString(v), prettyString)
+			result += fmt.Sprintf("{t:%s, v:%s},", toString(v), prettyString)
 			continue
 		}
 		if v == t_uint32 {
-			result += fmt.Sprintf("{t:%s, v:%d},\n", toString(v), d.values[i])
+			result += fmt.Sprintf("{t:%s, v:%d},", toString(v), d.values[i])
 			continue
 		}
-		result += fmt.Sprintf("{t:%s, v:%s},\n", toString(v), d.values[i])
+		result += fmt.Sprintf("{t:%s, v:%s},", toString(v), d.values[i])
 	}
 	result += "]"
 	return result

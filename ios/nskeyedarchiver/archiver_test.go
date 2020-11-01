@@ -53,6 +53,30 @@ func TestXCTCaps(t *testing.T) {
 	log.Info(unarchivedObject)
 }
 
+func TestNSUUID(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/nsuuid.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestXCActivityRecord(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/XCActivityRecord.bin")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
 func TestDTTapHeartbeatMessage(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/DTTapHeartbeatMessage.bin")
 

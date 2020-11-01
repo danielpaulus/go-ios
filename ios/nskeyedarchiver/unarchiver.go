@@ -161,7 +161,9 @@ func extractDictionary(object map[string]interface{}, objects []interface{}) (ma
 	}
 	mapSize := len(keys)
 	result := make(map[string]interface{}, mapSize)
-
+	if mapSize == 0 {
+		return result, nil
+	}
 	if _, ok := keys[0].(string); !ok {
 		log.Warn("non string key dict found, lazy decoding by converting keys to strings :-), fix later")
 		for i := 0; i < mapSize; i++ {

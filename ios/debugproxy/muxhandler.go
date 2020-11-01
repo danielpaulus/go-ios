@@ -102,7 +102,7 @@ func handleConnect(connectRequest ios.UsbMuxMessage, decodedConnectRequest map[s
 		if err != nil {
 			p.log.Fatalf("ServiceInfo for port: %d not found, this is a bug :-)reqheader: %+v repayload: %x", port, connectRequest.Header, connectRequest.Payload)
 		}
-		p.log.Infof("Connection to service detected %s", info)
+		p.log.Infof("Connection to service '%s' detected on port %d", info.ServiceName, info.ServicePort)
 		handleConnectToService(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice, info)
 	}
 }
