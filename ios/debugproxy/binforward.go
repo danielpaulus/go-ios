@@ -23,7 +23,8 @@ var serviceConfigurations = map[string]serviceConfig{
 	"com.apple.testmanagerd.lockdown":                         {NewDtxDecoder, true},
 	"com.apple.debugserver":                                   {NewBinDumpOnly, true},
 	"com.apple.instruments.remoteserver.DVTSecureSocketProxy": {NewDtxDecoder, false},
-	"bindumper": {NewBinDumpOnly, false},
+	"com.apple.testmanagerd.lockdown.secure":                  {NewDtxDecoder, false},
+	"bindumper":                                               {NewBinDumpOnly, false},
 }
 
 func getServiceConfigForName(serviceName string) serviceConfig {
