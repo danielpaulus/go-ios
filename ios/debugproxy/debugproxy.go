@@ -21,7 +21,7 @@ const connectionJSONFileName = "connections.json"
 //DebugProxy can be used to dump and modify communication between mac and host
 type DebugProxy struct {
 	mux               sync.Mutex
-	serviceMap        map[string]PhoneServiceInformation
+	serviceList       []PhoneServiceInformation
 	connectionCounter int
 	WorkingDir        string
 }
@@ -63,19 +63,13 @@ func (p *ProxyConnection) LogClosed() {
 func (d *DebugProxy) storeServiceInformation(serviceInfo PhoneServiceInformation) {
 	d.mux.Lock()
 	defer d.mux.Unlock()
-	d.serviceMap[serviceInfo.ServiceName] = serviceInfo
-}
-
-func (d *DebugProxy) retrieveServiceInfoByName(serviceName string) PhoneServiceInformation {
-	d.mux.Lock()
-	defer d.mux.Unlock()
-	return d.serviceMap[serviceName]
+	d.serviceList = append(d.serviceList, serviceInfo)
 }
 
 func (d *DebugProxy) retrieveServiceInfoByPort(port uint16) (PhoneServiceInformation, error) {
 	d.mux.Lock()
 	defer d.mux.Unlock()
-	for _, element := range d.serviceMap {
+	for _, element := range d.serviceList {
 		if element.ServicePort == port {
 			return element, nil
 		}
@@ -85,7 +79,7 @@ func (d *DebugProxy) retrieveServiceInfoByPort(port uint16) (PhoneServiceInforma
 
 //NewDebugProxy creates a new Default proxy
 func NewDebugProxy() *DebugProxy {
-	return &DebugProxy{mux: sync.Mutex{}, serviceMap: make(map[string]PhoneServiceInformation)}
+	return &DebugProxy{mux: sync.Mutex{}, serviceList: []PhoneServiceInformation{}}
 }
 
 //Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
