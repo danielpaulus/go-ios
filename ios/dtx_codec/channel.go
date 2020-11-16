@@ -75,7 +75,6 @@ func (d *Channel) Send(expectsReply bool, messageType int, payloadBytes []byte, 
 	if err != nil {
 		return err
 	}
-	log.Tracef("Sending:%x", bytes)
 	return d.connection.Send(bytes)
 }
 
@@ -98,7 +97,7 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType int, payloadB
 	}
 	responseChannel := make(chan Message)
 	d.AddResponseWaiter(identifier, responseChannel)
-	log.Tracef("Sending:%x", bytes)
+
 	err = d.connection.Send(bytes)
 	if err != nil {
 		return Message{}, err

@@ -271,7 +271,11 @@ The commands work as following:
 		signal.Notify(c, os.Interrupt)
 		<-c
 		log.Info("Closing..")
-		testmanagerd.CloseXCUITestRunner()
+		err := testmanagerd.CloseXCUITestRunner()
+		if err != nil {
+			log.Error("Failed closing wda-testrunner")
+			os.Exit(1)
+		}
 		log.Info("Done Closing")
 		return
 	}

@@ -73,14 +73,14 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 			return
 		}
 	}
-	log.Debugf("Global Dispatcher Received: %s %s %s", msg.Payload, msg, msg.Auxiliary)
+	log.Debugf("Global Dispatcher Received: %s %s", msg.Payload, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}
 }
 
 func notifyOfPublishedCapabilities(msg Message) {
-	log.Info("capabs")
+	log.Debug("capabs received")
 }
 
 //NewConnection connects and starts reading from a Dtx based service on the device
@@ -119,11 +119,9 @@ func reader(dtxConn *Connection) {
 				log.Debug("Closing DTX Connection")
 				return
 			}
-			log.Error(err)
+			log.Errorf("error reading dtx connection %+v", err)
 			return
 		}
-
-		log.Info(msg.String())
 
 		if channel, ok := dtxConn.activeChannels[msg.ChannelCode]; ok {
 			channel.Dispatch(msg)
@@ -135,13 +133,11 @@ func reader(dtxConn *Connection) {
 
 func SendAckIfNeeded(dtxConn *Connection, msg Message) {
 	if msg.ExpectsReply {
+		log.Debug("sending ack")
 		ack := BuildAckMessage(msg)
-		if ack == nil {
-			log.Info("d")
-		}
 		err := dtxConn.Send(ack)
 		if err != nil {
-			log.Fatalf("Error sending ack:%s", err)
+			log.Errorf("Error sending ack:%s", err)
 		}
 	}
 }

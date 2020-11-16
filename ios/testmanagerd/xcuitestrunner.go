@@ -156,18 +156,18 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_logDebugMessage:":
 			mbytes := m.Auxiliary.GetArguments()[0].([]byte)
 			data, _ := nskeyedarchiver.Unarchive(mbytes)
-			log.Info(data)
+			log.Debug(data)
 		case "_XCT_testRunnerReadyWithCapabilities:":
 			shouldAck = false
-			log.Info("received")
+			log.Debug("received testRunnerReadyWithCapabilities")
 			resp, _ := p.testRunnerReadyWithCapabilities(m)
 			payload, _ := nskeyedarchiver.ArchiveBin(resp)
 			messageBytes, _ := dtx.Encode2(m.Identifier, 1, m.ChannelCode, false, dtx.ResponseWithReturnValueInPayload, payload, dtx.NewPrimitiveDictionary())
-			log.Info("sending response")
+			log.Debug("sending response for capabs")
 			p.dtxConnection.Send(messageBytes)
 
 		default:
-			log.Warnf("Method invocation not implement for selector:%s", method)
+			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")
 		}
 	}
 	if shouldAck {
@@ -211,12 +211,6 @@ const testmanagerdiOS14 = "com.apple.testmanagerd.lockdown.secure"
 
 const testBundleSuffix = "UITests.xctrunner"
 
-/*func newDtxProxy(conn DtxConnection) dtxproxy {
-	conn.requestChannelWithCodeAndIdentifier(1, "")
-	return dtxproxy{}
-}
-*/
-
 func RunWDA(device ios.DeviceEntry) error {
 
 	return runXCUIWithBundleIds("com.facebook.WebDriverAgentRunner.xctrunner", "com.facebook.WebDriverAgentRunner.xctrunner", "WebDriverAgentRunner.xctest", device)
@@ -228,18 +222,29 @@ func RunXCUITest(bundleID string, device ios.DeviceEntry) error {
 }
 
 var closeChan = make(chan interface{})
+var closedChan = make(chan interface{})
 
 func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device ios.DeviceEntry, conn *dtx.Connection) error {
 	testSessionId, _, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
+	if err != nil {
+		return err
+	}
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
 
-	conn2, _ := dtx.NewConnection(device, testmanagerdiOS14)
+	conn2, err := dtx.NewConnection(device, testmanagerdiOS14)
+	if err != nil {
+		return err
+	}
 	defer conn2.Close()
+	log.Debug("connections ready")
 	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig)
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 	caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
-	log.Info(caps)
+	if err != nil {
+		return err
+	}
+	log.Debug(caps)
 	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
 		"XCTIssue capability":     uint64(1),
 		"skipped test capability": uint64(1),
@@ -247,32 +252,43 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 	}}
 
 	caps2, err := ideDaemonProxy2.daemonConnection.initiateSessionWithIdentifierAndCaps(testSessionId, localCaps)
-	log.Info(caps2)
-	pControl, err := instruments.NewProcessControl(device)
-	defer pControl.Close()
 	if err != nil {
 		return err
 	}
+	log.Debug(caps2)
+	pControl, err := instruments.NewProcessControl(device)
+	if err != nil {
+		return err
+	}
+	defer pControl.Close()
+
 	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/WebDriverAgentRunner.xctest")
 	if err != nil {
 		return err
 	}
-	log.Infof("Runner started with pid:%d, waiting for testBundleReady", pid)
+	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
 
 	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "emty"})
-	//caps3 := ideDaemonProxy2.ideInterface.testRunnerReadyWithCapabilities()
-	//log.Info(caps3)
+
 	time.Sleep(time.Second)
 
 	success, _ := ideDaemonProxy.daemonConnection.authorizeTestSessionWithProcessID(pid)
-	log.Info(success)
+	log.Debugf("authorizing test session for pid %d successful %t", pid, success)
 	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 36)
 	if err != nil {
 		log.Error(err)
 	}
-	cs := make(chan string)
-	<-cs
+	<-closeChan
+	log.Infof("Killing WebDriverAgent with pid %d ...", pid)
+	err = pControl.KillProcess(pid)
+	if err != nil {
+		return err
+	}
+	log.Info("WDA killed with success")
+	var signal interface{}
+	closedChan <- signal
 	return nil
+
 }
 
 func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device ios.DeviceEntry) error {
@@ -324,13 +340,21 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 		return err
 	}
 	log.Info("runner killed with success")
+	var signal interface{}
+	closedChan <- signal
 	return nil
 
 }
 
-func CloseXCUITestRunner() {
+func CloseXCUITestRunner() error {
 	var signal interface{}
-	closeChan <- signal
+	go func() { closeChan <- signal }()
+	select {
+	case <-closedChan:
+		return nil
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("Failed closing, exiting due to timeout")
+	}
 }
 
 func startTestRunner(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string) (uint64, error) {
