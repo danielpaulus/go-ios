@@ -74,7 +74,7 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 		return encoderFunc(object, objects)
 	}
 
-	log.Fatal(fmt.Errorf("Unsupported type:%s", object))
+	log.Fatal(fmt.Errorf("NSKeyedArchiver Unsupported type:%s", object))
 	return nil, 0
 }
 

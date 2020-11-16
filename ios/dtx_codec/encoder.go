@@ -8,12 +8,50 @@ import (
 //the had the ExpectsReply flag set.
 func BuildAckMessage(msg Message) []byte {
 	response := make([]byte, 48)
-	writeHeader(response, 16, msg.Identifier, msg.ChannelCode, msg.ConversationIndex+1, false)
+	writeHeader(response, 16, msg.Identifier, msg.ConversationIndex+1, msg.ChannelCode, false)
 	binary.LittleEndian.PutUint32(response[32:], Ack)
 	binary.LittleEndian.PutUint32(response[36:], 0)
 	binary.LittleEndian.PutUint32(response[40:], 0)
 	binary.LittleEndian.PutUint32(response[44:], 0)
 	return response
+}
+
+//Encode encodes the given parameters to a DtxMessage that can be sent to the device.
+func Encode2(
+	Identifier int,
+	ConversationIndex int,
+	ChannelCode int,
+	ExpectsReply bool,
+	MessageType int,
+	payloadBytes []byte,
+	Auxiliary PrimitiveDictionary,
+) ([]byte, error) {
+
+	auxBytes, err := Auxiliary.ToBytes()
+	if err != nil {
+		return make([]byte, 0), err
+	}
+
+	payloadLength := len(payloadBytes)
+	auxiliarySize := len(auxBytes)
+	auxHeaderSize := uint32(16)
+	messageLength := 16 + uint32(auxiliarySize+payloadLength)
+	if auxiliarySize > 0 {
+		messageLength += auxHeaderSize
+	}
+	messageBytes := make([]byte, 32+messageLength)
+
+	writeHeader(messageBytes, messageLength, Identifier, ConversationIndex, ChannelCode, ExpectsReply)
+	writePayloadHeader(messageBytes[32:], MessageType, payloadLength, auxiliarySize)
+	if auxiliarySize == 0 {
+		copy(messageBytes[48:], payloadBytes)
+	} else {
+		writeAuxHeader(messageBytes[48:], auxiliarySize)
+		copy(messageBytes[64:], auxBytes)
+		copy(messageBytes[64+auxiliarySize:], payloadBytes)
+	}
+
+	return messageBytes, nil
 }
 
 //Encode encodes the given parameters to a DtxMessage that can be sent to the device.
@@ -62,7 +100,7 @@ func writeHeader(messageBytes []byte, messageLength uint32, Identifier int, Conv
 	binary.LittleEndian.PutUint16(messageBytes[10:], 1)
 	binary.LittleEndian.PutUint32(messageBytes[12:], uint32(messageLength))
 	binary.LittleEndian.PutUint32(messageBytes[16:], uint32(Identifier))
-	binary.LittleEndian.PutUint32(messageBytes[20:], 0)
+	binary.LittleEndian.PutUint32(messageBytes[20:], uint32(ConversationIndex))
 	binary.LittleEndian.PutUint32(messageBytes[24:], uint32(ChannelCode))
 	var expectsReplyUint32 uint32
 	if ExpectsReply {

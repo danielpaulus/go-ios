@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"os"
 	"time"
@@ -100,7 +101,15 @@ func (f *dtxDecoder) decode(data []byte) {
 		}
 		aux.RawBytes = nil
 		jsonMetaInfo := MessageWithMetaInfo{aux, "dtx", time.Now(), offset, len(msg.RawBytes)}
-		logDtxMessageNice(f.log, msg)
+
+		mylog := &f.log
+		if strings.Contains(f.binFilePath, "from-device") {
+			mylog = f.log.WithFields(log.Fields{"d": "in"})
+		}
+		if strings.Contains(f.binFilePath, "to-device") {
+			mylog = f.log.WithFields(log.Fields{"d": "out"})
+		}
+		logDtxMessageNice(mylog, msg)
 		jsonmsg, err := json.Marshal(jsonMetaInfo)
 		file.Write(jsonmsg)
 		io.WriteString(file, "\n")
@@ -110,13 +119,17 @@ func (f *dtxDecoder) decode(data []byte) {
 	}
 }
 
-func logDtxMessageNice(log log.Entry, msg dtx.Message) {
+func logDtxMessageNice(log *log.Entry, msg dtx.Message) {
 	if msg.PayloadHeader.MessageType == dtx.Methodinvocation {
-		log.Infof("%s %s", msg.Payload[0], msg.Auxiliary)
+		expectsReply := ""
+		if msg.ExpectsReply {
+			expectsReply = "e"
+		}
+		log.Infof("%d.%d%s c%d %s %s", msg.Identifier, msg.ConversationIndex, expectsReply, msg.ChannelCode, msg.Payload[0], msg.Auxiliary)
 		return
 	}
 	if msg.PayloadHeader.MessageType == dtx.Ack {
-		log.Infof("Ack")
+		log.Infof("%d.%d c%d Ack", msg.Identifier, msg.ConversationIndex, msg.ChannelCode)
 		return
 	}
 	if msg.PayloadHeader.MessageType == dtx.UnknownTypeOne {
@@ -124,7 +137,11 @@ func logDtxMessageNice(log log.Entry, msg dtx.Message) {
 		return
 	}
 	if msg.PayloadHeader.MessageType == dtx.ResponseWithReturnValueInPayload {
-		log.Infof("response: %s", msg.Payload[0])
+		log.Infof("%d.%d c%d response: %s", msg.Identifier, msg.ConversationIndex, msg.ChannelCode, msg.Payload[0])
+		return
+	}
+	if msg.PayloadHeader.MessageType == dtx.DtxTypeError {
+		log.Infof("%d.%d c%d error: %s", msg.Identifier, msg.ConversationIndex, msg.ChannelCode, msg.Payload[0])
 		return
 	}
 	log.Infof("%+v", msg)

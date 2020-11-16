@@ -37,6 +37,7 @@ func SetupEncoders() {
 			"NSURL":               archiveNSURL,
 			"NSNull":              archiveNSNull,
 			"NSMutableDictionary": archiveNSMutableDictionary,
+			"XCTCapabilities":     archiveXCTCapabilities,
 		}
 	}
 }
@@ -180,7 +181,21 @@ func NewNSUUID(id uuid.UUID) NSUUID {
 	}
 	return NSUUID{bytes}
 }
+func archiveXCTCapabilities(capsIface interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	caps := capsIface.(XCTCapabilities)
+	object := map[string]interface{}{}
 
+	objects, dictRef := serializeMap(caps.CapabilitiesDictionary, objects, buildClassDict("NSDictionary", "NSObject"))
+	object["capabilities-dictionary"] = dictRef
+
+	capsReference := len(objects)
+	objects = append(objects, object)
+
+	classref := capsReference + 1
+	object[class] = plist.UID(classref)
+	objects = append(objects, buildClassDict("XCTCapabilities", "NSObject"))
+	return objects, plist.UID(capsReference)
+}
 func archiveNSUUID(uid interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	nsuuid := uid.(NSUUID)
 	object := map[string]interface{}{}

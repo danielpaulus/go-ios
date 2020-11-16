@@ -9,6 +9,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type MethodWithResponse func(msg Message) (interface{}, error)
+type MethodWithoutResponse func(msg Message) error
+
 //Connection manages channels, including the GlobalChannel, for a DtxConnection and dispatches received messages
 //to the right channel.
 type Connection struct {
@@ -30,6 +33,7 @@ type Dispatcher interface {
 type GlobalDispatcher struct {
 	dispatchFunctions      map[string]func(Message)
 	requestChannelMessages chan Message
+	dtxConnection          *Connection
 }
 
 const requestChannel = "_requestChannelWithCode:identifier:"
@@ -45,9 +49,11 @@ func (dtxConn *Connection) GlobalChannel() *Channel {
 }
 
 //NewGlobalDispatcher create a Dispatcher for the GlobalChannel
-func NewGlobalDispatcher(requestChannelMessages chan Message) Dispatcher {
+func NewGlobalDispatcher(requestChannelMessages chan Message, dtxConnection *Connection) Dispatcher {
 	dispatcher := GlobalDispatcher{dispatchFunctions: map[string]func(Message){},
-		requestChannelMessages: requestChannelMessages}
+		requestChannelMessages: requestChannelMessages,
+		dtxConnection:          dtxConnection,
+	}
 	const notifyPublishedCaps = "_notifyOfPublishedCapabilities:"
 	dispatcher.dispatchFunctions[notifyPublishedCaps] = notifyOfPublishedCapabilities
 	return dispatcher
@@ -55,6 +61,7 @@ func NewGlobalDispatcher(requestChannelMessages chan Message) Dispatcher {
 
 //Dispatch prints log messages and errors when they are received and also creates local Channels when requested by the device.
 func (g GlobalDispatcher) Dispatch(msg Message) {
+	SendAckIfNeeded(g.dtxConnection, msg)
 	if msg.Payload != nil {
 		if requestChannel == msg.Payload[0] {
 			g.requestChannelMessages <- msg
@@ -90,7 +97,7 @@ func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, err
 	//The global channel is automatically present and used for requesting other channels and some other methods like notifyPublishedCapabilities
 	globalChannel := Channel{channelCode: 0,
 		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
-		messageDispatcher: NewGlobalDispatcher(requestChannelMessages), responseWaiters: map[int]chan Message{}, registeredMethods: map[string]chan Message{}}
+		messageDispatcher: NewGlobalDispatcher(requestChannelMessages, dtxConnection), responseWaiters: map[int]chan Message{}, registeredMethods: map[string]chan Message{}}
 	dtxConnection.globalChannel = &globalChannel
 	go reader(dtxConnection)
 
@@ -112,9 +119,12 @@ func reader(dtxConn *Connection) {
 				log.Debug("Closing DTX Connection")
 				return
 			}
+			log.Error(err)
+			return
 		}
-		//TODO: move this to the channel level, the connection probably should not auto ack messages
-		sendAckIfNeeded(dtxConn, msg)
+
+		log.Info(msg.String())
+
 		if channel, ok := dtxConn.activeChannels[msg.ChannelCode]; ok {
 			channel.Dispatch(msg)
 		} else {
@@ -123,9 +133,13 @@ func reader(dtxConn *Connection) {
 	}
 }
 
-func sendAckIfNeeded(dtxConn *Connection, msg Message) {
+func SendAckIfNeeded(dtxConn *Connection, msg Message) {
 	if msg.ExpectsReply {
-		err := dtxConn.Send(BuildAckMessage(msg))
+		ack := BuildAckMessage(msg)
+		if ack == nil {
+			log.Info("d")
+		}
+		err := dtxConn.Send(ack)
 		if err != nil {
 			log.Fatalf("Error sending ack:%s", err)
 		}
@@ -136,11 +150,11 @@ func (dtxConn *Connection) ForChannelRequest(messageDispatcher Dispatcher) *Chan
 	msg := <-dtxConn.requestChannelMessages
 	dtxConn.mutex.Lock()
 	defer dtxConn.mutex.Unlock()
-	code := msg.Auxiliary.GetArguments()[0].(uint32)
+	//code := msg.Auxiliary.GetArguments()[0].(uint32)
 	identifier, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
 	//TODO: Setting the channel code here manually to -1 for making testmanagerd work. For some reason it requests the TestDriver proxy channel with code 1 but sends messages on -1. Should probably be fixed somehow
 	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}}
-	dtxConn.activeChannels[int(code)] = channel
+	dtxConn.activeChannels[-1] = channel
 	return channel
 }
 

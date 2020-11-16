@@ -17,7 +17,9 @@ type ProcessControl struct {
 	conn                  *dtx.Connection
 }
 
-type processControlDispatcher struct{}
+type processControlDispatcher struct {
+	conn *dtx.Connection
+}
 
 //LaunchApp launches the app with the given bundleID on the given device.LaunchApp
 //Use LaunchAppWithArgs for passing arguments and envVars. It returns the PID of the created app process.
@@ -32,6 +34,7 @@ func (p *ProcessControl) Close() {
 }
 
 func (p processControlDispatcher) Dispatch(m dtx.Message) {
+	dtx.SendAckIfNeeded(p.conn, m)
 	log.Debug(m)
 }
 
@@ -44,7 +47,7 @@ func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
 			return nil, err
 		}
 	}
-	processControlChannel := dtxConn.RequestChannelIdentifier(processControlChannelName, processControlDispatcher{})
+	processControlChannel := dtxConn.RequestChannelIdentifier(processControlChannelName, processControlDispatcher{dtxConn})
 	return &ProcessControl{processControlChannel: processControlChannel, conn: dtxConn}, nil
 }
 
