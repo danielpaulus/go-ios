@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"os"
 	"os/signal"
@@ -268,9 +269,10 @@ The commands work as following:
 			}
 		}()
 		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt)
-		<-c
-		log.Info("Closing..")
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		signal := <-c
+		log.Infof("os signal:%d received, closing..", signal)
+
 		err := testmanagerd.CloseXCUITestRunner()
 		if err != nil {
 			log.Error("Failed closing wda-testrunner")
