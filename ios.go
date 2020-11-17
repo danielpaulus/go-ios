@@ -62,6 +62,7 @@ Usage:
   ios runtest <bundleID> [options]
   ios runwda [options]
   ios ax [options]
+  ios reboot [options]
   ios -h | --help
   ios --version | version [options]
 
@@ -96,6 +97,7 @@ The commands work as following:
    ios runtest <bundleID>                                             Run a XCUITest. 
    ios runwda [options]                                               Start WebDriverAgent
    ios ax [options]                                                   Access accessibility inspector features. 
+   ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
 
@@ -141,8 +143,8 @@ The commands work as following:
 	}
 
 	b, _ = arguments.Bool("list")
-	diagnostics, _ := arguments.Bool("diagnostics")
-	if b && !diagnostics {
+	diagnosticsCommand, _ := arguments.Bool("diagnostics")
+	if b && !diagnosticsCommand {
 		b, _ = arguments.Bool("--details")
 		printDeviceList(b)
 		return
@@ -291,6 +293,17 @@ The commands work as following:
 	b, _ = arguments.Bool("ax")
 	if b {
 		startAx(device)
+		return
+	}
+
+	b, _ = arguments.Bool("reboot")
+	if b {
+		err := diagnostics.Reboot(device)
+		if err != nil {
+			log.Error(err)
+		} else {
+			log.Info("ok")
+		}
 		return
 	}
 

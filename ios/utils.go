@@ -16,6 +16,14 @@ func ToPlist(data interface{}) string {
 	return string(ToPlistBytes(data))
 }
 
+//ParsePlist tries to parse the given bytes, which should be a Plist, into a map[string]interface.
+//It returns the map or an error if the decoding step fails.
+func ParsePlist(data []byte) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	_, err := plist.Unmarshal(data, &result)
+	return result, err
+}
+
 //ToPlistBytes converts a given struct to a Plist using the
 //github.com/DHowett/go-plist library. Make sure your struct is exported.
 //It returns a byte slice containing the plist.

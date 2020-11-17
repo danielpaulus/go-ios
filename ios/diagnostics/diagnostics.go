@@ -1,6 +1,10 @@
 package diagnostics
 
-import ios "github.com/danielpaulus/go-ios/ios"
+import (
+	"fmt"
+
+	ios "github.com/danielpaulus/go-ios/ios"
+)
 
 const serviceName = "com.apple.mobile.diagnostics_relay"
 
@@ -15,6 +19,42 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 		return &Connection{}, err
 	}
 	return &Connection{deviceConn: deviceConn, plistCodec: ios.NewPlistCodec()}, nil
+}
+
+func Reboot(device ios.DeviceEntry) error {
+	service, err := New(device)
+	if err != nil {
+		return err
+	}
+	return service.Reboot()
+}
+
+func (diagnosticsConn *Connection) Reboot() error {
+	req := rebootRequest{Request: "Restart", WaitForDisconnect: true, DisplayFail: true, DisplayPass: true}
+	reader := diagnosticsConn.deviceConn.Reader()
+	bytes, err := diagnosticsConn.plistCodec.Encode(req)
+	if err != nil {
+		return err
+	}
+	diagnosticsConn.deviceConn.Send(bytes)
+	response, err := diagnosticsConn.plistCodec.Decode(reader)
+	if err != nil {
+		return err
+	}
+	plist, err := ios.ParsePlist(response)
+	if err != nil {
+		return err
+	}
+	if val, ok := plist["Status"]; ok {
+		if statusString, yes := val.(string); yes {
+			if "Success" == statusString {
+				return nil
+			}
+
+		}
+
+	}
+	return fmt.Errorf("Could not reboot, response: %+v", plist)
 }
 
 func (diagnosticsConn *Connection) AllValues() (allDiagnosticsResponse, error) {

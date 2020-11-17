@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"bytes"
+
 	plist "howett.net/plist"
 )
 
@@ -32,6 +33,13 @@ func diagnosticsfromBytes(plistBytes []byte) allDiagnosticsResponse {
 	var data allDiagnosticsResponse
 	_ = decoder.Decode(&data)
 	return data
+}
+
+type rebootRequest struct {
+	Request           string
+	WaitForDisconnect bool
+	DisplayPass       bool
+	DisplayFail       bool
 }
 
 type allDiagnosticsResponse struct {
