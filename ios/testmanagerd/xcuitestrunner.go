@@ -119,6 +119,21 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionForTest
 	return nil
 }
 
+func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionWithProtocolVersion(protocolVersion uint64) (uint64, error) {
+	rply, err := xdc.IDEDaemonProxy.MethodCall("_IDE_initiateControlSessionWithProtocolVersion:", protocolVersion)
+	if err != nil {
+		return 0, err
+	}
+	returnValue := rply.Payload[0]
+	var val uint64
+	var ok bool
+	if val, ok = returnValue.(uint64); !ok {
+		return val, fmt.Errorf("_IDE_initiateControlSessionWithProtocolVersion got wrong returnvalue: %s", rply.Payload)
+	}
+	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Debug("initiateControlSessionForTestProcessID reply")
+	return val, nil
+}
+
 func startExecutingTestPlanWithProtocolVersion(channel *dtx.Channel, protocolVersion uint64) error {
 	rply, err := channel.MethodCall("_IDE_startExecutingTestPlanWithProtocolVersion:", protocolVersion)
 	if err != nil {
@@ -299,47 +314,83 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	}
 	log.Debugf("Failed connecting to %s with %v, trying %s", testmanagerdiOS14, err, testmanagerd)
 
-	testSessionId, _, xctestConfigPath, _, _, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
-	if err != nil {
-		return err
-	}
 	conn, err = dtx.NewConnection(device, testmanagerd)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
-	ideDaemonProxy := newDtxProxy(conn)
-	protocolVersion, err := ideDaemonProxy.daemonConnection.initiateSessionWithIdentifier(testSessionId, 29)
-	log.Infof("ProtocolVersion:%d", protocolVersion)
-	if err != nil {
-		return err
-	}
-	pControl, err := instruments.NewProcessControl(device)
-	defer pControl.Close()
-	if err != nil {
-		return err
-	}
-	pid, err := startTestRunner(pControl, xctestConfigPath, testRunnerBundleID)
-	if err != nil {
-		return err
-	}
-	log.Infof("Runner started with pid:%d, waiting for testBundleReady", pid)
-	protocolVersion, minimalVersion := ideDaemonProxy.ideInterface.testBundleReady()
-	channel := ideDaemonProxy.dtxConnection.ForChannelRequest(ProxyDispatcher{})
 
-	log.Infof("ProtocolVersion:%d MinimalVersion:%d", protocolVersion, minimalVersion)
-	conn2, _ := dtx.NewConnection(device, testmanagerd)
+	testSessionId, _, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
+
+	caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
+	if err != nil {
+		log.Debugf("expected err", err)
+		resp, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithProtocolVersion(36)
+		if err != nil {
+			return err
+		}
+		log.Debugf("got protocolversion:%d", resp)
+	}
+
+	conn2, err := dtx.NewConnection(device, testmanagerd)
+	if err != nil {
+		return err
+	}
 	defer conn2.Close()
-	ideDaemonProxy2 := newDtxProxy(conn2)
-	ideDaemonProxy2.daemonConnection.initiateControlSessionForTestProcessID(pid, protocolVersion)
-	startExecutingTestPlanWithProtocolVersion(channel, protocolVersion)
+	log.Debug("connections ready")
+	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig)
+	ideDaemonProxy2.ideInterface.testConfig = testConfig
+
+	log.Debug(caps)
+	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
+		"XCTIssue capability":     uint64(1),
+		"skipped test capability": uint64(1),
+		"test timeout capability": uint64(1),
+	}}
+
+	caps2, err := ideDaemonProxy2.daemonConnection.initiateSessionWithIdentifierAndCaps(testSessionId, localCaps)
+	if err != nil {
+		log.Debugf("error initiateSessionWithIdentifierAndCaps, %+v", err)
+		protocol, err := ideDaemonProxy2.daemonConnection.initiateSessionWithIdentifier(testSessionId, 36)
+		if err != nil {
+			return err
+		}
+		log.Debugf("protocol version received: %d", protocol)
+	}
+	log.Debug(caps2)
+	pControl, err := instruments.NewProcessControl(device)
+	if err != nil {
+		return err
+	}
+	defer pControl.Close()
+
+	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/WebDriverAgentRunner.xctest")
+	if err != nil {
+		return err
+	}
+	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
+
+	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "emty"})
+
+	time.Sleep(time.Second)
+
+	success, _ := ideDaemonProxy.daemonConnection.authorizeTestSessionWithProcessID(pid)
+	log.Debugf("authorizing test session for pid %d successful %t", pid, success)
+	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 36)
+	if err != nil {
+		log.Error(err)
+	}
 	<-closeChan
-	log.Infof("Killing WDA Runner pid %d ...", pid)
+	log.Infof("Killing WebDriverAgent with pid %d ...", pid)
 	err = pControl.KillProcess(pid)
 	if err != nil {
 		return err
 	}
-	log.Info("runner killed with success")
+	log.Info("WDA killed with success")
 	var signal interface{}
 	closedChan <- signal
 	return nil
