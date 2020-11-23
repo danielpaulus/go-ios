@@ -226,14 +226,9 @@ const testmanagerdiOS14 = "com.apple.testmanagerd.lockdown.secure"
 
 const testBundleSuffix = "UITests.xctrunner"
 
-func RunWDA(device ios.DeviceEntry) error {
-
-	return runXCUIWithBundleIds("com.facebook.WebDriverAgentRunner.xctrunner", "com.facebook.WebDriverAgentRunner.xctrunner", "WebDriverAgentRunner.xctest", device)
-}
-
 func RunXCUITest(bundleID string, device ios.DeviceEntry) error {
 	testRunnerBundleID := bundleID + testBundleSuffix
-	return runXCUIWithBundleIds(bundleID, testRunnerBundleID, "", device)
+	return RunXCUIWithBundleIds(bundleID, testRunnerBundleID, "", device)
 }
 
 var closeChan = make(chan interface{})
@@ -277,7 +272,7 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 	}
 	defer pControl.Close()
 
-	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/WebDriverAgentRunner.xctest")
+	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName)
 	if err != nil {
 		return err
 	}
@@ -306,7 +301,7 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 
 }
 
-func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device ios.DeviceEntry) error {
+func RunXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device ios.DeviceEntry) error {
 
 	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
 	if err == nil {
@@ -368,7 +363,7 @@ func runXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	}
 	defer pControl.Close()
 
-	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/WebDriverAgentRunner.xctest")
+	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName)
 	if err != nil {
 		return err
 	}

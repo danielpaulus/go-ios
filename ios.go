@@ -60,7 +60,7 @@ Usage:
   ios apps [--system] [options]
   ios launch <bundleID> [options]
   ios runtest <bundleID> [options]
-  ios runwda [options]
+  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [options]
   ios ax [options]
   ios reboot [options]
   ios -h | --help
@@ -270,8 +270,23 @@ The commands work as following:
 
 	b, _ = arguments.Bool("runwda")
 	if b {
+
+		bundleID, _ := arguments.String("--bundleid")
+		testbundleID, _ := arguments.String("--testrunnerbundleid")
+		xctestconfig, _ := arguments.String("--xctestconfig")
+
+		if bundleID == "" && testbundleID == "" && xctestconfig == "" {
+			log.Info("no bundle ids specified, falling back to defaults")
+			bundleID, testbundleID, xctestconfig = "com.facebook.WebDriverAgentRunner.xctrunner", "com.facebook.WebDriverAgentRunner.xctrunner", "WebDriverAgentRunner.xctest"
+		}
+		if bundleID == "" || testbundleID == "" || xctestconfig == "" {
+			log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Error("please specify either NONE of bundleid, testbundleid and xctestconfig or ALL of them. At least one was empty.")
+			return
+		}
+		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 		go func() {
-			err := testmanagerd.RunWDA(device)
+			err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device)
+
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 			}
