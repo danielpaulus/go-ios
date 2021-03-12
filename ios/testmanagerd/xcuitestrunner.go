@@ -177,7 +177,7 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			log.Debug("received testRunnerReadyWithCapabilities")
 			resp, _ := p.testRunnerReadyWithCapabilities(m)
 			payload, _ := nskeyedarchiver.ArchiveBin(resp)
-			messageBytes, _ := dtx.Encode2(m.Identifier, 1, m.ChannelCode, false, dtx.ResponseWithReturnValueInPayload, payload, dtx.NewPrimitiveDictionary())
+			messageBytes, _ := dtx.Encode(m.Identifier, 1, m.ChannelCode, false, dtx.ResponseWithReturnValueInPayload, payload, dtx.NewPrimitiveDictionary())
 			log.Debug("sending response for capabs")
 			p.dtxConnection.Send(messageBytes)
 

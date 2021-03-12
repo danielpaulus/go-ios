@@ -45,7 +45,7 @@ func TestCodec2(t *testing.T) {
 	}
 	payloadBytes, err := nskeyedarchiver.ArchiveBin(fixtureMsg.Payload[0])
 	assert.NoError(t, err)
-	encodedBytes, err := dtx.Encode(fixtureMsg.Identifier, fixtureMsg.ChannelCode, fixtureMsg.ExpectsReply, fixtureMsg.PayloadHeader.MessageType, payloadBytes, fixtureMsg.Auxiliary)
+	encodedBytes, err := dtx.Encode(fixtureMsg.Identifier, fixtureMsg.ConversationIndex, fixtureMsg.ChannelCode, fixtureMsg.ExpectsReply, fixtureMsg.PayloadHeader.MessageType, payloadBytes, fixtureMsg.Auxiliary)
 	if assert.NoError(t, err) {
 		msg, remainingBytes, err := dtx.DecodeNonBlocking(encodedBytes)
 		assert.Equal(t, 0, len(remainingBytes))
@@ -70,7 +70,7 @@ func TestCodec(t *testing.T) {
 		if !assert.NoError(t, err) {
 			log.Fatal("whet", err)
 		}
-		bytes, err := dtx.Encode(3, 0, true, 2, msg.RawBytes[303:], msg.Auxiliary)
+		bytes, err := dtx.Encode(3, 0, 0, true, 2, msg.RawBytes[303:], msg.Auxiliary)
 		if assert.NoError(t, err) {
 			assert.Equal(t, dat, bytes)
 		}

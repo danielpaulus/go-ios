@@ -17,7 +17,7 @@ func BuildAckMessage(msg Message) []byte {
 }
 
 //Encode encodes the given parameters to a DtxMessage that can be sent to the device.
-func Encode2(
+func Encode(
 	Identifier int,
 	ConversationIndex int,
 	ChannelCode int,
@@ -42,43 +42,6 @@ func Encode2(
 	messageBytes := make([]byte, 32+messageLength)
 
 	writeHeader(messageBytes, messageLength, Identifier, ConversationIndex, ChannelCode, ExpectsReply)
-	writePayloadHeader(messageBytes[32:], MessageType, payloadLength, auxiliarySize)
-	if auxiliarySize == 0 {
-		copy(messageBytes[48:], payloadBytes)
-	} else {
-		writeAuxHeader(messageBytes[48:], auxiliarySize)
-		copy(messageBytes[64:], auxBytes)
-		copy(messageBytes[64+auxiliarySize:], payloadBytes)
-	}
-
-	return messageBytes, nil
-}
-
-//Encode encodes the given parameters to a DtxMessage that can be sent to the device.
-func Encode(
-	Identifier int,
-	ChannelCode int,
-	ExpectsReply bool,
-	MessageType int,
-	payloadBytes []byte,
-	Auxiliary PrimitiveDictionary,
-) ([]byte, error) {
-
-	auxBytes, err := Auxiliary.ToBytes()
-	if err != nil {
-		return make([]byte, 0), err
-	}
-
-	payloadLength := len(payloadBytes)
-	auxiliarySize := len(auxBytes)
-	auxHeaderSize := uint32(16)
-	messageLength := 16 + uint32(auxiliarySize+payloadLength)
-	if auxiliarySize > 0 {
-		messageLength += auxHeaderSize
-	}
-	messageBytes := make([]byte, 32+messageLength)
-
-	writeHeader(messageBytes, messageLength, Identifier, 0, ChannelCode, ExpectsReply)
 	writePayloadHeader(messageBytes[32:], MessageType, payloadLength, auxiliarySize)
 	if auxiliarySize == 0 {
 		copy(messageBytes[48:], payloadBytes)

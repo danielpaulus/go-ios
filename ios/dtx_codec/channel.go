@@ -71,7 +71,7 @@ func (d *Channel) Send(expectsReply bool, messageType int, payloadBytes []byte, 
 	d.messageIdentifier++
 	d.mutex.Unlock()
 
-	bytes, err := Encode(identifier, d.channelCode, expectsReply, messageType, payloadBytes, auxiliary)
+	bytes, err := Encode(identifier, 0, d.channelCode, expectsReply, messageType, payloadBytes, auxiliary)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType int, payloadB
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
 	d.mutex.Unlock()
-	bytes, err := Encode(identifier, d.channelCode, expectsReply, messageType, payloadBytes, auxiliary)
+	bytes, err := Encode(identifier, 0, d.channelCode, expectsReply, messageType, payloadBytes, auxiliary)
 	if err != nil {
 		return Message{}, err
 	}
