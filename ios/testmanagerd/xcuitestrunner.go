@@ -188,7 +188,7 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 	if shouldAck {
 		dtx.SendAckIfNeeded(p.dtxConnection, m)
 	}
-	log.Debugf("dispatcher received: %s", m.Payload[0])
+	log.Debugf("dispatcher received: %s", m.String())
 }
 
 func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {

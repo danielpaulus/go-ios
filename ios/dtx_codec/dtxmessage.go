@@ -10,6 +10,8 @@ const (
 	DtxMessageMagic uint32 = 0x795B3D1F
 	//DtxMessageHeaderLength alwys 32 byte
 	DtxMessageHeaderLength uint32 = 32
+	//DtxMessagePayloadHeaderLength always 16 bytes
+	DtxMessagePayloadHeaderLength uint32 = 16
 	//DtxReservedBits are always 0x0
 	DtxReservedBits uint32 = 0x0
 )
