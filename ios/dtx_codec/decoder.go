@@ -238,7 +238,7 @@ func (d Message) IsFragment() bool {
 // MessageIsFirstFragmentFor indicates whether the message you call this on, is the first part of a fragmented message, and if otherMessage is a subsequent fragment
 func (d Message) MessageIsFirstFragmentFor(otherMessage Message) bool {
 	if !d.IsFirstFragment() {
-		panic("Illegal state")
+		return false
 	}
 	return d.Identifier == otherMessage.Identifier && d.Fragments == otherMessage.Fragments && otherMessage.FragmentIndex > 0
 }

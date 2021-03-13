@@ -16,7 +16,8 @@ const (
 	DtxReservedBits uint32 = 0x0
 )
 
-/*Message contains a decoded DtxMessage
+/*Message contains a decoded DtxMessage aka the most overcomplicated RPC protocol this planet has ever seen :-D
+
 DTXMessages consist of a 32byte header that always starts with the DtxMessageMagic
 It is followed by the 16 bytes PayloadHeader.
 If there is an Auxiliary:
@@ -25,6 +26,9 @@ If there is an Auxiliary:
 
  If there is no Auxiliary:
  The payload bytes follow directly after the PayloadHeader
+
+ There is also support for fragmenting DTX messages into multiple messages, see fragmentdecoder.go for details
+ how that works
 */
 type Message struct {
 	Fragments         uint16
