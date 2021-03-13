@@ -24,7 +24,7 @@ type Connection struct {
 
 //Close sends a Shutdown command to notification proxy and closes the DeviceConnectionInterface
 func (c *Connection) Close() {
-	log.Debug("shutting down %s", serviceName)
+	log.Debugf("shutting down %s", serviceName)
 	request := notificationProxyRequest{Command: "Shutdown"}
 	bytes, err := c.plistCodec.Encode(request)
 	if err != nil {

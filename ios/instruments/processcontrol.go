@@ -41,7 +41,7 @@ func (p processControlDispatcher) Dispatch(m dtx.Message) {
 func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
 	dtxConn, err := dtx.NewConnection(device, serviceName)
 	if err != nil {
-		log.Debug("Failed connecting to %s, trying %s", serviceName, serviceNameiOS14)
+		log.Debugf("Failed connecting to %s, trying %s", serviceName, serviceNameiOS14)
 		dtxConn, err = dtx.NewConnection(device, serviceNameiOS14)
 		if err != nil {
 			return nil, err

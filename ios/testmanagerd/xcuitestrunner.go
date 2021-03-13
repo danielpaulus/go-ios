@@ -323,7 +323,7 @@ func RunXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 
 	caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
 	if err != nil {
-		log.Debugf("expected err", err)
+		log.Debug("expected err", err)
 		resp, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithProtocolVersion(36)
 		if err != nil {
 			return err
