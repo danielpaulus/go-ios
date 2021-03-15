@@ -10,7 +10,6 @@ import (
 )
 
 type MethodWithResponse func(msg Message) (interface{}, error)
-type MethodWithoutResponse func(msg Message) error
 
 //Connection manages channels, including the GlobalChannel, for a DtxConnection and dispatches received messages
 //to the right channel.
