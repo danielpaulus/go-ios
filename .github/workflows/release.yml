@@ -4,16 +4,35 @@ on:
       - master
 name: Release-Go-iOS
 jobs:
-  test:
-    strategy:
-      matrix:
-        go-version: [1.16.x]
-    runs-on: ubuntu-latest
+  build_on_mac:
+    runs-on: macos-latest
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: 1.16.x
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build
+        run: |
+          brew install gnu-sed
+          alias sed=gsed
+          gsed -i 's/version \= \"local-build\"/version = \"${{ steps.create_release.outputs.current_tag }}\"/' ios.go
+          go build -ldflags="-s -w"
+          zip go-ios-mac.zip go-ios
+      - name: upload the macos build
+        uses: actions/upload-artifact@v2
+        with:
+          name: macos-build
+          path: go-ios-mac.zip
+  build_on_linux_and_release:
+    runs-on: ubuntu-latest
+    needs: build_on_mac
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16.x
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Create Release
@@ -27,14 +46,13 @@ jobs:
         run: |
           sed -i 's/version \= \"local-build\"/version = \"${{ steps.create_release.outputs.current_tag }}\"/' ios.go
           go build -ldflags="-s -w"
-          zip go-ios.zip go-ios
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          zip go-ios-linux.zip go-ios
+      - name: Download mac release from previous job
+        uses: actions/download-artifact@v2
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: ./go-ios.zip
-          asset_name: go-ios.zip
-          asset_content_type: application/zip
+          name: macos-build
+      - uses: AButler/upload-release-assets@v2.0
+        with:
+          files: "*.zip"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ steps.create_release.outputs.current_tag }}
