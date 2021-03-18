@@ -36,11 +36,11 @@ func main() {
 	Main()
 }
 
-const version = "v 0.01"
+const version = "local-build"
 
 // Main Exports main for testing
 func Main() {
-	usage := `iOS client v 0.01
+	usage := fmt.Sprintf(`go-ios %s
 
 Usage:
   ios listen [options]
@@ -101,7 +101,7 @@ The commands work as following:
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
 
-  `
+  `, version)
 	arguments, err := docopt.ParseDoc(usage)
 	if err != nil {
 		log.Fatal(err)
