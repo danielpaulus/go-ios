@@ -25,6 +25,7 @@ jobs:
           tag_schema: semantic
       - name: Build
         run: |
+          sed -i 's/version \= \"local-build\"/version = \"${{ steps.create_release.outputs.current_tag }}\"/' ios.go
           go build -ldflags="-s -w"
           zip go-ios.zip go-ios
       - name: Upload Release Asset
