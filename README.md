@@ -14,6 +14,7 @@ Highlights:
 - start and stop apps
 - Use a debug proxy to reverse engineer every tool Mac OSX has, so you can contrib to go-ios or build your own
 - use Accessibility Inspector APIs
+- go-iOS generates JSON formatted output per default, so it is easy to integrate with other tools
 
 ```
 The commands work as following:
