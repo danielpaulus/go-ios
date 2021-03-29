@@ -3,7 +3,7 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 Go-iOS was inspired by the wonderful https://www.libimobiledevice.org
-It can do all of what libimobiledevice can do and in addition also run XCUITest, launch and kill apps and muchmore.
+It can do all of what libimobiledevice can do and in addition also run XCUITest, launch and kill apps and much more.
 It is written in golang, so you can control iOS devices using fast CLI tools :-)
 
 You can use it for free in any open source project. If you want use it in a closed source project, get in touch :-)
