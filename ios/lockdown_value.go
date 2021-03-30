@@ -218,7 +218,10 @@ func GetValuesPlist(device DeviceEntry) (map[string]interface{}, error) {
 		return map[string]interface{}{}, err
 	}
 	plist, err := ParsePlist(resp)
-
+	plist, ok := plist["Value"].(map[string]interface{})
+	if !ok {
+		return plist, fmt.Errorf("Failed converting lockdown response:%+v", plist)
+	}
 	return plist, err
 }
 
