@@ -14,7 +14,6 @@ const serviceName string = "com.apple.syslog_relay"
 //Connection exposes the LogReader channel which send the LogMessages as strings.
 type Connection struct {
 	deviceConn     ios.DeviceConnectionInterface
-	logReader      chan string
 	bufferedReader *bufio.Reader
 }
 
@@ -25,7 +24,7 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	if err != nil {
 		return &Connection{}, err
 	}
-	return &Connection{deviceConn: deviceConn, logReader: make(chan string, 200)}, nil
+	return &Connection{deviceConn: deviceConn}, nil
 }
 
 //ReadLogMessage this is a blocking function that will return individual log messages received from syslog.
