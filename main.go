@@ -549,8 +549,11 @@ func startListening() {
 }
 
 func printDeviceInfo(device ios.DeviceEntry) {
-	allValues := ios.GetValues(device)
-	fmt.Println(convertToJSONString(allValues.Value))
+	allValues, err := ios.GetValuesPlist(device)
+	if err != nil {
+		failWithError("failed getting info", err)
+	}
+	fmt.Println(convertToJSONString(allValues))
 }
 
 func runSyslog(device ios.DeviceEntry) {
@@ -602,4 +605,8 @@ func convertToJSONString(data interface{}) string {
 		return ""
 	}
 	return string(b)
+}
+
+func failWithError(msg string, err error) {
+	log.WithFields(log.Fields{"err": err}).Fatalf(msg)
 }

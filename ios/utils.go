@@ -53,7 +53,7 @@ func GetDevice(udid string) (DeviceEntry, error) {
 		if len(deviceList.DeviceList) == 0 {
 			return DeviceEntry{}, errors.New("no iOS devices are attached to this host")
 		}
-		log.WithFields(log.Fields{"udid": deviceList.DeviceList[0].Properties.SerialNumber}).Info("no udid specified using default")
+		log.WithFields(log.Fields{"udid": deviceList.DeviceList[0].Properties.SerialNumber}).Debug("no udid specified using default")
 		return deviceList.DeviceList[0], nil
 	}
 	for _, device := range deviceList.DeviceList {
