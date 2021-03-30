@@ -595,7 +595,11 @@ func pairDevice(device ios.DeviceEntry) {
 
 func readPair(device ios.DeviceEntry) {
 	record := ios.ReadPairRecord(device.Properties.SerialNumber)
-	log.Info(record)
+	json, err := json.Marshal(record)
+	if err != nil {
+		failWithError("failed converting to json", err)
+	}
+	fmt.Printf("%s", json)
 }
 
 func convertToJSONString(data interface{}) string {
