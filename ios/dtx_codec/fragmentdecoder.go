@@ -63,6 +63,5 @@ func (f FragmentDecoder) Extract() []byte {
 		copy(assembledMessage[offset:], frag.fragmentBytes)
 		offset += len(frag.fragmentBytes)
 	}
-
 	return assembledMessage
 }
