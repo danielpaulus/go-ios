@@ -22,9 +22,20 @@ func ReadMessage(reader io.Reader) (Message, error) {
 	result := readHeader(header)
 
 	if result.IsFragment() {
+
+		//the first part of a fragmented message is only a header indicating the total length of
+		//the defragmented message
+		if result.IsFirstFragment() {
+			//put in the header as bytes here
+			result.fragmentBytes = header
+			return result, nil
+		}
 		//32 offset is correct, the binary starts with a payload header
 		messageBytes := make([]byte, result.MessageLength)
-		io.ReadFull(reader, messageBytes)
+		_, err := io.ReadFull(reader, messageBytes)
+		if err != nil {
+			return Message{}, err
+		}
 		result.fragmentBytes = messageBytes
 		return result, nil
 	}
@@ -227,7 +238,7 @@ func (d Message) IsFirstFragment() bool {
 
 //IsLastFragment returns true if this message is the last fragment
 func (d Message) IsLastFragment() bool {
-	return d.Fragments-d.FragmentIndex == 1
+	return d.Fragments > 1 && d.Fragments-d.FragmentIndex == 1
 }
 
 //IsFragment returns true if the Message is a fragment

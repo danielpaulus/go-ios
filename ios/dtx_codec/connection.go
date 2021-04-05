@@ -96,7 +96,7 @@ func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, err
 	//The global channel is automatically present and used for requesting other channels and some other methods like notifyPublishedCapabilities
 	globalChannel := Channel{channelCode: 0,
 		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
-		messageDispatcher: NewGlobalDispatcher(requestChannelMessages, dtxConnection), responseWaiters: map[int]chan Message{}, registeredMethods: map[string]chan Message{}}
+		messageDispatcher: NewGlobalDispatcher(requestChannelMessages, dtxConnection), responseWaiters: map[int]chan Message{}, registeredMethods: map[string]chan Message{}, defragmenters: map[int]*FragmentDecoder{}}
 	dtxConnection.globalChannel = &globalChannel
 	go reader(dtxConnection)
 
@@ -148,7 +148,7 @@ func (dtxConn *Connection) ForChannelRequest(messageDispatcher Dispatcher) *Chan
 	//code := msg.Auxiliary.GetArguments()[0].(uint32)
 	identifier, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
 	//TODO: Setting the channel code here manually to -1 for making testmanagerd work. For some reason it requests the TestDriver proxy channel with code 1 but sends messages on -1. Should probably be fixed somehow
-	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}}
+	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}}
 	dtxConn.activeChannels[-1] = channel
 	return channel
 }
@@ -174,7 +174,7 @@ func (dtxConn *Connection) RequestChannelIdentifier(identifier string, messageDi
 		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Error("failed requesting channel")
 	}
 	log.WithFields(log.Fields{"channel_id": identifier}).Debug("Channel open")
-	channel := &Channel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}}
+	channel := &Channel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}}
 	dtxConn.activeChannels[code] = channel
 	return channel
 }
