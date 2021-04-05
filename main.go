@@ -498,8 +498,8 @@ func processList(device ios.DeviceEntry) {
 	if err != nil {
 		failWithError("failed opening deviceInfoService for getting process list", err)
 	}
-	err = service.ProcessList()
-	log.Infof("%+v", err)
+	processList, err := service.ProcessList()
+	println(convertToJSONString(processList))
 }
 
 func printDeviceList(details bool) {

@@ -8,10 +8,34 @@ import (
 
 const deviceInfoServiceName = "com.apple.instruments.server.services.deviceinfo"
 
-func (p DeviceInfoService) ProcessList() error {
+type ProcessInfo struct {
+	IsApplication bool
+	Name          string
+	Pid           uint64
+	RealAppName   string
+	StartDate     string
+}
+
+func (p DeviceInfoService) ProcessList() ([]ProcessInfo, error) {
 	resp, err := p.channel.MethodCall("runningProcesses")
-	log.Info("%+v", resp)
-	return err
+	result := mapToProcInfo(resp.Payload[0].([]interface{}))
+	return result, err
+}
+
+func mapToProcInfo(procList []interface{}) []ProcessInfo {
+	result := make([]ProcessInfo, len(procList))
+	for i, procMapInt := range procList {
+		procMap := procMapInt.(map[string]interface{})
+		procInf := ProcessInfo{}
+		procInf.IsApplication = procMap["isApplication"].(bool)
+		procInf.Name = procMap["name"].(string)
+		procInf.Pid = procMap["pid"].(uint64)
+		procInf.RealAppName = procMap["realAppName"].(string)
+		//procInf.StartDate = procMap["startDate"].(nskeyedarchiver.NSDate).String()
+		result[i] = procInf
+
+	}
+	return result
 }
 
 func (p DeviceInfoService) NameForPid(pid uint64) error {
