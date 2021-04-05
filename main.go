@@ -495,6 +495,7 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 
 func processList(device ios.DeviceEntry) {
 	service, err := instruments.NewDeviceInfoService(device)
+	defer service.Close()
 	if err != nil {
 		failWithError("failed opening deviceInfoService for getting process list", err)
 	}

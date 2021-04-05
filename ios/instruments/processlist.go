@@ -11,6 +11,8 @@ import (
 
 const deviceInfoServiceName = "com.apple.instruments.server.services.deviceinfo"
 
+//ProcessInfo contains all the properties for a process
+//running on an iOS devices that we get back from instruments
 type ProcessInfo struct {
 	IsApplication bool
 	Name          string
@@ -19,10 +21,17 @@ type ProcessInfo struct {
 	StartDate     time.Time
 }
 
+//ProcessList returns a []ProcessInfo, one for each process running on the iOS device
 func (p DeviceInfoService) ProcessList() ([]ProcessInfo, error) {
 	resp, err := p.channel.MethodCall("runningProcesses")
 	result := mapToProcInfo(resp.Payload[0].([]interface{}))
 	return result, err
+}
+
+//NameForPid resolves a process name for a given pid
+func (p DeviceInfoService) NameForPid(pid uint64) error {
+	_, err := p.channel.MethodCall("execnameForPid:", pid)
+	return err
 }
 
 func mapToProcInfo(procList []interface{}) []ProcessInfo {
@@ -43,11 +52,6 @@ func mapToProcInfo(procList []interface{}) []ProcessInfo {
 	return result
 }
 
-func (p DeviceInfoService) NameForPid(pid uint64) error {
-	_, err := p.channel.MethodCall("execnameForPid:", pid)
-	return err
-}
-
 type deviceInfoDispatcher struct {
 	conn *dtx.Connection
 }
@@ -57,11 +61,13 @@ func (p deviceInfoDispatcher) Dispatch(m dtx.Message) {
 	log.Debug(m)
 }
 
+//DeviceInfoService gives us access to retrieving process lists and resolving names for PIDs
 type DeviceInfoService struct {
 	channel *dtx.Channel
 	conn    *dtx.Connection
 }
 
+//NewDeviceInfoService creates a new DeviceInfoService for a given device
 func NewDeviceInfoService(device ios.DeviceEntry) (*DeviceInfoService, error) {
 	dtxConn, err := dtx.NewConnection(device, serviceName)
 	if err != nil {
@@ -73,4 +79,9 @@ func NewDeviceInfoService(device ios.DeviceEntry) (*DeviceInfoService, error) {
 	}
 	processControlChannel := dtxConn.RequestChannelIdentifier(deviceInfoServiceName, processControlDispatcher{dtxConn})
 	return &DeviceInfoService{channel: processControlChannel, conn: dtxConn}, nil
+}
+
+//Close closes up the DTX connection
+func (d *DeviceInfoService) Close() {
+	d.conn.Close()
 }
