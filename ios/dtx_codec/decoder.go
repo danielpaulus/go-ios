@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
-	log "github.com/sirupsen/logrus"
 )
 
 //ReadMessage uses the reader to fully read a Message from it in blocking mode.
@@ -18,12 +17,12 @@ func ReadMessage(reader io.Reader) (Message, error) {
 		return Message{}, err
 	}
 	if binary.BigEndian.Uint32(header) != DtxMessageMagic {
-		log.Infof("%x", header)
 		return Message{}, NewOutOfSync(fmt.Sprintf("Wrong Magic: %x", header[0:4]))
 	}
 	result := readHeader(header)
 
 	if result.IsFragment() {
+
 		//the first part of a fragmented message is only a header indicating the total length of
 		//the defragmented message
 		if result.IsFirstFragment() {

@@ -124,6 +124,72 @@ func TestType1Message(t *testing.T) {
 
 }
 
+func TestFragmentedMessage(t *testing.T) {
+	dat, err := ioutil.ReadFile("fixtures/fragmentedmessage.bin")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//test the non blocking decoder first
+	msg, remainingBytes, err := dtx.DecodeNonBlocking(dat)
+	if assert.NoError(t, err) {
+		assert.Equal(t, 79707, len(remainingBytes))
+		assert.Equal(t, uint16(3), msg.Fragments)
+		assert.Equal(t, uint16(0), msg.FragmentIndex)
+		assert.Equal(t, false, msg.HasPayload())
+	}
+	defragmenter := dtx.NewFragmentDecoder(msg)
+	msg, remainingBytes, err = dtx.DecodeNonBlocking(remainingBytes)
+	if assert.NoError(t, err) {
+		assert.Equal(t, 14171, len(remainingBytes))
+		assert.Equal(t, uint16(3), msg.Fragments)
+		assert.Equal(t, uint16(1), msg.FragmentIndex)
+		assert.Equal(t, false, msg.HasPayload())
+	}
+	defragmenter.AddFragment(msg)
+	msg, remainingBytes, err = dtx.DecodeNonBlocking(remainingBytes)
+	if assert.NoError(t, err) {
+		assert.Equal(t, 0, len(remainingBytes))
+		assert.Equal(t, uint16(3), msg.Fragments)
+		assert.Equal(t, uint16(2), msg.FragmentIndex)
+		assert.Equal(t, false, msg.HasPayload())
+	}
+	defragmenter.AddFragment(msg)
+	assert.True(t, defragmenter.HasFinished())
+	nonblockingFullMessage := defragmenter.Extract()
+
+	//now test that the blocking decoder creates the same message and that it is decodeable
+	dtxReader := bytes.NewReader(dat)
+	msg, err = dtx.ReadMessage(dtxReader)
+	if assert.NoError(t, err) {
+		assert.Equal(t, uint16(3), msg.Fragments)
+		assert.Equal(t, uint16(0), msg.FragmentIndex)
+		assert.Equal(t, false, msg.HasPayload())
+		assert.Equal(t, true, msg.IsFirstFragment())
+	}
+	defragmenter = dtx.NewFragmentDecoder(msg)
+	msg, err = dtx.ReadMessage(dtxReader)
+	if assert.NoError(t, err) {
+		assert.Equal(t, uint16(3), msg.Fragments)
+		assert.Equal(t, uint16(1), msg.FragmentIndex)
+		assert.Equal(t, true, msg.IsFragment())
+	}
+	defragmenter.AddFragment(msg)
+	msg, err = dtx.ReadMessage(dtxReader)
+	if assert.NoError(t, err) {
+		assert.Equal(t, uint16(3), msg.Fragments)
+		assert.Equal(t, uint16(2), msg.FragmentIndex)
+		assert.Equal(t, true, msg.IsLastFragment())
+	}
+	defragmenter.AddFragment(msg)
+	assert.Equal(t, true, defragmenter.HasFinished())
+	defraggedMessage := defragmenter.Extract()
+	assert.Equal(t, defraggedMessage, nonblockingFullMessage)
+	dtxReader = bytes.NewReader(defraggedMessage)
+	_, err = dtx.ReadMessage(dtxReader)
+	assert.NoError(t, err)
+}
+
 func TestDecoder(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/notifyOfPublishedCapabilites")
 	if err != nil {
