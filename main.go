@@ -51,6 +51,7 @@ Usage:
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios diagnostics list [options]
   ios pair [options]
+  ios ps [options]
   ios forward [options] <hostPort> <targetPort>
   ios dproxy
   ios readpair [options]
@@ -86,6 +87,7 @@ The commands work as following:
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios diagnostics list [options]                                     List diagnostic infos
    ios pair [options]                                                 Pairs the device without a dialog for supervised devices
+   ios ps [options]                                                   Dumps a list of running processes on the device
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
    ios dproxy                                                         Starts the reverse engineering proxy server. It dumps every communication in plain text so it can be implemented easily. Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist" to stop usbmuxd and load to start it again should the proxy mess up things.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
@@ -157,6 +159,12 @@ The commands work as following:
 	b, _ = arguments.Bool("pcap")
 	if b {
 		pcap.Start(device)
+		return
+	}
+
+	b, _ = arguments.Bool("ps")
+	if b {
+		processList(device)
 		return
 	}
 
@@ -483,6 +491,15 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 	} else {
 		log.WithFields(log.Fields{"outputPath": outputPath}).Info("File saved successfully")
 	}
+}
+
+func processList(device ios.DeviceEntry) {
+	service, err := instruments.NewDeviceInfoService(device)
+	if err != nil {
+		failWithError("failed opening deviceInfoService for getting process list", err)
+	}
+	err = service.ProcessList()
+	log.Infof("%+v", err)
 }
 
 func printDeviceList(details bool) {

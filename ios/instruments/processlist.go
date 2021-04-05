@@ -8,7 +8,7 @@ import (
 
 const deviceInfoServiceName = "com.apple.instruments.server.services.deviceinfo"
 
-func (p DeviceInfoService) ProcessList(pid uint64) error {
+func (p DeviceInfoService) ProcessList() error {
 	resp, err := p.channel.MethodCall("runningProcesses")
 	log.Info("%+v", resp)
 	return err
