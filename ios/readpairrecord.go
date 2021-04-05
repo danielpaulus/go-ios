@@ -91,8 +91,8 @@ func (muxConn *UsbMuxConnection) ReadPair(udid string) PairRecord {
 }
 
 //ReadPairRecord creates a new USBMuxConnection just to read the pair record and closes it right after than.
-func ReadPairRecord(udid string) PairRecord {
-	muxConnection := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
+func ReadPairRecord(udid string) (PairRecord, error) {
+	muxConnection, err := NewUsbMuxConnectionSimple()
 	defer muxConnection.ReleaseDeviceConnection()
-	return muxConnection.ReadPair(udid)
+	return muxConnection.ReadPair(udid), err
 }

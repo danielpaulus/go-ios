@@ -84,7 +84,10 @@ func NewDebugProxy() *DebugProxy {
 
 //Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
 func (d *DebugProxy) Launch(device ios.DeviceEntry) error {
-	pairRecord := ios.ReadPairRecord(device.Properties.SerialNumber)
+	pairRecord, err := ios.ReadPairRecord(device.Properties.SerialNumber)
+	if err != nil {
+		return err
+	}
 	originalSocket, err := MoveSock(ios.DefaultUsbmuxdSocket)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err, "socket": ios.DefaultUsbmuxdSocket}).Error("Unable to move, lacking permissions?")
@@ -119,7 +122,12 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry) error {
 
 func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.PairRecord, debugProxy *DebugProxy, info ConnectionInfo) {
 	connListeningOnUnixSocket := ios.NewUsbMuxConnection(ios.NewDeviceConnectionWithConn(conn))
-	connectionToDevice := ios.NewUsbMuxConnection(ios.NewDeviceConnection(originalSocket))
+	devConn, err := ios.NewDeviceConnection(originalSocket)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	connectionToDevice := ios.NewUsbMuxConnection(devConn)
 
 	p := ProxyConnection{info.ID, pairRecord, debugProxy, info, log.WithFields(log.Fields{"id": info.ID}), sync.Mutex{}, false}
 

@@ -48,7 +48,10 @@ func Ntohs(port uint16) uint16 {
 //GetDevice returns the device for udid. If udid equals emptystring, it returns the first device in the list.
 func GetDevice(udid string) (DeviceEntry, error) {
 	log.Debugf("Looking for device '%s'", udid)
-	deviceList := ListDevices()
+	deviceList, err := ListDevices()
+	if err != nil {
+		return DeviceEntry{}, err
+	}
 	if udid == "" {
 		if len(deviceList.DeviceList) == 0 {
 			return DeviceEntry{}, errors.New("no iOS devices are attached to this host")

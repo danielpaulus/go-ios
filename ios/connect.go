@@ -82,9 +82,15 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	if err != nil {
 		return nil, err
 	}
-	pairRecord := ReadPairRecord(device.Properties.SerialNumber)
+	pairRecord, err := ReadPairRecord(device.Properties.SerialNumber)
+	if err != nil {
+		return nil, err
+	}
 
-	muxConn := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
+	muxConn, err := NewUsbMuxConnectionSimple()
+	if err != nil {
+		return nil, fmt.Errorf("Could not connect to usbmuxd socket, is it running? %w", err)
+	}
 	err = muxConn.connectWithStartServiceResponse(device.DeviceID, startServiceResponse, pairRecord)
 	if err != nil {
 		return nil, err
@@ -117,7 +123,10 @@ func (muxConn *UsbMuxConnection) connectWithStartServiceResponse(deviceID int, s
 }
 
 func ConnectLockdownWithSession(device DeviceEntry) *LockDownConnection {
-	muxConnection := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
+	muxConnection, err := NewUsbMuxConnectionSimple()
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer muxConnection.ReleaseDeviceConnection()
 
 	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)

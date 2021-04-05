@@ -31,10 +31,9 @@ type DeviceConnection struct {
 }
 
 //NewDeviceConnection creates a new DeviceConnection pointing to the given socket waiting for a call to Connect()
-func NewDeviceConnection(socketToConnectTo string) *DeviceConnection {
+func NewDeviceConnection(socketToConnectTo string) (*DeviceConnection, error) {
 	conn := &DeviceConnection{}
-	conn.connectToSocketAddress(socketToConnectTo)
-	return conn
+	return conn, conn.connectToSocketAddress(socketToConnectTo)
 }
 
 //NewDeviceConnectionWithConn create a DeviceConnection with a already connected network conn.
@@ -43,14 +42,14 @@ func NewDeviceConnectionWithConn(conn net.Conn) *DeviceConnection {
 }
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
-func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) {
+func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error {
 	c, err := net.Dial("unix", socketAddress)
 	if err != nil {
-		log.Fatal("Could not connect to usbmuxd socket, is it running?", err)
+		return err
 	}
 	log.Debug("Opening connection:", &c)
 	conn.c = c
-
+	return nil
 }
 
 //Close closes the network connection
