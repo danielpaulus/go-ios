@@ -16,6 +16,7 @@ type Channel struct {
 	connection        *Connection
 	messageDispatcher Dispatcher
 	responseWaiters   map[int]chan Message
+	defragmenters     map[int]*FragmentDecoder
 	registeredMethods map[string]chan Message
 	mutex             sync.Mutex
 }
@@ -128,6 +129,33 @@ func (d *Channel) Dispatch(msg Message) {
 	if msg.ConversationIndex > 0 {
 		d.mutex.Lock()
 		defer d.mutex.Unlock()
+		if msg.IsFirstFragment() {
+			d.defragmenters[msg.Identifier] = NewFragmentDecoder(msg)
+			SendAckIfNeeded(d.connection, msg)
+			return
+		}
+		if msg.IsFragment() {
+			if defragmenter, ok := d.defragmenters[msg.Identifier]; ok {
+				defragmenter.AddFragment(msg)
+				if msg.IsLastFragment() {
+					messagesBytes := defragmenter.Extract()
+					msg, leftover, err := DecodeNonBlocking(messagesBytes)
+					if len(leftover) != 0 {
+						log.Error("Decoding fragmented message failed")
+					}
+					if err != nil {
+						log.Error("decoding framente")
+					}
+					d.responseWaiters[msg.Identifier] <- msg
+					delete(d.responseWaiters, msg.Identifier)
+				}
+				return
+			}
+			log.Warn("received message fragment without first message, dropping it")
+			delete(d.responseWaiters, msg.Identifier)
+			return
+		}
+
 		d.responseWaiters[msg.Identifier] <- msg
 		delete(d.responseWaiters, msg.Identifier)
 		return
