@@ -557,25 +557,37 @@ func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 }
 
 func startListening() {
-	deviceConn, err := ios.NewDeviceConnection(ios.DefaultUsbmuxdSocket)
-	if err != nil {
-		log.Fatalf("did not work")
-	}
-	muxConnection := ios.NewUsbMuxConnection(deviceConn)
-	defer muxConnection.ReleaseDeviceConnection()
-	attachedReceiver, err := muxConnection.Listen()
-	if err != nil {
-		log.Fatal("Failed issuing Listen command", err)
-	}
-	for {
-		msg, err := attachedReceiver()
-		if err != nil {
-			log.Error("Stopped listening because of error")
-			return
-		}
-		println(convertToJSONString((msg)))
-	}
+	go func() {
+		for {
+			deviceConn, err := ios.NewDeviceConnection(ios.DefaultUsbmuxdSocket)
+			defer deviceConn.Close()
+			if err != nil {
+				log.Errorf("could not connect to %s with err %+v, will retry in 3 seconds...", ios.DefaultUsbmuxdSocket, err)
+				time.Sleep(time.Second * 3)
+				continue
+			}
+			muxConnection := ios.NewUsbMuxConnection(deviceConn)
 
+			attachedReceiver, err := muxConnection.Listen()
+			if err != nil {
+				log.Error("Failed issuing Listen command, will retry in 3 seconds", err)
+				deviceConn.Close()
+				time.Sleep(time.Second * 3)
+				continue
+			}
+			for {
+				msg, err := attachedReceiver()
+				if err != nil {
+					log.Error("Stopped listening because of error")
+					break
+				}
+				println(convertToJSONString((msg)))
+			}
+		}
+	}()
+	c := make(chan os.Signal, syscall.SIGTERM)
+	signal.Notify(c, os.Interrupt)
+	<-c
 }
 
 func printDeviceInfo(device ios.DeviceEntry) {
