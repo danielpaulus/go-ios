@@ -56,6 +56,7 @@ Usage:
   ios dproxy
   ios readpair [options]
   ios pcap [options]
+  ios install --path=<ipaOrAppFolder> [options]
   ios apps [--system] [options]
   ios launch <bundleID> [options]
   ios runtest <bundleID> [options]
@@ -92,6 +93,7 @@ The commands work as following:
    ios dproxy                                                         Starts the reverse engineering proxy server. It dumps every communication in plain text so it can be implemented easily. Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist" to stop usbmuxd and load to start it again should the proxy mess up things.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios pcap [options]                                                 Starts a pcap dump of network traffic
+   ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
    ios runtest <bundleID>                                             Run a XCUITest. 
@@ -165,6 +167,13 @@ The commands work as following:
 	b, _ = arguments.Bool("ps")
 	if b {
 		processList(device)
+		return
+	}
+
+	b, _ = arguments.Bool("install")
+	if b {
+		path, _ := arguments.String("--path")
+		installApp(path)
 		return
 	}
 
@@ -328,6 +337,10 @@ The commands work as following:
 		return
 	}
 
+}
+
+func installApp(path string) {
+	log.Info("installing " + path)
 }
 
 func language(device ios.DeviceEntry, locale string, language string) {
