@@ -289,7 +289,7 @@ func NewNSError(object map[string]interface{}, objects []interface{}) interface{
 const nsReferenceDate = 978307200000
 
 type NSDate struct {
-	timestamp time.Time
+	Timestamp time.Time
 }
 
 type DTTapHeartbeatMessage struct {
@@ -320,7 +320,7 @@ func NewNSDate(object map[string]interface{}, objects []interface{}) interface{}
 	return NSDate{time}
 }
 func (n NSDate) String() string {
-	return fmt.Sprintf("%s", n.timestamp)
+	return fmt.Sprintf("%s", n.Timestamp)
 }
 
 type NSNull struct {

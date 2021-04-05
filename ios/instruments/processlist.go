@@ -1,8 +1,11 @@
 package instruments
 
 import (
+	"time"
+
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
+	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -13,7 +16,7 @@ type ProcessInfo struct {
 	Name          string
 	Pid           uint64
 	RealAppName   string
-	StartDate     string
+	StartDate     time.Time
 }
 
 func (p DeviceInfoService) ProcessList() ([]ProcessInfo, error) {
@@ -31,7 +34,9 @@ func mapToProcInfo(procList []interface{}) []ProcessInfo {
 		procInf.Name = procMap["name"].(string)
 		procInf.Pid = procMap["pid"].(uint64)
 		procInf.RealAppName = procMap["realAppName"].(string)
-		//procInf.StartDate = procMap["startDate"].(nskeyedarchiver.NSDate).String()
+		if date, ok := procMap["startDate"]; ok {
+			procInf.StartDate = date.(nskeyedarchiver.NSDate).Timestamp
+		}
 		result[i] = procInf
 
 	}
