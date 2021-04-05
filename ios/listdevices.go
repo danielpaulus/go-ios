@@ -94,8 +94,8 @@ func (muxConn *UsbMuxConnection) ListDevices() DeviceList {
 
 //ListDevices returns a DeviceList containing data about all
 //currently connected iOS devices using a new UsbMuxConnection
-func ListDevices() DeviceList {
-	muxConnection := NewUsbMuxConnection(NewDeviceConnection(DefaultUsbmuxdSocket))
+func ListDevices() (DeviceList, error) {
+	muxConnection, err := NewUsbMuxConnectionSimple()
 	defer muxConnection.ReleaseDeviceConnection()
-	return muxConnection.ListDevices()
+	return muxConnection.ListDevices(), err
 }

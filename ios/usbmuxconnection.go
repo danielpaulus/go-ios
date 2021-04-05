@@ -21,11 +21,17 @@ type UsbMuxConnection struct {
 	deviceConn DeviceConnectionInterface
 }
 
-// NewUsbMuxConnection creates a new UsbMuxConnection with from an already initialized DeviceConnectionInterface
-// and
+// NewUsbMuxConnection creates a new UsbMuxConnection from an already initialized DeviceConnectionInterface
 func NewUsbMuxConnection(deviceConn DeviceConnectionInterface) *UsbMuxConnection {
 	muxConn := &UsbMuxConnection{tag: 0, deviceConn: deviceConn}
 	return muxConn
+}
+
+// NewUsbMuxConnectionSimple creates a new UsbMuxConnection with a connection to /var/run/usbmuxd
+func NewUsbMuxConnectionSimple() (*UsbMuxConnection, error) {
+	deviceConn, err := NewDeviceConnection(DefaultUsbmuxdSocket)
+	muxConn := &UsbMuxConnection{tag: 0, deviceConn: deviceConn}
+	return muxConn, err
 }
 
 //ReleaseDeviceConnection dereferences this UsbMuxConnection from the underlying DeviceConnection and it returns the DeviceConnection for later use.

@@ -353,7 +353,12 @@ func language(device ios.DeviceEntry, locale string, language string) {
 
 func startAx(device ios.DeviceEntry) {
 	go func() {
-		device := ios.ListDevices().DeviceList[0]
+		deviceList, err := ios.ListDevices()
+		if err != nil {
+			failWithError("failed converting to json", err)
+		}
+
+		device := deviceList.DeviceList[0]
 
 		conn, err := accessibility.New(device)
 		if err != nil {
@@ -504,7 +509,10 @@ func processList(device ios.DeviceEntry) {
 }
 
 func printDeviceList(details bool) {
-	deviceList := ios.ListDevices()
+	deviceList, err := ios.ListDevices()
+	if err != nil {
+		failWithError("failed getting device list", err)
+	}
 
 	if details {
 		if JSONdisabled {
@@ -549,7 +557,11 @@ func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 }
 
 func startListening() {
-	muxConnection := ios.NewUsbMuxConnection(ios.NewDeviceConnection(ios.DefaultUsbmuxdSocket))
+	deviceConn, err := ios.NewDeviceConnection(ios.DefaultUsbmuxdSocket)
+	if err != nil {
+		log.Fatalf("did not work")
+	}
+	muxConnection := ios.NewUsbMuxConnection(deviceConn)
 	defer muxConnection.ReleaseDeviceConnection()
 	attachedReceiver, err := muxConnection.Listen()
 	if err != nil {
@@ -612,7 +624,10 @@ func pairDevice(device ios.DeviceEntry) {
 }
 
 func readPair(device ios.DeviceEntry) {
-	record := ios.ReadPairRecord(device.Properties.SerialNumber)
+	record, err := ios.ReadPairRecord(device.Properties.SerialNumber)
+	if err != nil {
+		failWithError("failed reading pairrecord", err)
+	}
 	json, err := json.Marshal(record)
 	if err != nil {
 		failWithError("failed converting to json", err)
