@@ -34,7 +34,7 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *ios.LockD
 
 		err = lockdownToDevice.Send(decodedRequest)
 		if err != nil {
-			p.log.Fatal("Failed forwarding message to device", request)
+			p.log.Errorf("Failed forwarding message to device: %x", request)
 		}
 
 		response, err := lockdownToDevice.ReadMessage()
