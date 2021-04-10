@@ -180,6 +180,7 @@ The commands work as following:
 	b, _ = arguments.Bool("dproxy")
 	if b {
 		log.SetFormatter(&log.TextFormatter{})
+		//log.SetLevel(log.DebugLevel)
 		startDebugProxy(device)
 		return
 	}

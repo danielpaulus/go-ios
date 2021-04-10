@@ -62,10 +62,10 @@ func (conn *DeviceConnection) Close() {
 func (conn *DeviceConnection) Send(bytes []byte) error {
 	n, err := conn.c.Write(bytes)
 	if n < len(bytes) {
-		log.Warnf("DeviceConnection failed writing %d bytes, only %d sent", len(bytes), n)
+		log.Warnf("DeviceConnection failed writing %d bytes, only %d sent %x", len(bytes), n, bytes)
 	}
 	if err != nil {
-		log.Errorf("Failed sending: %s", err)
+		log.Errorf("DeviceConnection failed sending with err: %s", err)
 		conn.Close()
 		return err
 	}
@@ -105,12 +105,12 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 	header := make([]byte, 5)
 
 	io.ReadFull(conn.c, header)
-	log.Trace(hex.Dump(header))
+	println(hex.Dump(header))
 	length := binary.BigEndian.Uint16(header[3:])
 	payload := make([]byte, length)
 
 	io.ReadFull(conn.c, payload)
-	log.Trace(hex.Dump(payload))
+	println(hex.Dump(payload))
 
 }
 

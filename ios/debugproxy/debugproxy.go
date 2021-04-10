@@ -116,7 +116,8 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry) error {
 		info := ConnectionInfo{ConnectionPath: connectionPath, CreatedAt: time.Now(), ID: id}
 		d.addConnectionInfoToJsonFile(info)
 
-		startProxyConnection(conn, originalSocket, pairRecord, d, info)
+		dumpingConn := NewDumpingConn(filepath.Join(connectionPath, "bindump-hostservice-to-proxy.txt"), conn)
+		startProxyConnection(dumpingConn, originalSocket, pairRecord, d, info)
 
 	}
 }
@@ -165,12 +166,14 @@ func (d DebugProxy) addConnectionInfoToJsonFile(connInfo ConnectionInfo) {
 	file.Close()
 }
 
-func (p ProxyConnection) logJSONMessageFromDevice(msg interface{}) {
-	const outPath = "jsondump-fromdevice.bin"
+func (p ProxyConnection) logJSONMessageFromDevice(msg map[string]interface{}) {
+	const outPath = "jsondump.json"
+	msg["direction"] = "device->host"
 	writeJSON(filepath.Join(p.info.ConnectionPath, outPath), msg)
 }
-func (p ProxyConnection) logJSONMessageToDevice(msg interface{}) {
-	const outPath = "jsondump-todevice.bin"
+func (p ProxyConnection) logJSONMessageToDevice(msg map[string]interface{}) {
+	const outPath = "jsondump.json"
+	msg["direction"] = "host->device"
 	writeJSON(filepath.Join(p.info.ConnectionPath, outPath), msg)
 }
 
