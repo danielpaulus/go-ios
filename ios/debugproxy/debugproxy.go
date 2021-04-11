@@ -117,23 +117,33 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry) error {
 		d.addConnectionInfoToJsonFile(info)
 
 		dumpingConn := NewDumpingConn(filepath.Join(connectionPath, "bindump-hostservice-to-proxy.txt"), conn)
+
 		startProxyConnection(dumpingConn, originalSocket, pairRecord, d, info)
 
 	}
 }
 
 func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.PairRecord, debugProxy *DebugProxy, info ConnectionInfo) {
-	connListeningOnUnixSocket := ios.NewUsbMuxConnection(ios.NewDeviceConnectionWithConn(conn))
+
 	devConn, err := ios.NewDeviceConnection(originalSocket)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	connectionToDevice := ios.NewUsbMuxConnection(devConn)
 
-	p := ProxyConnection{info.ID, pairRecord, debugProxy, info, log.WithFields(log.Fields{"id": info.ID}), sync.Mutex{}, false}
+	logger := log.WithFields(log.Fields{"id": info.ID})
+	p := ProxyConnection{info.ID, pairRecord, debugProxy, info, logger, sync.Mutex{}, false}
 
-	go proxyUsbMuxConnection(&p, connListeningOnUnixSocket, connectionToDevice)
+	if false {
+		connListeningOnUnixSocket := ios.NewUsbMuxConnection(ios.NewDeviceConnectionWithConn(conn))
+		connectionToDevice := ios.NewUsbMuxConnection(devConn)
+		go proxyUsbMuxConnection(&p, connListeningOnUnixSocket, connectionToDevice)
+		return
+	}
+	binOnUnixSocket := BinaryForwardingProxy{ios.NewDeviceConnectionWithConn(conn), NewBinDumpOnly("does not matter", filepath.Join(info.ConnectionPath, "rawbindump-from-host-service.bin"), logger)}
+	binToDevice := BinaryForwardingProxy{devConn, NewBinDumpOnly("does not matter", filepath.Join(info.ConnectionPath, "rawbindump-from-device.bin"), logger)}
+	go proxyBinDumpConnection(&p, binOnUnixSocket, binToDevice)
+
 }
 
 //Close moves /var/run/usbmuxd.real back to /var/run/usbmuxd and disconnects all active proxy connections

@@ -33,11 +33,18 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *ios.LockD
 		p.log.WithFields(log.Fields{"ID": p.id, "direction": "host2device"}).Info(decodedRequest)
 
 		err = lockdownToDevice.Send(decodedRequest)
+		p.log.Info("done sending to device")
 		if err != nil {
 			p.log.Errorf("Failed forwarding message to device: %x", request)
 		}
 		log.Info("etf")
 		response, err := lockdownToDevice.ReadMessage()
+		if err != nil {
+			log.Errorf("error reading from device: %+v", err)
+			response, err = lockdownToDevice.ReadMessage()
+			log.Infof("second read: %+v %+v", response, err)
+		}
+
 		var decodedResponse map[string]interface{}
 		decoder = plist.NewDecoder(bytes.NewReader(response))
 		err = decoder.Decode(&decodedResponse)
@@ -73,8 +80,8 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *ios.LockD
 
 		if decodedResponse["Request"] == "StopSession" {
 			p.log.Info("Stop Session detected, disabling SSL")
-			lockdownOnUnixSocket.DisableSessionSSL()
-			lockdownToDevice.DisableSessionSSL()
+			//lockdownOnUnixSocket.DisableSessionSSL(true)
+			//lockdownToDevice.DisableSessionSSL(false)
 		}
 	}
 }

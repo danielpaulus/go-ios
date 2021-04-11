@@ -20,7 +20,7 @@ type DeviceConnectionInterface interface {
 	EnableSessionSslServerMode(pairRecord PairRecord)
 	EnableSessionSslHandshakeOnly(pairRecord PairRecord) error
 	EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord)
-	DisableSessionSSL()
+	DisableSessionSSL(sendCloseWrite bool)
 }
 
 //DeviceConnection wraps the net.Conn to the ios Device and has support for
@@ -28,6 +28,7 @@ type DeviceConnectionInterface interface {
 type DeviceConnection struct {
 	c               net.Conn
 	unencryptedConn net.Conn
+	isTls           bool
 }
 
 //NewDeviceConnection creates a new DeviceConnection pointing to the given socket waiting for a call to Connect()
@@ -60,6 +61,7 @@ func (conn *DeviceConnection) Close() {
 
 //Send sends a message
 func (conn *DeviceConnection) Send(bytes []byte) error {
+	log.Infof("conn: %+v", conn.c)
 	n, err := conn.c.Write(bytes)
 	if n < len(bytes) {
 		log.Warnf("DeviceConnection failed writing %d bytes, only %d sent %x", len(bytes), n, bytes)
@@ -85,7 +87,7 @@ func (conn *DeviceConnection) Writer() io.Writer {
 //DisableSessionSSL is a hack to go back from SSL to an unencrypted conn without closing the connection.
 //It is only used for the debug proxy because certain MAC applications actually disable SSL, use the connection
 //to send unencrypted messages just to then enable SSL again without closing the connection
-func (conn *DeviceConnection) DisableSessionSSL() {
+func (conn *DeviceConnection) DisableSessionSSL(hostconnection bool) {
 	/*
 		Sometimes, apple tools will remove SSL from a lockdown connection after StopSession was received.
 		After that they will issue a StartSession command on the same connection in plaintext just to then enable SSL again.
@@ -94,28 +96,62 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 	*/
 
 	//First send a close write
-	conn.c.(*tls.Conn).CloseWrite()
-	//Use the underlying conn again to receive unencrypted bytes
-	conn.c = conn.unencryptedConn
-	/*read the first 5 bytes of the SSL encrypted CLOSE message we get.
-	Because it is a Close message, we can throw it away. We cannot forward it to the client though, because
-	we use a different SSL connection there.
-	First five bytes are usually: 15 03 03 XX XX where XX XX is the length of the encrypted payload
-	*/
-	header := make([]byte, 5)
+	tlsconn := conn.c.(*tls.Conn)
+	conn.isTls = false
+	if !hostconnection {
+		/*log.Info("close write sent to device")
+		tlsconn.Write([]byte{0})
+		log.Infof("%+v", conn.c.(*tls.Conn).ConnectionState())
+		header := make([]byte, 1)
 
-	io.ReadFull(conn.c, header)
-	println(hex.Dump(header))
-	length := binary.BigEndian.Uint16(header[3:])
-	payload := make([]byte, length)
+		io.ReadFull(tlsconn, header)
+		println(hex.Dump(header))*/
+		//Use the underlying conn again to receive unencrypted bytes
+		tlsconn.CloseWrite()
+		conn.c = conn.unencryptedConn
+		/*read the first 5 bytes of the SSL encrypted CLOSE message we get.
+		Because it is a Close message, we can throw it away. We cannot forward it to the client though, because
+		we use a different SSL connection there.
+		First five bytes are usually: 15 03 03 XX XX where XX XX is the length of the encrypted payload
+		*/
+		log.Info("reading close")
+		/*header := make([]byte, 5)
 
-	io.ReadFull(conn.c, payload)
-	println(hex.Dump(payload))
+		io.ReadFull(conn.c, header)
+		println(hex.Dump(header))
+		length := binary.BigEndian.Uint16(header[3:])
+		payload := make([]byte, length)
+
+		io.ReadFull(conn.c, payload)
+		println(hex.Dump(payload))*/
+
+	}
+
+	if hostconnection {
+		log.Info("close write sent to host")
+		conn.c = conn.unencryptedConn
+		header := make([]byte, 5)
+
+		io.ReadFull(conn.c, header)
+		println(hex.Dump(header))
+		length := binary.BigEndian.Uint16(header[3:])
+		payload := make([]byte, length)
+
+		io.ReadFull(conn.c, payload)
+		println(hex.Dump(payload))
+		tlsconn.CloseWrite()
+
+		conn.c = conn.unencryptedConn
+	}
 
 }
 
 //EnableSessionSslServerMode wraps the underlying net.Conn in a server tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
+	if conn.isTls {
+		return
+	}
+	conn.isTls = true
 	tlsConn, _ := conn.createServerTLSConn(pairRecord)
 	conn.unencryptedConn = conn.c
 	conn.c = net.Conn(tlsConn)
@@ -129,6 +165,10 @@ func (conn *DeviceConnection) EnableSessionSslServerModeHandshakeOnly(pairRecord
 
 //EnableSessionSsl wraps the underlying net.Conn in a client tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
+	if conn.isTls {
+		return nil
+	}
+	conn.isTls = true
 	tlsConn, err := conn.createClientTLSConn(pairRecord)
 	if err != nil {
 		return err

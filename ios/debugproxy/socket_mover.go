@@ -7,7 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const realSocketSuffix = ".real_socket"
+var realSocketSuffix = ".real_socket1"
 
 func MoveSock(socket string) (string, error) {
 	newLocation := socket + realSocketSuffix
