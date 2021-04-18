@@ -639,14 +639,12 @@ func runSyslog(device ios.DeviceEntry) {
 }
 
 func pairDevice(device ios.DeviceEntry) {
-	println("not yet copied from branch go-ios-old")
-	// err := ios.Pair(device)
-	// if err != nil {
-	// 	println(err)
-	// } else {
-	// 	fmt.Printf("Paired %s", device.Properties.SerialNumber)
-	// }
-
+	err := ios.Pair(device)
+	if err != nil {
+		failWithError("Pairing failed", err)
+	} else {
+		log.Infof("Successfully paired %s", device.Properties.SerialNumber)
+	}
 }
 
 func readPair(device ios.DeviceEntry) {
