@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
-var realSocketSuffix = ".real_socket1"
+var realSocketSuffix = fmt.Sprintf(".%s.real_socket", uuid.New().String())
 
 func MoveSock(socket string) (string, error) {
 	newLocation := socket + realSocketSuffix
