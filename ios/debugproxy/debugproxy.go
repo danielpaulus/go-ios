@@ -94,7 +94,6 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry) error {
 		log.WithFields(log.Fields{"error": err, "socket": ios.DefaultUsbmuxdSocket}).Error("Unable to move, lacking permissions?")
 		return err
 	}
-
 	d.setupDirectory()
 	listener, err := net.Listen("unix", ios.DefaultUsbmuxdSocket)
 	if err != nil {
@@ -116,7 +115,9 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry) error {
 		info := ConnectionInfo{ConnectionPath: connectionPath, CreatedAt: time.Now(), ID: id}
 		d.addConnectionInfoToJsonFile(info)
 
-		dumpingConn := NewDumpingConn(filepath.Join(connectionPath, "bindump-hostservice-to-proxy.txt"), conn)
+		bindumpHostProxyFile := filepath.Join(connectionPath, "bindump-hostservice-to-proxy.txt")
+		log.Infof("Creating binary dump of all communication between MAC OS and debugproxy at: %s", bindumpHostProxyFile)
+		dumpingConn := NewDumpingConn(bindumpHostProxyFile, conn)
 
 		startProxyConnection(dumpingConn, originalSocket, pairRecord, d, info)
 

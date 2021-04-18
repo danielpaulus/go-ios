@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"runtime/debug"
 	"syscall"
 
 	"os"
@@ -402,7 +403,18 @@ func printVersion() {
 
 func startDebugProxy(device ios.DeviceEntry) {
 	proxy := debugproxy.NewDebugProxy()
+
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("Recovered a panic: %v", r)
+				proxy.Close()
+				debug.PrintStack()
+				os.Exit(1)
+				return
+			}
+
+		}()
 		err := proxy.Launch(device)
 		log.WithFields(log.Fields{"error": err}).Infof("DebugProxy Terminated abnormally")
 		os.Exit(0)
@@ -411,7 +423,7 @@ func startDebugProxy(device ios.DeviceEntry) {
 	signal.Notify(c, os.Interrupt)
 	<-c
 	log.Info("Shutting down debugproxy")
-	proxy.Close()
+
 }
 
 func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {

@@ -29,6 +29,13 @@ func fileExists(filename string) bool {
 
 func MoveBack(socket string) error {
 	newLocation := socket + realSocketSuffix
+	log.Infof("checking if '%s' exists", newLocation)
+	if !fileExists(newLocation) {
+		log.Infof("'%s' does not exist, doing nothing", newLocation)
+		return nil
+	}
+	log.Infof("found '%s', deleting '%s'", newLocation, socket)
+
 	log.Infof("Deleting fake socket %s", socket)
 	err := os.Remove(socket)
 	if err != nil {
