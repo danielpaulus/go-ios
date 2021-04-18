@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
 
@@ -147,12 +146,16 @@ func (lockDownConn *LockDownConnection) GetValues() (GetAllValuesResponse, error
 }
 
 //GetProductVersion returns the ProductVersion of the device f.ex. "10.3"
-func (lockDownConn *LockDownConnection) GetProductVersion() string {
+func (lockDownConn *LockDownConnection) GetProductVersion() (string, error) {
 	msg, err := lockDownConn.GetValue("ProductVersion")
 	if err != nil {
-		log.Fatal("Failed getting ProductVersion", err)
+		return "", fmt.Errorf("Failed getting ProductVersion: %v", err)
 	}
-	return msg.(string)
+	result, ok := msg.(string)
+	if !ok {
+		return "", fmt.Errorf("could not convert response to string: %+v", msg)
+	}
+	return result, nil
 }
 
 //GetValue gets and returns the string value for the lockdown key
