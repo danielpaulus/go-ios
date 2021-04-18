@@ -631,7 +631,6 @@ func pairDevice(device ios.DeviceEntry) {
 	} else {
 		log.Info("Successfully paired %s", device.Properties.SerialNumber)
 	}
-
 }
 
 func readPair(device ios.DeviceEntry) {
