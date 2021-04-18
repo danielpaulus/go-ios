@@ -10,6 +10,12 @@ import (
 	plist "howett.net/plist"
 )
 
+//Pair tries to pair with a device. The first time usually
+//fails because the user has to accept a trust pop up on the iOS device.
+// What you have to do to pair is:
+// 1. run the Pair() function
+// 2. accept the trust pop up on the device
+// 3. run the Pair() function a second time
 func Pair(device DeviceEntry) error {
 	usbmuxConn, err := NewUsbMuxConnectionSimple()
 	if err != nil {
