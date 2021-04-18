@@ -23,7 +23,7 @@ type dtxDecoder struct {
 	binFilePath  string
 	buffer       bytes.Buffer
 	isBroken     bool
-	log          log.Entry
+	log          *log.Entry
 }
 
 type MessageWithMetaInfo struct {
@@ -34,7 +34,7 @@ type MessageWithMetaInfo struct {
 	Length       int
 }
 
-func NewDtxDecoder(jsonFilePath string, binFilePath string, log log.Entry) decoder {
+func NewDtxDecoder(jsonFilePath string, binFilePath string, log *log.Entry) decoder {
 	return &dtxDecoder{jsonFilePath: jsonFilePath, binFilePath: binFilePath, buffer: bytes.Buffer{}, isBroken: false, log: log}
 }
 
@@ -102,7 +102,7 @@ func (f *dtxDecoder) decode(data []byte) {
 		aux.RawBytes = nil
 		jsonMetaInfo := MessageWithMetaInfo{aux, "dtx", time.Now(), offset, len(msg.RawBytes)}
 
-		mylog := &f.log
+		mylog := f.log
 		if strings.Contains(f.binFilePath, "from-device") {
 			mylog = f.log.WithFields(log.Fields{"d": "in"})
 		}
@@ -153,7 +153,7 @@ type binaryOnlyDumper struct {
 }
 
 //NewNoOpDecoder does nothing
-func NewBinDumpOnly(jsonFilePath string, dumpFilePath string, log log.Entry) decoder {
+func NewBinDumpOnly(jsonFilePath string, dumpFilePath string, log *log.Entry) decoder {
 	return binaryOnlyDumper{dumpFilePath}
 }
 func (n binaryOnlyDumper) decode(bytes []byte) {
