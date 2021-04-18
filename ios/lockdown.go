@@ -27,8 +27,8 @@ func (lockDownConn *LockDownConnection) Close() {
 }
 
 //DisableSessionSSL see documentation in DeviceConnection
-func (lockDownConn LockDownConnection) DisableSessionSSL(sendCloseWrite bool) {
-	lockDownConn.deviceConnection.DisableSessionSSL(sendCloseWrite)
+func (lockDownConn LockDownConnection) DisableSessionSSL() {
+	lockDownConn.deviceConnection.DisableSessionSSL()
 }
 
 //EnableSessionSsl see documentation in DeviceConnection
