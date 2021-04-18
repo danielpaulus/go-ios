@@ -1,5 +1,6 @@
 package ios
 
+/*
 import (
 	"bytes"
 
@@ -69,3 +70,4 @@ func (muxConn *MuxConnection) ReadPair(udid string) PairRecord {
 	pairRecordData := pairRecordDatafromBytes(resp)
 	return pairRecordfromBytes(pairRecordData.PairRecordData)
 }
+*/
