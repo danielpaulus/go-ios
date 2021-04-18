@@ -627,9 +627,9 @@ func runSyslog(device ios.DeviceEntry) {
 func pairDevice(device ios.DeviceEntry) {
 	err := ios.Pair(device)
 	if err != nil {
-		println(err)
+		failWithError("Pairing failed", err)
 	} else {
-		fmt.Printf("Paired %s", device.Properties.SerialNumber)
+		log.Info("Successfully paired %s", device.Properties.SerialNumber)
 	}
 
 }
