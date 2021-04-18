@@ -54,7 +54,7 @@ Usage:
   ios pair [options]
   ios ps [options]
   ios forward [options] <hostPort> <targetPort>
-  ios dproxy
+  ios dproxy [--binary]
   ios readpair [options]
   ios pcap [options]
   ios apps [--system] [options]
@@ -182,7 +182,8 @@ The commands work as following:
 	if b {
 		log.SetFormatter(&log.TextFormatter{})
 		//log.SetLevel(log.DebugLevel)
-		startDebugProxy(device)
+		binaryMode, _ := arguments.Bool("--binary")
+		startDebugProxy(device, binaryMode)
 		return
 	}
 
@@ -401,7 +402,7 @@ func printVersion() {
 	}
 }
 
-func startDebugProxy(device ios.DeviceEntry) {
+func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
 	proxy := debugproxy.NewDebugProxy()
 
 	go func() {
@@ -415,7 +416,7 @@ func startDebugProxy(device ios.DeviceEntry) {
 			}
 
 		}()
-		err := proxy.Launch(device)
+		err := proxy.Launch(device, binaryMode)
 		log.WithFields(log.Fields{"error": err}).Infof("DebugProxy Terminated abnormally")
 		os.Exit(0)
 	}()
