@@ -3,7 +3,7 @@ package ios
 import (
 	"bytes"
 
-	plist "github.com/DHowett/go-plist"
+	plist "howett.net/plist"
 )
 
 type readBuid struct {
@@ -38,9 +38,12 @@ func readBuidResponsefromBytes(plistBytes []byte) readBuidResponse {
 
 //ReadBuid requests the BUID of the host
 //It returns the deserialized BUID as a string.
-func (muxConn *MuxConnection) ReadBuid() string {
-	muxConn.deviceConn.send(newReadBuid())
-	resp := <-muxConn.ResponseChannel
-	buidResponse := readBuidResponsefromBytes(resp)
-	return buidResponse.BUID
+func (muxConn *UsbMuxConnection) ReadBuid() (string, error) {
+	muxConn.Send(newReadBuid())
+	resp, err := muxConn.ReadMessage()
+	if err != nil {
+		return "", err
+	}
+	buidResponse := readBuidResponsefromBytes(resp.Payload)
+	return buidResponse.BUID, nil
 }
