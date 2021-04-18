@@ -629,7 +629,7 @@ func pairDevice(device ios.DeviceEntry) {
 	if err != nil {
 		failWithError("Pairing failed", err)
 	} else {
-		log.Info("Successfully paired %s", device.Properties.SerialNumber)
+		log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 	}
 }
 
