@@ -423,7 +423,7 @@ func startDebugProxy(device ios.DeviceEntry) {
 	signal.Notify(c, os.Interrupt)
 	<-c
 	log.Info("Shutting down debugproxy")
-
+	proxy.Close()
 }
 
 func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
