@@ -50,7 +50,7 @@ func newSavePairRecordData(DeviceCertificate []byte,
 	return &bytes
 }
 
-func (muxConn *MuxConnection) savePair(udid string, DeviceCertificate []byte,
+func (muxConn *UsbMuxConnection) savePair(udid string, DeviceCertificate []byte,
 	HostPrivateKey []byte,
 	HostCertificate []byte,
 	RootPrivateKey []byte,
@@ -58,10 +58,16 @@ func (muxConn *MuxConnection) savePair(udid string, DeviceCertificate []byte,
 	EscrowBag []byte,
 	WiFiMACAddress string,
 	HostID string,
-	SystemBUID string) bool {
+	SystemBUID string) (bool, error) {
 	bytes := newSavePairRecordData(DeviceCertificate, HostPrivateKey, HostCertificate, RootPrivateKey, RootCertificate, EscrowBag, WiFiMACAddress, HostID, SystemBUID)
-	muxConn.deviceConn.send(newSavePair(udid, bytes))
-	resp := <-muxConn.ResponseChannel
-	muxresponse := usbMuxResponsefromBytes(resp)
-	return muxresponse.IsSuccessFull()
+	err := muxConn.Send(newSavePair(udid, bytes))
+	if err != nil {
+		return false, err
+	}
+	resp, err := muxConn.ReadMessage()
+	if err != nil {
+		return false, err
+	}
+	muxresponse := MuxResponsefromBytes(resp.Payload)
+	return muxresponse.IsSuccessFull(), nil
 }

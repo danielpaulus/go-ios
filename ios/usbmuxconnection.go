@@ -42,6 +42,11 @@ func (muxConn *UsbMuxConnection) ReleaseDeviceConnection() DeviceConnectionInter
 	return conn
 }
 
+//Close calls close on the underlying DeviceConnection
+func (muxConn *UsbMuxConnection) Close() {
+	muxConn.deviceConn.Close()
+}
+
 //UsbMuxMessage contains header and payload for a message to usbmux
 type UsbMuxMessage struct {
 	Header  UsbMuxHeader

@@ -3,45 +3,66 @@ package ios
 import (
 	"bytes"
 	"errors"
-	"log"
+	"fmt"
 	"strings"
 
-	plist "github.com/DHowett/go-plist"
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
+	plist "howett.net/plist"
 )
 
 func Pair(device DeviceEntry) error {
-	usbmuxConn := NewUsbMuxConnection()
+	usbmuxConn, err := NewUsbMuxConnectionSimple()
+	if err != nil {
+		return err
+	}
 	defer usbmuxConn.Close()
-	buid := usbmuxConn.ReadBuid()
+	buid, err := usbmuxConn.ReadBuid()
+	if err != nil {
+		return err
+	}
 	lockdown, err := usbmuxConn.ConnectLockdown(device.DeviceID)
 	if err != nil {
 		return err
 	}
-	publicKey := lockdown.GetValue("DevicePublicKey").([]byte)
-	wifiMac := lockdown.GetValue("WiFiAddress").(string)
-	rootCert, hostCert, deviceCert, rootPrivateKey, hostPrivateKey, error := createRootCertificate(publicKey)
-	if error != nil {
-		log.Fatal("Failed creating Pair Record")
+	publicKey, err := lockdown.GetValue("DevicePublicKey")
+	if err != nil {
+		return err
+	}
+	wifiMac, err := lockdown.GetValue("WiFiAddress")
+	if err != nil {
+		return err
+	}
+	rootCert, hostCert, deviceCert, rootPrivateKey, hostPrivateKey, err := createRootCertificate(publicKey.([]byte))
+	if err != nil {
+		return fmt.Errorf("Failed creating Pair Record", err)
 	}
 
 	pairRecordData := newFullPairRecordData(buid, hostCert, rootCert, deviceCert)
 	request := newLockDownPairRequest(pairRecordData)
 
-	lockdown.deviceConnection.send((request))
-	resp := <-lockdown.ResponseChannel
+	err = lockdown.Send(request)
+	if err != nil {
+		return err
+	}
+	resp, err := lockdown.ReadMessage()
+	if err != nil {
+		return err
+	}
 	response := getLockdownPairResponsefromBytes(resp)
 	if isPairingDialogOpen(response) {
-		log.Fatal("Please accept the PairingDialog on the device and run pairing again!")
+		return fmt.Errorf("Please accept the PairingDialog on the device and run pairing again!")
 	}
 	if response.Error != "" {
-		log.Fatal(response.Error)
+		return fmt.Errorf("Lockdown error: %s", response.Error)
 	}
-	usbmuxConn = NewUsbMuxConnection()
+	usbmuxConn, err = NewUsbMuxConnectionSimple()
 	defer usbmuxConn.Close()
-	success := usbmuxConn.savePair(device.Properties.SerialNumber, deviceCert, hostPrivateKey, hostCert, rootPrivateKey, rootCert, response.EscrowBag, wifiMac, pairRecordData.HostID, buid)
-	if !success {
-		return errors.New("saving the PairRecord to usbmux failed")
+	if err != nil {
+		return err
+	}
+	success, err := usbmuxConn.savePair(device.Properties.SerialNumber, deviceCert, hostPrivateKey, hostCert, rootPrivateKey, rootCert, response.EscrowBag, wifiMac.(string), pairRecordData.HostID, buid)
+	if !success || err != nil {
+		return errors.New("Saving the PairRecord to usbmux failed")
 	}
 	return nil
 }
@@ -96,7 +117,7 @@ func newLockDownPairRequest(pairRecord FullPairRecordData) LockDownPairRequest {
 func newFullPairRecordData(systemBuid string, hostCert []byte, rootCert []byte, deviceCert []byte) FullPairRecordData {
 	var data FullPairRecordData
 	data.SystemBUID = systemBuid
-	data.HostID = strings.ToUpper(uuid.Must(uuid.NewV4()).String())
+	data.HostID = strings.ToUpper(uuid.New().String())
 	data.RootCertificate = rootCert
 	data.HostCertificate = hostCert
 	data.DeviceCertificate = deviceCert
