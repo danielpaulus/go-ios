@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"runtime/debug"
 	"syscall"
 
 	"os"
@@ -53,7 +54,7 @@ Usage:
   ios pair [options]
   ios ps [options]
   ios forward [options] <hostPort> <targetPort>
-  ios dproxy
+  ios dproxy [--binary]
   ios readpair [options]
   ios pcap [options]
   ios install --path=<ipaOrAppFolder> [options]
@@ -90,7 +91,11 @@ The commands work as following:
    ios pair [options]                                                 Pairs the device without a dialog for supervised devices
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy                                                         Starts the reverse engineering proxy server. It dumps every communication in plain text so it can be implemented easily. Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist" to stop usbmuxd and load to start it again should the proxy mess up things.
+   ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
+   >                                                                  It dumps every communication in plain text so it can be implemented easily. 
+   >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
+   >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
+   >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios pcap [options]                                                 Starts a pcap dump of network traffic
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
@@ -189,7 +194,9 @@ The commands work as following:
 	b, _ = arguments.Bool("dproxy")
 	if b {
 		log.SetFormatter(&log.TextFormatter{})
-		startDebugProxy(device)
+		//log.SetLevel(log.DebugLevel)
+		binaryMode, _ := arguments.Bool("--binary")
+		startDebugProxy(device, binaryMode)
 		return
 	}
 
@@ -412,10 +419,21 @@ func printVersion() {
 	}
 }
 
-func startDebugProxy(device ios.DeviceEntry) {
+func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
 	proxy := debugproxy.NewDebugProxy()
+
 	go func() {
-		err := proxy.Launch(device)
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("Recovered a panic: %v", r)
+				proxy.Close()
+				debug.PrintStack()
+				os.Exit(1)
+				return
+			}
+
+		}()
+		err := proxy.Launch(device, binaryMode)
 		log.WithFields(log.Fields{"error": err}).Infof("DebugProxy Terminated abnormally")
 		os.Exit(0)
 	}()
@@ -638,14 +656,12 @@ func runSyslog(device ios.DeviceEntry) {
 }
 
 func pairDevice(device ios.DeviceEntry) {
-	println("not yet copied from branch go-ios-old")
-	// err := ios.Pair(device)
-	// if err != nil {
-	// 	println(err)
-	// } else {
-	// 	fmt.Printf("Paired %s", device.Properties.SerialNumber)
-	// }
-
+	err := ios.Pair(device)
+	if err != nil {
+		failWithError("Pairing failed", err)
+	} else {
+		log.Infof("Successfully paired %s", device.Properties.SerialNumber)
+	}
 }
 
 func readPair(device ios.DeviceEntry) {
