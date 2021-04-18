@@ -40,7 +40,7 @@ func Pair(device DeviceEntry) error {
 	}
 	rootCert, hostCert, deviceCert, rootPrivateKey, hostPrivateKey, err := createRootCertificate(publicKey.([]byte))
 	if err != nil {
-		return fmt.Errorf("Failed creating Pair Record", err)
+		return fmt.Errorf("Failed creating pair record with error: %v", err)
 	}
 
 	pairRecordData := newFullPairRecordData(buid, hostCert, rootCert, deviceCert)
