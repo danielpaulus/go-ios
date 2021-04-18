@@ -90,7 +90,11 @@ The commands work as following:
    ios pair [options]                                                 Pairs the device without a dialog for supervised devices
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy                                                         Starts the reverse engineering proxy server. It dumps every communication in plain text so it can be implemented easily. Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist" to stop usbmuxd and load to start it again should the proxy mess up things.
+   ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
+   >                                                                  It dumps every communication in plain text so it can be implemented easily. 
+   >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
+   >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
+   >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios pcap [options]                                                 Starts a pcap dump of network traffic
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
