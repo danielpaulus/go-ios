@@ -56,7 +56,6 @@ func (lockDownConn LockDownConnection) Send(msg interface{}) error {
 //DeviceConnection and returns the Plist as a byte slice.
 func (lockDownConn *LockDownConnection) ReadMessage() ([]byte, error) {
 	reader := lockDownConn.deviceConnection.Reader()
-	log.Infof("reader: %+v", reader)
 	resp, err := lockDownConn.plistCodec.Decode(reader)
 	if err != nil {
 		return make([]byte, 0), err
