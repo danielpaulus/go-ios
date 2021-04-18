@@ -2,8 +2,6 @@ package ios
 
 import (
 	"fmt"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type connectMessage struct {
@@ -122,10 +120,10 @@ func (muxConn *UsbMuxConnection) connectWithStartServiceResponse(deviceID int, s
 	return nil
 }
 
-func ConnectLockdownWithSession(device DeviceEntry) *LockDownConnection {
+func ConnectLockdownWithSession(device DeviceEntry) (*LockDownConnection, error) {
 	muxConnection, err := NewUsbMuxConnectionSimple()
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("USBMuxConnection failed with: %v", err)
 	}
 	defer muxConnection.ReleaseDeviceConnection()
 
@@ -133,8 +131,11 @@ func ConnectLockdownWithSession(device DeviceEntry) *LockDownConnection {
 
 	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Lockdown connection failed with: %v", err)
 	}
-	lockdownConnection.StartSession(pairRecord)
-	return lockdownConnection
+	resp, err := lockdownConnection.StartSession(pairRecord)
+	if err != nil {
+		return nil, fmt.Errorf("StartSession failed: %+v error: %v", resp, err)
+	}
+	return lockdownConnection, nil
 }

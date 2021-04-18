@@ -210,14 +210,23 @@ func getAllValuesResponseFromBytes(plistBytes []byte) GetAllValuesResponse {
 
 //GetValuesPlist returns the full lockdown values response as a map, so it can be converted to JSON easily.
 func GetValuesPlist(device DeviceEntry) (map[string]interface{}, error) {
-	lockdownConnection := ConnectLockdownWithSession(device)
+	lockdownConnection, err := ConnectLockdownWithSession(device)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
 	defer lockdownConnection.Close()
-	lockdownConnection.Send(newGetValue(""))
+	err = lockdownConnection.Send(newGetValue(""))
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
 	resp, err := lockdownConnection.ReadMessage()
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
 	plist, err := ParsePlist(resp)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
 	plist, ok := plist["Value"].(map[string]interface{})
 	if !ok {
 		return plist, fmt.Errorf("Failed converting lockdown response:%+v", plist)
@@ -226,13 +235,16 @@ func GetValuesPlist(device DeviceEntry) (map[string]interface{}, error) {
 }
 
 //GetValues returns all values of deviceInformation from lockdown
-func GetValues(device DeviceEntry) GetAllValuesResponse {
-	lockdownConnection := ConnectLockdownWithSession(device)
+func GetValues(device DeviceEntry) (GetAllValuesResponse, error) {
+	lockdownConnection, err := ConnectLockdownWithSession(device)
+	if err != nil {
+		return GetAllValuesResponse{}, err
+	}
 	defer lockdownConnection.Close()
 
 	allValues, err := lockdownConnection.GetValues()
 	if err != nil {
-		log.Fatal(err)
+		return GetAllValuesResponse{}, err
 	}
-	return allValues
+	return allValues, nil
 }

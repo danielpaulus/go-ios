@@ -452,7 +452,8 @@ func printDiagnostics(device ios.DeviceEntry) {
 }
 
 func printDeviceDate(device ios.DeviceEntry) {
-	allValues := ios.GetValues(device)
+	allValues, err := ios.GetValues(device)
+	failWithError("failed getting values", err)
 
 	formatedDate := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).Format(time.RFC850)
 	if JSONdisabled {
@@ -480,7 +481,8 @@ func printInstalledApps(device ios.DeviceEntry, system bool) {
 }
 
 func printDeviceName(device ios.DeviceEntry) {
-	allValues := ios.GetValues(device)
+	allValues, err := ios.GetValues(device)
+	failWithError("failed getting values", err)
 	if JSONdisabled {
 		println(allValues.Value.DeviceName)
 	} else {
@@ -558,7 +560,8 @@ func outputDetailedList(deviceList ios.DeviceList) {
 	result := make([]detailsEntry, len(deviceList.DeviceList))
 	for i, device := range deviceList.DeviceList {
 		udid := device.Properties.SerialNumber
-		allValues := ios.GetValues(device)
+		allValues, err := ios.GetValues(device)
+		failWithError("failed getting values", err)
 		result[i] = detailsEntry{udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion}
 	}
 	fmt.Println(convertToJSONString(map[string][]detailsEntry{
@@ -569,7 +572,8 @@ func outputDetailedList(deviceList ios.DeviceList) {
 func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 	for _, device := range deviceList.DeviceList {
 		udid := device.Properties.SerialNumber
-		allValues := ios.GetValues(device)
+		allValues, err := ios.GetValues(device)
+		failWithError("failed getting values", err)
 		fmt.Printf("%s  %s  %s %s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion)
 	}
 }
@@ -673,5 +677,7 @@ func convertToJSONString(data interface{}) string {
 }
 
 func failWithError(msg string, err error) {
-	log.WithFields(log.Fields{"err": err}).Fatalf(msg)
+	if err != nil {
+		log.WithFields(log.Fields{"err": err}).Fatalf(msg)
+	}
 }
