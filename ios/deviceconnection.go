@@ -149,6 +149,7 @@ func (conn *DeviceConnection) DisableSessionSSL(hostconnection bool) {
 //EnableSessionSslServerMode wraps the underlying net.Conn in a server tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
 	if conn.isTls {
+		log.Info("ssl alread activated, skipping")
 		return
 	}
 	conn.isTls = true
@@ -166,6 +167,7 @@ func (conn *DeviceConnection) EnableSessionSslServerModeHandshakeOnly(pairRecord
 //EnableSessionSsl wraps the underlying net.Conn in a client tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	if conn.isTls {
+		log.Info("ssl alread activated, skipping")
 		return nil
 	}
 	conn.isTls = true

@@ -134,7 +134,7 @@ func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.P
 	logger := log.WithFields(log.Fields{"id": info.ID})
 	p := ProxyConnection{info.ID, pairRecord, debugProxy, info, logger, sync.Mutex{}, false}
 
-	if false {
+	if true {
 		connListeningOnUnixSocket := ios.NewUsbMuxConnection(ios.NewDeviceConnectionWithConn(conn))
 		connectionToDevice := ios.NewUsbMuxConnection(devConn)
 		go proxyUsbMuxConnection(&p, connListeningOnUnixSocket, connectionToDevice)

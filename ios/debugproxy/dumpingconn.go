@@ -30,7 +30,7 @@ func (d DumpingConn) Read(b []byte) (n int, err error) {
 	if err != nil {
 		io.WriteString(d.fileHandle, "\n\nError Reading"+err.Error())
 	}
-	io.WriteString(d.fileHandle, "\n\nReading------------->")
+	io.WriteString(d.fileHandle, "\n\nReading------------->\n")
 	d.fileHandle.Write([]byte(hex.Dump(b)))
 	return n, err
 }
@@ -40,7 +40,7 @@ func (d DumpingConn) Write(b []byte) (n int, err error) {
 	if err != nil {
 		io.WriteString(d.fileHandle, "\n\nError Sending"+err.Error())
 	}
-	io.WriteString(d.fileHandle, "\n\nSending------------->")
+	io.WriteString(d.fileHandle, "\n\nSending------------->\n")
 	d.fileHandle.Write([]byte(hex.Dump(b)))
 	return n, err
 }
