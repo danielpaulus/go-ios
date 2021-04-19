@@ -2,6 +2,7 @@ package debugproxy
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	ios "github.com/danielpaulus/go-ios/ios"
@@ -44,7 +45,7 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnec
 			continue
 		}
 		if err != nil {
-			p.log.Fatal("Failed forwarding message to device", request)
+			panic(fmt.Sprintf("Failed forwarding message to device: %+v", request))
 		}
 		if decodedRequest["MessageType"] == "Listen" {
 			handleListen(p, muxOnUnixSocket, muxToDevice)
@@ -100,7 +101,7 @@ func handleConnect(connectRequest ios.UsbMuxMessage, decodedConnectRequest map[s
 	} else {
 		info, err := p.debugProxy.retrieveServiceInfoByPort(ios.Ntohs(uint16(port)))
 		if err != nil {
-			p.log.Fatalf("ServiceInfo for port: %d not found, this is a bug :-)reqheader: %+v repayload: %x", port, connectRequest.Header, connectRequest.Payload)
+			panic(fmt.Sprintf("ServiceInfo for port: %d not found, this is a bug :-)reqheader: %+v repayload: %x", port, connectRequest.Header, connectRequest.Payload))
 		}
 		p.log.Infof("Connection to service '%s' detected on port %d", info.ServiceName, info.ServicePort)
 		handleConnectToService(connectRequest, decodedConnectRequest, p, muxOnUnixSocket, muxToDevice, info)
@@ -110,7 +111,7 @@ func handleConnect(connectRequest ios.UsbMuxMessage, decodedConnectRequest map[s
 func handleConnectToLockdown(connectRequest ios.UsbMuxMessage, decodedConnectRequest map[string]interface{}, p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnection, muxToDevice *ios.UsbMuxConnection) {
 	err := muxToDevice.SendMuxMessage(connectRequest)
 	if err != nil {
-		p.log.Fatal("Failed sending muxmessage to device")
+		panic("Failed sending muxmessage to device")
 	}
 	connectResponse, err := muxToDevice.ReadMessage()
 	muxOnUnixSocket.SendMuxMessage(connectResponse)

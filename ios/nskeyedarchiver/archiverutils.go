@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	plist "howett.net/plist"
 )
@@ -48,11 +47,11 @@ func toBinaryPlist(data interface{}) ([]byte, error) {
 	return buf.Bytes(), err
 }
 
-//Print an object as JSON for debugging purposes, careful log.Fatals on error
+//Print an object as JSON for debugging purposes, careful panics on error
 func printAsJSON(obj interface{}) {
 	b, err := json.MarshalIndent(obj, "", "  ")
 	if err != nil {
-		log.Fatalf("Error while marshalling Json:%s", err)
+		panic(fmt.Sprintf("Error while marshalling Json:%s", err))
 	}
 	fmt.Print(string(b))
 }

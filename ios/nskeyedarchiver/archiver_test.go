@@ -22,7 +22,8 @@ func TestXCTestconfig(t *testing.T) {
 	config := nskeyedarchiver.NewXCTestConfiguration("productmodulename", uuid, "targetAppBundle", "targetAppPath", "testBundleUrl")
 	result, err := nskeyedarchiver.ArchiveXML(config)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		t.Fatal()
 	}
 	print(result)
 	log.Info(uuid.String())
@@ -33,7 +34,8 @@ func TestXCTestconfig(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/xctestconfiguration.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		t.Fatal()
 	}
 
 	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
@@ -45,7 +47,9 @@ func TestXCTCaps(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/XCTCapabilities.bin")
 
 	if err != nil {
-		log.Fatal(err)
+
+		log.Error(err)
+		t.Fatal()
 	}
 
 	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
@@ -57,7 +61,8 @@ func TestNSUUID(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/nsuuid.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		t.Fatal()
 	}
 
 	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
@@ -69,7 +74,8 @@ func TestXCActivityRecord(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/XCActivityRecord.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		t.Fatal()
 	}
 
 	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
@@ -81,7 +87,8 @@ func TestDTTapHeartbeatMessage(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/DTTapHeartbeatMessage.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		t.Fatal()
 	}
 
 	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
@@ -95,7 +102,7 @@ func TestIntKeyDictionary(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/uint64-key-dictionary.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
@@ -129,7 +136,7 @@ func TestNSDate(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/ax_statechange.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
@@ -141,7 +148,7 @@ func TestNSNull(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/ax_focus_on_element.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	unarchivedObject, _ := archiver.Unarchive(nskeyedBytes)
@@ -158,7 +165,7 @@ func TestArchiver3(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/payload_dump.json")
 
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	var payloads []string
@@ -185,7 +192,7 @@ func TestArchiver3(t *testing.T) {
 func TestArchiver(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/payload_dump.json")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	var payloads []string
@@ -212,7 +219,7 @@ func TestArchiver(t *testing.T) {
 func TestDecoderJson(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/payload_dump.json")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	var payloads []string
@@ -241,7 +248,7 @@ func TestDecoder(t *testing.T) {
 	for _, tc := range testCases {
 		dat, err := ioutil.ReadFile("fixtures/" + tc.filename + ".xml")
 		if err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 		objects, err := archiver.Unarchive(dat)
 		assert.NoError(t, err)
@@ -249,7 +256,7 @@ func TestDecoder(t *testing.T) {
 
 		dat, err = ioutil.ReadFile("fixtures/" + tc.filename + ".bin")
 		if err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 		objects, err = archiver.Unarchive(dat)
 		assert.Equal(t, tc.expected, convertToJSON(objects))
@@ -273,7 +280,7 @@ func TestValidation(t *testing.T) {
 	for _, tc := range testCases {
 		dat, err := ioutil.ReadFile("fixtures/" + tc.filename + ".xml")
 		if err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 		_, err = archiver.Unarchive(dat)
 		assert.Error(t, err)

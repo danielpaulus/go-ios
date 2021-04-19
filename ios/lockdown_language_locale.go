@@ -20,7 +20,10 @@ func SetLanguage(device DeviceEntry, config LanguageConfiguration) error {
 		log.Debug("SetLanguage called with empty config, no changes made")
 		return nil
 	}
-	lockDownConn := ConnectLockdownWithSession(device)
+	lockDownConn, err := ConnectLockdownWithSession(device)
+	if err != nil {
+		return err
+	}
 	defer lockDownConn.Close()
 	if config.Locale != "" {
 		log.Debugf("Setting locale: %s", config.Locale)
@@ -38,7 +41,10 @@ func SetLanguage(device DeviceEntry, config LanguageConfiguration) error {
 
 //GetLanguage creates a new lockdown session for the device and retrieves language and locale. It returns a LanguageConfiguration or an error.
 func GetLanguage(device DeviceEntry) (LanguageConfiguration, error) {
-	lockDownConn := ConnectLockdownWithSession(device)
+	lockDownConn, err := ConnectLockdownWithSession(device)
+	if err != nil {
+		return LanguageConfiguration{}, err
+	}
 	defer lockDownConn.Close()
 	languageResp, err := lockDownConn.GetValueForDomain("Language", languageDomain)
 	if err != nil {

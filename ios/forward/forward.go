@@ -33,7 +33,8 @@ func connectionAccept(l net.Listener, deviceID int, phonePort uint16) {
 	for {
 		clientConn, err := l.Accept()
 		if err != nil {
-			log.Fatal("Error accepting new connection")
+			log.Errorf("Error accepting new connection %v", err)
+			continue
 		}
 		log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn)}).Info("new client connected")
 		go startNewProxyConnection(clientConn, deviceID, phonePort)

@@ -43,7 +43,8 @@ func TestPlistConversion(t *testing.T) {
 		if *update {
 			err := ioutil.WriteFile(golden, []byte(actual), 0644)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(err)
+				t.FailNow()
 			}
 		}
 		expected, _ := ioutil.ReadFile(golden)

@@ -2,27 +2,32 @@ package pcap
 
 import (
 	"encoding/hex"
-	"log"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"howett.net/plist"
 )
 
-func Start(device ios.DeviceEntry) {
+func Start(device ios.DeviceEntry) error {
 	intf, err := ios.ConnectToService(device, "com.apple.pcapd")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	plistCodec := ios.NewPlistCodec()
 	for {
-		b, _ := plistCodec.Decode(intf.Reader())
-
-		println(hex.Dump(fromBytes(b)))
+		b, err := plistCodec.Decode(intf.Reader())
+		if err != nil {
+			return err
+		}
+		decodedBytes, err := fromBytes(b)
+		if err != nil {
+			return err
+		}
+		println(hex.Dump(decodedBytes))
 	}
 }
 
-func fromBytes(data []byte) []byte {
+func fromBytes(data []byte) ([]byte, error) {
 	var result []byte
-	plist.Unmarshal(data, &result)
-	return result
+	_, err := plist.Unmarshal(data, &result)
+	return result, err
 }

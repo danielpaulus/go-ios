@@ -51,7 +51,10 @@ func (lockDownConn *LockDownConnection) StartService(serviceName string) (StartS
 //StartService conveniently starts a service on a device and cleans up the used UsbMuxconnection.
 //It returns the service port as a uint16 in BigEndian byte order.
 func StartService(device DeviceEntry, serviceName string) (StartServiceResponse, error) {
-	lockdown := ConnectLockdownWithSession(device)
+	lockdown, err := ConnectLockdownWithSession(device)
+	if err != nil {
+		return StartServiceResponse{}, err
+	}
 	defer lockdown.Close()
 	response, err := lockdown.StartService(serviceName)
 	if err != nil {

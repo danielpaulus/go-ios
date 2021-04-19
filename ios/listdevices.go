@@ -2,7 +2,7 @@ package ios
 
 import (
 	"bytes"
-	"log"
+	"fmt"
 	"strings"
 
 	plist "howett.net/plist"
@@ -82,20 +82,25 @@ func NewReadDevices() ReadDevicesType {
 
 //ListDevices returns a DeviceList containing data about all
 //currently connected iOS devices
-func (muxConn *UsbMuxConnection) ListDevices() DeviceList {
-	msg := NewReadDevices()
-	muxConn.Send(msg)
+func (muxConn *UsbMuxConnection) ListDevices() (DeviceList, error) {
+	err := muxConn.Send(NewReadDevices())
+	if err != nil {
+		return DeviceList{}, fmt.Errorf("Failed sending to usbmux requesting devicelist: %v", err)
+	}
 	response, err := muxConn.ReadMessage()
 	if err != nil {
-		log.Fatal("Failed getting devicelist", err)
+		return DeviceList{}, fmt.Errorf("Failed getting devicelist: %v", err)
 	}
-	return DeviceListfromBytes(response.Payload)
+	return DeviceListfromBytes(response.Payload), nil
 }
 
 //ListDevices returns a DeviceList containing data about all
 //currently connected iOS devices using a new UsbMuxConnection
 func ListDevices() (DeviceList, error) {
 	muxConnection, err := NewUsbMuxConnectionSimple()
+	if err != nil {
+		return DeviceList{}, err
+	}
 	defer muxConnection.ReleaseDeviceConnection()
-	return muxConnection.ListDevices(), err
+	return muxConnection.ListDevices()
 }
