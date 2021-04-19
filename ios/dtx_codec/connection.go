@@ -1,7 +1,9 @@
 package dtx
 
 import (
+	"errors"
 	"io"
+	"net"
 	"sync"
 
 	ios "github.com/danielpaulus/go-ios/ios"
@@ -114,8 +116,8 @@ func reader(dtxConn *Connection) {
 		reader := dtxConn.deviceConnection.Reader()
 		msg, err := ReadMessage(reader)
 		if err != nil {
-			if err == io.EOF || err.Error() == "use of closed network connection" {
-				log.Debug("Closing DTX Connection")
+			if err == io.EOF || err == net.ErrClosed || errors.Unwrap(err) == net.ErrClosed {
+				log.Debug("DTX Connection with EOF")
 				return
 			}
 			log.Errorf("error reading dtx connection %+v", err)
