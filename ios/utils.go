@@ -30,7 +30,8 @@ func ParsePlist(data []byte) (map[string]interface{}, error) {
 func ToPlistBytes(data interface{}) []byte {
 	bytes, err := plist.Marshal(data, plist.XMLFormat)
 	if err != nil {
-		log.Fatal("Failed converting to plist", data, err)
+		//this should not happen
+		panic(fmt.Sprintf("Failed converting to plist %v error:%v", data, err))
 	}
 	return bytes
 }

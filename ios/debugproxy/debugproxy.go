@@ -100,7 +100,7 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 	d.setupDirectory()
 	listener, err := net.Listen("unix", ios.DefaultUsbmuxdSocket)
 	if err != nil {
-		log.Fatal("Could not listen on usbmuxd socket, do I have access permissions?", err)
+		log.Error("Could not listen on usbmuxd socket, do I have access permissions?", err)
 		return err
 	}
 
@@ -198,7 +198,7 @@ func writeJSON(filePath string, JSON interface{}) {
 	file, err := os.OpenFile(filePath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatal("Could not write to file, this should not happen", err, filePath)
+		panic(fmt.Sprintf("Could not write to file err: %v filepath:'%s'", err, filePath))
 	}
 	jsonmsg, err := json.Marshal(JSON)
 	if err != nil {

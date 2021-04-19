@@ -445,7 +445,11 @@ func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath st
 }
 
 func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, semver.Version, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
-	version := ios.GetValues(device).Value.ProductVersion
+	versionResp, err := ios.GetValues(device)
+	if err != nil {
+		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+	}
+	version := versionResp.Value.ProductVersion
 	testSessionID := uuid.New()
 
 	v, err := semver.NewVersion(version)

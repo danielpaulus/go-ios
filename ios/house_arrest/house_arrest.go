@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/danielpaulus/go-ios/ios"
-	log "github.com/sirupsen/logrus"
 
 	"howett.net/plist"
 )
@@ -37,7 +36,7 @@ func vendContainer(deviceConn ios.DeviceConnectionInterface, bundleID string) er
 	vendContainer := map[string]interface{}{"Command": "VendContainer", "Identifier": bundleID}
 	msg, err := plistCodec.Encode(vendContainer)
 	if err != nil {
-		log.Fatal("VendContainer Encoding cannot fail unless the encoder is broken")
+		return fmt.Errorf("VendContainer Encoding cannot fail unless the encoder is broken: %v", err)
 	}
 	err = deviceConn.Send(msg)
 	if err != nil {

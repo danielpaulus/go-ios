@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"io"
-	"log"
 
 	"github.com/danielpaulus/go-ios/ios"
 )
@@ -29,14 +28,13 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 
 //ReadLogMessage this is a blocking function that will return individual log messages received from syslog.
 //Call it in an endless for loop in a separate go routine.
-func (sysLogConn *Connection) ReadLogMessage() string {
+func (sysLogConn *Connection) ReadLogMessage() (string, error) {
 	reader := sysLogConn.deviceConn.Reader()
 	logmsg, err := sysLogConn.Decode(reader)
 	if err != nil {
-		log.Fatal(err)
-		return ""
+		return "", err
 	}
-	return logmsg
+	return logmsg, nil
 }
 
 //Encode returns only and error because syslog is read only.

@@ -164,7 +164,7 @@ func writeBytes(filePath string, data []byte) {
 	file, err := os.OpenFile(filePath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatal("Could not write to file, this should not happen", err, filePath)
+		panic(fmt.Sprintf("Could not write to file error: %v path:'%s'", err, filePath))
 	}
 
 	file.Write(data)

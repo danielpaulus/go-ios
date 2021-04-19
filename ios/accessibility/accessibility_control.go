@@ -1,6 +1,8 @@
 package accessibility
 
 import (
+	"fmt"
+
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
@@ -17,7 +19,7 @@ func (a ControlInterface) readhostAppStateChanged() {
 		msg := a.channel.ReceiveMethodCall("hostAppStateChanged:")
 		stateChange, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		value := stateChange[0]
 		log.Infof("hostAppStateChanged:%s", value)
@@ -29,7 +31,7 @@ func (a ControlInterface) readhostInspectorNotificationReceived() {
 		msg := a.channel.ReceiveMethodCall("hostInspectorNotificationReceived:")
 		notification, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 		value := notification[0].(map[string]interface{})["Value"]
 		log.Infof("hostInspectorNotificationReceived:%s", value)
@@ -144,7 +146,7 @@ func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]i
 	log.Info("received hostInspectorCurrentElementChanged")
 	result, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 	if err != nil {
-		log.Fatalf("Failed unarchiving: %s this is a bug and should not happen", err)
+		panic(fmt.Sprintf("Failed unarchiving: %s this is a bug and should not happen", err))
 	}
 	return result[0].(map[string]interface{})
 }

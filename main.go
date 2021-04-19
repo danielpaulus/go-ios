@@ -108,9 +108,7 @@ The commands work as following:
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitIfError("failed parsing args", err)
 	disableJSON, _ := arguments.Bool("--nojson")
 	if disableJSON {
 		JSONdisabled = true
@@ -157,13 +155,14 @@ The commands work as following:
 
 	udid, _ := arguments.String("--udid")
 	device, err := ios.GetDevice(udid)
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitIfError("error getting devicelist", err)
 
 	b, _ = arguments.Bool("pcap")
 	if b {
-		pcap.Start(device)
+		err := pcap.Start(device)
+		if err != nil {
+			exitIfError("pcap failed", err)
+		}
 		return
 	}
 
@@ -261,13 +260,11 @@ The commands work as following:
 			log.Fatal("please provide a bundleID")
 		}
 		pControl, err := instruments.NewProcessControl(device)
-		if err != nil {
-			log.Fatal(err)
-		}
+		exitIfError("processcontrol failed", err)
+
 		pid, err := pControl.LaunchApp(bundleID)
-		if err != nil {
-			log.Fatal(err)
-		}
+		exitIfError("launch app command failed", err)
+
 		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
 	}
 
@@ -339,21 +336,16 @@ The commands work as following:
 
 func language(device ios.DeviceEntry, locale string, language string) {
 	lang, err := ios.GetLanguage(device)
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitIfError("failed getting language", err)
+
 	err = ios.SetLanguage(device, ios.LanguageConfiguration{Language: language, Locale: locale})
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitIfError("failed setting language", err)
 	if lang.Language != language && language != "" {
 		log.Debugf("Language should be changed from %s to %s waiting for Springboard to reboot", lang.Language, language)
 		notificationproxy.WaitUntilSpringboardStarted(device)
 	}
 	lang, err = ios.GetLanguage(device)
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitIfError("failed getting language", err)
 
 	fmt.Println(convertToJSONString(lang))
 }
@@ -361,16 +353,12 @@ func language(device ios.DeviceEntry, locale string, language string) {
 func startAx(device ios.DeviceEntry) {
 	go func() {
 		deviceList, err := ios.ListDevices()
-		if err != nil {
-			failWithError("failed converting to json", err)
-		}
+		exitIfError("failed converting to json", err)
 
 		device := deviceList.DeviceList[0]
 
 		conn, err := accessibility.New(device)
-		if err != nil {
-			log.Fatal(err)
-		}
+		exitIfError("failed starting ax", err)
 
 		conn.SwitchToDevice()
 
@@ -386,9 +374,7 @@ func startAx(device ios.DeviceEntry) {
 		//conn.GetElement()
 		//conn.GetElement()
 
-		if err != nil {
-			log.Fatal(err)
-		}
+		exitIfError("ax failed", err)
 	}()
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -441,18 +427,17 @@ func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
 func printDiagnostics(device ios.DeviceEntry) {
 	log.Debug("print diagnostics")
 	diagnosticsService, err := diagnostics.New(device)
-	if err != nil {
-		log.Fatalf("Starting diagnostics service failed with: %s", err)
-	}
+	exitIfError("Starting diagnostics service failed with", err)
+
 	values, err := diagnosticsService.AllValues()
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitIfError("getting valued failed", err)
+
 	fmt.Println(convertToJSONString(values))
 }
 
 func printDeviceDate(device ios.DeviceEntry) {
-	allValues := ios.GetValues(device)
+	allValues, err := ios.GetValues(device)
+	exitIfError("failed getting values", err)
 
 	formatedDate := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).Format(time.RFC850)
 	if JSONdisabled {
@@ -466,21 +451,20 @@ func printInstalledApps(device ios.DeviceEntry, system bool) {
 	svc, _ := installationproxy.New(device)
 	if !system {
 		response, err := svc.BrowseUserApps()
-		if err != nil {
-			log.Fatal(err)
-		}
+		exitIfError("browsing user apps failed", err)
+
 		log.Info(response)
 		return
 	}
 	response, err := svc.BrowseSystemApps()
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitIfError("browsing system apps failed", err)
+
 	log.Info(response)
 }
 
 func printDeviceName(device ios.DeviceEntry) {
-	allValues := ios.GetValues(device)
+	allValues, err := ios.GetValues(device)
+	exitIfError("failed getting values", err)
 	if JSONdisabled {
 		println(allValues.Value.DeviceName)
 	} else {
@@ -493,22 +477,19 @@ func printDeviceName(device ios.DeviceEntry) {
 func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 	log.Debug("take screenshot")
 	screenshotrService, err := screenshotr.New(device)
-	if err != nil {
-		log.Fatalf("Starting Screenshotr failed with: %s", err)
-	}
+	exitIfError("Starting Screenshotr failed with", err)
+
 	imageBytes, err := screenshotrService.TakeScreenshot()
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitIfError("screenshotr failed", err)
+
 	if outputPath == "" {
 		time := time.Now().Format("20060102150405")
 		path, _ := filepath.Abs("./screenshot" + time + ".png")
 		outputPath = path
 	}
 	err = ioutil.WriteFile(outputPath, imageBytes, 0777)
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitIfError("write file failed", err)
+
 	if JSONdisabled {
 		println(outputPath)
 	} else {
@@ -520,7 +501,7 @@ func processList(device ios.DeviceEntry) {
 	service, err := instruments.NewDeviceInfoService(device)
 	defer service.Close()
 	if err != nil {
-		failWithError("failed opening deviceInfoService for getting process list", err)
+		exitIfError("failed opening deviceInfoService for getting process list", err)
 	}
 	processList, err := service.ProcessList()
 	println(convertToJSONString(processList))
@@ -529,7 +510,7 @@ func processList(device ios.DeviceEntry) {
 func printDeviceList(details bool) {
 	deviceList, err := ios.ListDevices()
 	if err != nil {
-		failWithError("failed getting device list", err)
+		exitIfError("failed getting device list", err)
 	}
 
 	if details {
@@ -558,7 +539,8 @@ func outputDetailedList(deviceList ios.DeviceList) {
 	result := make([]detailsEntry, len(deviceList.DeviceList))
 	for i, device := range deviceList.DeviceList {
 		udid := device.Properties.SerialNumber
-		allValues := ios.GetValues(device)
+		allValues, err := ios.GetValues(device)
+		exitIfError("failed getting values", err)
 		result[i] = detailsEntry{udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion}
 	}
 	fmt.Println(convertToJSONString(map[string][]detailsEntry{
@@ -569,7 +551,8 @@ func outputDetailedList(deviceList ios.DeviceList) {
 func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 	for _, device := range deviceList.DeviceList {
 		udid := device.Properties.SerialNumber
-		allValues := ios.GetValues(device)
+		allValues, err := ios.GetValues(device)
+		exitIfError("failed getting values", err)
 		fmt.Printf("%s  %s  %s %s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion)
 	}
 }
@@ -611,7 +594,7 @@ func startListening() {
 func printDeviceInfo(device ios.DeviceEntry) {
 	allValues, err := ios.GetValuesPlist(device)
 	if err != nil {
-		failWithError("failed getting info", err)
+		exitIfError("failed getting info", err)
 	}
 	fmt.Println(convertToJSONString(allValues))
 }
@@ -620,15 +603,17 @@ func runSyslog(device ios.DeviceEntry) {
 	log.Debug("Run Syslog.")
 
 	syslogConnection, err := syslog.New(device)
-	if err != nil {
-		log.Fatalf("Syslog connection failed, %s", err)
-	}
+	exitIfError("Syslog connection failed", err)
+
 	defer syslogConnection.Close()
 
 	go func() {
 		messageContainer := map[string]string{}
 		for {
-			logMessage := syslogConnection.ReadLogMessage()
+			logMessage, err := syslogConnection.ReadLogMessage()
+			if err != nil {
+				exitIfError("failed reading syslog", err)
+			}
 			if JSONdisabled {
 				print(logMessage)
 			} else {
@@ -645,7 +630,7 @@ func runSyslog(device ios.DeviceEntry) {
 func pairDevice(device ios.DeviceEntry) {
 	err := ios.Pair(device)
 	if err != nil {
-		failWithError("Pairing failed", err)
+		exitIfError("Pairing failed", err)
 	} else {
 		log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 	}
@@ -654,11 +639,11 @@ func pairDevice(device ios.DeviceEntry) {
 func readPair(device ios.DeviceEntry) {
 	record, err := ios.ReadPairRecord(device.Properties.SerialNumber)
 	if err != nil {
-		failWithError("failed reading pairrecord", err)
+		exitIfError("failed reading pairrecord", err)
 	}
 	json, err := json.Marshal(record)
 	if err != nil {
-		failWithError("failed converting to json", err)
+		exitIfError("failed converting to json", err)
 	}
 	fmt.Printf("%s", json)
 }
@@ -672,6 +657,8 @@ func convertToJSONString(data interface{}) string {
 	return string(b)
 }
 
-func failWithError(msg string, err error) {
-	log.WithFields(log.Fields{"err": err}).Fatalf(msg)
+func exitIfError(msg string, err error) {
+	if err != nil {
+		log.WithFields(log.Fields{"err": err}).Fatalf(msg)
+	}
 }

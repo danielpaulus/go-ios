@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
 
@@ -147,12 +146,16 @@ func (lockDownConn *LockDownConnection) GetValues() (GetAllValuesResponse, error
 }
 
 //GetProductVersion returns the ProductVersion of the device f.ex. "10.3"
-func (lockDownConn *LockDownConnection) GetProductVersion() string {
+func (lockDownConn *LockDownConnection) GetProductVersion() (string, error) {
 	msg, err := lockDownConn.GetValue("ProductVersion")
 	if err != nil {
-		log.Fatal("Failed getting ProductVersion", err)
+		return "", fmt.Errorf("Failed getting ProductVersion: %v", err)
 	}
-	return msg.(string)
+	result, ok := msg.(string)
+	if !ok {
+		return "", fmt.Errorf("could not convert response to string: %+v", msg)
+	}
+	return result, nil
 }
 
 //GetValue gets and returns the string value for the lockdown key
@@ -210,14 +213,23 @@ func getAllValuesResponseFromBytes(plistBytes []byte) GetAllValuesResponse {
 
 //GetValuesPlist returns the full lockdown values response as a map, so it can be converted to JSON easily.
 func GetValuesPlist(device DeviceEntry) (map[string]interface{}, error) {
-	lockdownConnection := ConnectLockdownWithSession(device)
+	lockdownConnection, err := ConnectLockdownWithSession(device)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
 	defer lockdownConnection.Close()
-	lockdownConnection.Send(newGetValue(""))
+	err = lockdownConnection.Send(newGetValue(""))
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
 	resp, err := lockdownConnection.ReadMessage()
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
 	plist, err := ParsePlist(resp)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
 	plist, ok := plist["Value"].(map[string]interface{})
 	if !ok {
 		return plist, fmt.Errorf("Failed converting lockdown response:%+v", plist)
@@ -226,13 +238,16 @@ func GetValuesPlist(device DeviceEntry) (map[string]interface{}, error) {
 }
 
 //GetValues returns all values of deviceInformation from lockdown
-func GetValues(device DeviceEntry) GetAllValuesResponse {
-	lockdownConnection := ConnectLockdownWithSession(device)
+func GetValues(device DeviceEntry) (GetAllValuesResponse, error) {
+	lockdownConnection, err := ConnectLockdownWithSession(device)
+	if err != nil {
+		return GetAllValuesResponse{}, err
+	}
 	defer lockdownConnection.Close()
 
 	allValues, err := lockdownConnection.GetValues()
 	if err != nil {
-		log.Fatal(err)
+		return GetAllValuesResponse{}, err
 	}
-	return allValues
+	return allValues, nil
 }

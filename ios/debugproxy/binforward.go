@@ -64,7 +64,7 @@ func handleConnectToService(connectRequest ios.UsbMuxMessage,
 	serviceInfo PhoneServiceInformation) {
 	err := muxToDevice.SendMuxMessage(connectRequest)
 	if err != nil {
-		p.log.Fatal("Failed sending muxmessage to device")
+		panic("Failed sending muxmessage to device")
 	}
 	connectResponse, err := muxToDevice.ReadMessage()
 	muxOnUnixSocket.SendMuxMessage(connectResponse)

@@ -2,7 +2,6 @@ package dtx_test
 
 import (
 	"encoding/binary"
-	"log"
 	"testing"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -30,7 +29,8 @@ func createHeader(fragmentIndex uint16, fragmentLength uint16, identifier uint32
 	}
 	msg, _, err := dtx.DecodeNonBlocking(messageBytes)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
+
 	}
 	return msg
 }

@@ -2,7 +2,6 @@ package nskeyedarchiver
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 
 	"howett.net/plist"
@@ -74,8 +73,7 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 		return encoderFunc(object, objects)
 	}
 
-	log.Fatal(fmt.Errorf("NSKeyedArchiver Unsupported type:%s", object))
-	return nil, 0
+	panic(fmt.Errorf("NSKeyedArchiver Unsupported type:%s", object))
 }
 
 func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, plist.UID) {
