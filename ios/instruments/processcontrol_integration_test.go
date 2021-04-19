@@ -14,13 +14,13 @@ import (
 func TestLaunchAndKill(t *testing.T) {
 	device, err := ios.GetDevice("")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	const weatherAppBundleID = "com.apple.weather"
 	pControl, err := instruments.NewProcessControl(device)
 	defer pControl.Close()
 	if !assert.NoError(t, err) {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	pid, err := pControl.LaunchApp(weatherAppBundleID)
 	if assert.NoError(t, err) {
@@ -29,5 +29,5 @@ func TestLaunchAndKill(t *testing.T) {
 		assert.NoError(t, err)
 		return
 	}
-	log.Fatal(err)
+	t.Fatal(err)
 }

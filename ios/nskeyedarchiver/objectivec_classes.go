@@ -177,7 +177,7 @@ func NewNSUUIDFromBytes(object map[string]interface{}, objects []interface{}) in
 func NewNSUUID(id uuid.UUID) NSUUID {
 	bytes, err := id.MarshalBinary()
 	if err != nil {
-		log.Fatal("Unexpected Error", err)
+		panic(fmt.Sprintf("Unexpected Error: %v", err))
 	}
 	return NSUUID{bytes}
 }

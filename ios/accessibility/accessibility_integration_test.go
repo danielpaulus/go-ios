@@ -13,17 +13,17 @@ import (
 func TestIT(t *testing.T) {
 	device, err := ios.GetDevice("")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	conn, err := accessibility.New(device)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	conn.SwitchToDevice()
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	conn.EnableSelectionMode()
 	conn.GetElement()

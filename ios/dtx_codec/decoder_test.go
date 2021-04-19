@@ -23,7 +23,7 @@ func TestErrors(t *testing.T) {
 
 	dat, err = ioutil.ReadFile("fixtures/notifyOfPublishedCapabilites")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	for i := 0; i < len(dat)-4; i++ {
 		_, _, err = dtx.DecodeNonBlocking(dat[0 : 4+i])
@@ -36,12 +36,12 @@ func TestCodec2(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/requestChannelWithCodeIdentifier.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	fixtureMsg, _, err := dtx.DecodeNonBlocking(dat)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	payloadBytes, err := nskeyedarchiver.ArchiveBin(fixtureMsg.Payload[0])
 	assert.NoError(t, err)
@@ -59,7 +59,7 @@ func TestCodec(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/requestChannelWithCodeIdentifier.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	var remainingBytes []byte
 	remainingBytes = dat
@@ -68,7 +68,7 @@ func TestCodec(t *testing.T) {
 		log.Info(msg.StringDebug())
 		remainingBytes = s
 		if !assert.NoError(t, err) {
-			log.Fatal("whet", err)
+			t.Fatal("whet", err)
 		}
 		bytes, err := dtx.Encode(3, 0, 0, true, 2, msg.RawBytes[303:], msg.Auxiliary)
 		if assert.NoError(t, err) {
@@ -86,7 +86,7 @@ func TestAXDump(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/dtactivitytapmessage.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	var remainingBytes []byte
 	remainingBytes = dat
@@ -95,7 +95,7 @@ func TestAXDump(t *testing.T) {
 		log.Info(msg)
 		remainingBytes = s
 		if !assert.NoError(t, err) {
-			log.Fatal("whet", err)
+			t.Fatal("whet", err)
 		}
 	}
 
@@ -109,7 +109,7 @@ func TestType1Message(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/unknown-d-h-h-message.bin")
 
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	var remainingBytes []byte
 	remainingBytes = dat
@@ -118,7 +118,7 @@ func TestType1Message(t *testing.T) {
 		log.Info(msg)
 		remainingBytes = s
 		if !assert.NoError(t, err) {
-			log.Fatal("whet", err)
+			t.Fatal("whet", err)
 		}
 	}
 
@@ -127,7 +127,7 @@ func TestType1Message(t *testing.T) {
 func TestFragmentedMessage(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/fragmentedmessage.bin")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	//test the non blocking decoder first
@@ -193,7 +193,7 @@ func TestFragmentedMessage(t *testing.T) {
 func TestDecoder(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/notifyOfPublishedCapabilites")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	msg, remainingBytes, err := dtx.DecodeNonBlocking(dat)
 	if assert.NoError(t, err) {

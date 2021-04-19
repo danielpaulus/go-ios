@@ -46,12 +46,12 @@ func (d PrimitiveDictionary) GetArguments() []interface{} {
 }
 
 //AddNsKeyedArchivedObject wraps the object in a NSKeyedArchiver envelope before saving it to the dictionary as a []byte.
-//This will log.Fatal on error because NSKeyedArchiver has to support everything that is put in here during runtime.
+//This will panic on error because NSKeyedArchiver has to support everything that is put in here during runtime.
 //If not, it is a non-recoverable bug and needs to be fixed anyway.
 func (d *PrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) {
 	archivedObject, err := nskeyedarchiver.ArchiveBin(object)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	d.AddBytes(archivedObject)
 }
@@ -189,8 +189,7 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 		data := auxBytes[8 : 8+length]
 		return readType, data, auxBytes[8+length:]
 	}
-	log.Fatalf("Unknown DtxPrimitiveDictionaryType: %d  rawbytes:%x", readType, auxBytes)
-	return 0, nil, nil
+	panic(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d  rawbytes:%x", readType, auxBytes))
 }
 
 const (
@@ -228,7 +227,7 @@ func (a *AuxiliaryEncoder) AddNsKeyedArchivedObject(object interface{}) {
 	a.writeEntry(t_null, nil)
 	bytes, err := archiver.ArchiveBin(object)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	a.writeEntry(t_bytearray, bytes)
 }
@@ -247,7 +246,7 @@ func (a *AuxiliaryEncoder) writeEntry(entryType uint32, object interface{}) {
 		a.buf.Write(object.([]byte))
 
 	}
-	log.Fatalf("Unknown DtxPrimitiveDictionaryType: %d", entryType)
+	panic(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d", entryType))
 
 }
 
