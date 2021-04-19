@@ -163,7 +163,10 @@ The commands work as following:
 
 	b, _ = arguments.Bool("pcap")
 	if b {
-		pcap.Start(device)
+		err := pcap.Start(device)
+		if err != nil {
+			failWithError("pcap failed", err)
+		}
 		return
 	}
 
@@ -632,7 +635,10 @@ func runSyslog(device ios.DeviceEntry) {
 	go func() {
 		messageContainer := map[string]string{}
 		for {
-			logMessage := syslogConnection.ReadLogMessage()
+			logMessage, err := syslogConnection.ReadLogMessage()
+			if err != nil {
+				failWithError("failed reading syslog", err)
+			}
 			if JSONdisabled {
 				print(logMessage)
 			} else {

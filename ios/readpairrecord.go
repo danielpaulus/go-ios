@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
 
@@ -74,7 +73,8 @@ func PairRecordfromBytes(plistBytes []byte) PairRecord {
 	var data PairRecord
 	err := decoder.Decode(&data)
 	if err != nil {
-		log.Fatalf("Failed decoding pair record plist %x", plistBytes)
+		//this is unrecoverable and should not happen
+		panic(fmt.Sprintf("Failed decoding pair record plist %x", plistBytes))
 	}
 	return data
 }

@@ -2,6 +2,7 @@ package debugproxy
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	ios "github.com/danielpaulus/go-ios/ios"
@@ -44,7 +45,7 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnec
 			continue
 		}
 		if err != nil {
-			p.log.Fatal("Failed forwarding message to device", request)
+			panic(fmt.Sprintf("Failed forwarding message to device: %+v", request))
 		}
 		if decodedRequest["MessageType"] == "Listen" {
 			handleListen(p, muxOnUnixSocket, muxToDevice)
