@@ -2,6 +2,7 @@ package ios
 
 import (
 	"bytes"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -53,18 +54,18 @@ type PairRecord struct {
 	RootPrivateKey    []byte
 }
 
-func pairRecordDatafromBytes(plistBytes []byte) PairRecordData {
+func pairRecordDatafromBytes(plistBytes []byte) (PairRecordData, error) {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var data PairRecordData
 	err := decoder.Decode(&data)
 	if err != nil {
-		log.Fatalf("Failed decoding pair record plist %x", plistBytes)
+		return data, fmt.Errorf("Failed decoding pair record plist %x and err %v", plistBytes, err)
 	}
 	if data.PairRecordData == nil {
 		resp := MuxResponsefromBytes(plistBytes)
-		log.Fatalf("ReadPair failed with errorcode '%d', is the device paired?", resp.Number)
+		return data, fmt.Errorf("ReadPair failed with errorcode '%d', is the device paired?", resp.Number)
 	}
-	return data
+	return data, nil
 }
 
 //PairRecordfromBytes parsed a plist into a PairRecord
@@ -80,19 +81,22 @@ func PairRecordfromBytes(plistBytes []byte) PairRecord {
 
 //ReadPair reads the PairRecord from the usbmux socket for the given udid.
 //It returns the deserialized PairRecord.
-func (muxConn *UsbMuxConnection) ReadPair(udid string) PairRecord {
+func (muxConn *UsbMuxConnection) ReadPair(udid string) (PairRecord, error) {
 	muxConn.Send(newReadPair(udid))
 	resp, err := muxConn.ReadMessage()
 	if err != nil {
-		log.Fatal("Error reading PairRecord", err)
+		return PairRecord{}, fmt.Errorf("Error reading PairRecord: %v", err)
 	}
-	pairRecordData := pairRecordDatafromBytes(resp.Payload)
-	return PairRecordfromBytes(pairRecordData.PairRecordData)
+	pairRecordData, err := pairRecordDatafromBytes(resp.Payload)
+	return PairRecordfromBytes(pairRecordData.PairRecordData), nil
 }
 
 //ReadPairRecord creates a new USBMuxConnection just to read the pair record and closes it right after than.
 func ReadPairRecord(udid string) (PairRecord, error) {
 	muxConnection, err := NewUsbMuxConnectionSimple()
+	if err != nil {
+		return PairRecord{}, fmt.Errorf("Could not create usbmuxConnection with error %v", err)
+	}
 	defer muxConnection.ReleaseDeviceConnection()
-	return muxConnection.ReadPair(udid), err
+	return muxConnection.ReadPair(udid)
 }

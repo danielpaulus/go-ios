@@ -127,7 +127,10 @@ func ConnectLockdownWithSession(device DeviceEntry) (*LockDownConnection, error)
 	}
 	defer muxConnection.ReleaseDeviceConnection()
 
-	pairRecord := muxConnection.ReadPair(device.Properties.SerialNumber)
+	pairRecord, err := muxConnection.ReadPair(device.Properties.SerialNumber)
+	if err != nil {
+		return nil, fmt.Errorf("could not retrieve PairRecord with error: %v", err)
+	}
 
 	lockdownConnection, err := muxConnection.ConnectLockdown(device.DeviceID)
 	if err != nil {
