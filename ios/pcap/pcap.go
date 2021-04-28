@@ -10,25 +10,12 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/lunixbochs/struc"
+	log "github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
-// struct pcap_hdr_s {
-//         guint32 magic_number;   /* magic number */
-//         guint16 version_major;  /* major version number */
-//         guint16 version_minor;  /* minor version number */
-//         gint32  thiszone;       /* GMT to local correction */
-//         guint32 sigfigs;        /* accuracy of timestamps */
-//         guint32 snaplen;        /* max length of captured packets, in octets */
-//         guint32 network;        /* data link type */
-// } pcap_hdr_t;
-
-// typedef struct pcaprec_hdr_s {
-//         guint32 ts_sec;         /* timestamp seconds */
-//         guint32 ts_usec;        /* timestamp microseconds */
-//         guint32 incl_len;       /* number of octets of packet saved in file */
-//         guint32 orig_len;       /* actual length of packet */
-// } pcaprec_hdr_t;
+// PcapPlistHeader :)
+// ref: https://github.com/iOSForensics/pymobiledevice/blob/master/pymobiledevice/pcapd.py
 type PcapPlistHeader struct {
 	HdrSize        int `struc:"uint32,big"`
 	Xxx            int `struc:"uint8,big"`
@@ -45,11 +32,13 @@ func Start(device ios.DeviceEntry) error {
 		return err
 	}
 	plistCodec := ios.NewPlistCodec()
-	f, err := createPcap(fmt.Sprintf("dump-%d.pcap",time.Now().Unix()))
+	fname := fmt.Sprintf("dump-%d.pcap",time.Now().Unix())
+	f, err := createPcap(fname)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+	log.Info("Create pcap file: ", fname)
 	for {
 		b, err := plistCodec.Decode(intf.Reader())
 		if err != nil {
@@ -77,23 +66,42 @@ func fromBytes(data []byte) ([]byte, error) {
 	return result, err
 }
 
-func createPcap(name string) (*os.File, error) {
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0755)
-	if err != nil {
-		return nil, err
-	}
-	f.Write([]byte{
-		0xd4, 0xc3, 0xb2, 0xa1, 0x02, 0x00, 0x04, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0xff, 0xff, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00})
-	return f, nil
-}
+// struct pcap_hdr_s {
+//         guint32 magic_number;   /* magic number */
+//         guint16 version_major;  /* major version number */
+//         guint16 version_minor;  /* minor version number */
+//         gint32  thiszone;       /* GMT to local correction */
+//         guint32 sigfigs;        /* accuracy of timestamps */
+//         guint32 snaplen;        /* max length of captured packets, in octets */
+//         guint32 network;        /* data link type */
+// } pcap_hdr_t;
 
+// typedef struct pcaprec_hdr_s {
+//         guint32 ts_sec;         /* timestamp seconds */
+//         guint32 ts_usec;        /* timestamp microseconds */
+//         guint32 incl_len;       /* number of octets of packet saved in file */
+//         guint32 orig_len;       /* actual length of packet */
+// } pcaprec_hdr_t;
+
+// ref: https://www.wireshark.org/~martinm/mac_pcap_sample_code.c
 type PcaprecHdrS struct {
 	TsSec   int `struc:"uint32,little"` /* timestamp seconds */
 	TsUsec  int `struc:"uint32,little"` /* timestamp microseconds */
 	InclLen int `struc:"uint32,little"` /* number of octets of packet saved in file */
 	OrigLen int `struc:"uint32,little"` /* actual length of packet */
+}
+
+func createPcap(name string) (*os.File, error) {
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0755)
+	if err != nil {
+		return nil, err
+	}
+	// Write `pcap_hdr_s` with little endin to file.
+	f.Write([]byte{
+		0xd4, 0xc3, 0xb2, 0xa1, 0x02, 0x00, 0x04, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0xff, 0xff, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00})
+	return f, nil
 }
 
 func writePacket(f *os.File, packet []byte) error {
@@ -127,7 +135,7 @@ func getPacket(buf []byte) ([]byte, error) {
 	if cnt != pph.HdrSize-25 {
 		return []byte{}, errors.New("invalid HdrSize")
 	}
-	fmt.Println(interfacetype)
+	log.Debug(interfacetype)
 	packet, err := ioutil.ReadAll(preader)
 	if err != nil {
 		return packet, err
