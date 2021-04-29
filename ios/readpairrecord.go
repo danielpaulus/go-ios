@@ -88,7 +88,7 @@ func (muxConn *UsbMuxConnection) ReadPair(udid string) (PairRecord, error) {
 		return PairRecord{}, fmt.Errorf("Error reading PairRecord: %v", err)
 	}
 	pairRecordData, err := pairRecordDatafromBytes(resp.Payload)
-	return PairRecordfromBytes(pairRecordData.PairRecordData), nil
+	return PairRecordfromBytes(pairRecordData.PairRecordData), err
 }
 
 //ReadPairRecord creates a new USBMuxConnection just to read the pair record and closes it right after than.
