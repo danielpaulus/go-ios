@@ -1,10 +1,9 @@
 package dtx
 
 import (
-	"errors"
 	"io"
-	"net"
 	"sync"
+	"strings"
 
 	ios "github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
@@ -116,7 +115,8 @@ func reader(dtxConn *Connection) {
 		reader := dtxConn.deviceConnection.Reader()
 		msg, err := ReadMessage(reader)
 		if err != nil {
-			if err == io.EOF || err == net.ErrClosed || errors.Unwrap(err) == net.ErrClosed {
+			errText := err.Error()
+			if err == io.EOF || strings.Contains( errText, "use of closed network" ) {
 				log.Debug("DTX Connection with EOF")
 				return
 			}
