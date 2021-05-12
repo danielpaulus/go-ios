@@ -57,7 +57,7 @@ Usage:
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary]
   ios readpair [options]
-  ios pcap [options]
+  ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios apps [--system] [options]
   ios launch <bundleID> [options]
   ios runtest <bundleID> [options]
@@ -97,7 +97,7 @@ The commands work as following:
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
-   ios pcap [options]                                                 Starts a pcap dump of network traffic
+   ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
    ios runtest <bundleID>                                             Run a XCUITest. 
@@ -160,6 +160,10 @@ The commands work as following:
 
 	b, _ = arguments.Bool("pcap")
 	if b {
+		p, _ := arguments.String("--process")
+		i, _ := arguments.Int("--pid")
+		pcap.Pid = int32(i)
+		pcap.ProcName = p
 		err := pcap.Start(device)
 		if err != nil {
 			exitIfError("pcap failed", err)
