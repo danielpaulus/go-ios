@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"syscall"
 
 	"os"
@@ -56,7 +57,7 @@ Usage:
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary]
   ios readpair [options]
-  ios pcap [options]
+  ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios apps [--system] [options]
   ios launch <bundleID> [options]
   ios runtest <bundleID> [options]
@@ -96,7 +97,7 @@ The commands work as following:
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
-   ios pcap [options]                                                 Starts a pcap dump of network traffic
+   ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
    ios runtest <bundleID>                                             Run a XCUITest. 
@@ -159,6 +160,10 @@ The commands work as following:
 
 	b, _ = arguments.Bool("pcap")
 	if b {
+		p, _ := arguments.String("--process")
+		i, _ := arguments.Int("--pid")
+		pcap.Pid = int32(i)
+		pcap.ProcName = p
 		err := pcap.Start(device)
 		if err != nil {
 			exitIfError("pcap failed", err)
@@ -466,9 +471,9 @@ func printDeviceName(device ios.DeviceEntry) {
 	allValues, err := ios.GetValues(device)
 	exitIfError("failed getting values", err)
 	if JSONdisabled {
-		println(allValues.Value.DeviceName)
+		fmt.Println(allValues.Value.DeviceName)
 	} else {
-		println(convertToJSONString(map[string]string{
+		fmt.Println(convertToJSONString(map[string]string{
 			"devicename": allValues.Value.DeviceName,
 		}))
 	}
@@ -491,7 +496,7 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 	exitIfError("write file failed", err)
 
 	if JSONdisabled {
-		println(outputPath)
+		fmt.Println(outputPath)
 	} else {
 		log.WithFields(log.Fields{"outputPath": outputPath}).Info("File saved successfully")
 	}
@@ -504,7 +509,7 @@ func processList(device ios.DeviceEntry) {
 		exitIfError("failed opening deviceInfoService for getting process list", err)
 	}
 	processList, err := service.ProcessList()
-	println(convertToJSONString(processList))
+	fmt.Println(convertToJSONString(processList))
 }
 
 func printDeviceList(details bool) {
@@ -582,7 +587,7 @@ func startListening() {
 					log.Error("Stopped listening because of error")
 					break
 				}
-				println(convertToJSONString((msg)))
+				fmt.Println(convertToJSONString((msg)))
 			}
 		}
 	}()
@@ -614,11 +619,13 @@ func runSyslog(device ios.DeviceEntry) {
 			if err != nil {
 				exitIfError("failed reading syslog", err)
 			}
+			logMessage = strings.TrimSuffix(logMessage, "\x00")
+			logMessage = strings.TrimSuffix(logMessage, "\x0A")
 			if JSONdisabled {
-				print(logMessage)
+				fmt.Println(logMessage)
 			} else {
 				messageContainer["msg"] = logMessage
-				println(convertToJSONString(messageContainer))
+				fmt.Println(convertToJSONString(messageContainer))
 			}
 		}
 	}()

@@ -2,10 +2,10 @@ package pcap
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -14,16 +14,41 @@ import (
 	"howett.net/plist"
 )
 
-// PcapPlistHeader :)
-// ref: https://github.com/iOSForensics/pymobiledevice/blob/master/pymobiledevice/pcapd.py
-type PcapPlistHeader struct {
-	HdrSize        int `struc:"uint32,big"`
-	Xxx            int `struc:"uint8,big"`
-	PacketSize     int `struc:"uint32,big"`
-	Flag1          int `struc:"uint32,big"`
-	Flag2          int `struc:"uint32,big"`
-	OffsetToIPData int `struc:"uint32,big"`
-	Zero           int `struc:"uint32,big"`
+var (
+	// IOSPacketHeader default is -1
+	Pid      = int32(-2)
+	ProcName string
+)
+
+// IOSPacketHeader :)
+// ref: https://github.com/gofmt/iOSSniffer/blob/master/pkg/sniffer/sniffer.go#L44
+type IOSPacketHeader struct {
+	HdrSize        uint32  `struc:"uint32,big"`
+	Version        uint8   `struc:"uint8,big"`
+	PacketSize     uint32  `struc:"uint32,big"`
+	Type           uint8   `struc:"uint8,big"`
+	Unit           uint16  `struc:"uint16,big"`
+	IO             uint8   `struc:"uint8,big"`
+	ProtocolFamily uint32  `struc:"uint32,big"`
+	FramePreLength uint32  `struc:"uint32,big"`
+	FramePstLength uint32  `struc:"uint32,big"`
+	IFName         string  `struc:"[16]byte"`
+	Pid            int32   `struc:"int32,little"`
+	ProcName       string  `struc:"[17]byte"`
+	Unknown        uint32  `struc:"uint32,little"`
+	Pid2           int32   `struc:"int32,little"`
+	ProcName2      string  `struc:"[17]byte"`
+	Unknown2       [8]byte `struc:"[8]byte"`
+}
+
+func (iph *IOSPacketHeader) ToString() string {
+	trim := func(src string) string {
+		return strings.ReplaceAll(src, "\x00", "")
+	}
+	iph.IFName = trim(iph.IFName)
+	iph.ProcName = trim(iph.ProcName)
+	iph.ProcName2 = trim(iph.ProcName2)
+	return fmt.Sprintf("%v", *iph)
 }
 
 func Start(device ios.DeviceEntry) error {
@@ -32,7 +57,12 @@ func Start(device ios.DeviceEntry) error {
 		return err
 	}
 	plistCodec := ios.NewPlistCodec()
-	fname := fmt.Sprintf("dump-%d.pcap",time.Now().Unix())
+	fname := fmt.Sprintf("dump-%d.pcap", time.Now().Unix())
+	if Pid > 0 {
+		fname = fmt.Sprintf("dump-%d-%d.pcap", Pid, time.Now().Unix())
+	} else if ProcName != "" {
+		fname = fmt.Sprintf("dump-%s-%d.pcap", ProcName, time.Now().Unix())
+	}
 	f, err := createPcap(fname)
 	if err != nil {
 		return err
@@ -52,10 +82,11 @@ func Start(device ios.DeviceEntry) error {
 		if err != nil {
 			return err
 		}
-
-		err = writePacket(f, packet)
-		if err != nil {
-			return err
+		if len(packet) > 0 {
+			err = writePacket(f, packet)
+			if err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -107,8 +138,8 @@ func createPcap(name string) (*os.File, error) {
 func writePacket(f *os.File, packet []byte) error {
 	now := time.Now()
 	phs := &PcaprecHdrS{
-		int(now.UTC().Unix()),
-		int(now.UTC().UnixNano() * 1000),
+		int(now.Unix()),
+		int(now.UnixNano() / 1e6),
 		len(packet),
 		len(packet),
 	}
@@ -123,24 +154,29 @@ func writePacket(f *os.File, packet []byte) error {
 }
 
 func getPacket(buf []byte) ([]byte, error) {
-	pph := PcapPlistHeader{}
+	iph := IOSPacketHeader{}
 	preader := bytes.NewReader(buf)
-	struc.Unpack(preader, &pph)
+	struc.Unpack(preader, &iph)
 
-	interfacetype := make([]byte, pph.HdrSize-25)
-	cnt, err := preader.Read(interfacetype)
-	if err != nil {
-		return []byte{}, err
+	// Only return specific packet
+	if Pid > 0 {
+		if iph.Pid != Pid && iph.Pid2 != Pid {
+			return []byte{}, nil
+		}
 	}
-	if cnt != pph.HdrSize-25 {
-		return []byte{}, errors.New("invalid HdrSize")
+
+	if ProcName != "" {
+		if !strings.HasPrefix(iph.ProcName, ProcName) && !strings.HasPrefix(iph.ProcName2, ProcName) {
+			return []byte{}, nil
+		}
 	}
-	log.Debug(interfacetype)
+
+	log.Info("IOSPacketHeader: ", iph.ToString())
 	packet, err := ioutil.ReadAll(preader)
 	if err != nil {
 		return packet, err
 	}
-	if pph.OffsetToIPData == 0 {
+	if iph.FramePreLength == 0 {
 		ext := []byte{0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0x08, 0x00}
 		return append(ext, packet...), nil
 	}
