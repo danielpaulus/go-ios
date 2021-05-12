@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"syscall"
 
 	"os"
@@ -614,6 +615,8 @@ func runSyslog(device ios.DeviceEntry) {
 			if err != nil {
 				exitIfError("failed reading syslog", err)
 			}
+			logMessage = strings.TrimSuffix(logMessage, "\x00")
+			logMessage = strings.TrimSuffix(logMessage, "\x0A")
 			if JSONdisabled {
 				fmt.Println(logMessage)
 			} else {
