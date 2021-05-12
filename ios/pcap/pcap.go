@@ -2,10 +2,10 @@ package pcap
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -15,15 +15,34 @@ import (
 )
 
 // PcapPlistHeader :)
-// ref: https://github.com/iOSForensics/pymobiledevice/blob/master/pymobiledevice/pcapd.py
+// ref: https://github.com/gofmt/iOSSniffer/blob/master/pkg/sniffer/sniffer.go#L44`~
 type PcapPlistHeader struct {
-	HdrSize        int `struc:"uint32,big"`
-	Xxx            int `struc:"uint8,big"`
-	PacketSize     int `struc:"uint32,big"`
-	Flag1          int `struc:"uint32,big"`
-	Flag2          int `struc:"uint32,big"`
-	OffsetToIPData int `struc:"uint32,big"`
-	Zero           int `struc:"uint32,big"`
+	HdrSize        uint32  `struc:"uint32,big"`
+	Version            uint8   `struc:"uint8,big"`
+	PacketSize     uint32  `struc:"uint32,big"`
+	Type           uint8   `struc:"uint8,big"`
+	Unit           uint16  `struc:"uint16,big"`
+	IO             uint8   `struc:"uint8,big"`
+	ProtocolFamily uint32  `struc:"uint32,big"`
+	FramePreLength uint32  `struc:"uint32,big"`
+	FramePstLength uint32  `struc:"uint32,big"`
+	IFName         string  `struc:"[16]byte"`
+	Pid            int32  `struc:"int32,little"`
+	ProcName       string  `struc:"[17]byte"`
+	Unknown        uint32  `struc:"uint32,big"`
+	Pid2           int32  `struc:"int32,little"`
+	ProcName2      string  `struc:"[17]byte"`
+	Unknown2       [8]byte `struc:"[8]byte"`
+}
+
+func (pph *PcapPlistHeader) ToString() string {
+	trim := func(src string) string {
+		return strings.ReplaceAll(src, "\x00", "")
+	}
+	pph.IFName = trim(pph.IFName)
+	pph.ProcName = trim(pph.ProcName)
+	pph.ProcName2 = trim(pph.ProcName2)
+	return fmt.Sprintf("%v", *pph)
 }
 
 func Start(device ios.DeviceEntry) error {
@@ -32,7 +51,7 @@ func Start(device ios.DeviceEntry) error {
 		return err
 	}
 	plistCodec := ios.NewPlistCodec()
-	fname := fmt.Sprintf("dump-%d.pcap",time.Now().Unix())
+	fname := fmt.Sprintf("dump-%d.pcap", time.Now().Unix())
 	f, err := createPcap(fname)
 	if err != nil {
 		return err
@@ -107,8 +126,8 @@ func createPcap(name string) (*os.File, error) {
 func writePacket(f *os.File, packet []byte) error {
 	now := time.Now()
 	phs := &PcaprecHdrS{
-		int(now.UTC().Unix()),
-		int(now.UTC().UnixNano() * 1000),
+		int(now.Unix()),
+		int(now.UnixNano() / 1e6),
 		len(packet),
 		len(packet),
 	}
@@ -126,21 +145,12 @@ func getPacket(buf []byte) ([]byte, error) {
 	pph := PcapPlistHeader{}
 	preader := bytes.NewReader(buf)
 	struc.Unpack(preader, &pph)
-
-	interfacetype := make([]byte, pph.HdrSize-25)
-	cnt, err := preader.Read(interfacetype)
-	if err != nil {
-		return []byte{}, err
-	}
-	if cnt != pph.HdrSize-25 {
-		return []byte{}, errors.New("invalid HdrSize")
-	}
-	log.Debug(interfacetype)
+	log.Info("PcapPlistHeader: ", pph.ToString())
 	packet, err := ioutil.ReadAll(preader)
 	if err != nil {
 		return packet, err
 	}
-	if pph.OffsetToIPData == 0 {
+	if pph.FramePreLength == 0 {
 		ext := []byte{0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0x08, 0x00}
 		return append(ext, packet...), nil
 	}
