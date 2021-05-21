@@ -94,7 +94,7 @@ type AllValuesType struct {
 	TelephonyCapability                         bool
 	TimeIntervalSince1970                       float64
 	TimeZone                                    string
-	TimeZoneOffsetFromUTC                       int
+	TimeZoneOffsetFromUTC                       float64
 	TrustedHostAttached                         bool
 	UniqueChipID                                uint64
 	UniqueDeviceID                              string
