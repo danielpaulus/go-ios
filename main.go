@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"io/ioutil"
 	"path/filepath"
 	"runtime/debug"
@@ -182,7 +183,7 @@ The commands work as following:
 	b, _ = arguments.Bool("install")
 	if b {
 		path, _ := arguments.String("--path")
-		installApp(path)
+		installApp(device, path)
 		return
 	}
 
@@ -348,8 +349,12 @@ The commands work as following:
 
 }
 
-func installApp(path string) {
+func installApp(device ios.DeviceEntry, path string) {
 	log.Info("installing " + path)
+	conn, err := zipconduit.New(device)
+	exitIfError("failed connecting to zipconduit, dev image installed?", err)
+	err = conn.SendFile(path)
+	exitIfError("failed writing", err)
 }
 
 func language(device ios.DeviceEntry, locale string, language string) {

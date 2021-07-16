@@ -1,0 +1,310 @@
+package zipconduit
+
+import (
+	"archive/zip"
+	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"github.com/danielpaulus/go-ios/ios"
+	log "github.com/sirupsen/logrus"
+	"hash/crc32"
+	"io"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+)
+
+//debug with this dump: /Users/danielpaulus/privaterepos/go-ios/dump-2021.07.12-21.46.48.834/connection-#108-2021.07.12-21.47.30.944
+const serviceName string = "com.apple.streaming_zip_conduit"
+
+//Connection exposes the LogReader channel which send the LogMessages as strings.
+type Connection struct {
+	deviceConn ios.DeviceConnectionInterface
+	plistCodec ios.PlistCodec
+}
+
+//New returns a new SysLog Connection for the given DeviceID and Udid
+//It will create LogReader as a buffered Channel because Syslog is very verbose.
+func New(device ios.DeviceEntry) (*Connection, error) {
+	deviceConn, err := ios.ConnectToService(device, serviceName)
+	if err != nil {
+		return &Connection{}, err
+	}
+
+	var zipConduitConn Connection
+	zipConduitConn.deviceConn = deviceConn
+	zipConduitConn.plistCodec = ios.NewPlistCodec()
+	//reader := zipConduitConn.deviceConn.Reader()
+	//zipConduitConn.readVersion(reader)
+
+	//zipConduitConn.readExchangeResponse(reader)
+	return &zipConduitConn, nil
+}
+
+func (conn Connection) SendFile(ipaFile string) error {
+	init := initTransfer{
+		InstallTransferredDirectory: 1,
+		UserInitiatedTransfer:       0,
+		MediaSubdir:                 fmt.Sprintf("PublicStaging/%s", "wda.ipa"),
+		InstallOptionsDictionary: Installoptions{
+			InstallDeltaTypeKey:  "InstallDeltaTypeSparseIPAFiles",
+			DisableDeltaTransfer: 1,
+			IsUserInitiated:      1,
+			PreferWifi:           1,
+			PackageType:          "Customer",
+		},
+	}
+	log.Info("sending inittransfer")
+	bytes, err := conn.plistCodec.Encode(init)
+	if err != nil {
+		return err
+	}
+	println(hex.Dump(bytes))
+	err = conn.deviceConn.Send(bytes)
+	if err != nil {
+		return err
+	}
+
+	tmpDir, err := ioutil.TempDir("", "prefix")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	unzippedFiles, totalBytes, err := Unzip(ipaFile, tmpDir)
+	if err != nil {
+		return err
+	}
+	deviceStream :=conn.deviceConn.Writer()
+
+	err = os.Mkdir(path.Join(tmpDir, "META-INF"), 0777)
+	fileMetaNAme := "com.apple.ZipMetadata.plist"
+
+	meta := Metadata{RecordCount: 2 + len(unzippedFiles), StandardDirectoryPerms: 16877, StandardFilePerms: -32348, TotalUncompressedBytes: totalBytes, Version: 2}
+	metaBytes := ios.ToPlistBytes(meta)
+	log.Infof("%x", metaBytes)
+	println(hex.Dump(metaBytes))
+	ioutil.WriteFile(path.Join(tmpDir, "META-INF", fileMetaNAme), metaBytes, 0777)
+	if err != nil {
+		return err
+	}
+
+	log.Info("writing meta inf")
+	err = AddFileToZip(deviceStream, path.Join(tmpDir, "META-INF"), tmpDir)
+	if err != nil {
+		return err
+	}
+	err = AddFileToZip(deviceStream, path.Join(tmpDir, "META-INF", fileMetaNAme), tmpDir)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Writing..")
+
+	for _, file := range unzippedFiles {
+		log.Info(file)
+		err := AddFileToZip(deviceStream, file, tmpDir)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = conn.deviceConn.Writer().Write([]byte{0x50, 0x4b, 0x01, 0x02})
+	//_, err = conn.deviceConn.Writer().Write([]byte{0x02, 0x01, 0x4b, 0x50})
+	if err != nil {
+		return err
+	}
+	//deviceStream.Close()
+
+	for {
+		msg, _ := conn.plistCodec.Decode(conn.deviceConn.Reader())
+		plist, _ := ios.ParsePlist(msg)
+		log.Infof("%+v", plist)
+	}
+	return nil
+}
+
+type Metadata struct {
+	StandardDirectoryPerms int
+	StandardFilePerms      int
+	RecordCount            int
+	TotalUncompressedBytes uint64
+	Version                int
+}
+
+type ZipHeader struct {
+	signature             uint32
+	version               uint16
+	generalPurpseBitFlags uint16
+	compressionMethod     uint16
+	lastModifiedTime      uint16
+	lastModifiedDate      uint16
+	crc32                 uint32
+	compressedSize        uint32
+	uncompressedSize      uint32
+	fileNameLength        uint16
+	extrafieldLength      uint16
+}
+
+func newZipHeader(size uint32, crc32 uint32, name string) (ZipHeader, []byte, []byte) {
+	s:= "55540D00 07F3A2EC 60F6A2EC 60F3A2EC 6075780B 000104F5 01000004 14000000"
+	s = strings.ReplaceAll(s, " ", "")
+
+	extra, err := hex.DecodeString(s)
+	if err != nil {
+		log.Fatal("wtf", err)
+	}
+	return ZipHeader{
+		signature:             0x04034b50,
+		version:               20,
+		generalPurpseBitFlags: 0,
+		compressionMethod:     0,
+		lastModifiedTime:      0xBDEF,
+		lastModifiedDate:      0x52EC,
+		crc32:                 crc32,
+		compressedSize:        size,
+		uncompressedSize:      size,
+		fileNameLength:        uint16(len(name)),
+		extrafieldLength:      32,
+	}, []byte(name), extra
+}
+
+func newZipHeaderDir(name string) (ZipHeader, []byte, []byte) {
+	s:= "55540D00 07F3A2EC 60F6A2EC 60F3A2EC 6075780B 000104F5 01000004 14000000"
+	s = strings.ReplaceAll(s, " ", "")
+
+	extra, err := hex.DecodeString(s)
+
+	if err != nil {
+		log.Fatal("wtf", err)
+	}
+	return ZipHeader{
+		signature:             0x04034b50,
+		version:               20,
+		generalPurpseBitFlags: 0,
+		compressionMethod:     0,
+		lastModifiedTime:      0xBDEF,
+		lastModifiedDate:      0x52EC,
+		crc32:                 0,
+		compressedSize:        0,
+		uncompressedSize:      0,
+		fileNameLength:        uint16(len(name)),
+		extrafieldLength:      32,
+	}, []byte(name), extra
+}
+
+func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
+	fileToZip, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer fileToZip.Close()
+
+	// Get the file information
+	info, err := fileToZip.Stat()
+	if err != nil {
+		return err
+	}
+
+	// Using FileInfoHeader() above only uses the basename of the file. If we want
+	// to preserve the folder structure we can overwrite this with the full path.
+	filenameForZip := strings.Replace(filename, tmpdir+"/", "", 1)
+	if info.IsDir() && !strings.HasSuffix(filenameForZip, "/") {
+		filenameForZip += "/"
+	}
+	if info.IsDir() {
+		header, name, extra := newZipHeaderDir(filenameForZip)
+		err := binary.Write(writer, binary.LittleEndian, header)
+		binary.Write(writer, binary.BigEndian, name)
+		binary.Write(writer, binary.BigEndian, extra)
+		return err
+	}
+	filebytes, err := io.ReadAll(fileToZip)
+	if err != nil {
+		log.Fatal("err reading file")
+	}
+	crc := crc32.ChecksumIEEE(filebytes)
+	header, name, extra := newZipHeader(uint32(len(filebytes)), crc, filenameForZip)
+	err = binary.Write(writer, binary.LittleEndian, header)
+	binary.Write(writer, binary.BigEndian, name)
+	binary.Write(writer, binary.BigEndian, extra)
+	if err!=nil{
+		return err
+	}
+	_, err = writer.Write(filebytes)
+	//_, err = io.Copy(writer, fileToZip)
+	return err
+}
+
+type initTransfer struct {
+	InstallOptionsDictionary    Installoptions
+	InstallTransferredDirectory int
+	MediaSubdir                 string
+	UserInitiatedTransfer       int
+}
+
+type Installoptions struct {
+	DisableDeltaTransfer int
+	InstallDeltaTypeKey  string
+	IsUserInitiated      int
+	PackageType          string
+	PreferWifi           int
+}
+
+func Unzip(src string, dest string) ([]string, uint64, error) {
+	var overallSize uint64
+	var filenames []string
+
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return filenames, 0, err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+
+		// Store filename/path for returning and using later on
+		fpath := filepath.Join(dest, f.Name)
+
+		// Check for ZipSlip. More Info: http://bit.ly/2MsjAWE
+		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
+			return filenames, 0, fmt.Errorf("%s: illegal file path", fpath)
+		}
+
+		filenames = append(filenames, fpath)
+
+		if f.FileInfo().IsDir() {
+			// Make Folder
+			os.MkdirAll(fpath, os.ModePerm)
+			continue
+		}
+
+		// Make File
+		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+			return filenames, 0, err
+		}
+
+		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			return filenames, 0, err
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return filenames, 0, err
+		}
+
+		_, err = io.Copy(outFile, rc)
+		//sizeStat, err := outFile.Stat()
+		overallSize += f.UncompressedSize64
+		// Close the file without defer to close before next iteration of loop
+		outFile.Close()
+		rc.Close()
+
+		if err != nil {
+			return filenames, 0, err
+		}
+	}
+	return filenames, overallSize, nil
+}
