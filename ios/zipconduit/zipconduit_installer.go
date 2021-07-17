@@ -133,66 +133,10 @@ type Metadata struct {
 	Version                int
 }
 
-type ZipHeader struct {
-	signature             uint32
-	version               uint16
-	generalPurpseBitFlags uint16
-	compressionMethod     uint16
-	lastModifiedTime      uint16
-	lastModifiedDate      uint16
-	crc32                 uint32
-	compressedSize        uint32
-	uncompressedSize      uint32
-	fileNameLength        uint16
-	extrafieldLength      uint16
-}
 
-func newZipHeader(size uint32, crc32 uint32, name string) (ZipHeader, []byte, []byte) {
-	s:= "55540D00 07F3A2EC 60F6A2EC 60F3A2EC 6075780B 000104F5 01000004 14000000"
-	s = strings.ReplaceAll(s, " ", "")
 
-	extra, err := hex.DecodeString(s)
-	if err != nil {
-		log.Fatal("wtf", err)
-	}
-	return ZipHeader{
-		signature:             0x04034b50,
-		version:               20,
-		generalPurpseBitFlags: 0,
-		compressionMethod:     0,
-		lastModifiedTime:      0xBDEF,
-		lastModifiedDate:      0x52EC,
-		crc32:                 crc32,
-		compressedSize:        size,
-		uncompressedSize:      size,
-		fileNameLength:        uint16(len(name)),
-		extrafieldLength:      32,
-	}, []byte(name), extra
-}
 
-func newZipHeaderDir(name string) (ZipHeader, []byte, []byte) {
-	s:= "55540D00 07F3A2EC 60F6A2EC 60F3A2EC 6075780B 000104F5 01000004 14000000"
-	s = strings.ReplaceAll(s, " ", "")
 
-	extra, err := hex.DecodeString(s)
-
-	if err != nil {
-		log.Fatal("wtf", err)
-	}
-	return ZipHeader{
-		signature:             0x04034b50,
-		version:               20,
-		generalPurpseBitFlags: 0,
-		compressionMethod:     0,
-		lastModifiedTime:      0xBDEF,
-		lastModifiedDate:      0x52EC,
-		crc32:                 0,
-		compressedSize:        0,
-		uncompressedSize:      0,
-		fileNameLength:        uint16(len(name)),
-		extrafieldLength:      32,
-	}, []byte(name), extra
-}
 
 func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	fileToZip, err := os.Open(filename)
