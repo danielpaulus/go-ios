@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"io/ioutil"
 	"path/filepath"
@@ -383,7 +384,13 @@ func mountImage(device ios.DeviceEntry, path string) {
 }
 
 func listMountedImages(device ios.DeviceEntry) {
-	log.Info("list images")
+	conn, err := imagemounter.New(device)
+	exitIfError("failed connecting to image mounter", err)
+	signatures, err := conn.ListImages()
+	exitIfError("failed getting image list", err)
+	for _, sig := range signatures {
+		log.Infof("%x", sig)
+	}
 }
 
 func installApp(device ios.DeviceEntry, path string) {
