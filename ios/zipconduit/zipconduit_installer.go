@@ -2,7 +2,6 @@ package zipconduit
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"github.com/danielpaulus/go-ios/ios"
 	log "github.com/sirupsen/logrus"
 	"hash/crc32"
@@ -80,73 +79,96 @@ func (conn Connection) sendDirectory(dir string) error {
 	return nil
 }
 func (conn Connection) sendIpaFile(ipaFile string) error {
+	tmpDir, err := ioutil.TempDir("", "prefix")
+	if err != nil {
+		return err
+	}
+	log.Debugf("created tempdir: %s", tmpDir)
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		if err != nil {
+			log.WithFields(log.Fields{"dir": tmpDir}).Warn("failed removing tempdir")
+		}
+	}()
+	log.Debug("unzipping..")
+	unzippedFiles, totalBytes, err := unzip(ipaFile, tmpDir)
+	if err != nil {
+		return err
+	}
+
+	metainfFolder, metainfFile, err := addMetaInf(tmpDir, unzippedFiles, totalBytes)
+	if err != nil {
+		return err
+	}
+
 	init := newInitTransfer(ipaFile)
-	log.Info("sending inittransfer")
+	log.Debugf("sending inittransfer %+v", init)
 	bytes, err := conn.plistCodec.Encode(init)
 	if err != nil {
 		return err
 	}
-	println(hex.Dump(bytes))
+
 	err = conn.deviceConn.Send(bytes)
 	if err != nil {
 		return err
 	}
 
-	tmpDir, err := ioutil.TempDir("", "prefix")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-	unzippedFiles, totalBytes, err := unzip(ipaFile, tmpDir)
-	if err != nil {
-		return err
-	}
 	deviceStream := conn.deviceConn.Writer()
 
-	err = os.Mkdir(path.Join(tmpDir, "META-INF"), 0777)
-	fileMetaNAme := "com.apple.ZipMetadata.plist"
-
-	meta := metadata{RecordCount: 2 + len(unzippedFiles), StandardDirectoryPerms: 16877, StandardFilePerms: -32348, TotalUncompressedBytes: totalBytes, Version: 2}
-	metaBytes := ios.ToPlistBytes(meta)
-	log.Infof("%x", metaBytes)
-	println(hex.Dump(metaBytes))
-	ioutil.WriteFile(path.Join(tmpDir, "META-INF", fileMetaNAme), metaBytes, 0777)
+	log.Debug("writing meta inf")
+	err = AddFileToZip(deviceStream, metainfFolder, tmpDir)
 	if err != nil {
 		return err
 	}
-
-	log.Info("writing meta inf")
-	err = AddFileToZip(deviceStream, path.Join(tmpDir, "META-INF"), tmpDir)
+	err = AddFileToZip(deviceStream, metainfFile, tmpDir)
 	if err != nil {
 		return err
 	}
-	err = AddFileToZip(deviceStream, path.Join(tmpDir, "META-INF", fileMetaNAme), tmpDir)
-	if err != nil {
-		return err
-	}
+	log.Debug("meta inf send successfully")
 
-	log.Info("Writing..")
+	log.Debug("sending files....")
 
 	for _, file := range unzippedFiles {
-		log.Info(file)
 		err := AddFileToZip(deviceStream, file, tmpDir)
 		if err != nil {
 			return err
 		}
 	}
-
+	log.Debug("files sent, sending central header....")
 	_, err = conn.deviceConn.Writer().Write(centralDirectoryHeader)
-
 	if err != nil {
 		return err
 	}
 
+	return conn.waitForInstallation()
+}
+
+func (conn Connection) waitForInstallation() error {
 	for {
 		msg, _ := conn.plistCodec.Decode(conn.deviceConn.Reader())
 		plist, _ := ios.ParsePlist(msg)
 		log.Infof("%+v", plist)
 	}
 	return nil
+}
+
+const metainfFileName = "com.apple.ZipMetadata.plist"
+
+func addMetaInf(metainfPath string, files []string, totalBytes uint64) (string, string, error) {
+	folderPath := path.Join(metainfPath, "META-INF")
+	err := os.Mkdir(folderPath, 0777)
+	if err != nil {
+		return "", "", err
+	}
+	//recordcount == files + meta-inf + metainffile
+	meta := metadata{RecordCount: 2 + len(files), StandardDirectoryPerms: 16877, StandardFilePerms: -32348, TotalUncompressedBytes: totalBytes, Version: 2}
+	metaBytes := ios.ToPlistBytes(meta)
+	filePath := path.Join(metainfPath, "META-INF", metainfFileName)
+	err = ioutil.WriteFile(filePath, metaBytes, 0777)
+	if err != nil {
+		return "", "", err
+	}
+	return folderPath, filePath, nil
 }
 
 func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
