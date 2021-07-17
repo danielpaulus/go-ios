@@ -88,7 +88,7 @@ The commands work as following:
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios info [options]                                                 Prints a dump of Lockdown getValues.
-   ios image list [options]                                           List currently mounted images
+   ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
    ios image auto [options]                                           Automatically download correct dev image from the internets and mount it
    ios syslog [options]                                               Prints a device's log output
