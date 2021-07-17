@@ -147,9 +147,17 @@ func (conn Connection) waitForInstallation() error {
 	for {
 		msg, _ := conn.plistCodec.Decode(conn.deviceConn.Reader())
 		plist, _ := ios.ParsePlist(msg)
-		log.Infof("%+v", plist)
+		log.Debugf("%+v", plist)
+		done, percent, status, err := evaluateProgress(plist)
+		if err != nil {
+			return err
+		}
+		if done {
+			log.Info("installation successful")
+			return nil
+		}
+		log.WithFields(log.Fields{"status": status, "percentComplete": percent}).Info("installing")
 	}
-	return nil
 }
 
 const metainfFileName = "com.apple.ZipMetadata.plist"

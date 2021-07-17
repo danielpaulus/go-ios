@@ -31,6 +31,48 @@ type installoptions struct {
 	PreferWifi           int
 }
 
+const signingError = "ApplicationVerificationFailed"
+
+func evaluateProgress(progressUpdate map[string]interface{}) (bool, int, string, error) {
+	//done, percent, status
+	statusIntf, ok := progressUpdate["Status"]
+	if ok {
+		status := statusIntf.(string)
+		if "DataComplete" == status {
+			return true, 100, status, nil
+		}
+		return false, 0, "", fmt.Errorf("invalid progressUpdate, unknown Status field:+%+v", progressUpdate)
+	}
+
+	installProgressDictIntf, ok := progressUpdate["InstallProgressDict"]
+	if !ok {
+		return false, 0, "", fmt.Errorf("invalid progressUpdate, missing InstallProgressDict field:+%+v", progressUpdate)
+	}
+	installProgressDict := installProgressDictIntf.(map[string]interface{})
+
+	errorMessage, ok := installProgressDict["Error"]
+	if ok {
+		description, _ := installProgressDict["ErrorDescription"]
+		if signingError == errorMessage {
+			return false, 0, "", fmt.Errorf("your app is not properly signed for this device, check your codesigning and provisioningprofile. original error: '%s' errorDescription:'%s'", errorMessage, description)
+		}
+		return false, 0, "", fmt.Errorf("failed installing: '%s' errorDescription:'%s'", errorMessage, description)
+	}
+
+	percentIntf, ok := installProgressDict["PercentComplete"]
+	if !ok {
+		return false, 0, "", fmt.Errorf("invalid installProgressDict, missing PercentComplete field:+%+v", progressUpdate)
+	}
+	percent := int(percentIntf.(uint64))
+
+	statusIntf, ok = installProgressDict["Status"]
+	if !ok {
+		return false, 0, "", fmt.Errorf("invalid installProgressDict, missing Status field:+%+v", progressUpdate)
+	}
+	status := statusIntf.(string)
+	return false, percent, status, nil
+}
+
 // newInitTransfer returns a initTransfer request with
 // the same values XCode uses
 func newInitTransfer(fileName string) initTransfer {
