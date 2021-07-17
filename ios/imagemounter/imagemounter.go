@@ -68,6 +68,10 @@ func (conn *Connection) ListImages() ([][]byte, error) {
 	return result, nil
 }
 
+func (conn *Connection) MountImage(path string) error {
+	return nil
+}
+
 //Close closes the underlying UsbMuxConnection
 func (conn *Connection) Close() {
 	conn.deviceConn.Close()

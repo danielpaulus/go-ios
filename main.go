@@ -380,7 +380,16 @@ func fixDevImage(device ios.DeviceEntry) {
 }
 
 func mountImage(device ios.DeviceEntry, path string) {
-	log.Info("mount image")
+	conn, err := imagemounter.New(device)
+	exitIfError("failed connecting to image mounter", err)
+	signatures, err := conn.ListImages()
+	exitIfError("failed getting image list", err)
+	if len(signatures) != 0 {
+		log.Fatal("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
+	}
+	err = conn.MountImage(path)
+	exitIfError("failed mounting image", err)
+	log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
 }
 
 func listMountedImages(device ios.DeviceEntry) {
@@ -388,6 +397,10 @@ func listMountedImages(device ios.DeviceEntry) {
 	exitIfError("failed connecting to image mounter", err)
 	signatures, err := conn.ListImages()
 	exitIfError("failed getting image list", err)
+	if len(signatures) == 0 {
+		log.Infof("none")
+		return
+	}
 	for _, sig := range signatures {
 		log.Infof("%x", sig)
 	}
