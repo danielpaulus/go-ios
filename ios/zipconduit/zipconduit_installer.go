@@ -16,7 +16,28 @@ import (
 	"strings"
 )
 
-//debug with this dump: /Users/danielpaulus/privaterepos/go-ios/dump-2021.07.12-21.46.48.834/connection-#108-2021.07.12-21.47.30.944
+/**
+Typical weird iOS service :-D
+It is a kind of special "zip" format that XCode uses to send files&folder to devices.
+Sadly it is not compliant with all standard zip libraries, in particular it does not work
+with the golang zipWriter implementation... OF COURSE ;-)
+This is why I had to hack my own "zip" encoding together. Here is how zip_conduit works:
+
+1. Send PLIST "InitTransfer" in standard 4byte length + Plist format
+2. Start sending binary zip stream next
+3. Since zip does not support streaming,
+   we first generate a metainf file inside a metainf directory. It contains number of files and
+   total byte sizes among other things (check the struct). Probably to make streaming work we also send
+   it as the first file
+4. Starting with metainf for each file:
+       send a ZipFileHeader with compression set to STORE (so no compression at all)
+       this also means uncompressedSize==compressedSize btw.
+       be sure not to use DataDescriptors (https://en.wikipedia.org/wiki/ZIP_(file_format)#Local_file_header)
+       I guess they have disabled them as it would make streaming harder. This is why golang's zip implementation
+       does not work.
+5. Send the standard central directory header but not a central directory (obviously)
+6. wait for a bunch of PLISTs to be received that indicate progress and completion of installation
+ */
 const serviceName string = "com.apple.streaming_zip_conduit"
 
 //Connection exposes the LogReader channel which send the LogMessages as strings.
