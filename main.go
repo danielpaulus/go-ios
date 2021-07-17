@@ -350,7 +350,8 @@ The commands work as following:
 }
 
 func installApp(device ios.DeviceEntry, path string) {
-	log.Info("installing " + path)
+	log.WithFields(
+		log.Fields{"appPath": path, "device": device.Properties.SerialNumber}).Info("installing")
 	conn, err := zipconduit.New(device)
 	exitIfError("failed connecting to zipconduit, dev image installed?", err)
 	err = conn.SendFile(path)

@@ -271,25 +271,48 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 		filenameForZip += "/"
 	}
 	if info.IsDir() {
+		//write our "zip" header for a directory
 		header, name, extra := newZipHeaderDir(filenameForZip)
 		err := binary.Write(writer, binary.LittleEndian, header)
-		binary.Write(writer, binary.BigEndian, name)
-		binary.Write(writer, binary.BigEndian, extra)
+		if err != nil {
+			return err
+		}
+		err = binary.Write(writer, binary.BigEndian, name)
+		if err != nil {
+			return err
+		}
+		err = binary.Write(writer, binary.BigEndian, extra)
 		return err
 	}
-	filebytes, err := io.ReadAll(fileToZip)
+
+	crc, err := calculateCrc32(fileToZip)
 	if err != nil {
-		log.Fatal("err reading file")
+		return err
 	}
-	crc := crc32.ChecksumIEEE(filebytes)
-	header, name, extra := newZipHeader(uint32(len(filebytes)), crc, filenameForZip)
+	fileToZip.Seek(0, io.SeekStart)
+	//write our "zip" file header
+	header, name, extra := newZipHeader(uint32(info.Size()), crc, filenameForZip)
 	err = binary.Write(writer, binary.LittleEndian, header)
-	binary.Write(writer, binary.BigEndian, name)
-	binary.Write(writer, binary.BigEndian, extra)
 	if err != nil {
 		return err
 	}
-	_, err = writer.Write(filebytes)
-	//_, err = io.Copy(writer, fileToZip)
+	err = binary.Write(writer, binary.BigEndian, name)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(writer, binary.BigEndian, extra)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(writer, fileToZip)
 	return err
+}
+
+func calculateCrc32(reader io.Reader) (uint32, error) {
+	hash := crc32.New(crc32.IEEETable)
+	if _, err := io.Copy(hash, reader); err != nil {
+		return 0, err
+	}
+	return hash.Sum32(), nil
 }
