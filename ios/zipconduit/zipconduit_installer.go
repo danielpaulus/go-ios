@@ -37,31 +37,26 @@ This is why I had to hack my own "zip" encoding together. Here is how zip_condui
        does not work.
 5. Send the standard central directory header but not a central directory (obviously)
 6. wait for a bunch of PLISTs to be received that indicate progress and completion of installation
- */
+*/
 const serviceName string = "com.apple.streaming_zip_conduit"
 
-//Connection exposes the LogReader channel which send the LogMessages as strings.
+//Connection exposes functions to interoperate with zipconduit
 type Connection struct {
 	deviceConn ios.DeviceConnectionInterface
 	plistCodec ios.PlistCodec
 }
 
-//New returns a new SysLog Connection for the given DeviceID and Udid
-//It will create LogReader as a buffered Channel because Syslog is very verbose.
+//New returns a new ZipConduit Connection for the given DeviceID and Udid
 func New(device ios.DeviceEntry) (*Connection, error) {
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return &Connection{}, err
 	}
 
-	var zipConduitConn Connection
-	zipConduitConn.deviceConn = deviceConn
-	zipConduitConn.plistCodec = ios.NewPlistCodec()
-	//reader := zipConduitConn.deviceConn.Reader()
-	//zipConduitConn.readVersion(reader)
-
-	//zipConduitConn.readExchangeResponse(reader)
-	return &zipConduitConn, nil
+	return &Connection{
+		deviceConn: deviceConn,
+		plistCodec: ios.NewPlistCodec(),
+	}, nil
 }
 
 func (conn Connection) SendFile(ipaFile string) error {
@@ -97,7 +92,7 @@ func (conn Connection) SendFile(ipaFile string) error {
 	if err != nil {
 		return err
 	}
-	deviceStream :=conn.deviceConn.Writer()
+	deviceStream := conn.deviceConn.Writer()
 
 	err = os.Mkdir(path.Join(tmpDir, "META-INF"), 0777)
 	fileMetaNAme := "com.apple.ZipMetadata.plist"
@@ -137,7 +132,6 @@ func (conn Connection) SendFile(ipaFile string) error {
 		return err
 	}
 
-
 	for {
 		msg, _ := conn.plistCodec.Decode(conn.deviceConn.Reader())
 		plist, _ := ios.ParsePlist(msg)
@@ -153,11 +147,6 @@ type Metadata struct {
 	TotalUncompressedBytes uint64
 	Version                int
 }
-
-
-
-
-
 
 func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	fileToZip, err := os.Open(filename)
@@ -194,7 +183,7 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	err = binary.Write(writer, binary.LittleEndian, header)
 	binary.Write(writer, binary.BigEndian, name)
 	binary.Write(writer, binary.BigEndian, extra)
-	if err!=nil{
+	if err != nil {
 		return err
 	}
 	_, err = writer.Write(filebytes)
