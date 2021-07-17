@@ -60,18 +60,7 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 }
 
 func (conn Connection) SendFile(ipaFile string) error {
-	init := initTransfer{
-		InstallTransferredDirectory: 1,
-		UserInitiatedTransfer:       0,
-		MediaSubdir:                 fmt.Sprintf("PublicStaging/%s", "wda.ipa"),
-		InstallOptionsDictionary: Installoptions{
-			InstallDeltaTypeKey:  "InstallDeltaTypeSparseIPAFiles",
-			DisableDeltaTransfer: 1,
-			IsUserInitiated:      1,
-			PreferWifi:           1,
-			PackageType:          "Customer",
-		},
-	}
+	init := newInitTransfer(ipaFile)
 	log.Info("sending inittransfer")
 	bytes, err := conn.plistCodec.Encode(init)
 	if err != nil {
@@ -97,7 +86,7 @@ func (conn Connection) SendFile(ipaFile string) error {
 	err = os.Mkdir(path.Join(tmpDir, "META-INF"), 0777)
 	fileMetaNAme := "com.apple.ZipMetadata.plist"
 
-	meta := Metadata{RecordCount: 2 + len(unzippedFiles), StandardDirectoryPerms: 16877, StandardFilePerms: -32348, TotalUncompressedBytes: totalBytes, Version: 2}
+	meta := metadata{RecordCount: 2 + len(unzippedFiles), StandardDirectoryPerms: 16877, StandardFilePerms: -32348, TotalUncompressedBytes: totalBytes, Version: 2}
 	metaBytes := ios.ToPlistBytes(meta)
 	log.Infof("%x", metaBytes)
 	println(hex.Dump(metaBytes))
@@ -140,13 +129,7 @@ func (conn Connection) SendFile(ipaFile string) error {
 	return nil
 }
 
-type Metadata struct {
-	StandardDirectoryPerms int
-	StandardFilePerms      int
-	RecordCount            int
-	TotalUncompressedBytes uint64
-	Version                int
-}
+
 
 func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	fileToZip, err := os.Open(filename)
@@ -191,20 +174,7 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	return err
 }
 
-type initTransfer struct {
-	InstallOptionsDictionary    Installoptions
-	InstallTransferredDirectory int
-	MediaSubdir                 string
-	UserInitiatedTransfer       int
-}
 
-type Installoptions struct {
-	DisableDeltaTransfer int
-	InstallDeltaTypeKey  string
-	IsUserInitiated      int
-	PackageType          string
-	PreferWifi           int
-}
 
 func Unzip(src string, dest string) ([]string, uint64, error) {
 	var overallSize uint64
