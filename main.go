@@ -47,6 +47,9 @@ Usage:
   ios listen [options]
   ios list [options] [--details]
   ios info [options]
+  ios image list [options]
+  ios image mount [--path=<imagepath>] [options]
+  ios image auto [options]
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>]
   ios devicename [options] 
@@ -84,6 +87,9 @@ The commands work as following:
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios info [options]                                                 Prints a dump of Lockdown getValues.
+   ios image list [options]                                           List currently mounted images
+   ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
+   ios image auto [options]                                           Automatically download correct dev image from the internets and mount it
    ios syslog [options]                                               Prints a device's log output
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
    ios devicename [options]                                           Prints the devicename
@@ -151,7 +157,8 @@ The commands work as following:
 
 	b, _ = arguments.Bool("list")
 	diagnosticsCommand, _ := arguments.Bool("diagnostics")
-	if b && !diagnosticsCommand {
+	imageCommand, _ := arguments.Bool("image")
+	if b && !diagnosticsCommand && !imageCommand {
 		b, _ = arguments.Bool("--details")
 		printDeviceList(b)
 		return
@@ -184,6 +191,24 @@ The commands work as following:
 	if b {
 		path, _ := arguments.String("--path")
 		installApp(device, path)
+		return
+	}
+
+	b, _ = arguments.Bool("image")
+	if b {
+		list, _ := arguments.Bool("list")
+		if list {
+			listMountedImages(device)
+		}
+		mount, _ := arguments.Bool("mount")
+		if mount {
+			path, _ := arguments.String("--path")
+			mountImage(device, path)
+		}
+		auto, _ := arguments.Bool("auto")
+		if auto {
+			fixDevImage(device)
+		}
 		return
 	}
 
@@ -347,6 +372,18 @@ The commands work as following:
 		return
 	}
 
+}
+
+func fixDevImage(device ios.DeviceEntry) {
+	log.Info("fix dev image")
+}
+
+func mountImage(device ios.DeviceEntry, path string) {
+	log.Info("mount image")
+}
+
+func listMountedImages(device ios.DeviceEntry) {
+	log.Info("list images")
 }
 
 func installApp(device ios.DeviceEntry, path string) {
