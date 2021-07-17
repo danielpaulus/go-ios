@@ -56,7 +56,30 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	}, nil
 }
 
-func (conn Connection) SendFile(ipaFile string) error {
+//SendFile will send either a zipFile or an unzipped directory to the device.
+//If you specify appFilePath to a file, it will try to unzip it to a temp dir first and then send.
+//If appFilePath points to a directory, it will try to install the dir contents as an app.
+func (conn Connection) SendFile(appFilePath string) error {
+	openedFile, err := os.Open(appFilePath)
+	if err != nil {
+		return err
+	}
+
+	// Get the file information
+	info, err := openedFile.Stat()
+	openedFile.Close()
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return conn.sendDirectory(appFilePath)
+	}
+	return conn.sendIpaFile(appFilePath)
+}
+func (conn Connection) sendDirectory(dir string) error {
+	return nil
+}
+func (conn Connection) sendIpaFile(ipaFile string) error {
 	init := newInitTransfer(ipaFile)
 	log.Info("sending inittransfer")
 	bytes, err := conn.plistCodec.Encode(init)
@@ -126,8 +149,6 @@ func (conn Connection) SendFile(ipaFile string) error {
 	return nil
 }
 
-
-
 func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	fileToZip, err := os.Open(filename)
 	if err != nil {
@@ -170,4 +191,3 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	//_, err = io.Copy(writer, fileToZip)
 	return err
 }
-
