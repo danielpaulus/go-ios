@@ -85,3 +85,6 @@ type zipHeader struct {
 	fileNameLength         uint16
 	extraFieldLength       uint16
 }
+
+//standard header signature for central directory of a zip file
+var centralDirectoryHeader []byte = []byte{0x50, 0x4b, 0x01, 0x02}

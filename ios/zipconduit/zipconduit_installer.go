@@ -110,12 +110,12 @@ func (conn Connection) SendFile(ipaFile string) error {
 		}
 	}
 
-	_, err = conn.deviceConn.Writer().Write([]byte{0x50, 0x4b, 0x01, 0x02})
-	//_, err = conn.deviceConn.Writer().Write([]byte{0x02, 0x01, 0x4b, 0x50})
+	_, err = conn.deviceConn.Writer().Write(centralDirectoryHeader)
+
 	if err != nil {
 		return err
 	}
-	//deviceStream.Close()
+
 
 	for {
 		msg, _ := conn.plistCodec.Decode(conn.deviceConn.Reader())
