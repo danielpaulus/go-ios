@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"io/ioutil"
 	"path/filepath"
 	"runtime/debug"
@@ -58,6 +59,7 @@ Usage:
   ios dproxy [--binary]
   ios readpair [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
+  ios install --path=<ipaOrAppFolder> [options]
   ios apps [--system] [options]
   ios launch <bundleID> [options]
   ios runtest <bundleID> [options]
@@ -96,7 +98,8 @@ The commands work as following:
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
-   ios readpair                                                       Dump detailed information about the pairrecord for a device.
+   ios readpair                                                       Dump detailed information about the pairrecord for a device.                                              Starts a pcap dump of network traffic
+   ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
@@ -174,6 +177,13 @@ The commands work as following:
 	b, _ = arguments.Bool("ps")
 	if b {
 		processList(device)
+		return
+	}
+
+	b, _ = arguments.Bool("install")
+	if b {
+		path, _ := arguments.String("--path")
+		installApp(device, path)
 		return
 	}
 
@@ -337,6 +347,15 @@ The commands work as following:
 		return
 	}
 
+}
+
+func installApp(device ios.DeviceEntry, path string) {
+	log.WithFields(
+		log.Fields{"appPath": path, "device": device.Properties.SerialNumber}).Info("installing")
+	conn, err := zipconduit.New(device)
+	exitIfError("failed connecting to zipconduit, dev image installed?", err)
+	err = conn.SendFile(path)
+	exitIfError("failed writing", err)
 }
 
 func language(device ios.DeviceEntry, locale string, language string) {
