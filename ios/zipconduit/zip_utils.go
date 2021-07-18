@@ -94,9 +94,9 @@ type zipHeader struct {
 //standard header signature for central directory of a zip file
 var centralDirectoryHeader []byte = []byte{0x50, 0x4b, 0x01, 0x02}
 
-// unzip is code I copied from https://golangcode.com/unzip-files-in-go/
+// Unzip is code I copied from https://golangcode.com/unzip-files-in-go/
 // thank you guys for the cool helpful code examples :-D
-func unzip(src string, dest string) ([]string, uint64, error) {
+func Unzip(src string, dest string) ([]string, uint64, error) {
 	var overallSize uint64
 	var filenames []string
 

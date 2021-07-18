@@ -57,7 +57,7 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 }
 
 //SendFile will send either a zipFile or an unzipped directory to the device.
-//If you specify appFilePath to a file, it will try to unzip it to a temp dir first and then send.
+//If you specify appFilePath to a file, it will try to Unzip it to a temp dir first and then send.
 //If appFilePath points to a directory, it will try to install the dir contents as an app.
 func (conn Connection) SendFile(appFilePath string) error {
 	openedFile, err := os.Open(appFilePath)
@@ -163,7 +163,7 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		}
 	}()
 	log.Debug("unzipping..")
-	unzippedFiles, totalBytes, err := unzip(ipaFile, tmpDir)
+	unzippedFiles, totalBytes, err := Unzip(ipaFile, tmpDir)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"io/ioutil"
 	"path/filepath"
@@ -47,6 +48,9 @@ Usage:
   ios listen [options]
   ios list [options] [--details]
   ios info [options]
+  ios image list [options]
+  ios image mount [--path=<imagepath>] [options]
+  ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>]
   ios devicename [options] 
@@ -84,6 +88,9 @@ The commands work as following:
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios info [options]                                                 Prints a dump of Lockdown getValues.
+   ios image list [options]                                           List currently mounted developers images' signatures
+   ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
+   ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it. You can specify a dir where images should be cached. The default is the current dir. 
    ios syslog [options]                                               Prints a device's log output
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
    ios devicename [options]                                           Prints the devicename
@@ -151,7 +158,8 @@ The commands work as following:
 
 	b, _ = arguments.Bool("list")
 	diagnosticsCommand, _ := arguments.Bool("diagnostics")
-	if b && !diagnosticsCommand {
+	imageCommand, _ := arguments.Bool("image")
+	if b && !diagnosticsCommand && !imageCommand {
 		b, _ = arguments.Bool("--details")
 		printDeviceList(b)
 		return
@@ -184,6 +192,28 @@ The commands work as following:
 	if b {
 		path, _ := arguments.String("--path")
 		installApp(device, path)
+		return
+	}
+
+	b, _ = arguments.Bool("image")
+	if b {
+		list, _ := arguments.Bool("list")
+		if list {
+			listMountedImages(device)
+		}
+		mount, _ := arguments.Bool("mount")
+		if mount {
+			path, _ := arguments.String("--path")
+			mountImage(device, path)
+		}
+		auto, _ := arguments.Bool("auto")
+		if auto {
+			basedir, _ := arguments.String("--basedir")
+			if basedir == "" {
+				basedir = "."
+			}
+			fixDevImage(device, basedir)
+		}
 		return
 	}
 
@@ -347,6 +377,49 @@ The commands work as following:
 		return
 	}
 
+}
+
+func fixDevImage(device ios.DeviceEntry, baseDir string) {
+	conn, err := imagemounter.New(device)
+	exitIfError("failed connecting to image mounter", err)
+	signatures, err := conn.ListImages()
+	exitIfError("failed getting image list", err)
+	if len(signatures) != 0 {
+		log.Info("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
+		return
+	}
+	imagePath, err := imagemounter.DownloadImageFor(device, baseDir)
+	exitIfError("failed downloading image", err)
+	log.Infof("installing downloaded image '%s'", imagePath)
+	mountImage(device, imagePath)
+
+}
+
+func mountImage(device ios.DeviceEntry, path string) {
+	conn, err := imagemounter.New(device)
+	exitIfError("failed connecting to image mounter", err)
+	signatures, err := conn.ListImages()
+	exitIfError("failed getting image list", err)
+	if len(signatures) != 0 {
+		log.Fatal("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
+	}
+	err = conn.MountImage(path)
+	exitIfError("failed mounting image", err)
+	log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
+}
+
+func listMountedImages(device ios.DeviceEntry) {
+	conn, err := imagemounter.New(device)
+	exitIfError("failed connecting to image mounter", err)
+	signatures, err := conn.ListImages()
+	exitIfError("failed getting image list", err)
+	if len(signatures) == 0 {
+		log.Infof("none")
+		return
+	}
+	for _, sig := range signatures {
+		log.Infof("%x", sig)
+	}
 }
 
 func installApp(device ios.DeviceEntry, path string) {
