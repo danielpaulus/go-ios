@@ -384,7 +384,7 @@ func fixDevImage(device ios.DeviceEntry) {
 		log.Info("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
 		return
 	}
-	imagePath, err := imagemounter.DownloadImageFor(device)
+	imagePath, err := imagemounter.DownloadImageFor(device, ".")
 	exitIfError("failed downloading image", err)
 	log.Infof("installing downloaded image '%s'", imagePath)
 	mountImage(device, imagePath)
