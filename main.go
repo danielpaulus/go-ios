@@ -50,7 +50,7 @@ Usage:
   ios info [options]
   ios image list [options]
   ios image mount [--path=<imagepath>] [options]
-  ios image auto [options]
+  ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>]
   ios devicename [options] 
@@ -90,7 +90,7 @@ The commands work as following:
    ios info [options]                                                 Prints a dump of Lockdown getValues.
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
-   ios image auto [options]                                           Automatically download correct dev image from the internets and mount it
+   ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it. You can specify a dir where images should be cached. The default is the current dir. 
    ios syslog [options]                                               Prints a device's log output
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
    ios devicename [options]                                           Prints the devicename
@@ -208,7 +208,11 @@ The commands work as following:
 		}
 		auto, _ := arguments.Bool("auto")
 		if auto {
-			fixDevImage(device)
+			basedir, _ := arguments.String("--basedir")
+			if basedir == "" {
+				basedir = "."
+			}
+			fixDevImage(device, basedir)
 		}
 		return
 	}
@@ -375,7 +379,7 @@ The commands work as following:
 
 }
 
-func fixDevImage(device ios.DeviceEntry) {
+func fixDevImage(device ios.DeviceEntry, baseDir string) {
 	conn, err := imagemounter.New(device)
 	exitIfError("failed connecting to image mounter", err)
 	signatures, err := conn.ListImages()
@@ -384,7 +388,7 @@ func fixDevImage(device ios.DeviceEntry) {
 		log.Info("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
 		return
 	}
-	imagePath, err := imagemounter.DownloadImageFor(device, ".")
+	imagePath, err := imagemounter.DownloadImageFor(device, baseDir)
 	exitIfError("failed downloading image", err)
 	log.Infof("installing downloaded image '%s'", imagePath)
 	mountImage(device, imagePath)
