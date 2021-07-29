@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/debugserver"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"io/ioutil"
@@ -69,6 +70,7 @@ Usage:
   ios runtest <bundleID> [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [options]
   ios ax [options]
+  ios debug [options] <app_path>
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
@@ -113,6 +115,7 @@ The commands work as following:
    ios runtest <bundleID>                                             Run a XCUITest. 
    ios runwda [options]                                               Start WebDriverAgent
    ios ax [options]                                                   Access accessibility inspector features. 
+   ios debug <app_path>                                               Start debug with lldb
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
@@ -364,6 +367,18 @@ The commands work as following:
 	if b {
 		startAx(device)
 		return
+	}
+
+	b, _ = arguments.Bool("debug")
+	if b {
+		appPath, _ := arguments.String("<app_path>")
+		if appPath == "" {
+			log.Fatal("parameter bundleid and app_path must be specified")
+		}
+		err = debugserver.Start(device, appPath)
+		if err != nil {
+			log.Error(err.Error())
+		}
 	}
 
 	b, _ = arguments.Bool("reboot")

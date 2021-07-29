@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"net"
 	"testing"
 
 	ios "github.com/danielpaulus/go-ios/ios"
@@ -126,4 +127,7 @@ func (mock *DeviceConnectionMock) EnableSessionSslServerModeHandshakeOnly(pairRe
 }
 func (mock *DeviceConnectionMock) DisableSessionSSL() {
 	mock.Called()
+}
+func (mock *DeviceConnectionMock) Conn() net.Conn {
+	return nil
 }
