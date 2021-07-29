@@ -24,6 +24,9 @@ The commands work as following:
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios info [options]                                                 Prints a dump of Lockdown getValues.
+   ios image list [options]                                           List currently mounted developers images' signatures
+   ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
+   ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it. You can specify a dir where images should be cached. The default is the current dir. 
    ios syslog [options]                                               Prints a device's log output
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
    ios devicename [options]                                           Prints the devicename
@@ -31,15 +34,22 @@ The commands work as following:
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios diagnostics list [options]                                     List diagnostic infos
    ios pair [options]                                                 Pairs the device without a dialog for supervised devices
+   ios ps [options]                                                   Dumps a list of running processes on the device
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy                                                         Starts the reverse engineering proxy server. It dumps every communication in plain text so it can be implemented easily. Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist" to stop usbmuxd and load to start it again should the proxy mess up things.
-   ios readpair                                                       Dump detailed information about the pairrecord for a device.
-   ios pcap [options]                                                 Starts a pcap dump of network traffic
+   ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
+   >                                                                  It dumps every communication in plain text so it can be implemented easily. 
+   >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
+   >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
+   >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
+   ios readpair                                                       Dump detailed information about the pairrecord for a device.                                              Starts a pcap dump of network traffic
+   ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
+   ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
-   ios runtest <bundleID>                                             Run a XCUITest.
+   ios runtest <bundleID>                                             Run a XCUITest. 
    ios runwda [options]                                               Start WebDriverAgent
-   ios ax [options]                                                   Access accessibility inspector features.
+   ios ax [options]                                                   Access accessibility inspector features. 
+   ios debug <app_path>                                               Start debug with lldb
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
