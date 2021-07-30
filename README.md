@@ -41,16 +41,16 @@ The commands work as following:
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
-   ios readpair                                                       Dump detailed information about the pairrecord for a device.                                              Starts a pcap dump of network traffic
+   ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
    ios runtest <bundleID>                                             Run a XCUITest. 
-   ios runwda [options]                                               Start WebDriverAgent
+   ios runwda [options]                                               Start WebDriverAgent.
    ios ax [options]                                                   Access accessibility inspector features. 
-   ios debug <app_path>                                               Start debug with lldb
+   ios debug [--stop-at-entry] <app_path>                             Start debug with lldb.
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
-   ios --version | version [options]                                  Prints the version
+   ios --version | version [options]                                  Prints the version.
 ```
