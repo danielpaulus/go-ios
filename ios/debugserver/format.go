@@ -17,7 +17,8 @@ command script add -s asynchronous -f {{.PyName}}.safequit_command safequit
 connect
 run
 `
-	PY_FMT = `
+	STOP_AT_ENTRY = "launchInfo.SetLaunchFlags(lldb.eLaunchFlagStopAtEntry)"
+	PY_FMT        = `
 import time
 import os
 import sys
@@ -39,8 +40,8 @@ def connect_command(debugger, command, result, internal_dict):
 	listener = lldb.SBListener('go_ios_listener')
 
 	listener.StartListeningForEventClass(debugger,
-											lldb.SBTarget.GetBroadcasterClassName(),
-											lldb.SBProcess.eBroadcastBitStateChanged | lldb.SBProcess.eBroadcastBitSTDOUT | lldb.SBProcess.eBroadcastBitSTDERR)
+		lldb.SBTarget.GetBroadcasterClassName(),
+		lldb.SBProcess.eBroadcastBitStateChanged | lldb.SBProcess.eBroadcastBitSTDOUT | lldb.SBProcess.eBroadcastBitSTDERR)
 
 	process = debugger.GetSelectedTarget().ConnectRemote(listener, connect_url, None, error)
 
@@ -72,8 +73,11 @@ def run_command(debugger, command, result, internal_dict):
 	global listener
 	launchInfo.SetListener(listener)
 
-	#This env variable makes NSLog, CFLog and os_log messages get mirrored to stderr
-	#https://stackoverflow.com/a/39581193
+	# enable --stop-at-entry ?
+	{{.StopAtEntry}}
+
+	# This env variable makes NSLog, CFLog and os_log messages get mirrored to stderr
+	# https://stackoverflow.com/a/39581193
 	launchInfo.SetEnvironmentEntries(['OS_ACTIVITY_DT_MODE=enable'], True)
 
 	envs_arr = []

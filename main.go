@@ -70,7 +70,7 @@ Usage:
   ios runtest <bundleID> [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [options]
   ios ax [options]
-  ios debug [options] <app_path>
+  ios debug [options] [--stop-at-entry] <app_path>
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
@@ -115,7 +115,7 @@ The commands work as following:
    ios runtest <bundleID>                                             Run a XCUITest. 
    ios runwda [options]                                               Start WebDriverAgent
    ios ax [options]                                                   Access accessibility inspector features. 
-   ios debug <app_path>                                               Start debug with lldb
+   ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
@@ -375,7 +375,8 @@ The commands work as following:
 		if appPath == "" {
 			log.Fatal("parameter bundleid and app_path must be specified")
 		}
-		err = debugserver.Start(device, appPath)
+		stopAtEntry, _ := arguments.Bool("--stop-at-entry")
+		err = debugserver.Start(device, appPath, stopAtEntry)
 		if err != nil {
 			log.Error(err.Error())
 		}

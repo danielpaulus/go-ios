@@ -51,22 +51,42 @@ func (c *DebugClient) Conn() net.Conn {
 }
 
 // Write the script file to the tmp directory and start lldb
-func startLLDB(appPath, container string, port int) error {
-	err := ioutil.WriteFile(PY_PATH, []byte(PY_FMT), 0644)
+func startLLDB(appPath, container string, port int, stopAtEntry bool) error {
+	var optionStopAtEntry string
+	if stopAtEntry {
+		optionStopAtEntry = STOP_AT_ENTRY
+	}
+
+	py, err := os.OpenFile(PY_PATH, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-	script, err := os.OpenFile(SCRIPT_PATH, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
+	defer py.Close()
+
+	pyt, err := template.New("py").Parse(PY_FMT)
+	if err != nil {
+		return err
+	}
+	err = pyt.Execute(py, struct {
+		StopAtEntry string
+	}{
+		StopAtEntry: optionStopAtEntry,
+	})
 	if err != nil {
 		return err
 	}
 
-	defer script.Close()
-	t, err := template.New("script").Parse(LLDB_FMT)
+	script, err := os.OpenFile(SCRIPT_PATH, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-	err = t.Execute(script, struct {
+	defer script.Close()
+
+	st, err := template.New("script").Parse(LLDB_FMT)
+	if err != nil {
+		return err
+	}
+	err = st.Execute(script, struct {
 		AppPath   string
 		Container string
 		Port      int
@@ -116,25 +136,25 @@ func getBundleidFromApp(appPath string) (string, error) {
 
 	bundleId, ok := pmap["CFBundleIdentifier"]
 	if !ok || bundleId == nil {
-		return "",errors.New("cannot find CFBundleIdentifier in Info.plist")
+		return "", errors.New("cannot find CFBundleIdentifier in Info.plist")
 	}
 	return bundleId.(string), nil
 }
 
-func connectToDevice(device ios.DeviceEntry) (ios.DeviceConnectionInterface, error){
+func connectToDevice(device ios.DeviceEntry) (ios.DeviceConnectionInterface, error) {
 	info, err := ios.GetValuesPlist(device)
 	if err != nil {
 		return nil, err
 	}
 	version, ok := info["ProductVersion"]
-	if !ok{
+	if !ok {
 		log.Error("cannot find version, default use ssl debug server")
 		return ios.ConnectToService(device, sslServiceName)
 	}
 	if version.(string) > "14" {
 		return ios.ConnectToService(device, sslServiceName)
 	}
-	intf, err :=ios.ConnectToService(device, serviceName)
+	intf, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return intf, err
 	}
@@ -142,7 +162,7 @@ func connectToDevice(device ios.DeviceEntry) (ios.DeviceConnectionInterface, err
 	return intf, err
 }
 
-func Start(device ios.DeviceEntry, appPath string) error {
+func Start(device ios.DeviceEntry, appPath string, stopAtEntry bool) error {
 	bundleId, err := getBundleidFromApp(appPath)
 	if err != nil {
 		return err
@@ -165,7 +185,7 @@ func Start(device ios.DeviceEntry, appPath string) error {
 	if container == "" {
 		return errors.New("cannot find container of bundleid: " + bundleId)
 	}
-	
+
 	intf, err := connectToDevice(device)
 	if err != nil {
 		return err
@@ -180,7 +200,7 @@ func Start(device ios.DeviceEntry, appPath string) error {
 	log.Info("debug proxy listen port: ", port)
 	go func() {
 		time.Sleep(time.Second)
-		err := startLLDB(appPath, container, port)
+		err := startLLDB(appPath, container, port, stopAtEntry)
 		if err != nil {
 			log.Fatal(err)
 		} else {
