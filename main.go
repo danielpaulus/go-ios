@@ -3,14 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/debugserver"
-	"github.com/danielpaulus/go-ios/ios/imagemounter"
-	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"io/ioutil"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
+
+	"github.com/danielpaulus/go-ios/ios/debugserver"
+	"github.com/danielpaulus/go-ios/ios/imagemounter"
+	"github.com/danielpaulus/go-ios/ios/zipconduit"
 
 	"os"
 	"os/signal"
@@ -566,13 +567,21 @@ func printInstalledApps(device ios.DeviceEntry, system bool) {
 		response, err := svc.BrowseUserApps()
 		exitIfError("browsing user apps failed", err)
 
-		log.Info(response)
+		if JSONdisabled {
+			log.Info(response)
+		} else {
+			fmt.Println(convertToJSONString(response))
+		}
 		return
 	}
 	response, err := svc.BrowseSystemApps()
 	exitIfError("browsing system apps failed", err)
 
-	log.Info(response)
+	if JSONdisabled {
+		log.Info(response)
+	} else {
+		fmt.Println(convertToJSONString(response))
+	}
 }
 
 func printDeviceName(device ios.DeviceEntry) {
