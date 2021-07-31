@@ -236,15 +236,18 @@ const metainfFileName = "com.apple.ZipMetadata.plist"
 
 func addMetaInf(metainfPath string, files []string, totalBytes uint64) (string, string, error) {
 	folderPath := path.Join(metainfPath, "META-INF")
-	err := os.Mkdir(folderPath, 0777)
-	if err != nil {
-		return "", "", err
+	ret, _ := ios.PathExists(folderPath)
+	if !ret {
+		err := os.Mkdir(folderPath, 0777)
+		if err != nil {
+			return "", "", err
+		}
 	}
 	//recordcount == files + meta-inf + metainffile
 	meta := metadata{RecordCount: 2 + len(files), StandardDirectoryPerms: 16877, StandardFilePerms: -32348, TotalUncompressedBytes: totalBytes, Version: 2}
 	metaBytes := ios.ToPlistBytes(meta)
 	filePath := path.Join(metainfPath, "META-INF", metainfFileName)
-	err = ioutil.WriteFile(filePath, metaBytes, 0777)
+	err := ioutil.WriteFile(filePath, metaBytes, 0777)
 	if err != nil {
 		return "", "", err
 	}
