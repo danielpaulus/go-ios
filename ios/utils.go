@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -66,4 +67,17 @@ func GetDevice(udid string) (DeviceEntry, error) {
 		}
 	}
 	return DeviceEntry{}, fmt.Errorf("Device '%s' not found. Is it attached to the machine?", udid)
+}
+
+//It is used to determine whether the path folder exists
+//True if it exists, false otherwise
+func PathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
