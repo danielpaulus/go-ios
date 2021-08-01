@@ -68,6 +68,7 @@ Usage:
   ios install --path=<ipaOrAppFolder> [options]
   ios apps [--system] [options]
   ios launch <bundleID> [options]
+  ios kill <bundleID> [options]
   ios runtest <bundleID> [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [options]
   ios ax [options]
@@ -113,6 +114,7 @@ The commands work as following:
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
+   ios kill <bundleID> [options]                                      Kill app with the bundleID on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
    ios runwda [options]                                               Start WebDriverAgent
    ios ax [options]                                                   Access accessibility inspector features. 
@@ -315,6 +317,40 @@ The commands work as following:
 		exitIfError("launch app command failed", err)
 
 		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
+	}
+
+	b, _ = arguments.Bool("kill")
+	if b {
+		bundleID, _ := arguments.String("<bundleID>")
+		if bundleID == "" {
+			log.Fatal("please provide a bundleID")
+		}
+		pControl, err := instruments.NewProcessControl(device)
+		exitIfError("processcontrol failed", err)
+		svc, _ := installationproxy.New(device)
+		response, err := svc.BrowseUserApps()
+		exitIfError("browsing user apps failed", err)
+		service, err := instruments.NewDeviceInfoService(device)
+		defer service.Close()
+		exitIfError("failed opening deviceInfoService for getting process list", err)
+		processList, _ := service.ProcessList()
+		for _, app := range response {
+			if app.CFBundleIdentifier == bundleID {
+				// ps
+				for _, p := range processList {
+					if p.Name == app.CFBundleExecutable {
+						err = pControl.KillProcess(p.Pid)
+						exitIfError("kill process failed", err)
+						log.Info(bundleID, " killd, Pid: ", p.Pid)
+						return
+					}
+				}
+				log.Error("process of ", bundleID, " not found")
+				return
+			}
+		}
+		log.Error(bundleID, "not installed")
+		return
 	}
 
 	b, _ = arguments.Bool("runtest")
