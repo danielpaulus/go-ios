@@ -105,6 +105,7 @@ func startLLDB(appPath, container string, port int, stopAtEntry bool) error {
 	cmd := exec.Command(LLDB_SHELL, "-s", SCRIPT_PATH)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	return err
 }
