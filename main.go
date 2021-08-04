@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -57,6 +58,8 @@ Usage:
   ios screenshot [options] [--output=<outfile>]
   ios devicename [options] 
   ios date [options]
+  ios devicestate list [options]
+  ios devicestate enable <profileTypeId> <profileId> [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios diagnostics list [options]
   ios pair [options]
@@ -99,6 +102,9 @@ The commands work as following:
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
    ios devicename [options]                                           Prints the devicename
    ios date [options]                                                 Prints the device date
+   ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
+   ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
+   >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios diagnostics list [options]                                     List diagnostic infos
    ios pair [options]                                                 Pairs the device without a dialog for supervised devices
@@ -162,10 +168,12 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("list")
+	listCommand, _ := arguments.Bool("list")
 	diagnosticsCommand, _ := arguments.Bool("diagnostics")
 	imageCommand, _ := arguments.Bool("image")
-	if b && !diagnosticsCommand && !imageCommand {
+	deviceStateCommand, _ := arguments.Bool("devicestate")
+
+	if listCommand && !diagnosticsCommand && !imageCommand && !deviceStateCommand {
 		b, _ = arguments.Bool("--details")
 		printDeviceList(b)
 		return
@@ -174,6 +182,17 @@ The commands work as following:
 	udid, _ := arguments.String("--udid")
 	device, err := ios.GetDevice(udid)
 	exitIfError("error getting devicelist", err)
+
+	if deviceStateCommand {
+		if listCommand {
+			deviceState(device, true, false, "", "")
+			return
+		}
+		enable, _ := arguments.Bool("enable")
+		profileTypeId, _ := arguments.String("<profileTypeId>")
+		profileId, _ := arguments.String("<profileId>")
+		deviceState(device, false, enable, profileTypeId, profileId)
+	}
 
 	b, _ = arguments.Bool("pcap")
 	if b {
@@ -430,6 +449,57 @@ The commands work as following:
 		return
 	}
 
+}
+
+func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId string, profileId string) {
+	control, err := instruments.NewDeviceStateControl(device)
+	exitIfError("failed to connect to deviceStateControl", err)
+	profileTypes, err := control.List()
+	if list {
+		if JSONdisabled {
+			outputPrettyStateList(profileTypes)
+		} else {
+			b, err := json.Marshal(profileTypes)
+			exitIfError("failed json conversion", err)
+			println(string(b))
+		}
+		return
+	}
+	exitIfError("failed listing device states", err)
+	if enable {
+		pType, profile, err := instruments.VerifyProfileAndType(profileTypes, profileTypeId, profileId)
+		exitIfError("invalid arguments", err)
+		log.Info("Enabling profile.. (this can take a while for ThermalConditions)")
+		err = control.Enable(pType, profile)
+		exitIfError("could not enable profile", err)
+		log.Infof("Profile %s - %s is active! waiting for SIGTERM..", profileTypeId, profileId)
+		c := make(chan os.Signal, syscall.SIGTERM)
+		signal.Notify(c, os.Interrupt)
+		<-c
+		log.Infof("Disabling profiletype %s", profileTypeId)
+		err = control.Disable(pType)
+		exitIfError("could not disable profile", err)
+		log.Info("ok")
+	}
+}
+
+func outputPrettyStateList(types []instruments.ProfileType) {
+	var buffer bytes.Buffer
+	for i, ptype := range types {
+		buffer.WriteString(
+			fmt.Sprintf("ProfileType %d\nName:%s\nisActive:%v\nIdentifier:%s\n\n",
+				i, ptype.Name, ptype.IsActive, ptype.Identifier,
+			),
+		)
+		for i, profile := range ptype.Profiles {
+			buffer.WriteString(fmt.Sprintf("\tProfile %d:%s\n\tIdentifier:%s\n\t%s",
+				i, profile.Name, profile.Identifier, profile.Description),
+			)
+			buffer.WriteString("\n\t------\n")
+		}
+		buffer.WriteString("\n\n")
+	}
+	println(buffer.String())
 }
 
 func fixDevImage(device ios.DeviceEntry, baseDir string) {
