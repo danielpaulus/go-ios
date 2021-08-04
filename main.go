@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -483,16 +484,22 @@ func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId s
 }
 
 func outputPrettyStateList(types []instruments.ProfileType) {
-	s := ""
+	var buffer bytes.Buffer
 	for i, ptype := range types {
-		s += fmt.Sprintf("ProfileType %d\nName:%s\nisActive:%v\nIdentifier:%s\n\n", i, ptype.Name, ptype.IsActive, ptype.Identifier)
+		buffer.WriteString(
+			fmt.Sprintf("ProfileType %d\nName:%s\nisActive:%v\nIdentifier:%s\n\n",
+				i, ptype.Name, ptype.IsActive, ptype.Identifier,
+			),
+		)
 		for i, profile := range ptype.Profiles {
-			s += fmt.Sprintf("\tProfile %d:%s\n\tIdentifier:%s\n\t%s", i, profile.Name, profile.Identifier, profile.Description)
-			s += "\n\t------\n"
+			buffer.WriteString(fmt.Sprintf("\tProfile %d:%s\n\tIdentifier:%s\n\t%s",
+				i, profile.Name, profile.Identifier, profile.Description),
+			)
+			buffer.WriteString("\n\t------\n")
 		}
-		s += "\n\n"
+		buffer.WriteString("\n\n")
 	}
-	println(s)
+	println(buffer.String())
 }
 
 func fixDevImage(device ios.DeviceEntry, baseDir string) {
