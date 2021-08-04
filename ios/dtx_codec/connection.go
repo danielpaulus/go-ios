@@ -2,8 +2,9 @@ package dtx
 
 import (
 	"io"
-	"sync"
 	"strings"
+	"sync"
+	"time"
 
 	ios "github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
@@ -97,7 +98,11 @@ func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, err
 	//The global channel is automatically present and used for requesting other channels and some other methods like notifyPublishedCapabilities
 	globalChannel := Channel{channelCode: 0,
 		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
-		messageDispatcher: NewGlobalDispatcher(requestChannelMessages, dtxConnection), responseWaiters: map[int]chan Message{}, registeredMethods: map[string]chan Message{}, defragmenters: map[int]*FragmentDecoder{}}
+		messageDispatcher: NewGlobalDispatcher(requestChannelMessages, dtxConnection),
+		responseWaiters:   map[int]chan Message{},
+		registeredMethods: map[string]chan Message{},
+		defragmenters:     map[int]*FragmentDecoder{},
+		timeout:           5 * time.Second}
 	dtxConnection.globalChannel = &globalChannel
 	go reader(dtxConnection)
 
@@ -116,7 +121,7 @@ func reader(dtxConn *Connection) {
 		msg, err := ReadMessage(reader)
 		if err != nil {
 			errText := err.Error()
-			if err == io.EOF || strings.Contains( errText, "use of closed network" ) {
+			if err == io.EOF || strings.Contains(errText, "use of closed network") {
 				log.Debug("DTX Connection with EOF")
 				return
 			}
@@ -150,14 +155,14 @@ func (dtxConn *Connection) ForChannelRequest(messageDispatcher Dispatcher) *Chan
 	//code := msg.Auxiliary.GetArguments()[0].(uint32)
 	identifier, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
 	//TODO: Setting the channel code here manually to -1 for making testmanagerd work. For some reason it requests the TestDriver proxy channel with code 1 but sends messages on -1. Should probably be fixed somehow
-	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}}
+	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
 	dtxConn.activeChannels[-1] = channel
 	return channel
 }
 
 //RequestChannelIdentifier requests a channel to be opened on the Connection with the given identifier,
 //an automatically assigned channelCode and a Dispatcher for receiving messages.
-func (dtxConn *Connection) RequestChannelIdentifier(identifier string, messageDispatcher Dispatcher) *Channel {
+func (dtxConn *Connection) RequestChannelIdentifier(identifier string, messageDispatcher Dispatcher, opts ...ChannelOption) *Channel {
 	dtxConn.mutex.Lock()
 	defer dtxConn.mutex.Unlock()
 	code := dtxConn.channelCodeCounter
@@ -176,7 +181,11 @@ func (dtxConn *Connection) RequestChannelIdentifier(identifier string, messageDi
 		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Error("failed requesting channel")
 	}
 	log.WithFields(log.Fields{"channel_id": identifier}).Debug("Channel open")
-	channel := &Channel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}}
+	channel := &Channel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
 	dtxConn.activeChannels[code] = channel
+	for _, opt := range opts {
+		opt(channel)
+	}
+
 	return channel
 }

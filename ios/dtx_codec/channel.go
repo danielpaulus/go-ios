@@ -19,6 +19,18 @@ type Channel struct {
 	defragmenters     map[int]*FragmentDecoder
 	registeredMethods map[string]chan Message
 	mutex             sync.Mutex
+	timeout           time.Duration
+}
+
+//ChannelOption for configuring settings on dtx.Channels
+type ChannelOption func(*Channel)
+
+//WithTimeout adds a custom timeout in seconds to the channel.
+//Some longer running synchronous operations need that.
+func WithTimeout(seconds uint32) ChannelOption {
+	return func(h *Channel) {
+		h.timeout = time.Duration(seconds) * time.Second
+	}
 }
 
 func (d *Channel) RegisterMethodForRemote(selector string) {
@@ -79,8 +91,6 @@ func (d *Channel) Send(expectsReply bool, messageType int, payloadBytes []byte, 
 	return d.connection.Send(bytes)
 }
 
-const timeout = time.Second * 5
-
 func (d *Channel) AddResponseWaiter(identifier int, channel chan Message) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
@@ -106,7 +116,7 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType int, payloadB
 	select {
 	case response := <-responseChannel:
 		return response, nil
-	case <-time.After(timeout):
+	case <-time.After(d.timeout):
 		return Message{}, fmt.Errorf("Timed out waiting for response for message:%d channel:%d", identifier, d.channelCode)
 	}
 

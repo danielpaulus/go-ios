@@ -471,7 +471,7 @@ func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId s
 		log.Info("Enabling profile.. (this can take a while for ThermalConditions)")
 		err = control.Enable(pType, profile)
 		exitIfError("could not enable profile", err)
-		log.Infof("Profile %s - %s is active! waiting for SIGTERM..", profileId, profileId)
+		log.Infof("Profile %s - %s is active! waiting for SIGTERM..", profileTypeId, profileId)
 		c := make(chan os.Signal, syscall.SIGTERM)
 		signal.Notify(c, os.Interrupt)
 		<-c

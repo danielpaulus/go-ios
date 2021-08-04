@@ -23,7 +23,12 @@ func NewDeviceStateControl(device ios.DeviceEntry) (*DeviceStateControl, error) 
 	if err != nil {
 		return nil, err
 	}
-	conditionInducerChannel := dtxConn.RequestChannelIdentifier(conditionInducerChannelName, loggingDispatcher{dtxConn})
+	conditionInducerChannel := dtxConn.RequestChannelIdentifier(
+		conditionInducerChannelName,
+		loggingDispatcher{dtxConn},
+		//ThermalConditions tend to take a lot of time to enable, so we have to increase the timeout here.
+		dtx.WithTimeout(120),
+	)
 	return &DeviceStateControl{controlChannel: conditionInducerChannel, conn: dtxConn}, nil
 }
 
