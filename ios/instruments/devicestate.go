@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
-	log "github.com/sirupsen/logrus"
 )
 
 const conditionInducerChannelName = "com.apple.instruments.server.services.ConditionInducer"
@@ -95,18 +94,26 @@ func (d DeviceStateControl) List() ([]ProfileType, error) {
 }
 
 func (d DeviceStateControl) Enable(pType ProfileType, profile Profile) error {
-	const selector = "enableConditionWithIdentifier:profileIdentifier:"
-	log.Infof("enabling profile: %s - %s", pType.Identifier, profile.Identifier)
-	response, err := d.controlChannel.MethodCall(selector, pType.Identifier, profile.Identifier)
-	log.Info(response)
+	response, err := d.controlChannel.MethodCall("enableConditionWithIdentifier:profileIdentifier:", pType.Identifier, profile.Identifier)
+	if err != nil {
+		return err
+	}
+	success, ok := response.Payload[0].(bool)
+	if !ok || !success {
+		return fmt.Errorf("failed enabling profile %+v", response)
+	}
 	return err
 }
 
 func (d DeviceStateControl) Disable(pType ProfileType) error {
-	const selector = "disableConditionWithIdentifier:"
-	log.Infof("disabling profiletype: %s", pType.Identifier)
-	response, err := d.controlChannel.MethodCall(selector, pType.Identifier)
-	log.Info(response)
+	response, err := d.controlChannel.MethodCall("disableConditionWithIdentifier:", pType.Identifier)
+	if err != nil {
+		return err
+	}
+	success, ok := response.Payload[0].(bool)
+	if !ok || !success {
+		return fmt.Errorf("failed enabling profile %+v", response)
+	}
 	return err
 }
 
