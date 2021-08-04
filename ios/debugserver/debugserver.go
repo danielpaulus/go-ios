@@ -159,7 +159,6 @@ func connectToDevice(device ios.DeviceEntry) (ios.DeviceConnectionInterface, err
 	if err != nil {
 		return intf, err
 	}
-	intf.DisableSessionSSL()
 	return intf, err
 }
 
