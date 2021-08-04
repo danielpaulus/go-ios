@@ -8,17 +8,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const serviceName string = "com.apple.instruments.remoteserver"
-const serviceNameiOS14 string = "com.apple.instruments.remoteserver.DVTSecureSocketProxy"
 const processControlChannelName = "com.apple.instruments.server.services.processcontrol"
 
 type ProcessControl struct {
 	processControlChannel *dtx.Channel
 	conn                  *dtx.Connection
-}
-
-type loggingDispatcher struct {
-	conn *dtx.Connection
 }
 
 //LaunchApp launches the app with the given bundleID on the given device.LaunchApp
@@ -33,19 +27,10 @@ func (p *ProcessControl) Close() {
 	p.conn.Close()
 }
 
-func (p loggingDispatcher) Dispatch(m dtx.Message) {
-	dtx.SendAckIfNeeded(p.conn, m)
-	log.Debug(m)
-}
-
 func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
-	dtxConn, err := dtx.NewConnection(device, serviceName)
+	dtxConn, err := connectInstruments(device)
 	if err != nil {
-		log.Debugf("Failed connecting to %s, trying %s", serviceName, serviceNameiOS14)
-		dtxConn, err = dtx.NewConnection(device, serviceNameiOS14)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	processControlChannel := dtxConn.RequestChannelIdentifier(processControlChannelName, loggingDispatcher{dtxConn})
 	return &ProcessControl{processControlChannel: processControlChannel, conn: dtxConn}, nil
