@@ -100,6 +100,7 @@ The commands work as following:
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
    ios devicename [options]                                           Prints the devicename
    ios date [options]                                                 Prints the device date
+   ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc. 
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios diagnostics list [options]                                     List diagnostic infos
    ios pair [options]                                                 Pairs the device without a dialog for supervised devices
