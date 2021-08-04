@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
+	log "github.com/sirupsen/logrus"
 )
 
 const conditionInducerChannelName = "com.apple.instruments.server.services.ConditionInducer"
@@ -39,6 +40,47 @@ type Profile struct {
 	Name        string
 }
 
+func VerifyProfileAndType(types []ProfileType, profileTypeIdentifier string, profileIdentifier string) (ProfileType, Profile, error) {
+	foundProfileType := false
+	foundProfile := false
+	var resultType ProfileType
+	var resultProfile Profile
+	for _, profileType := range types {
+		if profileType.Identifier == profileTypeIdentifier {
+			resultType = profileType
+			foundProfileType = true
+			for _, profile := range profileType.Profiles {
+				if profile.Identifier == profileIdentifier {
+					foundProfile = true
+					resultProfile = profile
+				}
+			}
+		}
+	}
+	if foundProfileType && foundProfile {
+		return resultType, resultProfile, nil
+	}
+	return ProfileType{}, Profile{}, fmt.Errorf("ProfiletypeIdentifier '%s' valid: %v.  Profile identifier %s valid:%v", profileTypeIdentifier, foundProfileType, profileIdentifier, foundProfile)
+}
+
+func VerifyProfileType(types []ProfileType, profileTypeIdentifier string) (ProfileType, error) {
+	foundProfileType := false
+
+	var resultType ProfileType
+
+	for _, profileType := range types {
+		if profileType.Identifier == profileTypeIdentifier {
+			resultType = profileType
+			foundProfileType = true
+
+		}
+	}
+	if foundProfileType {
+		return resultType, nil
+	}
+	return ProfileType{}, fmt.Errorf("ProfiletypeIdentifier '%s' valid: %v.", profileTypeIdentifier, foundProfileType)
+}
+
 func (d DeviceStateControl) List() ([]ProfileType, error) {
 	const methodName = "availableConditionInducers"
 	response, err := d.controlChannel.MethodCall(methodName)
@@ -50,6 +92,22 @@ func (d DeviceStateControl) List() ([]ProfileType, error) {
 		return []ProfileType{}, err
 	}
 	return profiles, nil
+}
+
+func (d DeviceStateControl) Enable(pType ProfileType, profile Profile) error {
+	const selector = "enableConditionWithIdentifier:profileIdentifier:"
+	log.Infof("enabling profile: %s - %s", pType.Identifier, profile.Identifier)
+	response, err := d.controlChannel.MethodCall(selector, pType.Identifier, profile.Identifier)
+	log.Info(response)
+	return err
+}
+
+func (d DeviceStateControl) Disable(pType ProfileType) error {
+	const selector = "disableConditionWithIdentifier:"
+	log.Infof("disabling profiletype: %s", pType.Identifier)
+	response, err := d.controlChannel.MethodCall(selector, pType.Identifier)
+	log.Info(response)
+	return err
 }
 
 func decodeProfileTypes(response interface{}) ([]ProfileType, error) {

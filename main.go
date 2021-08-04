@@ -58,6 +58,8 @@ Usage:
   ios devicename [options] 
   ios date [options]
   ios devicestate list [options]
+  ios devicestate enable <profileTypeId> <profileId> [options]
+  ios devicestate disable <profileTypeId> [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios diagnostics list [options]
   ios pair [options]
@@ -100,7 +102,9 @@ The commands work as following:
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
    ios devicename [options]                                           Prints the devicename
    ios date [options]                                                 Prints the device date
-   ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc. 
+   ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
+   ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options)
+   ios devicestate disable <profileTypeId> [options]      Disables a profile with ids (use the list command to see options)
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios diagnostics list [options]                                     List diagnostic infos
    ios pair [options]                                                 Pairs the device without a dialog for supervised devices
@@ -181,8 +185,14 @@ The commands work as following:
 
 	if deviceStateCommand {
 		if listCommand {
-			deviceState(device, true)
+			deviceState(device, true, false, false, "", "")
+			return
 		}
+		enable, _ := arguments.Bool("enable")
+		disable, _ := arguments.Bool("disable")
+		profileTypeId, _ := arguments.String("<profileTypeId>")
+		profileId, _ := arguments.String("<profileId>")
+		deviceState(device, false, enable, disable, profileTypeId, profileId)
 	}
 
 	b, _ = arguments.Bool("pcap")
@@ -442,7 +452,7 @@ The commands work as following:
 
 }
 
-func deviceState(device ios.DeviceEntry, list bool) {
+func deviceState(device ios.DeviceEntry, list bool, enable bool, disable bool, profileTypeId string, profileId string) {
 	control, err := instruments.NewDeviceStateControl(device)
 	exitIfError("failed to connect to deviceStateControl", err)
 	profileTypes, err := control.List()
@@ -457,6 +467,21 @@ func deviceState(device ios.DeviceEntry, list bool) {
 		return
 	}
 	exitIfError("failed listing device states", err)
+	if enable {
+		pType, profile, err := instruments.VerifyProfileAndType(profileTypes, profileTypeId, profileId)
+		exitIfError("invalid arguments", err)
+		err = control.Enable(pType, profile)
+		exitIfError("could not enable profile", err)
+		c := make(chan os.Signal, syscall.SIGTERM)
+		signal.Notify(c, os.Interrupt)
+		<-c
+	}
+	if disable {
+		pType, err := instruments.VerifyProfileType(profileTypes, profileTypeId)
+		exitIfError("invalid arguments", err)
+		err = control.Disable(pType)
+		exitIfError("could not disable profile", err)
+	}
 }
 
 func outputPrettyStateList(types []instruments.ProfileType) {
