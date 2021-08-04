@@ -57,6 +57,7 @@ Usage:
   ios screenshot [options] [--output=<outfile>]
   ios devicename [options] 
   ios date [options]
+  ios devicestate list [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios diagnostics list [options]
   ios pair [options]
@@ -162,10 +163,12 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("list")
+	listCommand, _ := arguments.Bool("list")
 	diagnosticsCommand, _ := arguments.Bool("diagnostics")
 	imageCommand, _ := arguments.Bool("image")
-	if b && !diagnosticsCommand && !imageCommand {
+	deviceStateCommand, _ := arguments.Bool("devicestate")
+
+	if listCommand && !diagnosticsCommand && !imageCommand && !deviceStateCommand {
 		b, _ = arguments.Bool("--details")
 		printDeviceList(b)
 		return
@@ -174,6 +177,12 @@ The commands work as following:
 	udid, _ := arguments.String("--udid")
 	device, err := ios.GetDevice(udid)
 	exitIfError("error getting devicelist", err)
+
+	if deviceStateCommand {
+		if listCommand {
+			deviceState(device, true)
+		}
+	}
 
 	b, _ = arguments.Bool("pcap")
 	if b {
@@ -430,6 +439,36 @@ The commands work as following:
 		return
 	}
 
+}
+
+func deviceState(device ios.DeviceEntry, list bool) {
+	control, err := instruments.NewDeviceStateControl(device)
+	exitIfError("failed to connect to deviceStateControl", err)
+	profileTypes, err := control.List()
+	if list {
+		if JSONdisabled {
+			outputPrettyStateList(profileTypes)
+		} else {
+			b, err := json.Marshal(profileTypes)
+			exitIfError("failed json conversion", err)
+			println(string(b))
+		}
+		return
+	}
+	exitIfError("failed listing device states", err)
+}
+
+func outputPrettyStateList(types []instruments.ProfileType) {
+	s := ""
+	for i, ptype := range types {
+		s += fmt.Sprintf("ProfileType %d\nName:%s\nisActive:%v\nIdentifier:%s\n\n", i, ptype.Name, ptype.IsActive, ptype.Identifier)
+		for i, profile := range ptype.Profiles {
+			s += fmt.Sprintf("\tProfile %d:%s\n\tIdentifier:%s\n\t%s", i, profile.Name, profile.Identifier, profile.Description)
+			s += "\n\t------\n"
+		}
+		s += "\n\n"
+	}
+	println(s)
 }
 
 func fixDevImage(device ios.DeviceEntry, baseDir string) {
