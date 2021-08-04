@@ -9,6 +9,8 @@ platform select remote-ios
 target create "{{.AppPath}}"
 script device_app="{{.Container}}"
 script connect_url="connect://127.0.0.1:{{.Port}}"
+script output_path=""
+script error_path=""
 command script import "{{.PyPath}}"
 command script add -f {{.PyName}}.connect_command connect
 command script add -s asynchronous -f {{.PyName}}.run_command run
