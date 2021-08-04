@@ -137,9 +137,10 @@ func createPcap(name string) (*os.File, error) {
 
 func writePacket(f *os.File, packet []byte) error {
 	now := time.Now()
+	offset := now.UnixNano() - now.Add(-time.Second).UnixNano()
 	phs := &PcaprecHdrS{
 		int(now.Unix()),
-		int(now.UnixNano() / 1e6),
+		int(offset / 1e6),
 		len(packet),
 		len(packet),
 	}

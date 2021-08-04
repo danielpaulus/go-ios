@@ -2,6 +2,7 @@ package ios
 
 import (
 	log "github.com/sirupsen/logrus"
+	"net"
 )
 
 //Lockdownport is the port of the always running lockdownd on the iOS device.
@@ -61,4 +62,8 @@ func (lockDownConn *LockDownConnection) ReadMessage() ([]byte, error) {
 		return make([]byte, 0), err
 	}
 	return resp, err
+}
+
+func (lockDownConn *LockDownConnection) Conn() net.Conn {
+	return lockDownConn.deviceConnection.Conn()
 }

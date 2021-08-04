@@ -3,13 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/imagemounter"
-	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"io/ioutil"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
+
+	"github.com/danielpaulus/go-ios/ios/debugserver"
+	"github.com/danielpaulus/go-ios/ios/imagemounter"
+	"github.com/danielpaulus/go-ios/ios/zipconduit"
 
 	"os"
 	"os/signal"
@@ -66,9 +68,11 @@ Usage:
   ios install --path=<ipaOrAppFolder> [options]
   ios apps [--system] [options]
   ios launch <bundleID> [options]
+  ios kill <bundleID> [options]
   ios runtest <bundleID> [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [options]
   ios ax [options]
+  ios debug [options] [--stop-at-entry] <app_path>
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
@@ -110,9 +114,11 @@ The commands work as following:
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
+   ios kill <bundleID> [options]                                      Kill app with the bundleID on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
    ios runwda [options]                                               Start WebDriverAgent
    ios ax [options]                                                   Access accessibility inspector features. 
+   ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
@@ -313,6 +319,40 @@ The commands work as following:
 		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
 	}
 
+	b, _ = arguments.Bool("kill")
+	if b {
+		bundleID, _ := arguments.String("<bundleID>")
+		if bundleID == "" {
+			log.Fatal("please provide a bundleID")
+		}
+		pControl, err := instruments.NewProcessControl(device)
+		exitIfError("processcontrol failed", err)
+		svc, _ := installationproxy.New(device)
+		response, err := svc.BrowseUserApps()
+		exitIfError("browsing user apps failed", err)
+		service, err := instruments.NewDeviceInfoService(device)
+		defer service.Close()
+		exitIfError("failed opening deviceInfoService for getting process list", err)
+		processList, _ := service.ProcessList()
+		for _, app := range response {
+			if app.CFBundleIdentifier == bundleID {
+				// ps
+				for _, p := range processList {
+					if p.Name == app.CFBundleExecutable {
+						err = pControl.KillProcess(p.Pid)
+						exitIfError("kill process failed", err)
+						log.Info(bundleID, " killd, Pid: ", p.Pid)
+						return
+					}
+				}
+				log.Error("process of ", bundleID, " not found")
+				return
+			}
+		}
+		log.Error(bundleID, "not installed")
+		return
+	}
+
 	b, _ = arguments.Bool("runtest")
 	if b {
 		bundleID, _ := arguments.String("<bundleID>")
@@ -364,6 +404,19 @@ The commands work as following:
 	if b {
 		startAx(device)
 		return
+	}
+
+	b, _ = arguments.Bool("debug")
+	if b {
+		appPath, _ := arguments.String("<app_path>")
+		if appPath == "" {
+			log.Fatal("parameter bundleid and app_path must be specified")
+		}
+		stopAtEntry, _ := arguments.Bool("--stop-at-entry")
+		err = debugserver.Start(device, appPath, stopAtEntry)
+		if err != nil {
+			log.Error(err.Error())
+		}
 	}
 
 	b, _ = arguments.Bool("reboot")
@@ -550,13 +603,21 @@ func printInstalledApps(device ios.DeviceEntry, system bool) {
 		response, err := svc.BrowseUserApps()
 		exitIfError("browsing user apps failed", err)
 
-		log.Info(response)
+		if JSONdisabled {
+			log.Info(response)
+		} else {
+			fmt.Println(convertToJSONString(response))
+		}
 		return
 	}
 	response, err := svc.BrowseSystemApps()
 	exitIfError("browsing system apps failed", err)
 
-	log.Info(response)
+	if JSONdisabled {
+		log.Info(response)
+	} else {
+		fmt.Println(convertToJSONString(response))
+	}
 }
 
 func printDeviceName(device ios.DeviceEntry) {
