@@ -103,6 +103,7 @@ The commands work as following:
    ios date [options]                                                 Prints the device date
    ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
    ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
+   >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios diagnostics list [options]                                     List diagnostic infos
    ios pair [options]                                                 Pairs the device without a dialog for supervised devices

@@ -8,11 +8,16 @@ import (
 
 const conditionInducerChannelName = "com.apple.instruments.server.services.ConditionInducer"
 
+//DeviceStateControl allows to access the ConditionInducer so we can set device states like
+//  "SlowNetworkCondition"  and  "SlowNetwork3GGood".
+//Use the List() command to get all available ProfileType and Profile combinations.
+//Then use Enable() and Disable() to control them.
 type DeviceStateControl struct {
 	controlChannel *dtx.Channel
 	conn           *dtx.Connection
 }
 
+//NewDeviceStateControl creates and connects a new DeviceStateControl that is ready to use
 func NewDeviceStateControl(device ios.DeviceEntry) (*DeviceStateControl, error) {
 	dtxConn, err := connectInstruments(device)
 	if err != nil {
@@ -22,6 +27,7 @@ func NewDeviceStateControl(device ios.DeviceEntry) (*DeviceStateControl, error) 
 	return &DeviceStateControl{controlChannel: conditionInducerChannel, conn: dtxConn}, nil
 }
 
+//ProfileType a profile type we can activate
 type ProfileType struct {
 	ActiveProfile  string
 	Identifier     string
@@ -33,12 +39,14 @@ type ProfileType struct {
 	Profiles       []Profile
 }
 
+//Profile belongs to a ProfileType
 type Profile struct {
 	Description string
 	Identifier  string
 	Name        string
 }
 
+//VerifyProfileAndType checks that the given string profileTypeIdentifier and profileIdentifier are contained in the given types.
 func VerifyProfileAndType(types []ProfileType, profileTypeIdentifier string, profileIdentifier string) (ProfileType, Profile, error) {
 	foundProfileType := false
 	foundProfile := false
@@ -62,24 +70,7 @@ func VerifyProfileAndType(types []ProfileType, profileTypeIdentifier string, pro
 	return ProfileType{}, Profile{}, fmt.Errorf("ProfiletypeIdentifier '%s' valid: %v.  Profile identifier %s valid:%v", profileTypeIdentifier, foundProfileType, profileIdentifier, foundProfile)
 }
 
-func VerifyProfileType(types []ProfileType, profileTypeIdentifier string) (ProfileType, error) {
-	foundProfileType := false
-
-	var resultType ProfileType
-
-	for _, profileType := range types {
-		if profileType.Identifier == profileTypeIdentifier {
-			resultType = profileType
-			foundProfileType = true
-
-		}
-	}
-	if foundProfileType {
-		return resultType, nil
-	}
-	return ProfileType{}, fmt.Errorf("ProfiletypeIdentifier '%s' valid: %v.", profileTypeIdentifier, foundProfileType)
-}
-
+//List returns a list of all available profile types and profiles.
 func (d DeviceStateControl) List() ([]ProfileType, error) {
 	const methodName = "availableConditionInducers"
 	response, err := d.controlChannel.MethodCall(methodName)
@@ -93,6 +84,9 @@ func (d DeviceStateControl) List() ([]ProfileType, error) {
 	return profiles, nil
 }
 
+//Enable activates a given profileType and profile received from a List command.
+//Note, that the device will automatically deactivate the profile if this dtx connection closes
+// f.ex. when the process is terminated. Make sure to keep it open if you use this and use the Disable command.
 func (d DeviceStateControl) Enable(pType ProfileType, profile Profile) error {
 	response, err := d.controlChannel.MethodCall("enableConditionWithIdentifier:profileIdentifier:", pType.Identifier, profile.Identifier)
 	if err != nil {
@@ -105,6 +99,7 @@ func (d DeviceStateControl) Enable(pType ProfileType, profile Profile) error {
 	return err
 }
 
+//Disable deactivates the currently active profileType
 func (d DeviceStateControl) Disable(pType ProfileType) error {
 	response, err := d.controlChannel.MethodCall("disableConditionWithIdentifier:", pType.Identifier)
 	if err != nil {
