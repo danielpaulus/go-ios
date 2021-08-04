@@ -16,10 +16,17 @@ Highlights:
 - use Accessibility Inspector APIs
 
 ```
+ Options:
+  -v --verbose   Enable Debug Logging.
+  -t --trace     Enable Trace Logging (dump every message).
+  --nojson       Disable JSON output (default).
+  -h --help      Show this screen.
+  --udid=<udid>  UDID of the device.
+
 The commands work as following:
-	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
-	By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
-	Specify -v for debug logging and -t for dumping every message.
+        The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command. 
+        By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
+        Specify -v for debug logging and -t for dumping every message.
 
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
@@ -31,6 +38,9 @@ The commands work as following:
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
    ios devicename [options]                                           Prints the devicename
    ios date [options]                                                 Prints the device date
+   ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
+   ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
+   >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios diagnostics list [options]                                     List diagnostic infos
    ios pair [options]                                                 Pairs the device without a dialog for supervised devices
@@ -41,16 +51,18 @@ The commands work as following:
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
-   ios readpair                                                       Dump detailed information about the pairrecord for a device.
+   ios readpair                                                       Dump detailed information about the pairrecord for a device.                                              Starts a pcap dump of network traffic
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
+   ios kill <bundleID> [options]                                      Kill app with the bundleID on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
-   ios runwda [options]                                               Start WebDriverAgent.
+   ios runwda [options]                                               Start WebDriverAgent
    ios ax [options]                                                   Access accessibility inspector features. 
-   ios debug [--stop-at-entry] <app_path>                             Start debug with lldb.
+   ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
-   ios --version | version [options]                                  Prints the version.
+   ios --version | version [options]                                  Prints the version
+
 ```
