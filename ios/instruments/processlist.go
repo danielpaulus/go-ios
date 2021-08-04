@@ -77,7 +77,7 @@ func NewDeviceInfoService(device ios.DeviceEntry) (*DeviceInfoService, error) {
 			return nil, err
 		}
 	}
-	processControlChannel := dtxConn.RequestChannelIdentifier(deviceInfoServiceName, processControlDispatcher{dtxConn})
+	processControlChannel := dtxConn.RequestChannelIdentifier(deviceInfoServiceName, loggingDispatcher{dtxConn})
 	return &DeviceInfoService{channel: processControlChannel, conn: dtxConn}, nil
 }
 

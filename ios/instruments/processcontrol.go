@@ -17,7 +17,7 @@ type ProcessControl struct {
 	conn                  *dtx.Connection
 }
 
-type processControlDispatcher struct {
+type loggingDispatcher struct {
 	conn *dtx.Connection
 }
 
@@ -33,7 +33,7 @@ func (p *ProcessControl) Close() {
 	p.conn.Close()
 }
 
-func (p processControlDispatcher) Dispatch(m dtx.Message) {
+func (p loggingDispatcher) Dispatch(m dtx.Message) {
 	dtx.SendAckIfNeeded(p.conn, m)
 	log.Debug(m)
 }
@@ -47,7 +47,7 @@ func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
 			return nil, err
 		}
 	}
-	processControlChannel := dtxConn.RequestChannelIdentifier(processControlChannelName, processControlDispatcher{dtxConn})
+	processControlChannel := dtxConn.RequestChannelIdentifier(processControlChannelName, loggingDispatcher{dtxConn})
 	return &ProcessControl{processControlChannel: processControlChannel, conn: dtxConn}, nil
 }
 
