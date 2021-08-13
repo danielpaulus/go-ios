@@ -10,6 +10,11 @@ import (
 	plist "howett.net/plist"
 )
 
+func PairSupervised(device DeviceEntry, p12 []byte) error {
+
+	return nil
+}
+
 //Pair tries to pair with a device. The first time usually
 //fails because the user has to accept a trust pop up on the iOS device.
 // What you have to do to pair is:

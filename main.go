@@ -62,7 +62,7 @@ Usage:
   ios devicestate enable <profileTypeId> <profileId> [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios diagnostics list [options]
-  ios pair [options]
+  ios pair [--organization=<org>] [options]
   ios ps [options]
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary]
@@ -107,7 +107,7 @@ The commands work as following:
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios diagnostics list [options]                                     List diagnostic infos
-   ios pair [options]                                                 Pairs the device without a dialog for supervised devices
+   ios pair [--organization=<org>] [options]                                                 Pairs the device without a dialog for supervised devices
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
    ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
@@ -305,7 +305,8 @@ The commands work as following:
 
 	b, _ = arguments.Bool("pair")
 	if b {
-		pairDevice(device)
+		org, _ := arguments.String("--organization")
+		pairDevice(device, org)
 		return
 	}
 
@@ -857,13 +858,18 @@ func runSyslog(device ios.DeviceEntry) {
 	<-c
 }
 
-func pairDevice(device ios.DeviceEntry) {
-	err := ios.Pair(device)
-	if err != nil {
+func pairDevice(device ios.DeviceEntry, org string) {
+	if org == "" {
+		err := ios.Pair(device)
 		exitIfError("Pairing failed", err)
-	} else {
 		log.Infof("Successfully paired %s", device.Properties.SerialNumber)
+		return
 	}
+	p12, err := os.ReadFile(org)
+	exitIfError("Invalid file:"+org, err)
+	err = ios.PairSupervised(device, p12)
+	exitIfError("Pairing failed", err)
+	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
 
 func readPair(device ios.DeviceEntry) {
