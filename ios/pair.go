@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/fullsailor/pkcs7"
 	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/pkcs12"
 	plist "howett.net/plist"
 	"strings"
@@ -89,7 +88,6 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 	if err != nil {
 		return err
 	}
-	log.Infof("%s", resp)
 	respMap, err := ParsePlist(resp)
 	if err != nil {
 		return err
@@ -107,7 +105,7 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 		return err
 	}
 	if !success {
-		return errors.New("fail")
+		return errors.New("pairing failed unexpectedly")
 	}
 	return nil
 }
@@ -239,14 +237,14 @@ type LockdownPairResponse struct {
 	EscrowBag []byte
 }
 
-func getLockdownPairResponsefromBytes(plistBytes []byte) *LockdownPairResponse {
+func getLockdownPairResponsefromBytes(plistBytes []byte) LockdownPairResponse {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var data LockdownPairResponse
 	_ = decoder.Decode(&data)
-	return &data
+	return data
 }
 
-func isPairingDialogOpen(resp *LockdownPairResponse) bool {
+func isPairingDialogOpen(resp LockdownPairResponse) bool {
 	return resp.Error == "PairingDialogResponsePending"
 }
 
