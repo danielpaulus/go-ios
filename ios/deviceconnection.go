@@ -21,6 +21,7 @@ type DeviceConnectionInterface interface {
 	EnableSessionSslHandshakeOnly(pairRecord PairRecord) error
 	EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord)
 	DisableSessionSSL()
+	Conn() net.Conn
 }
 
 //DeviceConnection wraps the net.Conn to the ios Device and has support for
@@ -197,4 +198,8 @@ func (conn *DeviceConnection) createServerTLSConn(pairRecord PairRecord) (*tls.C
 	}
 	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
 	return tlsConn, nil
+}
+
+func (conn *DeviceConnection) Conn() net.Conn {
+	return conn.c
 }

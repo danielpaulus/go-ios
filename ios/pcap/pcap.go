@@ -3,6 +3,7 @@ package pcap
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -16,8 +17,9 @@ import (
 
 var (
 	// IOSPacketHeader default is -1
-	Pid      = int32(-2)
-	ProcName string
+	Pid              = int32(-2)
+	ProcName         string
+	PacketHeaderSize = uint32(95)
 )
 
 // IOSPacketHeader :)
@@ -137,9 +139,10 @@ func createPcap(name string) (*os.File, error) {
 
 func writePacket(f *os.File, packet []byte) error {
 	now := time.Now()
+	offset := now.UnixNano() - now.Add(-time.Second).UnixNano()
 	phs := &PcaprecHdrS{
 		int(now.Unix()),
-		int(now.UnixNano() / 1e6),
+		int(offset / 1e6),
 		len(packet),
 		len(packet),
 	}
@@ -157,6 +160,15 @@ func getPacket(buf []byte) ([]byte, error) {
 	iph := IOSPacketHeader{}
 	preader := bytes.NewReader(buf)
 	struc.Unpack(preader, &iph)
+
+	// support ios 15 beta4
+	if iph.HdrSize > PacketHeaderSize {
+		buf := make([]byte, iph.HdrSize-PacketHeaderSize)
+		_, err := io.ReadFull(preader, buf)
+		if err != nil {
+			return []byte{}, err
+		}
+	}
 
 	// Only return specific packet
 	if Pid > 0 {
