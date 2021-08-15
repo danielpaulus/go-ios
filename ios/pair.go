@@ -13,8 +13,11 @@ import (
 	"strings"
 )
 
-func PairSupervised(device DeviceEntry, p12bytes []byte) error {
-	p12Password := "a"
+//PairSupervised uses an organization id from apple configurator so you can pair
+//a supervised device without the need for user interaction (the trust popup)
+//Arguments are the device, the p12 files raw contents and the password used for the p12
+//file.
+func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) error {
 	supervisedPrivateKey, cert, err := pkcs12.Decode(p12bytes, p12Password)
 	if err != nil {
 		return err
@@ -37,12 +40,10 @@ func PairSupervised(device DeviceEntry, p12bytes []byte) error {
 		return err
 	}
 	wifiMac, err := lockdown.GetValue("WiFiAddress")
-	log.Info(wifiMac)
 	if err != nil {
 		return err
 	}
 	rootCert, hostCert, deviceCert, rootPrivateKey, hostPrivateKey, err := createRootCertificate(publicKey.([]byte))
-	log.Info(rootPrivateKey, hostPrivateKey)
 	if err != nil {
 		return fmt.Errorf("Failed creating pair record with error: %v", err)
 	}
@@ -118,31 +119,32 @@ func extractPairingChallenge(resp []byte) ([]byte, error) {
 	}
 	errormsgintf, ok := respPlist["Error"]
 	if !ok {
-		return []byte{}, errors.New("")
+		return []byte{}, fmt.Errorf("the response is missign the Error key: %+v", respPlist)
 	}
 	errormsg, ok := errormsgintf.(string)
 	if !ok {
-		return []byte{}, errors.New("")
+		return []byte{}, fmt.Errorf("error should have been a string: %+v", respPlist)
 	}
 	if "MCChallengeRequired" != errormsg {
-		return []byte{}, errors.New("")
+		return []byte{},
+		fmt.Errorf("received wrong error message '%s' error message should have been 'McChallengeRequired' : %+v",errormsg, respPlist)
 	}
 	respdictintf, ok := respPlist["ExtendedResponse"]
 	if !ok {
-		return []byte{}, errors.New("")
+		return []byte{}, fmt.Errorf("ExtendedResponse key was missing from: %+v", respPlist)
 	}
 	respdict, ok := respdictintf.(map[string]interface{})
 	if !ok {
-		return []byte{}, errors.New("")
+		return []byte{}, fmt.Errorf("ExtendedResponse should have been a map[string]innterface{}: %+v", respPlist)
 	}
 
 	challengeintf, ok := respdict["PairingChallenge"]
 	if !ok {
-		return []byte{}, errors.New("")
+		return []byte{}, fmt.Errorf("PairingChallenge key is missing: %+v", respPlist)
 	}
 	challenge, ok := challengeintf.([]byte)
 	if !ok {
-		return []byte{}, errors.New("")
+		return []byte{}, fmt.Errorf("PairingChallenge should have been a byte array: %+v", respPlist)
 	}
 	return challenge, nil
 

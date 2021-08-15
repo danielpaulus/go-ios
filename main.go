@@ -867,7 +867,7 @@ func pairDevice(device ios.DeviceEntry, org string) {
 	}
 	p12, err := os.ReadFile(org)
 	exitIfError("Invalid file:"+org, err)
-	err = ios.PairSupervised(device, p12)
+	err = ios.PairSupervised(device, p12, "a")
 	exitIfError("Pairing failed", err)
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
