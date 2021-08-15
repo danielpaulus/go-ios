@@ -61,7 +61,10 @@ var serviceConfigurations = map[string]bool{
 // It returns a new LockDownConnection.
 func (muxConn *UsbMuxConnection) ConnectLockdown(deviceID int) (*LockDownConnection, error) {
 	msg := newConnectMessage(deviceID, Lockdownport)
-	muxConn.Send(msg)
+	err := muxConn.Send(msg)
+	if err != nil {
+		return &LockDownConnection{}, err
+	}
 	resp, err := muxConn.ReadMessage()
 	if err != nil {
 		return &LockDownConnection{}, err

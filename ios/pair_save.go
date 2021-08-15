@@ -1,11 +1,11 @@
 package ios
 
 type SavePair struct {
-	//BundleID            string
+	BundleID            string
 	ClientVersionString string
 	MessageType         string
 	ProgName            string
-	//LibUSBMuxVersion    uint32 `plist:"kLibUSBMuxVersion"`
+	LibUSBMuxVersion    uint32 `plist:"kLibUSBMuxVersion"`
 	PairRecordID        string
 	PairRecordData      []byte
 }
@@ -24,11 +24,11 @@ type savePairRecordData struct {
 
 func newSavePair(udid string, savePairRecordData []byte) SavePair {
 	data := SavePair{
-		//BundleID:            "go.ios.control",
-		ClientVersionString: "go-usbmux-0.0.1",
+		BundleID:            "go.ios.control",
+		ClientVersionString: "go-ios-1.0.0",
 		MessageType:         "SavePairRecord",
 		ProgName:            "go-ios",
-		//LibUSBMuxVersion:    3,
+		LibUSBMuxVersion:    3,
 		PairRecordID:        udid,
 		PairRecordData:      savePairRecordData,
 	}
