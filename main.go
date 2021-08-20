@@ -73,7 +73,7 @@ Usage:
   ios launch <bundleID> [options]
   ios kill <bundleID> [options]
   ios runtest <bundleID> [options]
-  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [options]
+  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [options]
   ios debug [options] [--stop-at-entry] <app_path>
   ios reboot [options]
@@ -124,7 +124,8 @@ The commands work as following:
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
    ios kill <bundleID> [options]                                      Kill app with the bundleID on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
-   ios runwda [options]                                               Start WebDriverAgent
+   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
+   >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [options]                                                   Access accessibility inspector features. 
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios reboot [options]                                               Reboot the given device
@@ -395,6 +396,8 @@ The commands work as following:
 		bundleID, _ := arguments.String("--bundleid")
 		testbundleID, _ := arguments.String("--testrunnerbundleid")
 		xctestconfig, _ := arguments.String("--xctestconfig")
+		wdaargs := arguments["--arg"].([]string)
+		wdaenv := arguments["--env"].([]string)
 
 		if bundleID == "" && testbundleID == "" && xctestconfig == "" {
 			log.Info("no bundle ids specified, falling back to defaults")
@@ -406,7 +409,7 @@ The commands work as following:
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 		go func() {
-			err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device)
+			err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
 
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
