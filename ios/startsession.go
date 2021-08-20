@@ -43,7 +43,10 @@ func startSessionResponsefromBytes(plistBytes []byte) StartSessionResponse {
 //SSL.
 //It returns a StartSessionResponse
 func (lockDownConn *LockDownConnection) StartSession(pairRecord PairRecord) (StartSessionResponse, error) {
-	lockDownConn.Send(newStartSessionRequest(pairRecord.HostID, pairRecord.SystemBUID))
+	err := lockDownConn.Send(newStartSessionRequest(pairRecord.HostID, pairRecord.SystemBUID))
+	if err != nil {
+		return StartSessionResponse{}, err
+	}
 	resp, err := lockDownConn.ReadMessage()
 	if err != nil {
 		return StartSessionResponse{}, err

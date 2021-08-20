@@ -138,11 +138,16 @@ func newSetValue(key string, domain string, value string) valueRequest {
 
 //GetValues retrieves a GetAllValuesResponse containing all values lockdown returns
 func (lockDownConn *LockDownConnection) GetValues() (GetAllValuesResponse, error) {
-	lockDownConn.Send(newGetValue(""))
+	err := lockDownConn.Send(newGetValue(""))
+	if err != nil {
+		return GetAllValuesResponse{}, err
+	}
 	resp, err := lockDownConn.ReadMessage()
-
+	if err != nil {
+		return GetAllValuesResponse{}, err
+	}
 	response := getAllValuesResponseFromBytes(resp)
-	return response, err
+	return response, nil
 }
 
 //GetProductVersion returns the ProductVersion of the device f.ex. "10.3"

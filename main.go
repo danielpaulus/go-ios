@@ -62,7 +62,7 @@ Usage:
   ios devicestate enable <profileTypeId> <profileId> [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios diagnostics list [options]
-  ios pair [options]
+  ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios ps [options]
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary]
@@ -107,7 +107,9 @@ The commands work as following:
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios diagnostics list [options]                                     List diagnostic infos
-   ios pair [options]                                                 Pairs the device without a dialog for supervised devices
+   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
+   >                                                                  to pair without a trust dialog. Specify the password either with the argument or
+   >                                                                  by setting the environment variable 'P12_PASSWORD'
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
    ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
@@ -305,7 +307,12 @@ The commands work as following:
 
 	b, _ = arguments.Bool("pair")
 	if b {
-		pairDevice(device)
+		org, _ := arguments.String("--p12file")
+		pwd, _ := arguments.String("--password")
+		if pwd == "" {
+			pwd = os.Getenv("P12_PASSWORD")
+		}
+		pairDevice(device, org, pwd)
 		return
 	}
 
@@ -857,13 +864,18 @@ func runSyslog(device ios.DeviceEntry) {
 	<-c
 }
 
-func pairDevice(device ios.DeviceEntry) {
-	err := ios.Pair(device)
-	if err != nil {
+func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password string) {
+	if orgIdentityP12File == "" {
+		err := ios.Pair(device)
 		exitIfError("Pairing failed", err)
-	} else {
 		log.Infof("Successfully paired %s", device.Properties.SerialNumber)
+		return
 	}
+	p12, err := os.ReadFile(orgIdentityP12File)
+	exitIfError("Invalid file:"+orgIdentityP12File, err)
+	err = ios.PairSupervised(device, p12, p12Password)
+	exitIfError("Pairing failed", err)
+	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
 
 func readPair(device ios.DeviceEntry) {
