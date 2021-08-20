@@ -30,6 +30,7 @@ func (lockDownConn *LockDownConnection) Close() {
 //DisableSessionSSL see documentation in DeviceConnection
 func (lockDownConn LockDownConnection) DisableSessionSSL() {
 	lockDownConn.deviceConnection.DisableSessionSSL()
+
 }
 
 //EnableSessionSsl see documentation in DeviceConnection

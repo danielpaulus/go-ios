@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"io"
 	"net"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -95,9 +96,15 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 	*/
 
 	//First send a close write
-	conn.c.(*tls.Conn).CloseWrite()
+	log.Info("close device tls")
+	err := conn.c.(*tls.Conn).CloseWrite()
+	if err!=nil{
+		log.Errorf("failed closewrite %v", err)
+	}
+	log.Info("ok")
 	//Use the underlying conn again to receive unencrypted bytes
 	conn.c = conn.unencryptedConn
+	conn.c.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	/*read the first 5 bytes of the SSL encrypted CLOSE message we get.
 	Because it is a Close message, we can throw it away. We cannot forward it to the client though, because
 	we use a different SSL connection there.
@@ -105,13 +112,19 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 	*/
 	header := make([]byte, 5)
 
-	io.ReadFull(conn.c, header)
-	log.Trace(hex.Dump(header))
+	_, err = io.ReadFull(conn.c, header)
+	if err!=nil{
+		log.Errorf("failed readfull %v", err)
+	}
+	log.Info(hex.Dump(header))
 	length := binary.BigEndian.Uint16(header[3:])
 	payload := make([]byte, length)
 
-	io.ReadFull(conn.c, payload)
-	log.Trace(hex.Dump(payload))
+	_, err = io.ReadFull(conn.c, payload)
+	if err!=nil{
+		log.Errorf("failed readfull payload %v", err)
+	}
+	log.Info(hex.Dump(payload))
 
 }
 

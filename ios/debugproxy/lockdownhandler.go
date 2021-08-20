@@ -81,6 +81,9 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *ios.LockD
 			p.log.Info("Stop Session detected, disabling SSL")
 			lockdownOnUnixSocket.DisableSessionSSL()
 			lockdownToDevice.DisableSessionSSL()
+
+
+
 		}
 	}
 }
