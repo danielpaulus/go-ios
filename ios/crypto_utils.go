@@ -39,11 +39,10 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 
 	digestString, _ := computeSKIKey(&rootKeyPair.PublicKey)
 
-	rootCertTemplate.ExtraExtensions = []pkix.Extension{
-		{
+	rootCertTemplate.Extensions = append(rootCertTemplate.Extensions, pkix.Extension{
 			Id:    []int{2, 5, 29, 14},
 			Value: []byte(digestString),
-		}}
+		},)
 
 	rootCert, err := x509.CreateCertificate(rand.Reader, &rootCertTemplate, &rootCertTemplate, &rootKeyPair.PublicKey, rootKeyPair)
 	if err != nil {
@@ -61,13 +60,15 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 		BasicConstraintsValid: true,
 		IsCA:                  false,
 	}
-
-	hostCertTemplate.ExtraExtensions = []pkix.Extension{
-		{
+	hostKeyPair, _ := rsa.GenerateKey(reader, bitSize)
+	hostdigestString, _ := computeSKIKey(&hostKeyPair.PublicKey)
+	hostCertTemplate.Extensions = append(hostCertTemplate.Extensions , pkix.Extension{
 			Id:    []int{2, 5, 29, 14},
-			Value: (digestString),
-		}}
+			Value: hostdigestString,
+		},
+		)
 	block, _ := pem.Decode([]byte(publicKeyBytes))
+
 
 	if block == nil {
 		return nil, nil, nil, nil, nil, errors.New("failed to parse PEM block containing the public key")
@@ -90,22 +91,26 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 		IsCA:                  false,
 	}
 	digestString2, _ := computeSKIKey(&devicePublicKey)
-	deviceCertTemplate.ExtraExtensions = []pkix.Extension{
-		{
+	if digestString2==nil{
+		panic("ah")
+	}
+	deviceCertTemplate.Extensions = append(deviceCertTemplate.Extensions, pkix.Extension{
+
 			Id:    []int{2, 5, 29, 14},
 			Value: (digestString2),
-		}}
+		},
+	)
 
-	hostCert, err := x509.CreateCertificate(rand.Reader, &hostCertTemplate, &hostCertTemplate, &rootKeyPair.PublicKey, rootKeyPair)
+	hostCert, err := x509.CreateCertificate(rand.Reader, &hostCertTemplate, &rootCertTemplate, &hostKeyPair.PublicKey, rootKeyPair)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
 
-	deviceCert, err := x509.CreateCertificate(rand.Reader, &deviceCertTemplate, &deviceCertTemplate, &devicePublicKey, rootKeyPair)
+	deviceCert, err := x509.CreateCertificate(rand.Reader, &deviceCertTemplate, &rootCertTemplate, &devicePublicKey, rootKeyPair)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	return certBytesToPEM(rootCert), certBytesToPEM(hostCert), certBytesToPEM(deviceCert), savePEMKey(rootKeyPair), savePEMKey(rootKeyPair), nil
+	return certBytesToPEM(rootCert), certBytesToPEM(hostCert), certBytesToPEM(deviceCert), savePEMKey(rootKeyPair), savePEMKey(hostKeyPair), nil
 
 }
 
