@@ -3,7 +3,6 @@ package ios
 import (
 	"crypto/tls"
 	"encoding/binary"
-	"encoding/hex"
 	"io"
 	"net"
 	"time"
@@ -96,15 +95,19 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 	*/
 
 	//First send a close write
-	log.Info("close device tls")
 	err := conn.c.(*tls.Conn).CloseWrite()
-	if err!=nil{
+	if err != nil {
 		log.Errorf("failed closewrite %v", err)
 	}
-	log.Info("ok")
 	//Use the underlying conn again to receive unencrypted bytes
 	conn.c = conn.unencryptedConn
-	conn.c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	//tls.Conn.CloseWrite() sets the writeDeadline to now, which will cause
+	//all writes to timeout immediately, for this hacky workaround
+	//we need to undo that
+	err = conn.c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if err != nil {
+		log.Errorf("failed setting writedeadline after TLS disable:%v", err)
+	}
 	/*read the first 5 bytes of the SSL encrypted CLOSE message we get.
 	Because it is a Close message, we can throw it away. We cannot forward it to the client though, because
 	we use a different SSL connection there.
@@ -113,19 +116,18 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 	header := make([]byte, 5)
 
 	_, err = io.ReadFull(conn.c, header)
-	if err!=nil{
+	if err != nil {
 		log.Errorf("failed readfull %v", err)
 	}
-	log.Info(hex.Dump(header))
+	log.Tracef("rcv tls header: %x", header)
 	length := binary.BigEndian.Uint16(header[3:])
 	payload := make([]byte, length)
 
 	_, err = io.ReadFull(conn.c, payload)
-	if err!=nil{
+	if err != nil {
 		log.Errorf("failed readfull payload %v", err)
 	}
-	log.Info(hex.Dump(payload))
-
+	log.Tracef("rcv tls payload: %x", payload)
 }
 
 //EnableSessionSslServerMode wraps the underlying net.Conn in a server tls.Conn using the pairRecord.
