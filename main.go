@@ -516,7 +516,6 @@ func fixDevImage(device ios.DeviceEntry, baseDir string) {
 	conn, err := imagemounter.New(device)
 	exitIfError("failed connecting to image mounter", err)
 	signatures, err := conn.ListImages()
-	exitIfError("failed getting image list", err)
 	if len(signatures) != 0 {
 		log.Info("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
 		return
