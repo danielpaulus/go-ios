@@ -532,7 +532,6 @@ func mountImage(device ios.DeviceEntry, path string) {
 	conn, err := imagemounter.New(device)
 	exitIfError("failed connecting to image mounter", err)
 	signatures, err := conn.ListImages()
-	exitIfError("failed getting image list", err)
 	if len(signatures) != 0 {
 		log.Fatal("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
 	}
