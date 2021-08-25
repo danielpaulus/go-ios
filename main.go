@@ -61,6 +61,7 @@ Usage:
   ios devicestate list [options]
   ios devicestate enable <profileTypeId> <profileId> [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
+  ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios ps [options]
@@ -106,6 +107,9 @@ The commands work as following:
    ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
+   ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
+   >                                                                  it in plist format by adding the --plist param. 
+   >                                                                  Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
    ios diagnostics list [options]                                     List diagnostic infos
    ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
@@ -185,6 +189,20 @@ The commands work as following:
 	udid, _ := arguments.String("--udid")
 	device, err := ios.GetDevice(udid)
 	exitIfError("error getting devicelist", err)
+	conn, _ := diagnostics.New(device)
+	b, _ = arguments.Bool("mobilegestalt")
+	if b {
+		keys := arguments["<key>"].([]string)
+		plist, _ := arguments.Bool("--plist")
+		resp, _ := conn.MobileGestaltQuery(keys)
+		if plist {
+			fmt.Printf("%s", ios.ToPlist(resp))
+			return
+		}
+		jb, _ := json.Marshal(resp)
+		fmt.Printf("%s", jb)
+		return
+	}
 
 	if deviceStateCommand {
 		if listCommand {

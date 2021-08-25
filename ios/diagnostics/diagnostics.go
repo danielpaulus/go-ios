@@ -57,6 +57,23 @@ func (diagnosticsConn *Connection) Reboot() error {
 	return fmt.Errorf("Could not reboot, response: %+v", plist)
 }
 
+func (diagnosticsConn *Connection) MobileGestaltQuery(keys []string) (interface{}, error) {
+	err := diagnosticsConn.deviceConn.Send(gestaltRequest(keys))
+	if err != nil {
+		return "", err
+	}
+	respBytes, err := diagnosticsConn.plistCodec.Decode(diagnosticsConn.deviceConn.Reader())
+	if err != nil {
+		return "", err
+	}
+	err = diagnosticsConn.deviceConn.Send(goodBye())
+	if err != nil {
+		return "", err
+	}
+	plist, err := ios.ParsePlist(respBytes)
+	return plist, err
+}
+
 func (diagnosticsConn *Connection) AllValues() (allDiagnosticsResponse, error) {
 	allReq := diagnosticsRequest{"All"}
 	reader := diagnosticsConn.deviceConn.Reader()
