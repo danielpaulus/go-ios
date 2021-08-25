@@ -3,6 +3,7 @@ package ios
 import (
 	"bytes"
 	"fmt"
+	"github.com/Masterminds/semver"
 
 	plist "howett.net/plist"
 )
@@ -148,6 +149,21 @@ func (lockDownConn *LockDownConnection) GetValues() (GetAllValuesResponse, error
 	}
 	response := getAllValuesResponseFromBytes(resp)
 	return response, nil
+}
+
+//GetProductVersion gets the iOS version of a device
+func GetProductVersion(device DeviceEntry) (*semver.Version, error) {
+	lockdownConnection, err := ConnectLockdownWithSession(device)
+	if err != nil {
+		return &semver.Version{}, err
+	}
+	defer lockdownConnection.Close()
+	version, err := lockdownConnection.GetProductVersion()
+	if err != nil {
+		return &semver.Version{}, err
+	}
+	v, err := semver.NewVersion(version)
+	return v, err
 }
 
 //GetProductVersion returns the ProductVersion of the device f.ex. "10.3"
