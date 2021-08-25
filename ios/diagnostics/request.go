@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"bytes"
+	"github.com/danielpaulus/go-ios/ios"
 
 	plist "howett.net/plist"
 )
@@ -10,22 +11,27 @@ type diagnosticsRequest struct {
 	Request string
 }
 
-type diagnosticsStatus struct {
-	Status string
+func gestaltRequest(keys []string) []byte {
+	goodbyeMap := map[string]interface{}{
+		"Request":           "MobileGestalt",
+		"MobileGestaltKeys": keys,
+	}
+	bt, err := ios.PlistCodec{}.Encode(goodbyeMap)
+	if err != nil {
+		panic("gestalt request encoding should never fail")
+	}
+	return bt
 }
 
-func diagnosticsStatusfromBytes(plistBytes []byte) diagnosticsStatus {
-	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
-	var data diagnosticsStatus
-	_ = decoder.Decode(&data)
-	return data
-}
-
-func diagnosticsRequestfromBytes(plistBytes []byte) diagnosticsRequest {
-	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
-	var data diagnosticsRequest
-	_ = decoder.Decode(&data)
-	return data
+func goodBye() []byte {
+	goodbyeMap := map[string]interface{}{
+		"Request": "Goodbye",
+	}
+	bt, err := ios.PlistCodec{}.Encode(goodbyeMap)
+	if err != nil {
+		panic("goodbye request encoding should never fail")
+	}
+	return bt
 }
 
 func diagnosticsfromBytes(plistBytes []byte) allDiagnosticsResponse {

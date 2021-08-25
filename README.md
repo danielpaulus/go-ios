@@ -22,9 +22,9 @@ Options:
   --udid=<udid>  UDID of the device.
 
 The commands work as following:
-        The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command. 
-        By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
-        Specify -v for debug logging and -t for dumping every message.
+	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command. 
+	By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
+	Specify -v for debug logging and -t for dumping every message.
 
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
@@ -40,6 +40,9 @@ The commands work as following:
    ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
+   ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
+   >                                                                  it in plist format by adding the --plist param. 
+   >                                                                  Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
    ios diagnostics list [options]                                     List diagnostic infos
    ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
@@ -65,5 +68,4 @@ The commands work as following:
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
-
 ```
