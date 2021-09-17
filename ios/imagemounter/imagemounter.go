@@ -3,6 +3,7 @@ package imagemounter
 import (
 	"errors"
 	"fmt"
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -16,10 +17,15 @@ const serviceName string = "com.apple.mobile.mobile_image_mounter"
 type Connection struct {
 	deviceConn ios.DeviceConnectionInterface
 	plistCodec ios.PlistCodec
+	version    *semver.Version
 }
 
 //New returns a new mobile image mounter Connection for the given DeviceID and Udid
 func New(device ios.DeviceEntry) (*Connection, error) {
+	version, err := ios.GetProductVersion(device)
+	if err != nil {
+		return nil, err
+	}
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return &Connection{}, err
@@ -27,6 +33,7 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	return &Connection{
 		deviceConn: deviceConn,
 		plistCodec: ios.NewPlistCodec(),
+		version:    version,
 	}, nil
 }
 
@@ -56,9 +63,13 @@ func (conn *Connection) ListImages() ([][]byte, error) {
 	if ok {
 		return nil, fmt.Errorf("device error: %v", deviceError)
 	}
+
 	signatures, ok := resp["ImageSignature"]
 	if !ok {
-		return nil, fmt.Errorf("invalid response: %+v", signatures)
+		if conn.version.LessThan(semver.MustParse("14.0")) {
+			return [][]byte{}, nil
+		}
+		return nil, fmt.Errorf("invalid response: %+v", resp)
 	}
 
 	array, ok := signatures.([]interface{})

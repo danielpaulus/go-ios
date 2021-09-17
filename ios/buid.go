@@ -18,8 +18,8 @@ type readBuidResponse struct {
 	BUID string
 }
 
-func newReadBuid() *readBuid {
-	data := &readBuid{
+func newReadBuid() readBuid {
+	data := readBuid{
 		BundleID:            "go.ios.control",
 		ClientVersionString: "go-usbmux-0.0.1",
 		MessageType:         "ReadBUID",
@@ -39,7 +39,10 @@ func readBuidResponsefromBytes(plistBytes []byte) readBuidResponse {
 //ReadBuid requests the BUID of the host
 //It returns the deserialized BUID as a string.
 func (muxConn *UsbMuxConnection) ReadBuid() (string, error) {
-	muxConn.Send(newReadBuid())
+	err:= muxConn.Send(newReadBuid())
+	if err != nil {
+		return "", err
+	}
 	resp, err := muxConn.ReadMessage()
 	if err != nil {
 		return "", err

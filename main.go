@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -57,9 +58,12 @@ Usage:
   ios screenshot [options] [--output=<outfile>]
   ios devicename [options] 
   ios date [options]
+  ios devicestate list [options]
+  ios devicestate enable <profileTypeId> <profileId> [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
+  ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
-  ios pair [options]
+  ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios ps [options]
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary]
@@ -70,7 +74,7 @@ Usage:
   ios launch <bundleID> [options]
   ios kill <bundleID> [options]
   ios runtest <bundleID> [options]
-  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [options]
+  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [options]
   ios debug [options] [--stop-at-entry] <app_path>
   ios reboot [options]
@@ -99,9 +103,17 @@ The commands work as following:
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
    ios devicename [options]                                           Prints the devicename
    ios date [options]                                                 Prints the device date
+   ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
+   ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
+   >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
+   ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
+   >                                                                  it in plist format by adding the --plist param. 
+   >                                                                  Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
    ios diagnostics list [options]                                     List diagnostic infos
-   ios pair [options]                                                 Pairs the device without a dialog for supervised devices
+   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
+   >                                                                  to pair without a trust dialog. Specify the password either with the argument or
+   >                                                                  by setting the environment variable 'P12_PASSWORD'
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
    ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
@@ -116,7 +128,8 @@ The commands work as following:
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
    ios kill <bundleID> [options]                                      Kill app with the bundleID on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
-   ios runwda [options]                                               Start WebDriverAgent
+   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
+   >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [options]                                                   Access accessibility inspector features. 
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios reboot [options]                                               Reboot the given device
@@ -162,10 +175,12 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("list")
+	listCommand, _ := arguments.Bool("list")
 	diagnosticsCommand, _ := arguments.Bool("diagnostics")
 	imageCommand, _ := arguments.Bool("image")
-	if b && !diagnosticsCommand && !imageCommand {
+	deviceStateCommand, _ := arguments.Bool("devicestate")
+
+	if listCommand && !diagnosticsCommand && !imageCommand && !deviceStateCommand {
 		b, _ = arguments.Bool("--details")
 		printDeviceList(b)
 		return
@@ -174,6 +189,31 @@ The commands work as following:
 	udid, _ := arguments.String("--udid")
 	device, err := ios.GetDevice(udid)
 	exitIfError("error getting devicelist", err)
+	conn, _ := diagnostics.New(device)
+	b, _ = arguments.Bool("mobilegestalt")
+	if b {
+		keys := arguments["<key>"].([]string)
+		plist, _ := arguments.Bool("--plist")
+		resp, _ := conn.MobileGestaltQuery(keys)
+		if plist {
+			fmt.Printf("%s", ios.ToPlist(resp))
+			return
+		}
+		jb, _ := json.Marshal(resp)
+		fmt.Printf("%s", jb)
+		return
+	}
+
+	if deviceStateCommand {
+		if listCommand {
+			deviceState(device, true, false, "", "")
+			return
+		}
+		enable, _ := arguments.Bool("enable")
+		profileTypeId, _ := arguments.String("<profileTypeId>")
+		profileId, _ := arguments.String("<profileId>")
+		deviceState(device, false, enable, profileTypeId, profileId)
+	}
 
 	b, _ = arguments.Bool("pcap")
 	if b {
@@ -286,7 +326,12 @@ The commands work as following:
 
 	b, _ = arguments.Bool("pair")
 	if b {
-		pairDevice(device)
+		org, _ := arguments.String("--p12file")
+		pwd, _ := arguments.String("--password")
+		if pwd == "" {
+			pwd = os.Getenv("P12_PASSWORD")
+		}
+		pairDevice(device, org, pwd)
 		return
 	}
 
@@ -369,6 +414,8 @@ The commands work as following:
 		bundleID, _ := arguments.String("--bundleid")
 		testbundleID, _ := arguments.String("--testrunnerbundleid")
 		xctestconfig, _ := arguments.String("--xctestconfig")
+		wdaargs := arguments["--arg"].([]string)
+		wdaenv := arguments["--env"].([]string)
 
 		if bundleID == "" && testbundleID == "" && xctestconfig == "" {
 			log.Info("no bundle ids specified, falling back to defaults")
@@ -380,7 +427,7 @@ The commands work as following:
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 		go func() {
-			err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device)
+			err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
 
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
@@ -430,6 +477,57 @@ The commands work as following:
 		return
 	}
 
+}
+
+func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId string, profileId string) {
+	control, err := instruments.NewDeviceStateControl(device)
+	exitIfError("failed to connect to deviceStateControl", err)
+	profileTypes, err := control.List()
+	if list {
+		if JSONdisabled {
+			outputPrettyStateList(profileTypes)
+		} else {
+			b, err := json.Marshal(profileTypes)
+			exitIfError("failed json conversion", err)
+			println(string(b))
+		}
+		return
+	}
+	exitIfError("failed listing device states", err)
+	if enable {
+		pType, profile, err := instruments.VerifyProfileAndType(profileTypes, profileTypeId, profileId)
+		exitIfError("invalid arguments", err)
+		log.Info("Enabling profile.. (this can take a while for ThermalConditions)")
+		err = control.Enable(pType, profile)
+		exitIfError("could not enable profile", err)
+		log.Infof("Profile %s - %s is active! waiting for SIGTERM..", profileTypeId, profileId)
+		c := make(chan os.Signal, syscall.SIGTERM)
+		signal.Notify(c, os.Interrupt)
+		<-c
+		log.Infof("Disabling profiletype %s", profileTypeId)
+		err = control.Disable(pType)
+		exitIfError("could not disable profile", err)
+		log.Info("ok")
+	}
+}
+
+func outputPrettyStateList(types []instruments.ProfileType) {
+	var buffer bytes.Buffer
+	for i, ptype := range types {
+		buffer.WriteString(
+			fmt.Sprintf("ProfileType %d\nName:%s\nisActive:%v\nIdentifier:%s\n\n",
+				i, ptype.Name, ptype.IsActive, ptype.Identifier,
+			),
+		)
+		for i, profile := range ptype.Profiles {
+			buffer.WriteString(fmt.Sprintf("\tProfile %d:%s\n\tIdentifier:%s\n\t%s",
+				i, profile.Name, profile.Identifier, profile.Description),
+			)
+			buffer.WriteString("\n\t------\n")
+		}
+		buffer.WriteString("\n\n")
+	}
+	println(buffer.String())
 }
 
 func fixDevImage(device ios.DeviceEntry, baseDir string) {
@@ -787,13 +885,18 @@ func runSyslog(device ios.DeviceEntry) {
 	<-c
 }
 
-func pairDevice(device ios.DeviceEntry) {
-	err := ios.Pair(device)
-	if err != nil {
+func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password string) {
+	if orgIdentityP12File == "" {
+		err := ios.Pair(device)
 		exitIfError("Pairing failed", err)
-	} else {
 		log.Infof("Successfully paired %s", device.Properties.SerialNumber)
+		return
 	}
+	p12, err := os.ReadFile(orgIdentityP12File)
+	exitIfError("Invalid file:"+orgIdentityP12File, err)
+	err = ios.PairSupervised(device, p12, p12Password)
+	exitIfError("Pairing failed", err)
+	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
 
 func readPair(device ios.DeviceEntry) {

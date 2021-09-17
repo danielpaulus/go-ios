@@ -87,11 +87,15 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 	if binaryMode {
 		log.Info("Lauching proxy in full binary mode")
 	}
-	pairRecord, err := ios.ReadPairRecord(device.Properties.SerialNumber)
-	if err != nil {
-		return err
+	var pairRecord ios.PairRecord
+	if !binaryMode {
+		var err error
+		pairRecord, err = ios.ReadPairRecord(device.Properties.SerialNumber)
+		if err != nil {
+			return err
+		}
+		log.Infof("Successfully retrieved pairrecord: %s for device %s", pairRecord.HostID, device.Properties.SerialNumber)
 	}
-	log.Infof("Successfully retrieved pairrecord: %s for device %s", pairRecord.HostID, device.Properties.SerialNumber)
 	originalSocket, err := MoveSock(ios.DefaultUsbmuxdSocket)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err, "socket": ios.DefaultUsbmuxdSocket}).Error("Unable to move, lacking permissions?")

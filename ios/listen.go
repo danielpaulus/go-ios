@@ -2,8 +2,7 @@ package ios
 
 import (
 	"bytes"
-	"encoding/hex"
-	"errors"
+	"fmt"
 
 	"howett.net/plist"
 )
@@ -61,13 +60,16 @@ func NewListen() ListenType {
 // messages whenever devices are connected or disconnected
 func (muxConn *UsbMuxConnection) Listen() (func() (AttachedMessage, error), error) {
 	msg := NewListen()
-	muxConn.Send(msg)
+	err := muxConn.Send(msg)
+	if err != nil {
+		return nil, err
+	}
 	response, err := muxConn.ReadMessage()
 	if err != nil {
 		return nil, err
 	}
 	if !MuxResponsefromBytes(response.Payload).IsSuccessFull() {
-		return nil, errors.New("Listen command to usbmuxd failed:" + hex.Dump(response.Payload))
+		return nil, fmt.Errorf("Listen command to usbmuxd failed: %x", response.Payload)
 	}
 
 	return func() (AttachedMessage, error) {

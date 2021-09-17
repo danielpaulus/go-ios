@@ -35,7 +35,10 @@ func getStartServiceResponsefromBytes(plistBytes []byte) StartServiceResponse {
 //and returns the Port of the services in a BigEndian Integer.
 //This port cann be used with a new UsbMuxClient and the Connect call.
 func (lockDownConn *LockDownConnection) StartService(serviceName string) (StartServiceResponse, error) {
-	lockDownConn.Send(startServiceRequest{Label: "go.ios.control", Request: "StartService", Service: serviceName})
+	err := lockDownConn.Send(startServiceRequest{Label: "go.ios.control", Request: "StartService", Service: serviceName})
+	if err != nil {
+		return StartServiceResponse{}, err
+	}
 	resp, err := lockDownConn.ReadMessage()
 	if err != nil {
 		return StartServiceResponse{}, err

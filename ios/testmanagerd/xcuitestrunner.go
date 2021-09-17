@@ -3,6 +3,7 @@ package testmanagerd
 import (
 	"fmt"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/Masterminds/semver"
@@ -228,13 +229,14 @@ const testBundleSuffix = "UITests.xctrunner"
 
 func RunXCUITest(bundleID string, device ios.DeviceEntry) error {
 	testRunnerBundleID := bundleID + testBundleSuffix
-	return RunXCUIWithBundleIds(bundleID, testRunnerBundleID, "", device)
+	return RunXCUIWithBundleIds(bundleID, testRunnerBundleID, "", device, nil, nil)
 }
 
 var closeChan = make(chan interface{})
 var closedChan = make(chan interface{})
 
-func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device ios.DeviceEntry, conn *dtx.Connection) error {
+func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, xctestConfigFileName string,
+	device ios.DeviceEntry, conn *dtx.Connection, args []string, env []string) error {
 	testSessionId, _, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
@@ -272,7 +274,7 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 	}
 	defer pControl.Close()
 
-	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName)
+	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
 	if err != nil {
 		return err
 	}
@@ -301,11 +303,11 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 
 }
 
-func RunXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device ios.DeviceEntry) error {
+func RunXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device ios.DeviceEntry, wdaargs []string, wdaenv []string) error {
 
 	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
 	if err == nil {
-		return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn)
+		return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)
 	}
 	log.Debugf("Failed connecting to %s with %v, trying %s", testmanagerdiOS14, err, testmanagerd)
 
@@ -363,7 +365,7 @@ func RunXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConf
 	}
 	defer pControl.Close()
 
-	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName)
+	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, wdaargs, wdaenv)
 	if err != nil {
 		return err
 	}
@@ -417,9 +419,13 @@ func startTestRunner(pControl *instruments.ProcessControl, xctestConfigPath stri
 
 }
 
-func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string, sessionIdentifier string, testBundlePath string) (uint64, error) {
+func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
+	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv []string) (uint64, error) {
 	args := []interface{}{
 		"-NSTreatUnknownArgumentsAsOpen", "NO", "-ApplePersistenceIgnoreState", "YES",
+	}
+	for _, arg := range wdaargs {
+		args = append(args, arg)
 	}
 	env := map[string]interface{}{
 
@@ -435,6 +441,15 @@ func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath st
 		"XCTestConfigurationFilePath":     "",
 		"XCTestSessionIdentifier":         sessionIdentifier,
 	}
+
+	for _, entrystring := range wdaenv {
+		entry := strings.Split(entrystring, "=")
+		key := entry[0]
+		value := entry[1]
+		env[key] = value
+		log.Debugf("adding extra env %s=%s", key, value)
+	}
+
 	opts := map[string]interface{}{
 		"StartSuspendedKey": uint64(0),
 		"ActivateSuspended": uint64(1),
