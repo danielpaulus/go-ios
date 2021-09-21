@@ -28,6 +28,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/notificationproxy"
 	"github.com/danielpaulus/go-ios/ios/pcap"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
+	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	syslog "github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"github.com/docopt/docopt-go"
@@ -63,6 +64,9 @@ Usage:
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
+  ios profiles list
+  ios profiles remove <profileName>
+  ios profiles add <profileName>
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios ps [options]
   ios forward [options] <hostPort> <targetPort>
@@ -114,6 +118,9 @@ The commands work as following:
    ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
+   ios profiles list																									List the profiles on the device
+   ios profiles remove <profileName>																	Remove the profileName from the device
+   ios profiles add <profileName>																			Add the profileName to the device
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
    ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
@@ -179,8 +186,9 @@ The commands work as following:
 	diagnosticsCommand, _ := arguments.Bool("diagnostics")
 	imageCommand, _ := arguments.Bool("image")
 	deviceStateCommand, _ := arguments.Bool("devicestate")
+	profileCommand, _ := arguments.Bool("profiles")
 
-	if listCommand && !diagnosticsCommand && !imageCommand && !deviceStateCommand {
+	if listCommand && !diagnosticsCommand && !imageCommand && !deviceStateCommand && !profileCommand {
 		b, _ = arguments.Bool("--details")
 		printDeviceList(b)
 		return
@@ -338,6 +346,14 @@ The commands work as following:
 	b, _ = arguments.Bool("readpair")
 	if b {
 		readPair(device)
+		return
+	}
+
+	b, _ = arguments.Bool("profiles")
+	if b {
+		if listCommand {
+			handleProfileList(device)
+		}
 		return
 	}
 
@@ -663,6 +679,12 @@ func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
 	<-c
 	log.Info("Shutting down debugproxy")
 	proxy.Close()
+}
+
+func handleProfileList(device ios.DeviceEntry) {
+	profileService, err := mcinstall.New(device)
+	exitIfError("Starting mcInstall failed with", err)
+	profileService.HandleList()
 }
 
 func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
