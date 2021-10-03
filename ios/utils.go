@@ -4,11 +4,22 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/Masterminds/semver"
 	"os"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
+
+//IOS14 semver.MustParse("14.0")
+func IOS14() *semver.Version {
+	return semver.MustParse("14.0")
+}
+
+//IOS12 semver.MustParse("12.0")
+func IOS12() *semver.Version {
+	return semver.MustParse("12.0")
+}
 
 //ToPlist converts a given struct to a Plist using the
 //github.com/DHowett/go-plist library. Make sure your struct is exported.

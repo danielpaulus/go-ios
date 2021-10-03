@@ -303,8 +303,21 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 
 }
 
-func RunXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device ios.DeviceEntry, wdaargs []string, wdaenv []string) error {
-
+func RunXCUIWithBundleIds(
+	bundleID string,
+	testRunnerBundleID string,
+	xctestConfigFileName string,
+	device ios.DeviceEntry,
+	wdaargs []string,
+	wdaenv []string,
+) error {
+	version, err := ios.GetProductVersion(device)
+	if err != nil {
+		return err
+	}
+	if version.LessThan(ios.IOS12()) {
+		return RunXCUIWithBundleIds11(bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
+	}
 	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
 	if err == nil {
 		return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)
