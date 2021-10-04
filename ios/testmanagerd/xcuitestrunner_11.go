@@ -6,7 +6,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	log "github.com/sirupsen/logrus"
 	"strings"
-	"time"
 )
 
 func RunXCUIWithBundleIds11(
@@ -50,7 +49,9 @@ func RunXCUIWithBundleIds11(
 		return err
 	}
 	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
-	time.Sleep(time.Millisecond*500)
+
+	protVersion, minimalVersion := ideDaemonProxy.ideInterface.testBundleReady()
+	log.Debugf("prot:%d min:%d", protVersion, minimalVersion)
 	err = ideDaemonProxy2.daemonConnection.initiateControlSession(pid, protocolVersion)
 	if err != nil {
 		return err
