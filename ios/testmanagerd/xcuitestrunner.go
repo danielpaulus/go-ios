@@ -341,7 +341,8 @@ func RunXCUIWithBundleIds(
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
 
-	caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
+	//caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
+	_, err = ideDaemonProxy.daemonConnection.initiateControlSessionWithProtocolVersion(36)
 	if err != nil {
 		log.Debug("expected err", err)
 		resp, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithProtocolVersion(36)
@@ -360,7 +361,7 @@ func RunXCUIWithBundleIds(
 	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig)
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 
-	log.Debug(caps)
+	//log.Debug(caps)
 	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
 		"XCTIssue capability":     uint64(1),
 		"skipped test capability": uint64(1),
