@@ -94,6 +94,9 @@ func (d Message) String() string {
 	if knowntype, ok := messageTypeLookup[d.PayloadHeader.MessageType]; ok {
 		msgtype = knowntype
 	}
+	if d.PayloadHeader.MessageType==Methodinvocation{
+		msgtype+=d.Payload[0].(string)
+	}
 
 	return fmt.Sprintf("i%d.%d%s c%d t:%s mlen:%d aux_len%d paylen%d", d.Identifier, d.ConversationIndex, e, d.ChannelCode, msgtype,
 		d.MessageLength, d.PayloadHeader.AuxiliaryLength, d.PayloadLength())
