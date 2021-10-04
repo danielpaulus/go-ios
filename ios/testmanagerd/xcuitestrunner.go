@@ -342,7 +342,8 @@ func RunXCUIWithBundleIds(
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
 
 	//caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
-	_, err = ideDaemonProxy.daemonConnection.initiateControlSessionWithProtocolVersion(36)
+	protocolVersion := uint64(25)
+	_, err = ideDaemonProxy.daemonConnection.initiateSessionWithIdentifier(testSessionId, protocolVersion)
 	if err != nil {
 		log.Debug("expected err", err)
 		resp, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithProtocolVersion(36)
