@@ -319,9 +319,10 @@ func RunXCUIWithBundleIds(
 	if err != nil {
 		return err
 	}
-	if version.LessThan(ios.IOS12()) {
+	log.Debugf("%v",version)
+	/*if version.LessThan(ios.IOS12()) {
 		return RunXCUIWithBundleIds11(bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
-	}
+	}*/
 	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
 	if err == nil {
 		return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)

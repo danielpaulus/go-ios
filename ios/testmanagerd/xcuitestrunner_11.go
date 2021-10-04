@@ -50,8 +50,8 @@ func RunXCUIWithBundleIds11(
 	}
 	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
 
-	protVersion, minimalVersion := ideDaemonProxy.ideInterface.testBundleReady()
-	log.Debugf("prot:%d min:%d", protVersion, minimalVersion)
+	//protVersion, minimalVersion := ideDaemonProxy.ideInterface.
+	//log.Debugf("prot:%d min:%d", protVersion, minimalVersion)
 	err = ideDaemonProxy2.daemonConnection.initiateControlSession(pid, protocolVersion)
 	if err != nil {
 		return err
