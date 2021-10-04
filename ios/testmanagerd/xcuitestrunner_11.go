@@ -80,21 +80,13 @@ func RunXCUIWithBundleIds11(
 func startTestRunner11(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
 	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv []string) (uint64, error) {
 	args := []interface{}{
-		"-NSTreatUnknownArgumentsAsOpen", "NO", "-ApplePersistenceIgnoreState", "YES",
+
 	}
 	for _, arg := range wdaargs {
 		args = append(args, arg)
 	}
 	env := map[string]interface{}{
 
-		"CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0",
-		"CA_DEBUG_TRANSACTIONS":              "0",
-		"DYLD_INSERT_LIBRARIES":              "/Developer/usr/lib/libMainThreadChecker.dylib",
-
-		"MTC_CRASH_ON_REPORT":             "1",
-		"NSUnbufferedIO":                  "YES",
-		"OS_ACTIVITY_DT_MODE":             "YES",
-		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"XCTestBundlePath":                testBundlePath,
 		"XCTestConfigurationFilePath":     xctestConfigPath,
 		"XCTestSessionIdentifier":         sessionIdentifier,
