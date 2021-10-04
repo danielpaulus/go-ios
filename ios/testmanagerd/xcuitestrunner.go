@@ -363,22 +363,9 @@ func RunXCUIWithBundleIds(
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 
 	//log.Debug(caps)
-	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
-		"XCTIssue capability":     uint64(1),
-		"skipped test capability": uint64(1),
-		"test timeout capability": uint64(1),
-	}}
 
-	caps2, err := ideDaemonProxy2.daemonConnection.initiateSessionWithIdentifierAndCaps(testSessionId, localCaps)
-	if err != nil {
-		log.Debugf("error initiateSessionWithIdentifierAndCaps, %+v", err)
-		protocol, err := ideDaemonProxy2.daemonConnection.initiateSessionWithIdentifier(testSessionId, 36)
-		if err != nil {
-			return err
-		}
-		log.Debugf("protocol version received: %d", protocol)
-	}
-	log.Debug(caps2)
+
+
 	pControl, err := instruments.NewProcessControl(device)
 	if err != nil {
 		return err
