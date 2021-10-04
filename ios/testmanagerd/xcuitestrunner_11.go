@@ -50,7 +50,7 @@ func RunXCUIWithBundleIds11(
 		return err
 	}
 	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
-
+	time.Sleep(time.Second)
 	err = ideDaemonProxy2.daemonConnection.initiateControlSession(pid, protocolVersion)
 	if err != nil {
 		return err
@@ -58,7 +58,7 @@ func RunXCUIWithBundleIds11(
 
 	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "emty"})
 
-	time.Sleep(time.Second)
+
 
 	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 36)
 	if err != nil {
