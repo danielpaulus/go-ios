@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
 	ios "github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/house_arrest"
@@ -135,6 +134,11 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionWithPro
 	return val, nil
 }
 
+func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSession(pid uint64, version uint64) error {
+	_, err := xdc.IDEDaemonProxy.MethodCall("_IDE_initiateControlSessionForTestProcessID:protocolVersion:", pid, version)
+	return err
+}
+
 func startExecutingTestPlanWithProtocolVersion(channel *dtx.Channel, protocolVersion uint64) error {
 	rply, err := channel.MethodCall("_IDE_startExecutingTestPlanWithProtocolVersion:", protocolVersion)
 	if err != nil {
@@ -237,7 +241,7 @@ var closedChan = make(chan interface{})
 
 func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, xctestConfigFileName string,
 	device ios.DeviceEntry, conn *dtx.Connection, args []string, env []string) error {
-	testSessionId, _, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
 	}
@@ -329,7 +333,7 @@ func RunXCUIWithBundleIds(
 		return err
 	}
 
-	testSessionId, _, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
 	}
@@ -472,42 +476,32 @@ func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath st
 
 }
 
-func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, semver.Version, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
-	versionResp, err := ios.GetValues(device)
-	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
-	}
-	version := versionResp.Value.ProductVersion
+func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
 	testSessionID := uuid.New()
-
-	v, err := semver.NewVersion(version)
-	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
-	}
 	installationProxy, err := installationproxy.New(device)
 	defer installationProxy.Close()
 	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
 	apps, err := installationProxy.BrowseUserApps()
 	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
 	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
 	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
 	houseArrestService, err := house_arrest.New(device, testRunnerBundleID)
 	defer houseArrestService.Close()
 	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
 	testConfigPath, testConfig, err := createTestConfigOnDevice(testSessionID, info, houseArrestService, xctestConfigFileName)
 	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
 
-	return testSessionID, *v, testConfigPath, testConfig, info, nil
+	return testSessionID, testConfigPath, testConfig, info, nil
 }
 
 func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *house_arrest.Connection, xctestConfigFileName string) (string, nskeyedarchiver.XCTestConfiguration, error) {
