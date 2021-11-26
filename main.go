@@ -70,6 +70,7 @@ Usage:
   ios readpair [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
+  ios uninstall <bundleID> [options]
   ios apps [--system] [options]
   ios launch <bundleID> [options]
   ios kill <bundleID> [options]
@@ -238,6 +239,13 @@ The commands work as following:
 	if b {
 		path, _ := arguments.String("--path")
 		installApp(device, path)
+		return
+	}
+
+	b, _ = arguments.Bool("uninstall")
+	if b {
+		bundleID, _ := arguments.String("<bundleID>")
+		uninstallApp(device, bundleID)
 		return
 	}
 
@@ -580,6 +588,15 @@ func installApp(device ios.DeviceEntry, path string) {
 	exitIfError("failed connecting to zipconduit, dev image installed?", err)
 	err = conn.SendFile(path)
 	exitIfError("failed writing", err)
+}
+
+func uninstallApp(device ios.DeviceEntry, bundleId string) {
+	log.WithFields(
+		log.Fields{"appPath": bundleId, "device": device.Properties.SerialNumber}).Info("uninstalling")
+	svc, err := installationproxy.New(device)
+	exitIfError("failed connecting to installationproxy", err)
+	err = svc.Uninstall(bundleId)
+	exitIfError("failed uninstalling", err)
 }
 
 func language(device ios.DeviceEntry, locale string, language string) {
