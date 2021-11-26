@@ -107,7 +107,7 @@ func checkFinished(dict map[string]interface{}) (bool, error) {
 			log.Info("done uninstalling")
 			return true, nil
 		}
-		log.Info("uninstall status: %s", val)
+		log.Infof("uninstall status: %s", val)
 		return false, nil
 	}
 	return true, fmt.Errorf("unknown status update: %+v", dict)
