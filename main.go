@@ -597,7 +597,6 @@ func uninstallApp(device ios.DeviceEntry, bundleId string) {
 	exitIfError("failed connecting to installationproxy", err)
 	err = svc.Uninstall(bundleId)
 	exitIfError("failed uninstalling", err)
-	log.Info("ok")
 }
 
 func language(device ios.DeviceEntry, locale string, language string) {
