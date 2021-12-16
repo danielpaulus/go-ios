@@ -1,5 +1,4 @@
-//go:build integration
-// +build integration
+// +build !fast
 
 package screenshotr_test
 
