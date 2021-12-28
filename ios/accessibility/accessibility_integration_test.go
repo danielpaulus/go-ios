@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package accessibility_test
@@ -7,7 +8,6 @@ import (
 
 	ios "github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/accessibility"
-	log "github.com/sirupsen/logrus"
 )
 
 func TestIT(t *testing.T) {
