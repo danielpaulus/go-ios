@@ -17,7 +17,7 @@ jobs:
         run: sudo apt install socat
       - name: ngrok
         run: |
-          socat UNIX-LISTEN:/var/run/usbmuxd,fork,user=mysql,group=mysql,mode=777 TCP-CONNECT:2.tcp.ngrok.io:18860&
+          sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,user=mysql,group=mysql,mode=777 TCP-CONNECT:2.tcp.ngrok.io:18860&
       - name: run go test
         run: go run main.go devices
 
