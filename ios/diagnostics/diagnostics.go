@@ -2,7 +2,6 @@ package diagnostics
 
 import (
 	"fmt"
-
 	ios "github.com/danielpaulus/go-ios/ios"
 )
 
@@ -26,7 +25,11 @@ func Reboot(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	return service.Reboot()
+	err = service.Reboot()
+	if err != nil {
+		return err
+	}
+	return service.Close()
 }
 
 func (diagnosticsConn *Connection) Reboot() error {
@@ -36,7 +39,10 @@ func (diagnosticsConn *Connection) Reboot() error {
 	if err != nil {
 		return err
 	}
-	diagnosticsConn.deviceConn.Send(bytes)
+	err = diagnosticsConn.deviceConn.Send(bytes)
+	if err != nil {
+		return err
+	}
 	response, err := diagnosticsConn.plistCodec.Decode(reader)
 	if err != nil {
 		return err
@@ -96,8 +102,14 @@ func (diagnosticsConn *Connection) Close() error {
 	if err != nil {
 		return err
 	}
-	diagnosticsConn.deviceConn.Send(bytes)
+	err = diagnosticsConn.deviceConn.Send(bytes)
+	if err != nil {
+		return err
+	}
 	_, err = diagnosticsConn.plistCodec.Decode(reader)
+	if err != nil {
+		return err
+	}
 	diagnosticsConn.deviceConn.Close()
-	return err
+	return nil
 }
