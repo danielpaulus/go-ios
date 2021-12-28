@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -80,4 +81,13 @@ func PathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func FixWindowsPaths(path string) string {
+	log.Debugf("fixing windows path: %s", path)
+	path = strings.ReplaceAll(path, "\\", "/")
+	if strings.Contains(path, ":/") {
+		return strings.Split(path, ":/")[1]
+	}
+	return path
 }

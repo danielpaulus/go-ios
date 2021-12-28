@@ -26,6 +26,19 @@ func TestNtohs(t *testing.T) {
 	assert.Equal(t, uint16(62078), ios.Ntohs(ios.Lockdownport))
 }
 
+func TestWindowsPathFixing(t *testing.T) {
+	testCases := map[string]struct {
+		windowsPath       string
+		expectedLinuxPath string
+	}{
+		"with drive": {windowsPath: `D:\files\yo`, expectedLinuxPath: "files/yo"},
+		"relative":   {windowsPath: `bla\test`, expectedLinuxPath: "bla/test"},
+	}
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expectedLinuxPath, ios.FixWindowsPaths(tc.windowsPath))
+	}
+}
+
 func TestPlistConversion(t *testing.T) {
 	testCases := map[string]struct {
 		data     interface{}
