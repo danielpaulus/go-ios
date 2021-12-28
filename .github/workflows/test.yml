@@ -19,5 +19,5 @@ jobs:
         run: |
           sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,user=mysql,group=mysql,mode=777 TCP-CONNECT:2.tcp.ngrok.io:18860&
       - name: run go test
-        run: go run main.go devices
+        run: go run main.go list
 
