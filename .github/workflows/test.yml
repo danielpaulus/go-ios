@@ -13,6 +13,8 @@ jobs:
         uses: actions/checkout@v2
       - name: compile
         run: go build
+      - name: install socat
+        run: sudo apt install socat
       - name: ngrok
         run: |
           socat UNIX-LISTEN:/var/run/usbmuxd,fork,user=mysql,group=mysql,mode=777 TCP-CONNECT:2.tcp.ngrok.io:18860
