@@ -113,7 +113,7 @@ func (conn Connection) sendDirectory(dir string) error {
 		return err
 	}
 
-	init := newInitTransfer(dir + ".ipa")
+	init := newInitTransfer(ios.FixWindowsPaths(dir + ".ipa"))
 	log.Debugf("sending inittransfer %+v", init)
 	bytes, err := conn.plistCodec.Encode(init)
 	if err != nil {
