@@ -25,7 +25,7 @@ func NewPlistCodec() PlistCodec {
 //followed by the plist as a string
 func (plistCodec PlistCodec) Encode(message interface{}) ([]byte, error) {
 	stringContent := ToPlist(message)
-	log.Debug("Lockdown send", reflect.TypeOf(message))
+	log.Tracef("Lockdown send %v", reflect.TypeOf(message))
 	buf := new(bytes.Buffer)
 	length := len(stringContent)
 	messageLength := uint32(length)

@@ -56,14 +56,14 @@ func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error
 	if err != nil {
 		return err
 	}
-	log.Debug("Opening connection:", &c)
+	log.Tracef("Opening connection: %v", &c)
 	conn.c = c
 	return nil
 }
 
 //Close closes the network connection
 func (conn *DeviceConnection) Close() {
-	log.Debug("Closing connection:", &conn.c)
+	log.Tracef("Closing connection: %v", &conn.c)
 	conn.c.Close()
 }
 
@@ -193,7 +193,7 @@ func (conn *DeviceConnection) createClientTLSConn(pairRecord PairRecord) (*tls.C
 		return nil, err
 	}
 
-	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
+	log.Tracef("enable session ssl on %v and wrap with tlsConn: %v",&conn.c, &tlsConn)
 	return tlsConn, nil
 }
 
@@ -219,7 +219,7 @@ func (conn *DeviceConnection) createServerTLSConn(pairRecord PairRecord) (*tls.C
 		log.Info("Handshake error", err)
 		return nil, err
 	}
-	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
+	log.Tracef("enable session ssl on %v and wrap with tlsConn: %v",&conn.c, &tlsConn)
 	return tlsConn, nil
 }
 

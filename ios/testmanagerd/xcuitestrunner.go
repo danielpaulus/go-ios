@@ -319,17 +319,21 @@ func RunXCUIWithBundleIds(
 	if err != nil {
 		return err
 	}
-	log.Debugf("%v",version)
-	/*if version.LessThan(ios.IOS12()) {
+	log.Debugf("%v", version)
+	if version.LessThan(ios.IOS12()) {
+		log.Infof("iOS version: %s detected, running with ios11 support", version)
 		return RunXCUIWithBundleIds11(bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
-	}*/
-	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
-	if err == nil {
+	}
+
+	if version.Major() == 14 {
+		conn, err := dtx.NewConnection(device, testmanagerdiOS14)
+		if err != nil {
+			return err
+		}
 		return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)
 	}
-	log.Debugf("Failed connecting to %s with %v, trying %s", testmanagerdiOS14, err, testmanagerd)
 
-	conn, err = dtx.NewConnection(device, testmanagerd)
+	conn, err := dtx.NewConnection(device, testmanagerd)
 	if err != nil {
 		return err
 	}
@@ -363,8 +367,6 @@ func RunXCUIWithBundleIds(
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 
 	//log.Debug(caps)
-
-
 
 	pControl, err := instruments.NewProcessControl(device)
 	if err != nil {

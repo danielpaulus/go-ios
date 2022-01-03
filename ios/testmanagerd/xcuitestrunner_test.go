@@ -28,6 +28,7 @@ const bundleId = "com.facebook.WebDriverAgentRunner.xctrunner"
 
 func TestXcuiTest(t *testing.T) {
 	hook := test.NewGlobal()
+	log.SetLevel(log.DebugLevel)
 
 	device, err := ios.GetDevice("")
 	if err != nil {
