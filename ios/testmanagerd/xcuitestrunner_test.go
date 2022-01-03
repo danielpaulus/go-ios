@@ -24,6 +24,7 @@ const wdaSignedPath = "../../testdata/wda-signed.ipa"
 const signerPath = "../../testdata/app-signer-mac"
 
 const wdaSuccessLogMessage = "ServerURLHere"
+const bundleId = "com.facebook.WebDriverAgentRunner.xctrunner"
 
 func TestXcuiTest(t *testing.T) {
 	hook := test.NewGlobal()
@@ -32,12 +33,14 @@ func TestXcuiTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	//mounts&downloads developer image if needed
 	err = imagemounter.FixDevImage(device, ".")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
+	//get wda to the device if not installed already
 	err = signAndInstall(device)
 	if err != nil {
 		t.Error(err)
@@ -54,23 +57,15 @@ func TestXcuiTest(t *testing.T) {
 			log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 		}
 	}()
-	successChannel := make(chan bool)
-	go func() {
-		for {
-			entries := hook.AllEntries()
-			for _, e := range entries {
-				if strings.Contains(e.Message, wdaSuccessLogMessage) {
-					successChannel <- true
-					return
-				}
-			}
-		}
-	}()
+
+	wdaStarted := make(chan bool)
+	pollLogs(hook, wdaStarted)
+
 	select {
 	case <-time.After(time.Second * 5):
 		t.Error("timeout")
 		return
-	case <-successChannel:
+	case <-wdaStarted:
 		log.Info("wda started successfully")
 	}
 
@@ -83,11 +78,25 @@ func TestXcuiTest(t *testing.T) {
 	}
 }
 
+func pollLogs(hook *test.Hook, wdaStarted chan bool) {
+	go func() {
+		for {
+			entries := hook.AllEntries()
+			for _, e := range entries {
+				if strings.Contains(e.Message, wdaSuccessLogMessage) {
+					wdaStarted <- true
+					return
+				}
+			}
+		}
+	}()
+}
+
 func signAndInstall(device ios.DeviceEntry) error {
 	svc, _ := installationproxy.New(device)
 	response, err := svc.BrowseUserApps()
 	for _, info := range response {
-		if "com.facebook.WebDriverAgentRunner.xctrunner" == info.CFBundleIdentifier {
+		if bundleId == info.CFBundleIdentifier {
 			log.Info("wda installed, skipping installation")
 			return nil
 		}
@@ -101,6 +110,7 @@ func signAndInstall(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 	return conn.SendFile(wdaSignedPath)
 }
 

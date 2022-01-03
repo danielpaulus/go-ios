@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/Masterminds/semver"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -80,4 +81,14 @@ func PathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+//IOS14 semver.MustParse("14.0")
+func IOS14() *semver.Version {
+	return semver.MustParse("14.0")
+}
+
+//IOS12 semver.MustParse("12.0")
+func IOS12() *semver.Version {
+	return semver.MustParse("12.0")
 }
