@@ -173,7 +173,7 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		return err
 	}
 
-	metainfFolder, metainfFile, err := addMetaInf(ios.FixWindowsPaths(tmpDir), unzippedFiles, totalBytes)
+	metainfFolder, metainfFile, err := addMetaInf(tmpDir, unzippedFiles, totalBytes)
 	if err != nil {
 		return err
 	}
