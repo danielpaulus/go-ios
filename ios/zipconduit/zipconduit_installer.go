@@ -108,7 +108,7 @@ func (conn Connection) sendDirectory(dir string) error {
 		return err
 	}
 
-	metainfFolder, metainfFile, err := addMetaInf(tmpDir, unzippedFiles, uint64(totalBytes))
+	metainfFolder, metainfFile, err := addMetaInf(ios.FixWindowsPaths(tmpDir), unzippedFiles, uint64(totalBytes))
 	if err != nil {
 		return err
 	}
