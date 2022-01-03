@@ -173,12 +173,12 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		return err
 	}
 
-	metainfFolder, metainfFile, err := addMetaInf(tmpDir, unzippedFiles, totalBytes)
+	metainfFolder, metainfFile, err := addMetaInf(ios.FixWindowsPaths(tmpDir), unzippedFiles, totalBytes)
 	if err != nil {
 		return err
 	}
 
-	init := newInitTransfer(ipaFile)
+	init := newInitTransfer(ios.FixWindowsPaths(ipaFile))
 	log.Debugf("sending inittransfer %+v", init)
 	bytes, err := conn.plistCodec.Encode(init)
 	if err != nil {
