@@ -16,7 +16,7 @@ jobs:
       - name: install netcat
         run: choco install netcat
       - name: forward ngrok
-        run: netcat -L 127.0.0.1:22 -p 8080 -vvv
+        run: nc -L 127.0.0.1:22 -p 8080 -vvv
   test_on_linux:
     if: ${{ false }}
     runs-on: ubuntu-latest
