@@ -63,7 +63,7 @@ func TestXcuiTest(t *testing.T) {
 	pollLogs(hook, wdaStarted)
 
 	select {
-	case <-time.After(time.Second * 5):
+	case <-time.After(time.Second * 50):
 		t.Error("timeout")
 		return
 	case <-wdaStarted:

@@ -15,6 +15,7 @@ func RunXCUIWithBundleIds11(
 	device ios.DeviceEntry,
 	args []string,
 	env []string) error {
+	log.Debugf("set up xcuitest")
 	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
@@ -51,21 +52,19 @@ func RunXCUIWithBundleIds11(
 	}
 	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
 
-	//protVersion, minimalVersion := ideDaemonProxy.ideInterface.
-	//log.Debugf("prot:%d min:%d", protVersion, minimalVersion)
 	err = ideDaemonProxy2.daemonConnection.initiateControlSession(pid, protocolVersion)
 	if err != nil {
 		return err
 	}
+	log.Debugf("control session initiated")
+	ideInterfaceChannel := ideDaemonProxy.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "emty"})
 
-	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "emty"})
-
-
-
+	log.Debug("start executing testplan")
 	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 25)
 	if err != nil {
 		log.Error(err)
 	}
+	log.Debugf("done starting test")
 	<-closeChan
 	log.Infof("Killing WebDriverAgent with pid %d ...", pid)
 	err = pControl.KillProcess(pid)
@@ -78,20 +77,17 @@ func RunXCUIWithBundleIds11(
 	return nil
 }
 
-
 func startTestRunner11(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
 	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv []string) (uint64, error) {
-	args := []interface{}{
-
-	}
+	args := []interface{}{}
 	for _, arg := range wdaargs {
 		args = append(args, arg)
 	}
 	env := map[string]interface{}{
 
-		"XCTestBundlePath":                testBundlePath,
-		"XCTestConfigurationFilePath":     xctestConfigPath,
-		"XCTestSessionIdentifier":         sessionIdentifier,
+		"XCTestBundlePath":            testBundlePath,
+		"XCTestConfigurationFilePath": xctestConfigPath,
+		"XCTestSessionIdentifier":     sessionIdentifier,
 	}
 
 	for _, entrystring := range wdaenv {

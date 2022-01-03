@@ -193,7 +193,7 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 	if shouldAck {
 		dtx.SendAckIfNeeded(p.dtxConnection, m)
 	}
-	log.Debugf("dispatcher received: %s", m.String())
+	log.Tracef("dispatcher received: %s", m.String())
 }
 
 func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
@@ -471,23 +471,28 @@ func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath st
 func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
 	testSessionID := uuid.New()
 	installationProxy, err := installationproxy.New(device)
-	defer installationProxy.Close()
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
+	defer installationProxy.Close()
+
 	apps, err := installationProxy.BrowseUserApps()
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
+
 	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
+	log.Debugf("app info found: %+v", info)
+
 	houseArrestService, err := house_arrest.New(device, testRunnerBundleID)
 	defer houseArrestService.Close()
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
+	log.Debugf("creating test config")
 	testConfigPath, testConfig, err := createTestConfigOnDevice(testSessionID, info, houseArrestService, xctestConfigFileName)
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
