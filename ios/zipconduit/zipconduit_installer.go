@@ -312,7 +312,7 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	if err != nil {
 		return err
 	}
-
+log.Info(filenameForZip)
 	_, err = io.Copy(writer, fileToZip)
 	return err
 }
