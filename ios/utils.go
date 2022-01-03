@@ -105,10 +105,11 @@ func IOS12() *semver.Version {
 }
 
 func FixWindowsPaths(path string) string {
-	log.Debugf("fixing windows path: %s", path)
+	log.Infof("fixing windows path: %s", path)
 	path = strings.ReplaceAll(path, "\\", "/")
 	if strings.Contains(path, ":/") {
-		return strings.Split(path, ":/")[1]
+		path = strings.Split(path, ":/")[1]
 	}
+	log.Infof("fixed windows path: %s", path)
 	return path
 }
