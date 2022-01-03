@@ -78,8 +78,7 @@ func (conn Connection) SendFile(appFilePath string) error {
 }
 
 func (conn Connection) Close() error {
-	conn.deviceConn.Close()
-	return nil
+	return conn.deviceConn.Close()
 }
 
 func (conn Connection) sendDirectory(dir string) error {

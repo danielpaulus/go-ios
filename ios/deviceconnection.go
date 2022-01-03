@@ -13,7 +13,7 @@ import (
 
 // DeviceConnectionInterface contains a physical network connection to a usbmuxd socket.
 type DeviceConnectionInterface interface {
-	Close()
+	Close() error
 	Send(message []byte) error
 	Reader() io.Reader
 	Writer() io.Writer
@@ -62,9 +62,9 @@ func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error
 }
 
 //Close closes the network connection
-func (conn *DeviceConnection) Close() {
+func (conn *DeviceConnection) Close() error{
 	log.Tracef("Closing connection: %v", &conn.c)
-	conn.c.Close()
+	return conn.c.Close()
 }
 
 //Send sends a message
