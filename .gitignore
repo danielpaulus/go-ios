@@ -1,4 +1,5 @@
-wda.ipa
+*.mobileprovision
+*.p12
 devimages
 # Binaries for programs and plugins
 *.log
