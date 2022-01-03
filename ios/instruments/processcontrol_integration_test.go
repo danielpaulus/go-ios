@@ -4,19 +4,24 @@
 package instruments_test
 
 import (
+	"testing"
+
+	ios "github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestLaunchAndKill(t *testing.T) {
-	device := TestDevice
+	device, err := ios.GetDevice("")
+	if err != nil {
+		t.Fatal(err)
+	}
 	const weatherAppBundleID = "com.apple.weather"
 	pControl, err := instruments.NewProcessControl(device)
+	defer pControl.Close()
 	if !assert.NoError(t, err) {
 		t.Fatal(err)
 	}
-	defer pControl.Close()
 	pid, err := pControl.LaunchApp(weatherAppBundleID)
 	if !assert.NoError(t, err) {
 		return
