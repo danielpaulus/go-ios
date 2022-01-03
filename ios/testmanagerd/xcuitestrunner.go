@@ -320,86 +320,17 @@ func RunXCUIWithBundleIds(
 		return err
 	}
 	log.Debugf("%v", version)
-	if version.LessThan(ios.IOS12()) {
+	if version.LessThan(ios.IOS14()) {
 		log.Infof("iOS version: %s detected, running with ios11 support", version)
 		return RunXCUIWithBundleIds11(bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
 	}
 
-	if version.Major() == 14 {
+
 		conn, err := dtx.NewConnection(device, testmanagerdiOS14)
 		if err != nil {
 			return err
 		}
 		return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)
-	}
-
-	conn, err := dtx.NewConnection(device, testmanagerd)
-	if err != nil {
-		return err
-	}
-
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
-
-	//caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
-	protocolVersion := uint64(25)
-	_, err = ideDaemonProxy.daemonConnection.initiateSessionWithIdentifier(testSessionId, protocolVersion)
-	if err != nil {
-		log.Debug("expected err", err)
-		resp, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithProtocolVersion(36)
-		if err != nil {
-			return err
-		}
-		log.Debugf("got protocolversion:%d", resp)
-	}
-
-	conn2, err := dtx.NewConnection(device, testmanagerd)
-	if err != nil {
-		return err
-	}
-	defer conn2.Close()
-	log.Debug("connections ready")
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig)
-	ideDaemonProxy2.ideInterface.testConfig = testConfig
-
-	//log.Debug(caps)
-
-	pControl, err := instruments.NewProcessControl(device)
-	if err != nil {
-		return err
-	}
-	defer pControl.Close()
-
-	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, wdaargs, wdaenv)
-	if err != nil {
-		return err
-	}
-	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
-
-	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "emty"})
-
-	time.Sleep(time.Second)
-
-	success, _ := ideDaemonProxy.daemonConnection.authorizeTestSessionWithProcessID(pid)
-	log.Debugf("authorizing test session for pid %d successful %t", pid, success)
-	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 36)
-	if err != nil {
-		log.Error(err)
-	}
-	<-closeChan
-	log.Infof("Killing WebDriverAgent with pid %d ...", pid)
-	err = pControl.KillProcess(pid)
-	if err != nil {
-		return err
-	}
-	log.Info("WDA killed with success")
-	var signal interface{}
-	closedChan <- signal
-	return nil
 
 }
 
