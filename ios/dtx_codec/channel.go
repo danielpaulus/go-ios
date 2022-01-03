@@ -128,7 +128,7 @@ func (d *Channel) Dispatch(msg Message) {
 		d.messageIdentifier = msg.Identifier + 1
 	}
 	if msg.PayloadHeader.MessageType == Methodinvocation {
-		log.Debug("Dispatching:", msg.Payload[0].(string))
+		log.Trace("Dispatching:", msg.Payload[0].(string))
 		if v, ok := d.registeredMethods[msg.Payload[0].(string)]; ok {
 			d.mutex.Unlock()
 			v <- msg

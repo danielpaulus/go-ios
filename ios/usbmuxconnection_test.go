@@ -96,8 +96,9 @@ type DeviceConnectionMock struct {
 	mock.Mock
 }
 
-func (mock *DeviceConnectionMock) Close() {
+func (mock *DeviceConnectionMock) Close() error{
 	mock.Called()
+	return nil
 }
 func (mock *DeviceConnectionMock) Send(message []byte) error {
 	args := mock.Called(message)
