@@ -5,8 +5,6 @@ jobs:
   test_on_windows:
     runs-on: windows-latest
     steps:
-      - name: forward ngrok
-        run: netcat -L 127.0.0.1:22 -p 8080 -vvv
       - name: Install Go
         uses: actions/setup-go@v2
         with:
@@ -15,6 +13,8 @@ jobs:
         uses: actions/checkout@v2
       - name: compile
         run: go build
+      - name: forward ngrok
+        run: netcat -L 127.0.0.1:22 -p 8080 -vvv
   test_on_linux:
     if: ${{ false }}
     runs-on: ubuntu-latest
