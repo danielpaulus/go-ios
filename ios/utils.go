@@ -80,7 +80,7 @@ func GetDevice(udid string) (DeviceEntry, error) {
 	return DeviceEntry{}, fmt.Errorf("Device '%s' not found. Is it attached to the machine?", udid)
 }
 
-//It is used to determine whether the path folder exists
+//PathExists is used to determine whether the path folder exists
 //True if it exists, false otherwise
 func PathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
