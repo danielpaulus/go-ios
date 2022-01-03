@@ -1,5 +1,6 @@
 *.mobileprovision
 *.p12
+testdata/wda-signed.ipa
 devimages
 # Binaries for programs and plugins
 *.log
