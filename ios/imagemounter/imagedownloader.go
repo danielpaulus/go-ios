@@ -51,7 +51,7 @@ func matchAvailable(version string) string {
 
 
 	}
-	log.Debugf("device version: %s bestMarch: %s", version, bestMatch)
+	log.Debugf("device version: %s bestMatch: %s", version, bestMatch)
 	if bestMatch == "12.2" {
 		return v12_2
 	}

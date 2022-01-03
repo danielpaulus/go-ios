@@ -66,7 +66,7 @@ func (conn *Connection) ListImages() ([][]byte, error) {
 
 	signatures, ok := resp["ImageSignature"]
 	if !ok {
-		if conn.version.LessThan(semver.MustParse("14.0")) {
+		if conn.version.LessThan(ios.IOS14()) {
 			return [][]byte{}, nil
 		}
 		return nil, fmt.Errorf("invalid response: %+v", resp)
