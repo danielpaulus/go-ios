@@ -20,7 +20,7 @@ jobs:
       - name: test list
         run: go run main.go list
       - name: try install
-        run: go run main.go install --path testdata/wda-signed-test.ipa --udid=8a4b8ae031a0565729e92b836e82bccc4540f8fd
+        run: go run main.go install --path .\testdata\wda-signed-test.ipa --udid=8a4b8ae031a0565729e92b836e82bccc4540f8fd
 
   test_on_linux:
     if: ${{ false }}
