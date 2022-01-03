@@ -1,5 +1,6 @@
 on: pull_request
-
+# ngrok tcp 9999
+# socat TCP-LISTEN:9999,reuseaddr,fork UNIX-CONNECT:/var/run/usbmuxd
 name: Unit tests
 jobs:
   test_on_windows:
@@ -16,7 +17,7 @@ jobs:
       - name: install netcat
         run: choco install netcat
       - name: forward ngrok
-        run: nc -L 127.0.0.1:22 -p 8080 -vvv
+        run: nc -L 4.tcp.ngrok.io:16921 -p 8080 -vvv #local port -p will connect to the -L target
   test_on_linux:
     if: ${{ false }}
     runs-on: ubuntu-latest
