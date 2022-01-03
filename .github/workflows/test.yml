@@ -6,6 +6,9 @@ jobs:
   test_on_windows:
     runs-on: windows-latest
     steps:
+      - name: forward ngrok
+          #run: nc -L 4.tcp.ngrok.io:16921 -p 8080 -vvv #local port -p will connect to the -L target
+        run: ssh
       - name: Install Go
         uses: actions/setup-go@v2
         with:
@@ -17,7 +20,8 @@ jobs:
       - name: install netcat
         run: choco install netcat
       - name: forward ngrok
-        run: nc -L 4.tcp.ngrok.io:16921 -p 8080 -vvv #local port -p will connect to the -L target
+        #run: nc -L 4.tcp.ngrok.io:16921 -p 8080 -vvv #local port -p will connect to the -L target
+        run: ssh
   test_on_linux:
     if: ${{ false }}
     runs-on: ubuntu-latest
