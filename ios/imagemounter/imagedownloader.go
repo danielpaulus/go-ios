@@ -2,6 +2,7 @@ package imagemounter
 
 import (
 	"fmt"
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	log "github.com/sirupsen/logrus"
@@ -17,12 +18,52 @@ const repo = "https://github.com/haikieu/xcode-developer-disk-image-all-platform
 const imagepath = "devimages"
 const developerDiskImageDmg = "DeveloperDiskImage.dmg"
 
+var availableVersions = []string{"10.0", "10.1", "10.2", "10.3", "11.0", "11.1", "11.2", "11.3", "11.4", "12.0", "12.1", "12.2", "12.3", "13.0", "13.1", "13.1.2", "13.2", "13.3", "13.4", "13.5", "13.6", "13.7", "14.0", "14.2", "14.3", "14.4", "14.5", "14.6", "14.7", "15.0", "15.2", "8.0", "8.1", "8.2", "8.3", "8.4", "9.0", "9.1", "9.2", "9.3"}
+
+const v12_2 = "12.2 (16E226)"
+
+func matchAvailable(version string) string {
+	log.Debugf("device version: %s ", version)
+	ver := semver.MustParse(version)
+	var bestMatch string
+	var lastVersion string
+	for _, availableVersion := range availableVersions {
+		parsedAV := semver.MustParse(availableVersion)
+		if ver.Major() > parsedAV.Major() {
+			continue
+		}
+		if ver.Major() < parsedAV.Major() && bestMatch == "" {
+			bestMatch = lastVersion
+			break
+		}
+		lastVersion = availableVersion
+		if ver.Major() < parsedAV.Major() {
+			continue
+		}
+		if ver.Minor() == parsedAV.Minor() && ver.Patch() == parsedAV.Patch() {
+			bestMatch = availableVersion
+			break
+		}
+		if ver.Minor() == parsedAV.Minor() {
+			bestMatch = availableVersion
+			continue
+		}
+
+
+	}
+	log.Debugf("device version: %s bestMarch: %s", version, bestMatch)
+	if bestMatch == "12.2" {
+		return v12_2
+	}
+	return bestMatch
+}
+
 func DownloadImageFor(device ios.DeviceEntry, baseDir string) (string, error) {
 	allValues, err := ios.GetValues(device)
 	if err != nil {
 		return "", err
 	}
-	version := allValues.Value.ProductVersion
+	version := matchAvailable(allValues.Value.ProductVersion)
 	imageDownloaded, err := validateBaseDirAndLookForImage(baseDir, version)
 	if err != nil {
 		return "", err

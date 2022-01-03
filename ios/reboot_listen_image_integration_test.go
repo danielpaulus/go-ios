@@ -8,8 +8,21 @@ import (
 	"github.com/danielpaulus/go-ios/ios/diagnostics"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
+
+var TestDevice ios.DeviceEntry
+
+func TestMain(m *testing.M) {
+	device, err := ios.GetDevice("")
+	if err != nil {
+		log.Fatal(err)
+	}
+	TestDevice = device
+	code := m.Run()
+	os.Exit(code)
+}
 
 //TODO: add image mounting
 func TestRebootListenAndImage(t *testing.T) {
