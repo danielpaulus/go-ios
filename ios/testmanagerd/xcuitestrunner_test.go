@@ -11,7 +11,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	log "github.com/sirupsen/logrus"
-	stdlog "log"
+	"github.com/sirupsen/logrus/hooks/test"
 	"os/exec"
 	"strings"
 	"testing"
@@ -23,10 +23,11 @@ const wdaSignedPath = "../../testdata/wda-signed.ipa"
 
 const signerPath = "../../testdata/app-signer-mac"
 
-const wdaSuccessLogMessage = "ServerURLHere->"
+const wdaSuccessLogMessage = "ServerURLHere"
 
 func TestXcuiTest(t *testing.T) {
-	patchLogger()
+	hook := test.NewGlobal()
+
 	device, err := ios.GetDevice("")
 	if err != nil {
 		t.Fatal(err)
@@ -51,6 +52,18 @@ func TestXcuiTest(t *testing.T) {
 
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
+		}
+	}()
+	successChannel := make(chan bool)
+	go func() {
+		for {
+			entries := hook.AllEntries()
+			for _, e := range entries {
+				if strings.Contains(e.Message, wdaSuccessLogMessage) {
+					successChannel <- true
+					return
+				}
+			}
 		}
 	}()
 	select {
@@ -101,24 +114,4 @@ func SignWda(device ios.DeviceEntry) error {
 	)
 	_, err := cmd.CombinedOutput()
 	return err
-}
-
-func patchLogger() {
-	successChannel = make(chan bool, 2)
-	//log.SetLevel(log.DebugLevel)
-	stdlog.SetOutput(new(LogrusWriter))
-}
-
-type LogrusWriter int
-
-var successChannel chan bool
-
-func (LogrusWriter) Write(data []byte) (int, error) {
-	logmessage := string(data)
-	if strings.Contains(logmessage, wdaSuccessLogMessage) {
-		successChannel <- true
-		return len(data), nil
-	}
-	log.Infof("gousb_logs:%s", logmessage)
-	return len(data), nil
 }
