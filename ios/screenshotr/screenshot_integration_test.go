@@ -7,14 +7,13 @@ import (
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 )
 
 const png uint32 = 0x89504E47
 
 func TestScreenshot(t *testing.T) {
-	device, err := ios.GetDevice(os.Getenv("udid"))
+	device, err := ios.GetDevice("")
 	if err != nil {
 		t.Error(err)
 		return

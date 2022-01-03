@@ -74,7 +74,7 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 			return
 		}
 	}
-	log.Debugf("Global Dispatcher Received: %s %s", msg.Payload, msg.Auxiliary)
+	log.Tracef("Global Dispatcher Received: %s %s", msg.Payload, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}
@@ -139,7 +139,6 @@ func reader(dtxConn *Connection) {
 
 func SendAckIfNeeded(dtxConn *Connection, msg Message) {
 	if msg.ExpectsReply {
-		log.Debug("sending ack")
 		ack := BuildAckMessage(msg)
 		err := dtxConn.Send(ack)
 		if err != nil {

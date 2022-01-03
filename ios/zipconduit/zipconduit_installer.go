@@ -76,6 +76,11 @@ func (conn Connection) SendFile(appFilePath string) error {
 	}
 	return conn.sendIpaFile(appFilePath)
 }
+
+func (conn Connection) Close() error {
+	return conn.deviceConn.Close()
+}
+
 func (conn Connection) sendDirectory(dir string) error {
 	tmpDir, err := ioutil.TempDir("", "prefix")
 	if err != nil {

@@ -22,7 +22,7 @@ var availableVersions = []string{"10.0", "10.1", "10.2", "10.3", "11.0", "11.1",
 
 const v12_2 = "12.2 (16E226)"
 
-func matchAvailable(version string) string {
+func MatchAvailable(version string) string {
 	log.Debugf("device version: %s ", version)
 	ver := semver.MustParse(version)
 	var bestMatch string
@@ -51,7 +51,7 @@ func matchAvailable(version string) string {
 
 
 	}
-	log.Debugf("device version: %s bestMarch: %s", version, bestMatch)
+	log.Debugf("device version: %s bestMatch: %s", version, bestMatch)
 	if bestMatch == "12.2" {
 		return v12_2
 	}
@@ -63,7 +63,8 @@ func DownloadImageFor(device ios.DeviceEntry, baseDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	version := matchAvailable(allValues.Value.ProductVersion)
+	version := MatchAvailable(allValues.Value.ProductVersion)
+	log.Infof("getting developer image for iOS %s", version)
 	imageDownloaded, err := validateBaseDirAndLookForImage(baseDir, version)
 	if err != nil {
 		return "", err
@@ -72,8 +73,6 @@ func DownloadImageFor(device ios.DeviceEntry, baseDir string) (string, error) {
 		log.Infof("%s already downloaded from https://github.com/haikieu/", imageDownloaded)
 		return imageDownloaded, nil
 	}
-
-	log.Infof("getting developer image for iOS %s", version)
 	downloadUrl := fmt.Sprintf(repo, version)
 	log.Infof("downloading from: %s", downloadUrl)
 	log.Info("thank you haikieu for making these images available :-)")
