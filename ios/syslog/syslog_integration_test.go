@@ -8,12 +8,11 @@ import (
 	"github.com/danielpaulus/go-ios/ios/syslog"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 )
 
 func TestSyslog(t *testing.T) {
-	device, err := ios.GetDevice(os.Getenv("udid"))
+	device, err := ios.GetDevice("")
 	if err != nil {
 		t.Error(err)
 		return

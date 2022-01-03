@@ -48,8 +48,17 @@ func Ntohs(port uint16) uint16 {
 	return binary.LittleEndian.Uint16(buf)
 }
 
-//GetDevice returns the device for udid. If udid equals emptystring, it returns the first device in the list.
+//GetDevice returns:
+// the device for the udid if a valid udid is provided.
+// if the env variable 'udid' is specified, the device with that udid
+// otherwise it returns the first device in the list.
 func GetDevice(udid string) (DeviceEntry, error) {
+	if udid == "" {
+		udid = os.Getenv("udid")
+		if udid != "" {
+			log.Info("using udid from env.udid variable")
+		}
+	}
 	log.Debugf("Looking for device '%s'", udid)
 	deviceList, err := ListDevices()
 	if err != nil {
@@ -59,7 +68,8 @@ func GetDevice(udid string) (DeviceEntry, error) {
 		if len(deviceList.DeviceList) == 0 {
 			return DeviceEntry{}, errors.New("no iOS devices are attached to this host")
 		}
-		log.WithFields(log.Fields{"udid": deviceList.DeviceList[0].Properties.SerialNumber}).Debug("no udid specified using default")
+		log.WithFields(log.Fields{"udid": deviceList.DeviceList[0].Properties.SerialNumber}).
+			Info("no udid specified using first device in list")
 		return deviceList.DeviceList[0], nil
 	}
 	for _, device := range deviceList.DeviceList {

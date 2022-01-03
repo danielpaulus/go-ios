@@ -8,6 +8,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/diagnostics"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
@@ -24,13 +25,21 @@ func TestRebootListenAndImage(t *testing.T) {
 		t.Error("Failed issuing Listen command, will retry in 3 seconds", err)
 		return
 	}
-	msg, err := attachedReceiver()
-	if err != nil {
-		t.Error("Failed listen", err)
-		return
+	udid := os.Getenv("udid")
+	var device ios.DeviceEntry
+	for {
+		msg, err := attachedReceiver()
+		if err != nil {
+			t.Error("Failed listen", err)
+			return
+		}
+		if msg.Properties.SerialNumber == udid {
+			assert.Equal(t, true, msg.DeviceAttached())
+			device = msg.DeviceEntry()
+			break
+		}
 	}
-	device := msg.DeviceEntry()
-	assert.Equal(t, true, msg.DeviceAttached())
+
 	log.Infof("rebooting device: %s", device.Properties.SerialNumber)
 	err = diagnostics.Reboot(device)
 	if err != nil {
