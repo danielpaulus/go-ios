@@ -239,3 +239,46 @@ func (conn *Connection) hangUp() error {
 	}
 	return nil
 }
+
+//FixDevImage checks if a dev image is already installed and does nothing in that case. Otherwise it
+// looks for the image for the device version in baseDir. If it is not present it will download it from
+// github and install.
+func FixDevImage(device ios.DeviceEntry, baseDir string) error {
+	conn, err := New(device)
+	if err != nil {
+		return fmt.Errorf("failed connecting to image mounter: %v", err)
+	}
+	signatures, err := conn.ListImages()
+	if err != nil {
+		return fmt.Errorf("failed getting image list: %v", err)
+	}
+
+	if len(signatures) != 0 {
+		log.Warn("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
+		return nil
+	}
+	imagePath, err := DownloadImageFor(device, baseDir)
+	if err != nil {
+		return fmt.Errorf("failed downloading image: %v", err)
+	}
+
+	log.Infof("installing downloaded image '%s'", imagePath)
+	return MountImage(device, imagePath)
+}
+
+func MountImage(device ios.DeviceEntry, path string) error {
+	conn, err := New(device)
+	if err != nil {
+		return fmt.Errorf("failed connecting to image mounter: %v", err)
+	}
+
+	signatures, err := conn.ListImages()
+	if err != nil {
+		return fmt.Errorf("failed getting image list: %v", err)
+	}
+	if len(signatures) != 0 {
+		log.Warn("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
+		return nil
+	}
+	return conn.MountImage(path)
+}

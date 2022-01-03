@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"io/ioutil"
 	"path/filepath"
 	"runtime/debug"
@@ -29,7 +30,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/pcap"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/ios/syslog"
-	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
 )
@@ -258,7 +258,13 @@ The commands work as following:
 		mount, _ := arguments.Bool("mount")
 		if mount {
 			path, _ := arguments.String("--path")
-			mountImage(device, path)
+			err = imagemounter.MountImage(device, path)
+			if err != nil {
+				log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber, "err": err}).
+					Error("error mounting image")
+				return
+			}
+			log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
 		}
 		auto, _ := arguments.Bool("auto")
 		if auto {
@@ -266,7 +272,13 @@ The commands work as following:
 			if basedir == "" {
 				basedir = "."
 			}
-			fixDevImage(device, basedir)
+			err = imagemounter.FixDevImage(device, basedir)
+			if err != nil {
+				log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber, "err": err}).
+					Error("error mounting image")
+				return
+			}
+			log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber}).Info("success mounting image")
 		}
 		return
 	}
@@ -536,35 +548,6 @@ func outputPrettyStateList(types []instruments.ProfileType) {
 		buffer.WriteString("\n\n")
 	}
 	println(buffer.String())
-}
-
-func fixDevImage(device ios.DeviceEntry, baseDir string) {
-	conn, err := imagemounter.New(device)
-	exitIfError("failed connecting to image mounter", err)
-	signatures, err := conn.ListImages()
-	exitIfError("failed getting image list", err)
-	if len(signatures) != 0 {
-		log.Info("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
-		return
-	}
-	imagePath, err := imagemounter.DownloadImageFor(device, baseDir)
-	exitIfError("failed downloading image", err)
-	log.Infof("installing downloaded image '%s'", imagePath)
-	mountImage(device, imagePath)
-
-}
-
-func mountImage(device ios.DeviceEntry, path string) {
-	conn, err := imagemounter.New(device)
-	exitIfError("failed connecting to image mounter", err)
-	signatures, err := conn.ListImages()
-	exitIfError("failed getting image list", err)
-	if len(signatures) != 0 {
-		log.Fatal("there is already a developer image mounted, reboot the device if you want to remove it. aborting.")
-	}
-	err = conn.MountImage(path)
-	exitIfError("failed mounting image", err)
-	log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
 }
 
 func listMountedImages(device ios.DeviceEntry) {
