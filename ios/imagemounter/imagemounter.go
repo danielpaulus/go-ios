@@ -84,6 +84,7 @@ func (conn *Connection) ListImages() ([][]byte, error) {
 	return result, nil
 }
 
+//MountImage installs a .dmg image from imagePath after checking that it is present and valid.
 func (conn *Connection) MountImage(imagePath string) error {
 	signatureBytes, imageSize, err := validatePathAndLoadSignature(imagePath)
 	if err != nil {
