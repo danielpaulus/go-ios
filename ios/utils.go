@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Masterminds/semver"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -101,4 +102,13 @@ func IOS14() *semver.Version {
 //IOS12 semver.MustParse("12.0")
 func IOS12() *semver.Version {
 	return semver.MustParse("12.0")
+}
+
+func FixWindowsPaths(path string) string {
+	log.Debugf("fixing windows path: %s", path)
+	path = strings.ReplaceAll(path, "\\", "/")
+	if strings.Contains(path, ":/") {
+		return strings.Split(path, ":/")[1]
+	}
+	return path
 }
