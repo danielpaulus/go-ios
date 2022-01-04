@@ -1,5 +1,4 @@
 on:
-  push:
   workflow_dispatch:
     inputs:
       ngrok:
