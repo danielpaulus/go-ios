@@ -4,12 +4,10 @@ import (
 	"archive/zip"
 	"encoding/hex"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -17,9 +15,7 @@ import (
 //so I had to hack my own basic pseudo zip format together.
 //this is for a directory.
 func newZipHeaderDir(name string) (zipHeader, []byte, []byte) {
-	if runtime.GOOS == "windows" {
-		name = ios.FixWindowsPaths(name)
-	}
+
 	return zipHeader{
 		signature:              0x04034b50,
 		version:                20,
@@ -42,9 +38,7 @@ func newZipHeader(size uint32, crc32 uint32, name string) (zipHeader, []byte, []
 	//the predefined values are just random ones I grabbed from a hexdump
 	//since we only want to get files to a device so it can install an app
 	//timestamps and all that don't really matter anyway
-	if runtime.GOOS == "windows" {
-		name = ios.FixWindowsPaths(name)
-	}
+
 	return zipHeader{
 		signature:              0x04034b50,
 		version:                20,
