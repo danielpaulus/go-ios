@@ -15,7 +15,6 @@ import (
 //so I had to hack my own basic pseudo zip format together.
 //this is for a directory.
 func newZipHeaderDir(name string) (zipHeader, []byte, []byte) {
-
 	return zipHeader{
 		signature:              0x04034b50,
 		version:                20,
@@ -38,7 +37,6 @@ func newZipHeader(size uint32, crc32 uint32, name string) (zipHeader, []byte, []
 	//the predefined values are just random ones I grabbed from a hexdump
 	//since we only want to get files to a device so it can install an app
 	//timestamps and all that don't really matter anyway
-
 	return zipHeader{
 		signature:              0x04034b50,
 		version:                20,
@@ -66,12 +64,12 @@ func init(){
 	Since we only push data to the device and don't really care about correct timestamps or anything like that,
 	I just dumped what XCode generates and always send the same extra.
 	In this case I took a 0x5455 "UT" extra. Should it ever break, it'll be easy to fix.
-	*/
+	 */
 	s := "55540D00 07F3A2EC 60F6A2EC 60F3A2EC 6075780B 000104F5 01000004 14000000"
 	s = strings.ReplaceAll(s, " ", "")
 
 	extra, err := hex.DecodeString(s)
-	zipExtraBytes = extra
+    zipExtraBytes = extra
 	if err != nil {
 		log.Fatal("this is impossible to break", err)
 	}

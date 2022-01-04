@@ -109,12 +109,12 @@ func (conn Connection) sendDirectory(dir string) error {
 		return err
 	}
 
-	metainfFolder, metainfFile, err := addMetaInf(ios.FixWindowsPaths(tmpDir), unzippedFiles, uint64(totalBytes))
+	metainfFolder, metainfFile, err := addMetaInf(tmpDir, unzippedFiles, uint64(totalBytes))
 	if err != nil {
 		return err
 	}
 
-	init := newInitTransfer(ios.FixWindowsPaths(dir + ".ipa"))
+	init := newInitTransfer(dir + ".ipa")
 	log.Debugf("sending inittransfer %+v", init)
 	bytes, err := conn.plistCodec.Encode(init)
 	if err != nil {
@@ -273,14 +273,11 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 		return err
 	}
 
-	log.Info("filename:"+filename)
-	log.Info("tmpdir:"+ tmpdir)
-
 	// Using FileInfoHeader() above only uses the basename of the file. If we want
 	// to preserve the folder structure we can overwrite this with the full path.
 	var filenameForZip string
 	if runtime.GOOS == "windows" {
-			filenameForZip = strings.Replace(ios.FixWindowsPaths(filename), ios.FixWindowsPaths(tmpdir)+"/", "", 1)
+		filenameForZip = strings.Replace(ios.FixWindowsPaths(filename), ios.FixWindowsPaths(tmpdir)+"/", "", 1)
 		if info.IsDir() && !strings.HasSuffix(filenameForZip, "/") {
 			filenameForZip += "/"
 		}
@@ -291,8 +288,6 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 		}
 	}
 
-
-	log.Info("filenameForZip: "+ filenameForZip)
 	if info.IsDir() {
 		//write our "zip" header for a directory
 		header, name, extra := newZipHeaderDir(filenameForZip)
@@ -327,7 +322,6 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	if err != nil {
 		return err
 	}
-log.Info(filenameForZip)
 	_, err = io.Copy(writer, fileToZip)
 	return err
 }
