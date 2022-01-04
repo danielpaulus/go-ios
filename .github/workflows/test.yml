@@ -8,7 +8,7 @@ jobs:
     steps:
       - name: forward ngrok
           #run: nc -L 4.tcp.ngrok.io:16921 -p 8080 -vvv #local port -p will connect to the -L target
-        run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=0.tcp.ngrok.io connectport=16720
+        run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=2.tcp.ngrok.io connectport=12659
       - name: Install Go
         uses: actions/setup-go@v2
         with:
