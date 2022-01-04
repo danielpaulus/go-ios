@@ -53,6 +53,7 @@ func TestPlistConversion(t *testing.T) {
 	}
 
 }
+//needed for windows support. otherwise we would have linbreaks with n and with rn
 func removeLineBreaks(s string) string {
 	s = strings.Replace(s, "\n", "", -1)
 	s = strings.Replace(s, "\r", "", -1)

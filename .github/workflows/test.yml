@@ -18,6 +18,14 @@ jobs:
   test_on_windows:
     runs-on: windows-latest
     steps:
+      - uses: actions/cache@v2
+        with:
+          path: |
+            %LocalAppData%\go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - name: Install Go
         uses: actions/setup-go@v2
         with:
@@ -26,6 +34,7 @@ jobs:
         uses: actions/checkout@v2
       - name: compile
         run: go build
+
       - name: run unit tests
         run: go test -v -tags=fast ./...
       - name: forward ngrok
