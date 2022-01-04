@@ -8,7 +8,7 @@ jobs:
     steps:
       - name: forward ngrok
           #run: nc -L 4.tcp.ngrok.io:16921 -p 8080 -vvv #local port -p will connect to the -L target
-        run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=2.tcp.ngrok.io connectport=12659
+        run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=2.tcp.ngrok.io connectport=15282
       - name: Install Go
         uses: actions/setup-go@v2
         with:
@@ -17,6 +17,8 @@ jobs:
         uses: actions/checkout@v2
       - name: compile
         run: go build
+      - name: run unit tests
+        run: go test ./...
       - name: test list
         run: go run main.go list
       - name: install relative
@@ -42,5 +44,5 @@ jobs:
         run: |
           sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,user=mysql,group=mysql,mode=777 TCP-CONNECT:2.tcp.ngrok.io:18860&
       - name: run go test
-        run: go run main.go list
+        run: go run main.go
 
