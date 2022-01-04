@@ -64,27 +64,27 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: create profile
-        run: |
-            echo $P12_FILE | base64 --decode > test1.p12
-            echo $PROFILE | base64 --decode > test1.mobileprovision
-        shell: bash
-        env:
-          P12_FILE: ${{secrets.P12}}
-          PROFILE: ${{secrets.PROFILE}}
-      - name: delete profiles
-        if: always()
-        run: |
-          rm test1*
       - name: Install Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.17.x
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: create profile
+        run: |
+          echo $P12_FILE | base64 --decode > testdata/test1.p12
+          echo $PROFILE | base64 --decode > testdata/test1.mobileprovision
+        shell: bash
+        env:
+          P12_FILE: ${{secrets.P12}}
+          PROFILE: ${{secrets.PROFILE}}
       - name: Run App Signer
         run: |
           testdata/app-signer-linux
+      - name: delete profiles
+        if: always()
+        run: |
+          rm testdata/test1*
       - name: compile
         run: go build
       - name: run unit tests
