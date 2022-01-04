@@ -280,8 +280,7 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	// to preserve the folder structure we can overwrite this with the full path.
 	var filenameForZip string
 	if runtime.GOOS == "windows" {
-		filenameForZip = ios.FixWindowsPaths(filenameForZip)
-		filenameForZip = strings.Replace(filename, tmpdir+"/", "", 1)
+			filenameForZip = strings.Replace(ios.FixWindowsPaths(filename), ios.FixWindowsPaths(tmpdir)+"/", "", 1)
 		if info.IsDir() && !strings.HasSuffix(filenameForZip, "/") {
 			filenameForZip += "/"
 		}
