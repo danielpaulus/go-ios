@@ -1,6 +1,7 @@
 # go-ios
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/daniel1paulus.svg?style=social&label=Follow%20%40daniel1paulus)](https://twitter.com/daniel1paulus)
 
 Go-iOS was inspired by the wonderful https://www.libimobiledevice.org
 It can do all of what libimobiledevice can do and in addition also run XCUITest, launch and kill apps and much more.
