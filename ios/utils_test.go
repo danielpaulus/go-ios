@@ -4,6 +4,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	ios "github.com/danielpaulus/go-ios/ios"
@@ -48,7 +49,12 @@ func TestPlistConversion(t *testing.T) {
 			}
 		}
 		expected, _ := ioutil.ReadFile(golden)
-		assert.Equal(t, string(expected), actual)
+		assert.Equal(t, removeLineBreaks(string(expected)), removeLineBreaks(actual))
 	}
 
+}
+func removeLineBreaks(s string) string {
+	s = strings.Replace(s, "\n", "", -1)
+	s = strings.Replace(s, "\r", "", -1)
+	return s
 }
