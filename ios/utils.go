@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Masterminds/semver"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -101,4 +102,14 @@ func IOS14() *semver.Version {
 //IOS12 semver.MustParse("12.0")
 func IOS12() *semver.Version {
 	return semver.MustParse("12.0")
+}
+
+//FixWindowsPaths replaces backslashes with forward slashes and removes the X: style
+//windows drive letters
+func FixWindowsPaths(path string) string {
+	path = strings.ReplaceAll(path, "\\", "/")
+	if strings.Contains(path, ":/") {
+		path = strings.Split(path, ":/")[1]
+	}
+	return path
 }

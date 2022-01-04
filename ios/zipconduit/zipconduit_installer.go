@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -274,10 +275,19 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 
 	// Using FileInfoHeader() above only uses the basename of the file. If we want
 	// to preserve the folder structure we can overwrite this with the full path.
-	filenameForZip := strings.Replace(filename, tmpdir+"/", "", 1)
-	if info.IsDir() && !strings.HasSuffix(filenameForZip, "/") {
-		filenameForZip += "/"
+	var filenameForZip string
+	if runtime.GOOS == "windows" {
+		filenameForZip = strings.Replace(ios.FixWindowsPaths(filename), ios.FixWindowsPaths(tmpdir)+"/", "", 1)
+		if info.IsDir() && !strings.HasSuffix(filenameForZip, "/") {
+			filenameForZip += "/"
+		}
+	} else {
+		filenameForZip = strings.Replace(filename, tmpdir+"/", "", 1)
+		if info.IsDir() && !strings.HasSuffix(filenameForZip, "/") {
+			filenameForZip += "/"
+		}
 	}
+
 	if info.IsDir() {
 		//write our "zip" header for a directory
 		header, name, extra := newZipHeaderDir(filenameForZip)
@@ -312,7 +322,6 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	if err != nil {
 		return err
 	}
-
 	_, err = io.Copy(writer, fileToZip)
 	return err
 }
