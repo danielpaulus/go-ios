@@ -179,7 +179,7 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		return err
 	}
 
-	init := newInitTransfer(ios.FixWindowsPaths(ipaFile))
+	init := newInitTransfer(ipaFile)
 	log.Debugf("sending inittransfer %+v", init)
 	bytes, err := conn.plistCodec.Encode(init)
 	if err != nil {
