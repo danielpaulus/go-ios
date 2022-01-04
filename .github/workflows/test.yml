@@ -80,7 +80,9 @@ jobs:
           PROFILE: ${{secrets.PROFILE}}
       - name: Run App Signer
         run: |
-          testdata/app-signer-linux
+          testdata/app-signer-linux --udid=8a4b8ae031a0565729e92b836e82bccc4540f8fd --p12password=$P12_PW --profilespath=testdata --ipa=testdata/wda.ipa --output=testdata/wda-signed.ipa
+        env:
+          P12_PW: ${{secrets.P12PASSWORD}}
       - name: delete profiles
         if: always()
         run: |
