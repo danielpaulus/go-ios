@@ -66,8 +66,8 @@ jobs:
             ${{ runner.os }}-go-
       - name: create profile
         run: |
-            echo $P12_FILE >> testdata/test1.p12
-            echo $PROFILE >> testdata/test1.mobileprovision
+
+            echo $PROFILE | base64 --decode > test1.mobileprovision
         shell: bash
         env:
           P12_FILE: ${{secrets.P12}}
