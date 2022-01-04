@@ -1,4 +1,16 @@
-on: pull_request
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      ngrok:
+        description: 'ngrok host:port'
+        required: true
+        default: ''
+      udid:
+        description: 'device udid or blank for default device'
+        required: false
+        default: ''
+
 # ngrok tcp 9999
 # socat TCP-LISTEN:9999,reuseaddr,fork UNIX-CONNECT:/var/run/usbmuxd
 name: Unit tests
@@ -6,9 +18,6 @@ jobs:
   test_on_windows:
     runs-on: windows-latest
     steps:
-      - name: forward ngrok
-          #run: nc -L 4.tcp.ngrok.io:16921 -p 8080 -vvv #local port -p will connect to the -L target
-        run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=2.tcp.ngrok.io connectport=15282
       - name: Install Go
         uses: actions/setup-go@v2
         with:
@@ -18,12 +27,20 @@ jobs:
       - name: compile
         run: go build
       - name: run unit tests
-        run: go test ./...
+        run: go test -v -tags=fast ./...
+      - name: forward ngrok
+        if: ${{ github.event.inputs.ngrok }}
+        run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=$($env:NGROK_URL.Split(":")[0]) connectport=$($env:NGROK_URL.Split(":")[1])
+        env:
+          NGROK_PORT: ${{ github.event.inputs.ngrok }}
       - name: test list
+        if: ${{ github.event.inputs.ngrok }}
         run: go run main.go list
       - name: install relative
+        if: ${{ github.event.inputs.ngrok }}
         run: go run main.go install --path testdata\wda-signed-test.ipa --udid=8a4b8ae031a0565729e92b836e82bccc4540f8fd
       - name: install absolute
+        if: ${{ github.event.inputs.ngrok }}
         run: go run main.go install --path $PWD\testdata\wda-signed-test.ipa --udid=8a4b8ae031a0565729e92b836e82bccc4540f8fd
 
   test_on_linux:
