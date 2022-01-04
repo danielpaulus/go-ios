@@ -41,7 +41,7 @@ jobs:
         if: ${{ github.event.inputs.ngrok }}
         run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=$($env:NGROK_URL.Split(":")[0]) connectport=$($env:NGROK_URL.Split(":")[1])
         env:
-          NGROK_PORT: ${{ github.event.inputs.ngrok }}
+          NGROK_URL: ${{ github.event.inputs.ngrok }}
       - name: test list
         if: ${{ github.event.inputs.ngrok }}
         run: go run main.go list
@@ -54,6 +54,7 @@ jobs:
 
   test_on_linux:
     runs-on: ubuntu-latest
+    if: ${{ false }}
     steps:
       - uses: actions/cache@v2
         with:
