@@ -16,6 +16,7 @@ name: Unit tests
 jobs:
   test_on_windows:
     runs-on: windows-latest
+    if: ${{ false }}
     steps:
       - uses: actions/cache@v2 # https://github.com/actions/cache/blob/main/examples.md#go---modules
         with:
@@ -74,16 +75,18 @@ jobs:
       - name: run unit tests
         run: go test -v -tags=fast ./...
         #integration piece
-      - name: test list
-        if: ${{ github.event.inputs.ngrok }}
-        run: go run main.go list
       - name: install socat
         if: ${{ github.event.inputs.ngrok }}
         run: sudo apt install socat
       - name: ngrok
         if: ${{ github.event.inputs.ngrok }}
         run: |
-          sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,user=mysql,group=mysql,mode=777 TCP-CONNECT:2.tcp.ngrok.io:18860&
+          sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,user=mysql,group=mysql,mode=777 TCP-CONNECT:$NGROK_URL&
+        env:
+         NGROK_URL: ${{ github.event.inputs.ngrok }}
+      - name: test list
+        if: ${{ github.event.inputs.ngrok }}
+        run: go run main.go list
       - name: run go test
         if: ${{ github.event.inputs.ngrok }}
         run: go run main.go
