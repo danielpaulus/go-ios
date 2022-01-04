@@ -273,6 +273,9 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 		return err
 	}
 
+	log.Info("filename:"+filename)
+	log.Info("tmpdir:"+ tmpdir)
+
 	// Using FileInfoHeader() above only uses the basename of the file. If we want
 	// to preserve the folder structure we can overwrite this with the full path.
 	filenameForZip := strings.Replace(filename, tmpdir+"/", "", 1)
