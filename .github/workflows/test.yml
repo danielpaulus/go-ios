@@ -66,7 +66,7 @@ jobs:
             ${{ runner.os }}-go-
       - name: create profile
         run: |
-
+            echo $P12_FILE | base64 --decode > test1.p12
             echo $PROFILE | base64 --decode > test1.mobileprovision
         shell: bash
         env:
@@ -75,7 +75,7 @@ jobs:
       - name: delete profiles
         if: always()
         run: |
-          rm testdata/test1*
+          rm test1*
       - name: Install Go
         uses: actions/setup-go@v2
         with:
