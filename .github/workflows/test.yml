@@ -82,6 +82,9 @@ jobs:
           go-version: 1.17.x
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Run App Signer
+        run: |
+          testdata/app-signer-linux
       - name: compile
         run: go build
       - name: run unit tests
