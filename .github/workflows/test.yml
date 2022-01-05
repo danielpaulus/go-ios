@@ -1,5 +1,4 @@
 on:
-  push:
   workflow_dispatch:
     inputs:
       ngrok:
@@ -7,13 +6,13 @@ on:
         required: true
         default: ''
       udid:
-        description: 'device udid or blank for default device'
-        required: false
+        description: 'device udid'
+        required: true
         default: ''
 # run this locally to get a device exposed on ngrok
 # ngrok tcp 9999
 # socat TCP-LISTEN:9999,reuseaddr,fork UNIX-CONNECT:/var/run/usbmuxd
-name: Unit tests
+name: CI Real Device Test
 jobs:
   sign_app_on_mac:
     runs-on: macos-latest
@@ -30,9 +29,10 @@ jobs:
           PROFILE: ${{secrets.PROFILE}}
       - name: Run App Signer
         run: |
-          testdata/app-signer-mac --udid=8a4b8ae031a0565729e92b836e82bccc4540f8fd --p12password=$P12_PW --profilespath=testdata --ipa=testdata/wda.ipa --output=testdata/wda-signed.ipa
+          testdata/app-signer-mac --udid=$UDID --p12password=$P12_PW --profilespath=testdata --ipa=testdata/wda.ipa --output=testdata/wda-signed.ipa
         env:
           P12_PW: ${{secrets.P12PASSWORD}}
+          UDID: ${{ github.event.inputs.udid }}
       - name: delete profiles
         if: always()
         run: |
@@ -45,7 +45,9 @@ jobs:
           retention-days: 1
   test_on_windows:
     runs-on: windows-latest
-    if: ${{ false }}
+    needs: sign_app_on_mac
+    env:
+      UDID: ${{ github.event.inputs.udid }}
     steps:
       - uses: actions/cache@v2 # https://github.com/actions/cache/blob/main/examples.md#go---modules
         with:
@@ -63,23 +65,21 @@ jobs:
         uses: actions/checkout@v2
       - name: compile
         run: go build
-
-      - name: run unit tests
-        run: go test -v -tags=fast ./...
+      - name: Download mac release from previous job
+        uses: actions/download-artifact@v2
+        with:
+          name: signed-wda
+          path: testdata/signed-wda.ipa
       - name: forward ngrok
-        if: ${{ github.event.inputs.ngrok }}
         run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=$($env:NGROK_URL.Split(":")[0]) connectport=$($env:NGROK_URL.Split(":")[1])
         env:
           NGROK_URL: ${{ github.event.inputs.ngrok }}
       - name: test list
-        if: ${{ github.event.inputs.ngrok }}
         run: go run main.go list
       - name: install relative
-        if: ${{ github.event.inputs.ngrok }}
-        run: go run main.go install --path testdata\wda-signed-test.ipa --udid=8a4b8ae031a0565729e92b836e82bccc4540f8fd
+        run: go run main.go install --path testdata\signed-wda.ipa --udid=$($env:UDID)
       - name: install absolute
-        if: ${{ github.event.inputs.ngrok }}
-        run: go run main.go install --path $PWD\testdata\wda-signed-test.ipa --udid=8a4b8ae031a0565729e92b836e82bccc4540f8fd
+        run: go run main.go install --path $PWD\testdata\signed-wda.ipa --udid=$($env:UDID)
 
   test_on_linux:
     runs-on: ubuntu-latest
@@ -106,22 +106,14 @@ jobs:
           path: testdata/signed-wda.ipa
       - name: compile
         run: go build
-      - name: run unit tests
-        run: go test -v -tags=fast ./...
-        #integration piece
       - name: install socat
-        if: ${{ github.event.inputs.ngrok }}
         run: sudo apt install socat
       - name: ngrok
-        if: ${{ github.event.inputs.ngrok }}
-        run: |
-          sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,user=mysql,group=mysql,mode=777 TCP-CONNECT:$NGROK_URL&
+        run: sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,mode=777 TCP-CONNECT:$NGROK_URL&
         env:
          NGROK_URL: ${{ github.event.inputs.ngrok }}
       - name: test list
-        if: ${{ github.event.inputs.ngrok }}
         run: go run main.go list
       - name: run go test
-        if: ${{ github.event.inputs.ngrok }}
         run: go run main.go
 
