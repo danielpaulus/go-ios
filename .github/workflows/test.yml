@@ -83,7 +83,9 @@ jobs:
 
   test_on_linux:
     runs-on: ubuntu-latest
-    needs: sign_app_on_mac
+    needs:
+      - sign_app_on_mac
+      - test_on_windows
     steps:
       - uses: actions/cache@v2
         with:
