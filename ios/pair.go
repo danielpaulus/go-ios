@@ -16,6 +16,10 @@ import (
 //a supervised device without the need for user interaction (the trust popup)
 //Arguments are the device, the p12 files raw contents and the password used for the p12
 //file.
+// https://configautomation.com/cfgutil-man-page.html
+// openssl pkcs12 -in daniel.p12 -out daniel.pem -nodes -password pass:a
+// openssl x509 -outform DER -out daniel.crt -in daniel.pem
+// openssl rsa -outform DER -out daniel.key -in daniel.pem
 func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) error {
 	supervisedPrivateKey, cert, err := pkcs12.Decode(p12bytes, p12Password)
 	if err != nil {
@@ -125,7 +129,7 @@ func extractPairingChallenge(resp []byte) ([]byte, error) {
 	}
 	if "MCChallengeRequired" != errormsg {
 		return []byte{},
-		fmt.Errorf("received wrong error message '%s' error message should have been 'McChallengeRequired' : %+v",errormsg, respPlist)
+			fmt.Errorf("received wrong error message '%s' error message should have been 'McChallengeRequired' : %+v", errormsg, respPlist)
 	}
 	respdictintf, ok := respPlist["ExtendedResponse"]
 	if !ok {
