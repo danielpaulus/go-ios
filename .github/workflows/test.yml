@@ -68,8 +68,8 @@ jobs:
       - name: Download mac signed wda from previous job
         uses: actions/download-artifact@v2
         with:
-          name: signed-wda
-          path: testdata/signed-wda.ipa.zip
+          name: signed-wda.ipa.zip
+          path: testdata
       - name: extract ipa
         run: Expand-Archive -Force testdata/signed-wda.ipa.zip testdata/
       - name: forward ngrok
