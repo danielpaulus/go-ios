@@ -69,12 +69,13 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: signed-wda
-          path: testdata/signed-wda.ipa.zip
       - name: extract ipa
         run: |
              ls
              ls testdata
-             Expand-Archive -Force testdata/signed-wda.ipa.zip testdata/
+             Expand-Archive -Force signed-wda.ipa testdata/signed-wda.ipa
+             ls
+                 ls testdata
       - name: forward ngrok
         run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=$($env:NGROK_URL.Split(":")[0]) connectport=$($env:NGROK_URL.Split(":")[1])
         env:
