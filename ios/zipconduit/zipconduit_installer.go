@@ -179,7 +179,7 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		return err
 	}
 
-	init := newInitTransfer(ios.FixWindowsPaths(ipaFile))
+	init := newInitTransfer(ipaFile)
 	log.Debugf("sending inittransfer %+v", init)
 	bytes, err := conn.plistCodec.Encode(init)
 	if err != nil {
@@ -272,8 +272,7 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	if err != nil {
 		return err
 	}
-    log.Info("filename:"+filename)
-	log.Info("tmpdir:"+tmpdir)
+
 	// Using FileInfoHeader() above only uses the basename of the file. If we want
 	// to preserve the folder structure we can overwrite this with the full path.
 	var filenameForZip string
@@ -288,7 +287,6 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 			filenameForZip += "/"
 		}
 	}
-	log.Info("filenameforzip"+filenameForZip)
 
 	if info.IsDir() {
 		//write our "zip" header for a directory

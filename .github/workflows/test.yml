@@ -111,11 +111,7 @@ jobs:
           name: signed-wda
       - name: extract
         run: |
-          ls
-          ls testdata
-          unzip wda-signed.ipa -d testdata
-          ls
-          ls testdata
+          mv wda-signed.ipa testdata/signed-wda.ipa
       - name: compile
         run: go build
       - name: install socat
