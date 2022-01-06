@@ -1,18 +1,6 @@
 on:
-  push:
-  workflow_dispatch:
-    inputs:
-      ngrok:
-        description: 'ngrok host:port'
-        required: true
-        default: ''
-      udid:
-        description: 'device udid or blank for default device'
-        required: false
-        default: ''
-# run this locally to get a device exposed on ngrok
-# ngrok tcp 9999
-# socat TCP-LISTEN:9999,reuseaddr,fork UNIX-CONNECT:/var/run/usbmuxd
+  pull_request:
+
 name: Unit tests
 jobs:
   test_on_windows:
@@ -34,23 +22,8 @@ jobs:
         uses: actions/checkout@v2
       - name: compile
         run: go build
-
       - name: run unit tests
         run: go test -v -tags=fast ./...
-      - name: forward ngrok
-        if: ${{ github.event.inputs.ngrok }}
-        run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=$($env:NGROK_URL.Split(":")[0]) connectport=$($env:NGROK_URL.Split(":")[1])
-        env:
-          NGROK_PORT: ${{ github.event.inputs.ngrok }}
-      - name: test list
-        if: ${{ github.event.inputs.ngrok }}
-        run: go run main.go list
-      - name: install relative
-        if: ${{ github.event.inputs.ngrok }}
-        run: go run main.go install --path testdata\wda-signed-test.ipa --udid=8a4b8ae031a0565729e92b836e82bccc4540f8fd
-      - name: install absolute
-        if: ${{ github.event.inputs.ngrok }}
-        run: go run main.go install --path $PWD\testdata\wda-signed-test.ipa --udid=8a4b8ae031a0565729e92b836e82bccc4540f8fd
 
   test_on_linux:
     runs-on: ubuntu-latest
@@ -73,18 +46,4 @@ jobs:
         run: go build
       - name: run unit tests
         run: go test -v -tags=fast ./...
-        #integration piece
-      - name: test list
-        if: ${{ github.event.inputs.ngrok }}
-        run: go run main.go list
-      - name: install socat
-        if: ${{ github.event.inputs.ngrok }}
-        run: sudo apt install socat
-      - name: ngrok
-        if: ${{ github.event.inputs.ngrok }}
-        run: |
-          sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,user=mysql,group=mysql,mode=777 TCP-CONNECT:2.tcp.ngrok.io:18860&
-      - name: run go test
-        if: ${{ github.event.inputs.ngrok }}
-        run: go run main.go
 
