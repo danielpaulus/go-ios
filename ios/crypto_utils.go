@@ -9,10 +9,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"math/big"
-	"regexp"
-	"strings"
 	"time"
 )
 
@@ -90,18 +87,28 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 		return nil, nil, nil, nil, nil, err
 	}
 
+	deviceCertBytes, err := createDeviceCert(publicKeyBytes, rootCert, rootKeyPair)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	return certBytesToPEM(rootCertBytes), certBytesToPEM(hostCertBytes), certBytesToPEM(deviceCertBytes), savePEMKey(rootKeyPair), savePEMKey(hostKeyPair), nil
+}
+
+func createDeviceCert(publicKeyBytes []byte, rootCert *x509.Certificate, rootKeyPair *rsa.PrivateKey) ([]byte, error) {
 	block, _ := pem.Decode(publicKeyBytes)
 
 	if block == nil {
-		return nil, nil, nil, nil, nil, errors.New("failed to parse PEM block containing the public key")
+		return nil, errors.New("failed to parse PEM block containing the public key")
 	}
 
 	var devicePublicKey rsa.PublicKey
-	_, err1 := asn1.Unmarshal(block.Bytes, &devicePublicKey)
-	if err1 != nil {
-		return nil, nil, nil, nil, nil, err1
+	_, err := asn1.Unmarshal(block.Bytes, &devicePublicKey)
+	if err != nil {
+		return nil, err
 	}
-
+	var b big.Int
+	b.SetInt64(0)
 	deviceCertTemplate := x509.Certificate{
 		SerialNumber:          &b,
 		Subject:               pkix.Name{},
@@ -114,10 +121,10 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 	}
 
 	devicePublicKeyDigest, err := computeSKIKey(&devicePublicKey)
-
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, err
 	}
+
 	deviceCertTemplate.Extensions = append(deviceCertTemplate.Extensions, pkix.Extension{
 		Id:    []int{2, 5, 29, 14},
 		Value: devicePublicKeyDigest,
@@ -126,10 +133,14 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 
 	deviceCertBytes, err := x509.CreateCertificate(rand.Reader, &deviceCertTemplate, rootCert, &devicePublicKey, rootKeyPair)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, err
 	}
+	return deviceCertBytes, nil
+}
 
-	return certBytesToPEM(rootCertBytes), certBytesToPEM(hostCertBytes), certBytesToPEM(deviceCertBytes), savePEMKey(rootKeyPair), savePEMKey(hostKeyPair), nil
+type subjectPublicKeyInfo struct {
+	Algorithm        pkix.AlgorithmIdentifier
+	SubjectPublicKey asn1.BitString
 }
 
 func computeSKIKey(pub *rsa.PublicKey) ([]byte, error) {
@@ -148,34 +159,18 @@ func computeSKIKey(pub *rsa.PublicKey) ([]byte, error) {
 	return pubHash[:], nil
 }
 
-func toHexString(bytes []byte) string {
-	digestString := fmt.Sprintf("%x", bytes)
-	if len(digestString)%2 == 1 {
-		digestString = "0" + digestString
-	}
-	re := regexp.MustCompile("..")
-	digestString = strings.TrimRight(re.ReplaceAllString(digestString, "$0:"), ":")
-	digestString = strings.ToUpper(digestString)
-	return digestString
-}
-
-type subjectPublicKeyInfo struct {
-	Algorithm        pkix.AlgorithmIdentifier
-	SubjectPublicKey asn1.BitString
-}
-
 func certBytesToPEM(certBytes []byte) []byte {
 	pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
 	return pemCert
 }
 
 func savePEMKey(key *rsa.PrivateKey) []byte {
-	privkey_bytes := x509.MarshalPKCS1PrivateKey(key)
-	privkey_pem := pem.EncodeToMemory(
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(key)
+	privateKeyPem := pem.EncodeToMemory(
 		&pem.Block{
 			Type:  "RSA PRIVATE KEY",
-			Bytes: privkey_bytes,
+			Bytes: privateKeyBytes,
 		},
 	)
-	return (privkey_pem)
+	return privateKeyPem
 }
