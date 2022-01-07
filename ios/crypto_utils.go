@@ -13,14 +13,31 @@ import (
 	"time"
 )
 
-//This code could be a little nicer
-func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byte, []byte, error) {
-	reader := rand.Reader
-	bitSize := 2048
+const bitSize = 2048
 
-	rootKeyPair, err := rsa.GenerateKey(reader, bitSize)
+func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byte, []byte, error) {
+	rootKeyPair, rootCertBytes, rootCert, err := createRootCert()
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
+	}
+
+	hostKeyPair, hostCertBytes, err := createHostCert(rootCert, rootKeyPair)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	deviceCertBytes, err := createDeviceCert(publicKeyBytes, rootCert, rootKeyPair)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	return certBytesToPEM(rootCertBytes), certBytesToPEM(hostCertBytes), certBytesToPEM(deviceCertBytes), savePEMKey(rootKeyPair), savePEMKey(hostKeyPair), nil
+}
+
+func createRootCert() (*rsa.PrivateKey, []byte, *x509.Certificate, error) {
+	rootKeyPair, err := rsa.GenerateKey(rand.Reader, bitSize)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	var b big.Int
 	b.SetInt64(0)
@@ -36,7 +53,7 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 
 	digestString, err := computeSKIKey(&rootKeyPair.PublicKey)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// reminder: you cannot use the ExtraExtentions field here because for some reason
@@ -49,13 +66,18 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 
 	rootCertBytes, err := x509.CreateCertificate(rand.Reader, &rootCertTemplate, &rootCertTemplate, &rootKeyPair.PublicKey, rootKeyPair)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	rootCert, err := x509.ParseCertificate(rootCertBytes)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
+	return rootKeyPair, rootCertBytes, rootCert, nil
+}
 
+func createHostCert(rootCert *x509.Certificate, rootKeyPair *rsa.PrivateKey) (*rsa.PrivateKey, []byte, error) {
+	var b big.Int
+	b.SetInt64(0)
 	hostCertTemplate := x509.Certificate{
 		SerialNumber:          &b,
 		Subject:               pkix.Name{},
@@ -66,14 +88,14 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 		BasicConstraintsValid: true,
 		IsCA:                  false,
 	}
-	hostKeyPair, err := rsa.GenerateKey(reader, bitSize)
+	hostKeyPair, err := rsa.GenerateKey(rand.Reader, bitSize)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	hostdigestString, err := computeSKIKey(&hostKeyPair.PublicKey)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	hostCertTemplate.Extensions = append(hostCertTemplate.Extensions, pkix.Extension{
@@ -84,15 +106,9 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 
 	hostCertBytes, err := x509.CreateCertificate(rand.Reader, &hostCertTemplate, rootCert, &hostKeyPair.PublicKey, rootKeyPair)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, err
 	}
-
-	deviceCertBytes, err := createDeviceCert(publicKeyBytes, rootCert, rootKeyPair)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-
-	return certBytesToPEM(rootCertBytes), certBytesToPEM(hostCertBytes), certBytesToPEM(deviceCertBytes), savePEMKey(rootKeyPair), savePEMKey(hostKeyPair), nil
+	return hostKeyPair, hostCertBytes, nil
 }
 
 func createDeviceCert(publicKeyBytes []byte, rootCert *x509.Certificate, rootKeyPair *rsa.PrivateKey) ([]byte, error) {
