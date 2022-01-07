@@ -19,9 +19,9 @@ import (
 // I basically got this from cfgutil:
 // https://configautomation.com/cfgutil-man-page.html
 // here is how to turn a p12 into crt and key:
-// openssl pkcs12 -in organization.p12 -out daniel.pem -nodes -password pass:a
-// openssl x509 -outform DER -out organization.crt -in daniel.pem
-// openssl rsa -outform DER -out organization.key -in daniel.pem
+// openssl pkcs12 -in organization.p12 -out organization.pem -nodes -password pass:a
+// openssl x509 -outform DER -out organization.crt -in organization.pem
+// openssl rsa -outform DER -out organization.key -in organization.pem
 // then you can run:
 // cfgutil -K organization.key -C organization.crt pair
 func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) error {
