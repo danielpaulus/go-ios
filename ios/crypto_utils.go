@@ -39,9 +39,12 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 
 	digestString, err := computeSKIKey(&rootKeyPair.PublicKey)
 	if err != nil {
-		panic(err)
+		return nil, nil, nil, nil, nil, err
 	}
 
+	// reminder: you cannot use the ExtraExtentions field here because for some reason
+	// that created invalid certificates that throw errors when I try to parse them
+	// with golang.
 	rootCertTemplate.Extensions = append(rootCertTemplate.Extensions, pkix.Extension{
 		Id:    []int{2, 5, 29, 14},
 		Value: digestString,
@@ -53,7 +56,7 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 	}
 	rootCert, err := x509.ParseCertificate(rootCertBytes)
 	if err != nil {
-		panic("Failed to parse certificate:" + err.Error())
+		return nil, nil, nil, nil, nil, err
 	}
 
 	hostCertTemplate := x509.Certificate{
@@ -66,11 +69,16 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 		BasicConstraintsValid: true,
 		IsCA:                  false,
 	}
-	hostKeyPair, _ := rsa.GenerateKey(reader, bitSize)
+	hostKeyPair, err := rsa.GenerateKey(reader, bitSize)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
 	hostdigestString, err := computeSKIKey(&hostKeyPair.PublicKey)
 	if err != nil {
-		panic(err)
+		return nil, nil, nil, nil, nil, err
 	}
+
 	hostCertTemplate.Extensions = append(hostCertTemplate.Extensions, pkix.Extension{
 		Id:    []int{2, 5, 29, 14},
 		Value: hostdigestString,
@@ -111,22 +119,20 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 		return nil, nil, nil, nil, nil, err
 	}
 	deviceCertTemplate.Extensions = append(deviceCertTemplate.Extensions, pkix.Extension{
-
 		Id:    []int{2, 5, 29, 14},
 		Value: devicePublicKeyDigest,
 	},
 	)
 
-	deviceCert, err := x509.CreateCertificate(rand.Reader, &deviceCertTemplate, rootCert, &devicePublicKey, rootKeyPair)
+	deviceCertBytes, err := x509.CreateCertificate(rand.Reader, &deviceCertTemplate, rootCert, &devicePublicKey, rootKeyPair)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
 
-	return certBytesToPEM(rootCertBytes), certBytesToPEM(hostCertBytes), certBytesToPEM(deviceCert), savePEMKey(rootKeyPair), savePEMKey(hostKeyPair), nil
+	return certBytesToPEM(rootCertBytes), certBytesToPEM(hostCertBytes), certBytesToPEM(deviceCertBytes), savePEMKey(rootKeyPair), savePEMKey(hostKeyPair), nil
 }
 
 func computeSKIKey(pub *rsa.PublicKey) ([]byte, error) {
-
 	encodedPub, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
 		return nil, err
@@ -140,9 +146,6 @@ func computeSKIKey(pub *rsa.PublicKey) ([]byte, error) {
 
 	pubHash := sha1.Sum(subPKI.SubjectPublicKey.Bytes)
 	return pubHash[:], nil
-	//digestString := toHexString(pubHash[:])
-
-	//return []byte(digestString), nil
 }
 
 func toHexString(bytes []byte) string {

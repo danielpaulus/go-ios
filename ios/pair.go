@@ -16,10 +16,14 @@ import (
 //a supervised device without the need for user interaction (the trust popup)
 //Arguments are the device, the p12 files raw contents and the password used for the p12
 //file.
+// I basically got this from cfgutil:
 // https://configautomation.com/cfgutil-man-page.html
-// openssl pkcs12 -in daniel.p12 -out daniel.pem -nodes -password pass:a
-// openssl x509 -outform DER -out daniel.crt -in daniel.pem
-// openssl rsa -outform DER -out daniel.key -in daniel.pem
+// here is how to turn a p12 into crt and key:
+// openssl pkcs12 -in organization.p12 -out daniel.pem -nodes -password pass:a
+// openssl x509 -outform DER -out organization.crt -in daniel.pem
+// openssl rsa -outform DER -out organization.key -in daniel.pem
+// then you can run:
+// cfgutil -K organization.key -C organization.crt pair
 func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) error {
 	supervisedPrivateKey, cert, err := pkcs12.Decode(p12bytes, p12Password)
 	if err != nil {
