@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
 	ios "github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/house_arrest"
@@ -135,6 +134,11 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionWithPro
 	return val, nil
 }
 
+func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSession(pid uint64, version uint64) error {
+	_, err := xdc.IDEDaemonProxy.MethodCall("_IDE_initiateControlSessionForTestProcessID:protocolVersion:", pid, version)
+	return err
+}
+
 func startExecutingTestPlanWithProtocolVersion(channel *dtx.Channel, protocolVersion uint64) error {
 	rply, err := channel.MethodCall("_IDE_startExecutingTestPlanWithProtocolVersion:", protocolVersion)
 	if err != nil {
@@ -189,7 +193,7 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 	if shouldAck {
 		dtx.SendAckIfNeeded(p.dtxConnection, m)
 	}
-	log.Debugf("dispatcher received: %s", m.String())
+	log.Tracef("dispatcher received: %s", m.String())
 }
 
 func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
@@ -237,7 +241,7 @@ var closedChan = make(chan interface{})
 
 func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, xctestConfigFileName string,
 	device ios.DeviceEntry, conn *dtx.Connection, args []string, env []string) error {
-	testSessionId, _, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
 	}
@@ -303,94 +307,30 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 
 }
 
-func RunXCUIWithBundleIds(bundleID string, testRunnerBundleID string, xctestConfigFileName string, device ios.DeviceEntry, wdaargs []string, wdaenv []string) error {
+func RunXCUIWithBundleIds(
+	bundleID string,
+	testRunnerBundleID string,
+	xctestConfigFileName string,
+	device ios.DeviceEntry,
+	wdaargs []string,
+	wdaenv []string,
+) error {
+	version, err := ios.GetProductVersion(device)
+	if err != nil {
+		return err
+	}
+	log.Debugf("%v", version)
+	if version.LessThan(ios.IOS14()) {
+		log.Infof("iOS version: %s detected, running with ios11 support", version)
+		return RunXCUIWithBundleIds11(bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
+	}
 
-	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
-	if err == nil {
+
+		conn, err := dtx.NewConnection(device, testmanagerdiOS14)
+		if err != nil {
+			return err
+		}
 		return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)
-	}
-	log.Debugf("Failed connecting to %s with %v, trying %s", testmanagerdiOS14, err, testmanagerd)
-
-	conn, err = dtx.NewConnection(device, testmanagerd)
-	if err != nil {
-		return err
-	}
-
-	testSessionId, _, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
-
-	caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
-	if err != nil {
-		log.Debug("expected err", err)
-		resp, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithProtocolVersion(36)
-		if err != nil {
-			return err
-		}
-		log.Debugf("got protocolversion:%d", resp)
-	}
-
-	conn2, err := dtx.NewConnection(device, testmanagerd)
-	if err != nil {
-		return err
-	}
-	defer conn2.Close()
-	log.Debug("connections ready")
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig)
-	ideDaemonProxy2.ideInterface.testConfig = testConfig
-
-	log.Debug(caps)
-	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
-		"XCTIssue capability":     uint64(1),
-		"skipped test capability": uint64(1),
-		"test timeout capability": uint64(1),
-	}}
-
-	caps2, err := ideDaemonProxy2.daemonConnection.initiateSessionWithIdentifierAndCaps(testSessionId, localCaps)
-	if err != nil {
-		log.Debugf("error initiateSessionWithIdentifierAndCaps, %+v", err)
-		protocol, err := ideDaemonProxy2.daemonConnection.initiateSessionWithIdentifier(testSessionId, 36)
-		if err != nil {
-			return err
-		}
-		log.Debugf("protocol version received: %d", protocol)
-	}
-	log.Debug(caps2)
-	pControl, err := instruments.NewProcessControl(device)
-	if err != nil {
-		return err
-	}
-	defer pControl.Close()
-
-	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, wdaargs, wdaenv)
-	if err != nil {
-		return err
-	}
-	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
-
-	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "emty"})
-
-	time.Sleep(time.Second)
-
-	success, _ := ideDaemonProxy.daemonConnection.authorizeTestSessionWithProcessID(pid)
-	log.Debugf("authorizing test session for pid %d successful %t", pid, success)
-	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 36)
-	if err != nil {
-		log.Error(err)
-	}
-	<-closeChan
-	log.Infof("Killing WebDriverAgent with pid %d ...", pid)
-	err = pControl.KillProcess(pid)
-	if err != nil {
-		return err
-	}
-	log.Info("WDA killed with success")
-	var signal interface{}
-	closedChan <- signal
-	return nil
 
 }
 
@@ -459,42 +399,37 @@ func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath st
 
 }
 
-func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, semver.Version, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
-	versionResp, err := ios.GetValues(device)
-	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
-	}
-	version := versionResp.Value.ProductVersion
+func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
 	testSessionID := uuid.New()
-
-	v, err := semver.NewVersion(version)
-	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
-	}
 	installationProxy, err := installationproxy.New(device)
-	defer installationProxy.Close()
 	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
+	defer installationProxy.Close()
+
 	apps, err := installationProxy.BrowseUserApps()
 	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
+
 	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
 	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
+	log.Debugf("app info found: %+v", info)
+
 	houseArrestService, err := house_arrest.New(device, testRunnerBundleID)
 	defer houseArrestService.Close()
 	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
+	log.Debugf("creating test config")
 	testConfigPath, testConfig, err := createTestConfigOnDevice(testSessionID, info, houseArrestService, xctestConfigFileName)
 	if err != nil {
-		return uuid.UUID{}, semver.Version{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
 
-	return testSessionID, *v, testConfigPath, testConfig, info, nil
+	return testSessionID, testConfigPath, testConfig, info, nil
 }
 
 func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *house_arrest.Connection, xctestConfigFileName string) (string, nskeyedarchiver.XCTestConfiguration, error) {

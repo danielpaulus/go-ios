@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"runtime"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -12,7 +13,7 @@ import (
 
 // DeviceConnectionInterface contains a physical network connection to a usbmuxd socket.
 type DeviceConnectionInterface interface {
-	Close()
+	Close() error
 	Send(message []byte) error
 	Reader() io.Reader
 	Writer() io.Writer
@@ -44,19 +45,26 @@ func NewDeviceConnectionWithConn(conn net.Conn) *DeviceConnection {
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
 func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error {
-	c, err := net.Dial("unix", socketAddress)
+	var network, address string
+	switch runtime.GOOS {
+	case "windows":
+		network, address = "tcp", "127.0.0.1:27015"
+	default:
+		network, address = "unix", socketAddress
+	}
+	c, err := net.Dial(network, address)
 	if err != nil {
 		return err
 	}
-	log.Debug("Opening connection:", &c)
+	log.Tracef("Opening connection: %v", &c)
 	conn.c = c
 	return nil
 }
 
 //Close closes the network connection
-func (conn *DeviceConnection) Close() {
-	log.Debug("Closing connection:", &conn.c)
-	conn.c.Close()
+func (conn *DeviceConnection) Close() error{
+	log.Tracef("Closing connection: %v", &conn.c)
+	return conn.c.Close()
 }
 
 //Send sends a message
@@ -185,7 +193,7 @@ func (conn *DeviceConnection) createClientTLSConn(pairRecord PairRecord) (*tls.C
 		return nil, err
 	}
 
-	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
+	log.Tracef("enable session ssl on %v and wrap with tlsConn: %v",&conn.c, &tlsConn)
 	return tlsConn, nil
 }
 
@@ -211,7 +219,7 @@ func (conn *DeviceConnection) createServerTLSConn(pairRecord PairRecord) (*tls.C
 		log.Info("Handshake error", err)
 		return nil, err
 	}
-	log.Debug("enable session ssl on", &conn.c, " and wrap with tlsConn", &tlsConn)
+	log.Tracef("enable session ssl on %v and wrap with tlsConn: %v",&conn.c, &tlsConn)
 	return tlsConn, nil
 }
 

@@ -107,6 +107,10 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 		log.Error("Could not listen on usbmuxd socket, do I have access permissions?", err)
 		return err
 	}
+	if err := os.Chmod(ios.DefaultUsbmuxdSocket, 0777); err != nil {
+		log.Error("Could not change permission on usbmuxd socket", err)
+		return err
+	}
 
 	for {
 		conn, err := listener.Accept()

@@ -23,6 +23,10 @@ type AttachedMessage struct {
 	Properties  DeviceProperties
 }
 
+func (a AttachedMessage) DeviceEntry() DeviceEntry {
+	return DeviceEntry{DeviceID: a.DeviceID, MessageType: "Attached", Properties: a.Properties}
+}
+
 func attachedFromBytes(plistBytes []byte) (AttachedMessage, error) {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var obj AttachedMessage

@@ -1,31 +1,37 @@
-# go-ios
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/daniel1paulus.svg?style=social&label=Follow%20%40daniel1paulus)](https://twitter.com/daniel1paulus)
+# Go-iOS
+Welcome 👋
 
-Go-iOS was inspired by the wonderful https://www.libimobiledevice.org
-It can do all of what libimobiledevice can do and in addition also run XCUITest, launch and kill apps and much more.
-It is written in golang, so you can control iOS devices using fast CLI tools :-)
+The goal of this project is to provide a stable and production ready opensource solution to automate iOS device on Linux, Windows and Mac OS X. I am delighted to announce that a few companies including [headspin.io](https://www.headspin.io/) will use or are using go-iOS. 
+If you are interested in controlling iOS devices, please also check out https://github.com/nanoscopic/controlfloor written by my good friend @nanoscopic 
 
-Highlights:
+Follow my twitter for updates or check out my medium blog: https://daniel-paulus.medium.com/
 
-- run XCTests including WebdriverAgent on Linux, Windows and Mac
-- start and stop apps
-- Use a debug proxy to reverse engineer every tool Mac OSX has, so you can contrib to go-ios or build your own
-- use Accessibility Inspector APIs
+If you are interested in using go-iOS please get in touch on LinkedIn, Twitter or the Github discussions above, I always love to hear what people are doing with it. 
+
+If you miss something your Mac can do but go-iOS can't, just request a feature in the issues tab.
+
+# Design principles:
+1. Using golang to compile static, small and fast binaries for all platforms very easily. 
+   
+   *Build Manual*: Install golang and run `go build`
+2. All output as JSON so you can easily use go-iOS form any other programming language
+3. Everything is a module, you can use go-iOS in golang projects as a module dependency easily
+
+# Features:
+ Most notable:
+ - Install apps zipped as ipa or unzipped from their .app folder `ios install --path=/path/to/app`
+ - Run XCTests including WebdriverAgent on Linux, Windows and Mac
+ - Start and Stop apps
+ - Use a debug proxy to reverse engineer every tool Mac OSX has, so you can contrib to go-ios or build      your own
+ - Pair devices without manual tapping on a popup
+ - Install developer images automatically by running `ios image auto`
+ - Set thermal states and network emulation on the device with the `ios devicestate` command
+
+All features:
 
 ```
-Options:
-  -v --verbose   Enable Debug Logging.
-  -t --trace     Enable Trace Logging (dump every message).
-  --nojson       Disable JSON output (default).
-  -h --help      Show this screen.
-  --udid=<udid>  UDID of the device.
-
-The commands work as following:
-	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command. 
-	By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
-	Specify -v for debug logging and -t for dumping every message.
-
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios info [options]                                                 Prints a dump of Lockdown getValues.
@@ -68,4 +74,5 @@ The commands work as following:
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
+
 ```

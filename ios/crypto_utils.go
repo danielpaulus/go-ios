@@ -9,21 +9,35 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"math/big"
-	"regexp"
-	"strings"
 	"time"
 )
 
-//This code could be a little nicer
-func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byte, []byte, error) {
-	reader := rand.Reader
-	bitSize := 2048
+const bitSize = 2048
 
-	rootKeyPair, err := rsa.GenerateKey(reader, bitSize)
+func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byte, []byte, error) {
+	rootKeyPair, rootCertBytes, rootCert, err := createRootCert()
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
+	}
+
+	hostKeyPair, hostCertBytes, err := createHostCert(rootCert, rootKeyPair)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	deviceCertBytes, err := createDeviceCert(publicKeyBytes, rootCert, rootKeyPair)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	return certBytesToPEM(rootCertBytes), certBytesToPEM(hostCertBytes), certBytesToPEM(deviceCertBytes), savePEMKey(rootKeyPair), savePEMKey(hostKeyPair), nil
+}
+
+func createRootCert() (*rsa.PrivateKey, []byte, *x509.Certificate, error) {
+	rootKeyPair, err := rsa.GenerateKey(rand.Reader, bitSize)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	var b big.Int
 	b.SetInt64(0)
@@ -37,18 +51,33 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 		IsCA:                  true,
 	}
 
-	digestString, _ := computeSKIKey(&rootKeyPair.PublicKey)
+	digestString, err := computeSKIKey(&rootKeyPair.PublicKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
+	// reminder: you cannot use the ExtraExtentions field here because for some reason
+	// that created invalid certificates that throw errors when I try to parse them
+	// with golang.
 	rootCertTemplate.Extensions = append(rootCertTemplate.Extensions, pkix.Extension{
 		Id:    []int{2, 5, 29, 14},
 		Value: digestString,
 	})
 
-	rootCert, err := x509.CreateCertificate(rand.Reader, &rootCertTemplate, &rootCertTemplate, &rootKeyPair.PublicKey, rootKeyPair)
+	rootCertBytes, err := x509.CreateCertificate(rand.Reader, &rootCertTemplate, &rootCertTemplate, &rootKeyPair.PublicKey, rootKeyPair)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, err
 	}
+	rootCert, err := x509.ParseCertificate(rootCertBytes)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return rootKeyPair, rootCertBytes, rootCert, nil
+}
 
+func createHostCert(rootCert *x509.Certificate, rootKeyPair *rsa.PrivateKey) (*rsa.PrivateKey, []byte, error) {
+	var b big.Int
+	b.SetInt64(0)
 	hostCertTemplate := x509.Certificate{
 		SerialNumber:          &b,
 		Subject:               pkix.Name{},
@@ -59,25 +88,43 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 		BasicConstraintsValid: true,
 		IsCA:                  false,
 	}
-	hostKeyPair, _ := rsa.GenerateKey(reader, bitSize)
-	hostdigestString, _ := computeSKIKey(&hostKeyPair.PublicKey)
+	hostKeyPair, err := rsa.GenerateKey(rand.Reader, bitSize)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	hostdigestString, err := computeSKIKey(&hostKeyPair.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	hostCertTemplate.Extensions = append(hostCertTemplate.Extensions, pkix.Extension{
 		Id:    []int{2, 5, 29, 14},
 		Value: hostdigestString,
 	},
 	)
+
+	hostCertBytes, err := x509.CreateCertificate(rand.Reader, &hostCertTemplate, rootCert, &hostKeyPair.PublicKey, rootKeyPair)
+	if err != nil {
+		return nil, nil, err
+	}
+	return hostKeyPair, hostCertBytes, nil
+}
+
+func createDeviceCert(publicKeyBytes []byte, rootCert *x509.Certificate, rootKeyPair *rsa.PrivateKey) ([]byte, error) {
 	block, _ := pem.Decode(publicKeyBytes)
 
 	if block == nil {
-		return nil, nil, nil, nil, nil, errors.New("failed to parse PEM block containing the public key")
+		return nil, errors.New("failed to parse PEM block containing the public key")
 	}
 
 	var devicePublicKey rsa.PublicKey
-	_, err1 := asn1.Unmarshal(block.Bytes, &devicePublicKey)
-	if err1 != nil {
-		return nil, nil, nil, nil, nil, err1
+	_, err := asn1.Unmarshal(block.Bytes, &devicePublicKey)
+	if err != nil {
+		return nil, err
 	}
-
+	var b big.Int
+	b.SetInt64(0)
 	deviceCertTemplate := x509.Certificate{
 		SerialNumber:          &b,
 		Subject:               pkix.Name{},
@@ -88,32 +135,31 @@ func createRootCertificate(publicKeyBytes []byte) ([]byte, []byte, []byte, []byt
 		BasicConstraintsValid: true,
 		IsCA:                  false,
 	}
+
 	devicePublicKeyDigest, err := computeSKIKey(&devicePublicKey)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, err
 	}
-	deviceCertTemplate.Extensions = append(deviceCertTemplate.Extensions, pkix.Extension{
 
+	deviceCertTemplate.Extensions = append(deviceCertTemplate.Extensions, pkix.Extension{
 		Id:    []int{2, 5, 29, 14},
 		Value: devicePublicKeyDigest,
 	},
 	)
 
-	hostCert, err := x509.CreateCertificate(rand.Reader, &hostCertTemplate, &rootCertTemplate, &hostKeyPair.PublicKey, rootKeyPair)
+	deviceCertBytes, err := x509.CreateCertificate(rand.Reader, &deviceCertTemplate, rootCert, &devicePublicKey, rootKeyPair)
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, err
 	}
+	return deviceCertBytes, nil
+}
 
-	deviceCert, err := x509.CreateCertificate(rand.Reader, &deviceCertTemplate, &rootCertTemplate, &devicePublicKey, rootKeyPair)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	return certBytesToPEM(rootCert), certBytesToPEM(hostCert), certBytesToPEM(deviceCert), savePEMKey(rootKeyPair), savePEMKey(hostKeyPair), nil
-
+type subjectPublicKeyInfo struct {
+	Algorithm        pkix.AlgorithmIdentifier
+	SubjectPublicKey asn1.BitString
 }
 
 func computeSKIKey(pub *rsa.PublicKey) ([]byte, error) {
-
 	encodedPub, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
 		return nil, err
@@ -126,26 +172,7 @@ func computeSKIKey(pub *rsa.PublicKey) ([]byte, error) {
 	}
 
 	pubHash := sha1.Sum(subPKI.SubjectPublicKey.Bytes)
-
-	digestString := toHexString(pubHash[:])
-
-	return []byte(digestString), nil
-}
-
-func toHexString(bytes []byte) string {
-	digestString := fmt.Sprintf("%x", bytes)
-	if len(digestString)%2 == 1 {
-		digestString = "0" + digestString
-	}
-	re := regexp.MustCompile("..")
-	digestString = strings.TrimRight(re.ReplaceAllString(digestString, "$0:"), ":")
-	digestString = strings.ToUpper(digestString)
-	return digestString
-}
-
-type subjectPublicKeyInfo struct {
-	Algorithm        pkix.AlgorithmIdentifier
-	SubjectPublicKey asn1.BitString
+	return pubHash[:], nil
 }
 
 func certBytesToPEM(certBytes []byte) []byte {
@@ -154,9 +181,12 @@ func certBytesToPEM(certBytes []byte) []byte {
 }
 
 func savePEMKey(key *rsa.PrivateKey) []byte {
-	var privateKey = &pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(key),
-	}
-	return pem.EncodeToMemory(privateKey)
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(key)
+	privateKeyPem := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: privateKeyBytes,
+		},
+	)
+	return privateKeyPem
 }
