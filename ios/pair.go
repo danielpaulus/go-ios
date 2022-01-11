@@ -69,39 +69,42 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 		return err
 	}
 
-	challengeBytes, err := extractPairingChallenge(resp)
-	if err != nil {
-		return err
-	}
-	sd, err := pkcs7.NewSignedData(challengeBytes)
+	var escrow []byte
+	escrow = getEscrowBag(resp)
+	if escrow == nil {
+		challengeBytes, err := extractPairingChallenge(resp)
+		if err != nil {
+			return err
+		}
+		sd, err := pkcs7.NewSignedData(challengeBytes)
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+		err = sd.AddSigner(cert, supervisedPrivateKey.(crypto.Signer), pkcs7.SignerInfoConfig{})
+		if err != nil {
+			return err
+		}
+		der, err := sd.Finish()
+		if err != nil {
+			return err
+		}
+		options2 := map[string]interface{}{"ChallengeResponse": der}
+		request = map[string]interface{}{"Label": "go-ios", "ProtocolVersion": "2", "Request": "Pair", "PairRecord": pairRecordData, "PairingOptions": options2}
+		err = lockdown.Send(request)
+		if err != nil {
+			return err
+		}
+		resp, err = lockdown.ReadMessage()
+		if err != nil {
+			return err
+		}
+		respMap, err := ParsePlist(resp)
+		if err != nil {
+			return err
+		}
+		escrow = respMap["EscrowBag"].([]byte)
 	}
-	err = sd.AddSigner(cert, supervisedPrivateKey.(crypto.Signer), pkcs7.SignerInfoConfig{})
-	if err != nil {
-		return err
-	}
-	der, err := sd.Finish()
-	if err != nil {
-		return err
-	}
-	options2 := map[string]interface{}{"ChallengeResponse": der}
-	request = map[string]interface{}{"Label": "go-ios", "ProtocolVersion": "2", "Request": "Pair", "PairRecord": pairRecordData, "PairingOptions": options2}
-	err = lockdown.Send(request)
-	if err != nil {
-		return err
-	}
-	resp, err = lockdown.ReadMessage()
-	if err != nil {
-		return err
-	}
-	respMap, err := ParsePlist(resp)
-	if err != nil {
-		return err
-	}
-	escrow := respMap["EscrowBag"].([]byte)
-
 	usbmuxConn, err = NewUsbMuxConnectionSimple()
 	defer usbmuxConn.Close()
 	if err != nil {
@@ -116,6 +119,22 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 		return errors.New("pairing failed unexpectedly")
 	}
 	return nil
+}
+
+func getEscrowBag(resp []byte) []byte {
+	respPlist, err := ParsePlist(resp)
+	if err != nil {
+		return nil
+	}
+	errormsgintf, ok := respPlist["EscrowBag"]
+	if !ok {
+		return nil
+	}
+	errormsg, ok := errormsgintf.([]byte)
+	if !ok {
+		return nil
+	}
+	return errormsg
 }
 
 func extractPairingChallenge(resp []byte) ([]byte, error) {
