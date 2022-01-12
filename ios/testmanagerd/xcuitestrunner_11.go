@@ -6,6 +6,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	log "github.com/sirupsen/logrus"
 	"strings"
+	"context"
 )
 
 func RunXCUIWithBundleIds11(
@@ -14,7 +15,9 @@ func RunXCUIWithBundleIds11(
 	xctestConfigFileName string,
 	device ios.DeviceEntry,
 	args []string,
-	env []string) error {
+	env []string,
+	quit context.Context) error {
+	localQuit, localCancel := context.WithCancel(quit)
 	log.Debugf("set up xcuitest")
 	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
@@ -23,7 +26,7 @@ func RunXCUIWithBundleIds11(
 	log.Debugf("test session setup ok")
 	conn, err := dtx.NewConnection(device, testmanagerd)
 	defer conn.Close()
-	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
+	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, localCancel)
 
 	conn2, err := dtx.NewConnection(device, testmanagerd)
 	if err != nil {
@@ -31,7 +34,7 @@ func RunXCUIWithBundleIds11(
 	}
 	defer conn2.Close()
 	log.Debug("connections ready")
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig)
+	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig, localCancel)
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 	//TODO: fixme
 	protocolVersion := uint64(25)
@@ -65,15 +68,17 @@ func RunXCUIWithBundleIds11(
 		log.Error(err)
 	}
 	log.Debugf("done starting test")
-	<-closeChan
+	<-localQuit.Done()
 	log.Infof("Killing WebDriverAgent with pid %d ...", pid)
 	err = pControl.KillProcess(pid)
 	if err != nil {
 		return err
 	}
+	/*
 	log.Info("WDA killed with success")
 	var signal interface{}
 	closedChan <- signal
+	*/
 	return nil
 }
 

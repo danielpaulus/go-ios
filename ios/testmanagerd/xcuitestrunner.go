@@ -1,6 +1,7 @@
 package testmanagerd
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strings"
@@ -163,6 +164,7 @@ type ProxyDispatcher struct {
 	testRunnerReadyWithCapabilities dtx.MethodWithResponse
 	dtxConnection                   *dtx.Connection
 	id                              string
+	cancel				context.CancelFunc
 }
 
 func (p ProxyDispatcher) Dispatch(m dtx.Message) {
@@ -185,6 +187,9 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			messageBytes, _ := dtx.Encode(m.Identifier, 1, m.ChannelCode, false, dtx.ResponseWithReturnValueInPayload, payload, dtx.NewPrimitiveDictionary())
 			log.Debug("sending response for capabs")
 			p.dtxConnection.Send(messageBytes)
+		case "_XCT_didFailToBootstrapWithError:":
+			log.Debug("failed to bootstrap")
+			p.cancel()
 
 		default:
 			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")
@@ -196,10 +201,10 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 	log.Tracef("dispatcher received: %s", m.String())
 }
 
-func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
+func newDtxProxy(dtxConnection *dtx.Connection, cancel context.CancelFunc) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
-	proxyDispatcher := ProxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection}
+	proxyDispatcher := ProxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection, cancel: cancel}
 	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, proxyDispatcher)
 	ideInterface := XCTestManager_IDEInterface{IDEDaemonProxy: IDEDaemonProxy, testBundleReadyChannel: testBundleReadyChannel}
 
@@ -211,10 +216,10 @@ func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
 	}
 }
 
-func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration) dtxproxy {
+func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration, cancel context.CancelFunc) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
-	proxyDispatcher := ProxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection, testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig)}
+	proxyDispatcher := ProxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection, testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig), cancel: cancel}
 	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, proxyDispatcher)
 	ideInterface := XCTestManager_IDEInterface{IDEDaemonProxy: IDEDaemonProxy, testConfig: testConfig, testBundleReadyChannel: testBundleReadyChannel}
 
@@ -231,22 +236,25 @@ const testmanagerdiOS14 = "com.apple.testmanagerd.lockdown.secure"
 
 const testBundleSuffix = "UITests.xctrunner"
 
-func RunXCUITest(bundleID string, device ios.DeviceEntry) error {
+func RunXCUITest(bundleID string, device ios.DeviceEntry, quit context.Context) error {
 	testRunnerBundleID := bundleID + testBundleSuffix
-	return RunXCUIWithBundleIds(bundleID, testRunnerBundleID, "", device, nil, nil)
+	return RunXCUIWithBundleIds(bundleID, testRunnerBundleID, "", device, nil, nil, quit)
 }
 
 var closeChan = make(chan interface{})
 var closedChan = make(chan interface{})
 
 func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, xctestConfigFileName string,
-	device ios.DeviceEntry, conn *dtx.Connection, args []string, env []string) error {
+	device ios.DeviceEntry, conn *dtx.Connection, args []string, env []string, mainQuit context.Context) error {
+
+	localQuit, localCancel := context.WithCancel(mainQuit)
+
 	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
+	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, localCancel)
 
 	conn2, err := dtx.NewConnection(device, testmanagerdiOS14)
 	if err != nil {
@@ -254,7 +262,7 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 	}
 	defer conn2.Close()
 	log.Debug("connections ready")
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig)
+	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig, localCancel)
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 	caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
 	if err != nil {
@@ -294,7 +302,7 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 	if err != nil {
 		log.Error(err)
 	}
-	<-closeChan
+	<-localQuit.Done()
 	log.Infof("Killing WebDriverAgent with pid %d ...", pid)
 	err = pControl.KillProcess(pid)
 	if err != nil {
@@ -314,7 +322,7 @@ func RunXCUIWithBundleIds(
 	device ios.DeviceEntry,
 	wdaargs []string,
 	wdaenv []string,
-) error {
+	quit context.Context) error {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
 		return err
@@ -322,7 +330,7 @@ func RunXCUIWithBundleIds(
 	log.Debugf("%v", version)
 	if version.LessThan(ios.IOS14()) {
 		log.Infof("iOS version: %s detected, running with ios11 support", version)
-		return RunXCUIWithBundleIds11(bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
+		return RunXCUIWithBundleIds11(bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv, quit)
 	}
 
 
@@ -330,7 +338,7 @@ func RunXCUIWithBundleIds(
 		if err != nil {
 			return err
 		}
-		return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)
+		return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv, quit)
 
 }
 
