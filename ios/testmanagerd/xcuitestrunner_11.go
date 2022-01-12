@@ -74,8 +74,8 @@ func RunXCUIWithBundleIds11(
 	if err != nil {
 		return err
 	}
-	/*
 	log.Info("WDA killed with success")
+	/*
 	var signal interface{}
 	closedChan <- signal
 	*/

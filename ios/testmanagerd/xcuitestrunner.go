@@ -309,8 +309,10 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 		return err
 	}
 	log.Info("WDA killed with success")
+	/*
 	var signal interface{}
 	closedChan <- signal
+	*/
 	return nil
 
 }
