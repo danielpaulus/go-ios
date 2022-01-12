@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
@@ -420,8 +421,17 @@ The commands work as following:
 
 	b, _ = arguments.Bool("runtest")
 	if b {
+		quit, cancel := context.WithCancel(context.Background())
+		go func() {
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+			signal := <-c
+			log.Infof("os signal:%d received, closing..", signal)
+			cancel()
+		}()
+
 		bundleID, _ := arguments.String("<bundleID>")
-		err := testmanagerd.RunXCUITest(bundleID, device)
+		err := testmanagerd.RunXCUITest(bundleID, device, quit)
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 		}
@@ -445,25 +455,33 @@ The commands work as following:
 			log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Error("please specify either NONE of bundleid, testbundleid and xctestconfig or ALL of them. At least one was empty.")
 			return
 		}
+		quit, cancel := context.WithCancel(context.Background())
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 		go func() {
-			err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
-
-			if err != nil {
-				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
-			}
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+			signal := <-c
+			log.Infof("os signal:%d received, closing..", signal)
+			cancel()
+			signal = <-c
+			log.Infof("os signal:%d received. force kill..", signal)
+			os.Exit(1)
 		}()
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		signal := <-c
-		log.Infof("os signal:%d received, closing..", signal)
 
+		err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, quit)
+
+		if err != nil {
+			log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
+		}
+
+		/*
 		err := testmanagerd.CloseXCUITestRunner()
 		if err != nil {
 			log.Error("Failed closing wda-testrunner")
 			os.Exit(1)
 		}
 		log.Info("Done Closing")
+		*/
 		return
 	}
 
