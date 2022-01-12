@@ -378,7 +378,7 @@ func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath st
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"XCTestBundlePath":                testBundlePath,
-		"XCTestConfigurationFilePath":     "",
+		"XCTestConfigurationFilePath":     xctestConfigPath,
 		"XCTestSessionIdentifier":         sessionIdentifier,
 	}
 
