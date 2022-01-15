@@ -1,4 +1,6 @@
-package main
+package ios
+
+import "io"
 
 /**
 type DeviceConnectionInterface interface {
@@ -13,4 +15,16 @@ type DeviceConnectionInterface interface {
 	DisableSessionSSL()
 	Conn() net.Conn
 }
- */
+*/
+
+type JSDeviceConnection struct {
+}
+
+func (connection JSDeviceConnection) Send(message []byte) error {
+	_, err := connection.Writer().Write(message)
+	return err
+}
+
+func (connection JSDeviceConnection) Writer() io.Writer {
+
+}

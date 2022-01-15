@@ -1,4 +1,4 @@
-package main
+package ios
 //taken from
 // https://github.com/calebdoxsey/tutorials/blob/master/talks/2018-01-30--extending-gopherjs/example-08/client/io.go
 import (

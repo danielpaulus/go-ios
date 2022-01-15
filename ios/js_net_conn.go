@@ -1,4 +1,4 @@
-package main
+package ios
 
 import (
 	"github.com/gopherjs/gopherjs/js"
