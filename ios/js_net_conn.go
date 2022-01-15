@@ -37,7 +37,6 @@ func (c *wsconn) Read(b []byte) (n int, err error) {
 }
 
 func (c *wsconn) Write(b []byte) (n int, err error) {
-	//buf := js.NewArrayBuffer(b)
 	log.Tracef("before writing: %x", b)
 	c.ws.Call("write", b)
 	log.Tracef("after writing")
@@ -45,7 +44,9 @@ func (c *wsconn) Write(b []byte) (n int, err error) {
 }
 
 func (c *wsconn) Close() error {
-	c.ws.Call("close")
+	log.Tracef("closing conn..")
+	c.ws.Call("destroy")
+	log.Tracef("conn closed")
 	return nil
 }
 

@@ -23,24 +23,6 @@ type DeviceConnectionInterface interface {
 	Conn() net.Conn
 }
 
-func traceWS(ws *js.Object) {
-	ws.Call("addEventListener", "open", func(evt *js.Object) {
-		js.Global.Get("console").Call("log", "open", evt)
-	})
-	ws.Call("addEventListener", "message", func(evt *js.Object) {
-		enc := js.Global.Get("TextDecoder").New()
-		msg := enc.Call("decode", evt.Get("data"))
-
-		js.Global.Get("console").Call("log", "message", msg)
-	})
-	ws.Call("addEventListener", "error", func(evt *js.Object) {
-		js.Global.Get("console").Call("log", "error", evt)
-	})
-	ws.Call("addEventListener", "close", func(evt *js.Object) {
-		js.Global.Get("console").Call("log", "close", evt)
-	})
-}
-
 //DeviceConnection wraps the net.Conn to the ios Device and has support for
 //switching Codecs and enabling SSL
 type DeviceConnection struct {
@@ -71,18 +53,8 @@ func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error
 	}
 
 	log.Info("not using", network, address)
-	js.Global.Get("console").Call("log", "here")
-	/*
-		var client = net.createConnection("/tmp/mysocket");
-	*/
-
-	//ws := js.Global.Get("WebSocket").New("ws://" + host + ":5000/dial/" + port)
 	ws := js.Global.Call("require","net").Call("createConnection", socketAddress)
-
-	log.Info(js.Global.Get("JSON").Call("stringify", ws).String())
-	//traceWS(ws) // OMIT
 	conn.c = newWSConn(ws)
-
 	return nil
 }
 

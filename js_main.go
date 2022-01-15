@@ -8,14 +8,14 @@ import (
 
 func main() {
 	log.SetOutput(consoleWriter{})
-log.SetLevel(log.TraceLevel)
+	//log.SetLevel(log.TraceLevel)
 	printDeviceList()
 
 }
 
 type consoleWriter struct {
-
 }
+
 func (c consoleWriter) Write(msg []byte) (int, error) {
 	js.Global.Get("console").Call("log", string(msg))
 	return len(msg), nil
@@ -24,6 +24,10 @@ func (c consoleWriter) Write(msg []byte) (int, error) {
 func printDeviceList() {
 	js.Global.Get("console").Call("log", "run list")
 	deviceList, err := ios.ListDevices()
-	js.Global.Get("console").Call("log", err)
+	if err != nil {
+		js.Global.Get("console").Call("log", err)
+		return
+	}
 	js.Global.Get("console").Call("log", deviceList)
+	//	log.Info(js.Global.Get("JSON").Call("stringify", ws).String())
 }
