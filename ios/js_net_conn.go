@@ -2,11 +2,11 @@ package ios
 
 import (
 	"github.com/gopherjs/gopherjs/js"
-	"log"
+	log "github.com/sirupsen/logrus"
+
 	"net"
 	"time"
 )
-
 
 type wsconn struct {
 	ws  *js.Object
@@ -18,8 +18,9 @@ var _ net.Conn = (*wsconn)(nil)
 func newWSConn(ws *js.Object) *wsconn {
 	ws.Set("binaryType", "arraybuffer")
 	out := make(chan []byte, 1)
-	ws.Call("addEventListener", "message", func(evt *js.Object) {
-		out <- toBytes(evt.Get("data"))
+	ws.Call("on", "data", func(evt *js.Object) {
+		log.Tracef("rcv: %x", evt)
+		out <- toBytes(evt)
 	})
 	rdr := NewChannelReader(out)
 	return &wsconn{
@@ -28,15 +29,18 @@ func newWSConn(ws *js.Object) *wsconn {
 	}
 }
 
-
 func (c *wsconn) Read(b []byte) (n int, err error) {
+	log.Tracef("read")
 	n, err = c.rdr.Read(b)
+	log.Tracef("read done")
 	return n, err
 }
 
 func (c *wsconn) Write(b []byte) (n int, err error) {
-	buf := js.NewArrayBuffer(b)
-	c.ws.Call("send", buf)
+	//buf := js.NewArrayBuffer(b)
+	log.Tracef("before writing: %x", b)
+	c.ws.Call("write", b)
+	log.Tracef("after writing")
 	return len(b), nil
 }
 

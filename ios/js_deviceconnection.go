@@ -60,6 +60,8 @@ func NewDeviceConnectionWithConn(conn net.Conn) *DeviceConnection {
 
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
 func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error {
+
+
 	var network, address string
 	switch runtime.GOOS {
 	case "windows":
@@ -67,14 +69,18 @@ func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error
 	default:
 		network, address = "unix", socketAddress
 	}
+
 	log.Info("not using", network, address)
+	js.Global.Get("console").Call("log", "here")
 	/*
 		var client = net.createConnection("/tmp/mysocket");
 	*/
 
 	//ws := js.Global.Get("WebSocket").New("ws://" + host + ":5000/dial/" + port)
-	ws := js.Module.Get("net").Call("createConnection", socketAddress)
-	traceWS(ws) // OMIT
+	ws := js.Global.Call("require","net").Call("createConnection", socketAddress)
+
+	log.Info(js.Global.Get("JSON").Call("stringify", ws).String())
+	//traceWS(ws) // OMIT
 	conn.c = newWSConn(ws)
 
 	return nil
