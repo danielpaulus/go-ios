@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"fmt"
+
 	ios "github.com/danielpaulus/go-ios/ios"
 )
 
@@ -53,31 +54,14 @@ func (diagnosticsConn *Connection) Reboot() error {
 	}
 	if val, ok := plist["Status"]; ok {
 		if statusString, yes := val.(string); yes {
-			if "Success" == statusString {
+			if statusString == "Success" {
 				return nil
 			}
 
 		}
 
 	}
-	return fmt.Errorf("Could not reboot, response: %+v", plist)
-}
-
-func (diagnosticsConn *Connection) MobileGestaltQuery(keys []string) (interface{}, error) {
-	err := diagnosticsConn.deviceConn.Send(gestaltRequest(keys))
-	if err != nil {
-		return "", err
-	}
-	respBytes, err := diagnosticsConn.plistCodec.Decode(diagnosticsConn.deviceConn.Reader())
-	if err != nil {
-		return "", err
-	}
-	err = diagnosticsConn.deviceConn.Send(goodBye())
-	if err != nil {
-		return "", err
-	}
-	plist, err := ios.ParsePlist(respBytes)
-	return plist, err
+	return fmt.Errorf("could not reboot, response: %+v", plist)
 }
 
 func (diagnosticsConn *Connection) AllValues() (allDiagnosticsResponse, error) {
