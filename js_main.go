@@ -28,6 +28,18 @@ func printDeviceList() {
 		js.Global.Get("console").Call("log", err)
 		return
 	}
+
+	for _, device := range deviceList.DeviceList {
+		udid := device.Properties.SerialNumber
+		allValues, err := ios.GetValues(device)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		log.Info(allValues.Value.ActivationState)
+		log.Info(udid)
+	}
+
 	js.Global.Get("console").Call("log", deviceList)
 	//	log.Info(js.Global.Get("JSON").Call("stringify", ws).String())
 }

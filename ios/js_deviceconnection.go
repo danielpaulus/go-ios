@@ -1,7 +1,6 @@
 package ios
 
 import (
-	"crypto/tls"
 	"github.com/gopherjs/gopherjs/js"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -26,7 +25,9 @@ type DeviceConnectionInterface interface {
 //DeviceConnection wraps the net.Conn to the ios Device and has support for
 //switching Codecs and enabling SSL
 type DeviceConnection struct {
-	c net.Conn
+	c           net.Conn
+	jsSocket    *js.Object
+	jsTLSSocket *js.Object
 }
 
 //NewDeviceConnection creates a new DeviceConnection pointing to the given socket waiting for a call to Connect()
@@ -43,7 +44,6 @@ func NewDeviceConnectionWithConn(conn net.Conn) *DeviceConnection {
 //ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
 func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error {
 
-
 	var network, address string
 	switch runtime.GOOS {
 	case "windows":
@@ -53,7 +53,8 @@ func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error
 	}
 
 	log.Info("not using", network, address)
-	ws := js.Global.Call("require","net").Call("createConnection", socketAddress)
+	ws := js.Global.Call("require", "net").Call("createConnection", socketAddress)
+	conn.jsSocket = ws
 	conn.c = newWSConn(ws)
 	return nil
 }
@@ -108,47 +109,54 @@ func (conn *DeviceConnection) EnableSessionSslServerModeHandshakeOnly(pairRecord
 
 //EnableSessionSsl wraps the underlying net.Conn in a client tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
-	tlsConn, err := conn.createClientTLSConn(pairRecord)
-	if err != nil {
-		return err
-	}
-	conn.c = net.Conn(tlsConn)
+	jsTLSSocket := createClientTLSConn(conn.jsSocket, pairRecord)
+	conn.jsTLSSocket = jsTLSSocket
+	conn.c = newWSConn(jsTLSSocket)
 	return nil
 }
 
 //EnableSessionSslHandshakeOnly enables SSL only for the Handshake and then falls back to plaintext
 //DTX based services do that currently
 func (conn *DeviceConnection) EnableSessionSslHandshakeOnly(pairRecord PairRecord) error {
-	_, err := conn.createClientTLSConn(pairRecord)
-	if err != nil {
-		return err
-	}
+	log.Errorf("handshake only not supported yet for gopherjs")
 	return nil
 }
 
-func (conn *DeviceConnection) createClientTLSConn(pairRecord PairRecord) (*tls.Conn, error) {
-	cert5, err := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
-	if err != nil {
-		log.Error("Error SSL:" + err.Error())
-		return nil, err
-	}
-	conf := &tls.Config{
-		//We always trust whatever the phone sends, I do not see an issue here as probably
-		//nobody would build a fake iphone to hack this library.
-		InsecureSkipVerify: true,
-		Certificates:       []tls.Certificate{cert5},
-		ClientAuth:         tls.NoClientCert,
-	}
+func createClientTLSConn(jsSocket *js.Object, pairRecord PairRecord) *js.Object {
+	jsTLS := js.Global.Call("require", "tls")
+	tlsVersion := "TLSv1_method"
 
-	tlsConn := tls.Client(conn.c, conf)
-	err = tlsConn.Handshake()
-	if err != nil {
-		log.Info("Handshake error", err)
-		return nil, err
-	}
+	tlsOpts := map[string]interface{}{}
+	tlsOpts["secureProtocol"] = tlsVersion
+	tlsOpts["key"] = pairRecord.HostPrivateKey
+	tlsOpts["cert"] = pairRecord.HostCertificate
+	secureContext := jsTLS.Call("createSecureContext", tlsOpts)
 
-	log.Tracef("enable session ssl on %v and wrap with tlsConn: %v", &conn.c, &tlsConn)
-	return tlsConn, nil
+	opts := map[string]interface{}{}
+	opts["rejectUnauthorized"] = false
+	opts["secureContext"] = secureContext
+	jsTLSSocket := jsTLS.Get("TLSSocket").New(jsSocket, opts)
+	return jsTLSSocket
+	/**
+
+
+	import tls from 'tls';
+
+
+	const TLS_VERSION = 'TLSv1_method';
+
+	function upgradeToSSL (socket, key, cert) {
+	  return new tls.TLSSocket(socket, {
+	    rejectUnauthorized: false,
+	    secureContext: tls.createSecureContext({
+	      key,
+	      cert,
+	      secureProtocol: TLS_VERSION
+	    })
+	  });
+	}
+	export { upgradeToSSL };
+	*/
 }
 
 func (conn *DeviceConnection) Conn() net.Conn {
