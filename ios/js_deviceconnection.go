@@ -112,7 +112,9 @@ func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	jsTLSSocket := createClientTLSConn(conn.jsSocket, pairRecord)
 	conn.jsTLSSocket = jsTLSSocket
 	conn.c = newWSConn(jsTLSSocket)
-	return nil
+	//force handshake, some connection like screenshotr need the client to initiate the handshake
+	_, err := conn.c.Write([]byte{})
+	return err
 }
 
 //EnableSessionSslHandshakeOnly enables SSL only for the Handshake and then falls back to plaintext

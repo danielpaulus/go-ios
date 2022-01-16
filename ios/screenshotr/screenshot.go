@@ -2,6 +2,8 @@ package screenshotr
 
 import (
 	"errors"
+	"github.com/gopherjs/gopherjs/js"
+	log "github.com/sirupsen/logrus"
 	"io"
 
 	ios "github.com/danielpaulus/go-ios/ios"
@@ -19,6 +21,7 @@ type Connection struct {
 //New returns a new SysLog Connection for the given DeviceID and Udid
 //It will create LogReader as a buffered Channel because Syslog is very verbose.
 func New(device ios.DeviceEntry) (*Connection, error) {
+
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return &Connection{}, err
@@ -28,7 +31,9 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	screenShotrConn.deviceConn = deviceConn
 	screenShotrConn.plistCodec = ios.NewPlistCodec()
 	reader := screenShotrConn.deviceConn.Reader()
+
 	screenShotrConn.readVersion(reader)
+	log.Infof("version:%d.%d", screenShotrConn.version.major, screenShotrConn.version.minor)
 	bytes, err := screenShotrConn.plistCodec.Encode(newVersionExchangeRequest(screenShotrConn.version.major))
 	screenShotrConn.deviceConn.Send(bytes)
 	screenShotrConn.readExchangeResponse(reader)
@@ -51,7 +56,7 @@ func (screenShotrConn *Connection) readExchangeResponse(reader io.Reader) error 
 }
 
 func (screenShotrConn *Connection) readVersion(reader io.Reader) error {
-
+	log.Info("read version")
 	versionBytes, err := screenShotrConn.plistCodec.Decode(reader)
 	if err != nil {
 		return err
@@ -74,7 +79,9 @@ func (screenShotrConn *Connection) TakeScreenshot() ([]uint8, error) {
 	}
 	response := getArrayFromBytes(responseBytes)
 	responseMap := response[1].(map[string]interface{})
-	screenshotBytes := responseMap["ScreenShotData"].([]uint8)
+
+	log.Info(js.Global.Get("JSON").Call("stringify", response))
+	screenshotBytes := responseMap["ScreenShotData"].([]byte)
 	return screenshotBytes, nil
 }
 

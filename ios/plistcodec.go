@@ -49,6 +49,7 @@ func (plistCodec PlistCodec) Decode(r io.Reader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Info("read here")
 	length := binary.BigEndian.Uint32(buf)
 	payloadBytes := make([]byte, length)
 	n, err := io.ReadFull(r, payloadBytes)
