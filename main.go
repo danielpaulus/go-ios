@@ -65,6 +65,7 @@ Usage:
   ios diagnostics list [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios ps [options]
+  ios ip [options]
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary]
   ios readpair [options]
@@ -216,6 +217,13 @@ The commands work as following:
 		deviceState(device, false, enable, profileTypeId, profileId)
 	}
 
+	b, _ = arguments.Bool("ip")
+	if b {
+		ip, err := pcap.FindIp(device)
+		exitIfError("failed", err)
+		fmt.Printf("\"%s\"", ip)
+		return
+	}
 	b, _ = arguments.Bool("pcap")
 	if b {
 		p, _ := arguments.String("--process")

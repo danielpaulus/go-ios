@@ -3,6 +3,8 @@ package pcap
 import (
 	"bytes"
 	"fmt"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"io"
 	"io/ioutil"
 	"os"
@@ -53,6 +55,55 @@ func (iph *IOSPacketHeader) ToString() string {
 	return fmt.Sprintf("%v", *iph)
 }
 
+func FindIp(device ios.DeviceEntry) (string, error) {
+	mac, err := ios.GetWifiMac(device)
+	if err != nil {
+		return "", err
+	}
+	return findIp(device, mac)
+
+}
+
+func findIp(device ios.DeviceEntry, mac string) (string, error) {
+	intf, err := ios.ConnectToService(device, "com.apple.pcapd")
+	if err != nil {
+		return "", err
+	}
+	plistCodec := ios.NewPlistCodec()
+	fname := fmt.Sprintf("dump-%d.pcap", time.Now().Unix())
+	if Pid > 0 {
+		fname = fmt.Sprintf("dump-%d-%d.pcap", Pid, time.Now().Unix())
+	} else if ProcName != "" {
+		fname = fmt.Sprintf("dump-%s-%d.pcap", ProcName, time.Now().Unix())
+	}
+	f, err := createPcap(fname)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	log.Info("Create pcap file: ", fname)
+	for {
+		b, err := plistCodec.Decode(intf.Reader())
+		if err != nil {
+			return "", err
+		}
+		decodedBytes, err := fromBytes(b)
+		if err != nil {
+			return "", err
+		}
+		packet, err := getPacket(decodedBytes)
+		if err != nil {
+			return "", err
+		}
+		if len(packet) > 0 {
+			ip := dumpPacket(packet)
+			if ip != "" {
+				return ip, nil
+			}
+
+		}
+	}
+}
 func Start(device ios.DeviceEntry) error {
 	intf, err := ios.ConnectToService(device, "com.apple.pcapd")
 	if err != nil {
@@ -85,12 +136,47 @@ func Start(device ios.DeviceEntry) error {
 			return err
 		}
 		if len(packet) > 0 {
+			dumpPacket(packet)
 			err = writePacket(f, packet)
 			if err != nil {
 				return err
 			}
 		}
 	}
+}
+
+func dumpPacket(p []byte) string {
+	packet := gopacket.NewPacket(p, layers.LayerTypeEthernet, gopacket.Default)
+	// Get the TCP layer from this packet
+	const deviceMac = "b4:85:e1:7a:61:1c"
+	if tcpLayer := packet.Layer(layers.LayerTypeEthernet); tcpLayer != nil {
+		tcp, _ := tcpLayer.(*layers.Ethernet)
+		if tcp.SrcMAC.String() == deviceMac {
+			/*fmt.Println("mac found")
+			for _, layer := range packet.Layers() {
+
+				fmt.Println("PACKET LAYER:", layer.LayerType())
+			}*/
+			if ipv4Layer := packet.Layer(layers.LayerTypeIPv4); ipv4Layer != nil {
+				ip, _ := ipv4Layer.(*layers.IPv4)
+				return ip.SrcIP.String()
+			}
+		}
+
+	}
+	/*	if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
+		fmt.Println("This is a TCP packet!")
+		// Get actual TCP data from this layer
+		tcp, _ := tcpLayer.(*layers.TCP)
+
+		fmt.Printf("From src port %d to dst port %d\n", tcp.SrcPort, tcp.DstPort)
+	}*/
+	// Iterate over all layers, printing out each layer type
+	//for _, layer := range packet.Layers() {
+
+	//fmt.Println("PACKET LAYER:", layer.LayerType())
+	//}
+	return ""
 }
 
 func fromBytes(data []byte) ([]byte, error) {
@@ -141,7 +227,7 @@ func writePacket(f *os.File, packet []byte) error {
 	now := time.Now()
 	phs := &PcaprecHdrS{
 		int(now.Unix()),
-		int(now.UnixNano()/1e3 - now.Unix() * 1e6),
+		int(now.UnixNano()/1e3 - now.Unix()*1e6),
 		len(packet),
 		len(packet),
 	}
@@ -182,7 +268,7 @@ func getPacket(buf []byte) ([]byte, error) {
 		}
 	}
 
-	log.Info("IOSPacketHeader: ", iph.ToString())
+	//log.Info("IOSPacketHeader: ", iph.ToString())
 	packet, err := ioutil.ReadAll(preader)
 	if err != nil {
 		return packet, err
