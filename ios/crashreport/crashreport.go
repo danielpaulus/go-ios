@@ -3,6 +3,7 @@ package crashreport
 import (
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -14,6 +15,17 @@ func DownloadReports(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
+	deviceConn, err := ios.ConnectToService(device, CRASH_REPORT_COPY_MOBILE_SERVICE)
+	if err != nil {
+		return err
+	}
+	afc := house_arrest.NewFromConn(deviceConn)
+	files, err := afc.ListFiles(".")
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("files:%+v", files)
 	return nil
 }
 

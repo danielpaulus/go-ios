@@ -19,6 +19,9 @@ type Connection struct {
 	packageNumber uint64
 }
 
+func NewFromConn(deviceConn ios.DeviceConnectionInterface) *Connection {
+	return &Connection{deviceConn: deviceConn}
+}
 func New(device ios.DeviceEntry, bundleID string) (*Connection, error) {
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
