@@ -117,6 +117,11 @@ The commands work as following:
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
    ios ps [options]                                                   Dumps a list of running processes on the device
+   ios ip [options]													  Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
+   >																  It relies on the MAC address of the WiFi adapter to know which is the right IP. 
+   >																  You have to disable the "automatic wifi address"-privacy feature of the device for this to work.
+   >																  If you wanna speed it up, open apple maps or similar to force network traffic.
+   >																  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
    ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
    >                                                                  It dumps every communication in plain text so it can be implemented easily. 
