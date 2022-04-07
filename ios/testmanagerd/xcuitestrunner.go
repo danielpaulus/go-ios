@@ -185,7 +185,9 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			messageBytes, _ := dtx.Encode(m.Identifier, 1, m.ChannelCode, false, dtx.ResponseWithReturnValueInPayload, payload, dtx.NewPrimitiveDictionary())
 			log.Debug("sending response for capabs")
 			p.dtxConnection.Send(messageBytes)
-
+		case "_XCT_didFinishExecutingTestPlan":
+			log.Info("_XCT_didFinishExecutingTestPlan received. Closing test.")
+			CloseXCUITestRunner()
 		default:
 			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")
 		}
@@ -233,7 +235,18 @@ const testBundleSuffix = "UITests.xctrunner"
 
 func RunXCUITest(bundleID string, device ios.DeviceEntry) error {
 	testRunnerBundleID := bundleID + testBundleSuffix
-	return RunXCUIWithBundleIds(bundleID, testRunnerBundleID, "", device, nil, nil)
+	//FIXME: this is redundant code, getting the app list twice and creating the appinfos twice
+	//just to generate the xctestConfigFileName. Should be cleaned up at some point.
+	installationProxy, err := installationproxy.New(device)
+	if err != nil{return err}
+	defer installationProxy.Close()
+
+	apps, err := installationProxy.BrowseUserApps()
+	if err != nil{return err}
+	info, err := getAppInfos(bundleID, testRunnerBundleID,apps)
+	if err != nil{return err}
+	xctestConfigFileName := info.targetAppBundleName + "UITests.xctest"
+	return RunXCUIWithBundleIds(bundleID, testRunnerBundleID, xctestConfigFileName, device, nil, nil)
 }
 
 var closeChan = make(chan interface{})
@@ -295,7 +308,7 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 		log.Error(err)
 	}
 	<-closeChan
-	log.Infof("Killing WebDriverAgent with pid %d ...", pid)
+	log.Infof("Killing UITest with pid %d ...", pid)
 	err = pControl.KillProcess(pid)
 	if err != nil {
 		return err
@@ -436,9 +449,6 @@ func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArres
 	relativeXcTestConfigPath := path.Join("tmp", testSessionID.String()+".xctestconfiguration")
 	xctestConfigPath := path.Join(info.testRunnerHomePath, relativeXcTestConfigPath)
 
-	if xctestConfigFileName == "" {
-		xctestConfigFileName = info.targetAppBundleName + "UITests.xctest"
-	}
 	testBundleURL := path.Join(info.testrunnerAppPath, "PlugIns", xctestConfigFileName)
 
 	config := nskeyedarchiver.NewXCTestConfiguration(info.targetAppBundleName, testSessionID, info.targetAppBundleID, info.targetAppPath, testBundleURL)
