@@ -166,6 +166,9 @@ func GetProductVersion(device DeviceEntry) (*semver.Version, error) {
 	return v, err
 }
 
+//GetWifiMac gets the static MAC address of the device WiFi.
+//note: this does not report the dynamic MAC if you enable the
+//"automatic WiFi address" feature.
 func GetWifiMac(device DeviceEntry) (string, error) {
 	lockdownConnection, err := ConnectLockdownWithSession(device)
 	if err != nil {

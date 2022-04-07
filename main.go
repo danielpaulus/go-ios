@@ -221,7 +221,7 @@ The commands work as following:
 	if b {
 		ip, err := pcap.FindIp(device)
 		exitIfError("failed", err)
-		fmt.Printf("\"%s\"", ip)
+		println(convertToJSONString(ip))
 		return
 	}
 	b, _ = arguments.Bool("pcap")
