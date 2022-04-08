@@ -5,12 +5,13 @@ import (
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	log "github.com/sirupsen/logrus"
+	"path/filepath"
 )
 
 const CRASH_REPORT_MOVER_SERVICE = "com.apple.crashreportmover"
 const CRASH_REPORT_COPY_MOBILE_SERVICE = "com.apple.crashreportcopymobile"
 
-func DownloadReports(device ios.DeviceEntry) error {
+func DownloadReports(device ios.DeviceEntry, pattern string) error {
 	err := moveReports(device)
 	if err != nil {
 		return err
@@ -20,13 +21,23 @@ func DownloadReports(device ios.DeviceEntry) error {
 		return err
 	}
 	afc := house_arrest.NewFromConn(deviceConn)
-	//files, err := afc.ListFiles(".")
+	files, err := afc.ListFiles(".")
 	if err != nil {
 		return err
 	}
+	var filteredFiles []string
+	for _, f := range files {
+		matches, err := filepath.Match(pattern, f)
+		if err != nil {
+			log.Warn("error while matching pattern", err)
+		}
+		if matches {
+			filteredFiles = append(filteredFiles, f)
+		}
+	}
 
-	//fmt.Printf("files:%+v", files)
-	info, err := afc.GetFileInfo("Analytics-Journal-Never-2021-12-05-010127.0002.ips.ca.synced")
+	fmt.Printf("files:%+v", filteredFiles)
+	/*info, err := afc.GetFileInfo("Analytics-Journal-Never-2021-12-05-010127.0002.ips.ca.synced")
 	if err != nil {
 		return err
 	}
@@ -40,8 +51,36 @@ func DownloadReports(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("info:%+v\n", info)
+	fmt.Printf("info:%+v\n", info)*/
 	return nil
+}
+
+func ListReports(device ios.DeviceEntry, pattern string) ([]string, error) {
+	err := moveReports(device)
+	if err != nil {
+		return []string{}, err
+	}
+	deviceConn, err := ios.ConnectToService(device, CRASH_REPORT_COPY_MOBILE_SERVICE)
+	if err != nil {
+		return []string{}, err
+	}
+	afc := house_arrest.NewFromConn(deviceConn)
+	files, err := afc.ListFiles(".")
+	if err != nil {
+		return []string{}, err
+	}
+	var filteredFiles []string
+	for _, f := range files {
+		matches, err := filepath.Match(pattern, f)
+		if err != nil {
+			log.Warn("error while matching pattern", err)
+		}
+		if matches {
+			filteredFiles = append(filteredFiles, f)
+		}
+	}
+
+	return filteredFiles, nil
 }
 
 func moveReports(device ios.DeviceEntry) error {

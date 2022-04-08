@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/crashreport"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"io/ioutil"
 	"path/filepath"
@@ -56,6 +57,7 @@ Usage:
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>]
+  ios crash ls [<pattern>] [options]
   ios devicename [options] 
   ios date [options]
   ios devicestate list [options]
@@ -229,6 +231,24 @@ The commands work as following:
 		println(convertToJSONString(ip))
 		return
 	}
+
+	b, _ = arguments.Bool("crash")
+	if b{
+		ls, _ := arguments.Bool("ls")
+		if ls {
+			pattern, err := arguments.String("<pattern>")
+			if err != nil || pattern == "" {
+				pattern = "*"
+			}
+			files, err := crashreport.ListReports(device, pattern)
+			exitIfError("failed listing crashreports", err)
+			println(convertToJSONString(files))
+			return
+		}
+		return
+	}
+
+
 	b, _ = arguments.Bool("pcap")
 	if b {
 		p, _ := arguments.String("--process")
