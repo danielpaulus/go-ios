@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	log "github.com/sirupsen/logrus"
+	"strconv"
 	"strings"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -177,3 +179,70 @@ func (conn *Connection) closeHandle(handle byte) error {
 	}
 	return nil
 }
+
+func (conn *Connection) GetFileInfo(path string) (AFCFileInfo, error) {
+	log.Debugf("GetFileInfo:%s", path)
+	headerPayload := []byte(path)
+	this_length := afc_header_size + uint64(len(headerPayload))
+	header := AfcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: AfcOpGetFileInfo, This_length: this_length, Entire_length: this_length}
+	conn.packageNumber++
+	packet := AfcPacket{header: header, headerPayload: headerPayload, payload: make([]byte, 0)}
+	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
+	log.Debugf("%+v", response)
+	if err != nil {
+		return AFCFileInfo{}, err
+	}
+
+	if len(response.payload) != int(response.header.Entire_length-response.header.This_length) {
+		return AFCFileInfo{}, fmt.Errorf("not all payload data was received")
+	}
+	if response.header.Operation != AfcOpData {
+		return AFCFileInfo{}, fmt.Errorf("expected AfcOpData got: %d", response.header.Operation)
+	}
+	res := bytes.Split(response.payload, []byte{0})
+	result := AFCFileInfo{}
+	for i, b := range res {
+		switch string(b) {
+		case "st_size":
+			result.St_size, _ = strconv.Atoi(string(res[i+1]))
+			break
+		case "st_blocks":
+			result.St_blocks, _ = strconv.Atoi(string(res[i+1]))
+			break
+		case "st_nlink":
+			result.St_nlink, _ = strconv.Atoi(string(res[i+1]))
+			break
+		case "st_ifmt":
+			result.St_ifmt = string(res[i+1])
+			break
+		case "st_mtime":
+			result.St_mtime, _ = strconv.ParseUint(string(res[i+1]), 0, 64)
+			break
+		case "st_birthtime":
+			result.St_birthtime, _ = strconv.ParseUint(string(res[i+1]), 0, 64)
+			break
+		}
+	}
+	return result, nil
+}
+
+type AFCFileInfo struct {
+	St_size      int
+	St_blocks    int
+	St_nlink     int
+	St_ifmt      string
+	St_mtime     uint64
+	St_birthtime uint64
+}
+
+/*
+ret = afc_dispatch_packet(client, AfcOpGetFileInfo, data_len, NULL, 0, &bytes);
+if (ret != AFC_E_SUCCESS) {
+afc_unlock(client);
+Receive data
+ret = afc_receive_data(client, &received, &bytes);
+if (received) {
+*file_information = make_strings_list(received, bytes);
+free(received);
+}
+*/

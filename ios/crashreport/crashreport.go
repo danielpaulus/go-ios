@@ -20,12 +20,27 @@ func DownloadReports(device ios.DeviceEntry) error {
 		return err
 	}
 	afc := house_arrest.NewFromConn(deviceConn)
-	files, err := afc.ListFiles(".")
+	//files, err := afc.ListFiles(".")
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("files:%+v", files)
+	//fmt.Printf("files:%+v", files)
+	info, err := afc.GetFileInfo("Analytics-Journal-Never-2021-12-05-010127.0002.ips.ca.synced")
+	if err != nil {
+		return err
+	}
+	fmt.Printf("info:%+v\n", info)
+	info, err = afc.GetFileInfo("./Analytics-Journal-90Day-2021-12-28-010005.ips.ca.synced")
+	if err != nil {
+		return err
+	}
+	fmt.Printf("info:%+v\n", info)
+	info, err = afc.GetFileInfo(".")
+	if err != nil {
+		return err
+	}
+	fmt.Printf("info:%+v\n", info)
 	return nil
 }
 
