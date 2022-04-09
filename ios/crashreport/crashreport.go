@@ -39,9 +39,9 @@ func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) e
 	}
 
 	log.Debugf("files:%+v", filteredFiles)
-	for _, f := range filteredFiles{
+	for _, f := range filteredFiles {
 		info, err := afc.GetFileInfo(f)
-		if err != nil{
+		if err != nil {
 			log.Warnf("failed getting info for file: %s", f)
 		}
 		log.Infof("%+v", info)
@@ -50,7 +50,9 @@ func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) e
 			panic(err)
 		}
 		err = afc.StreamFile(f, fi)
-		if err!=nil{return err}
+		if err != nil {
+			return err
+		}
 		fi.Close()
 	}
 	/*info, err := afc.GetFileInfo("Analytics-Journal-Never-2021-12-05-010127.0002.ips.ca.synced")

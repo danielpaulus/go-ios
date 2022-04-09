@@ -166,31 +166,23 @@ func (conn *Connection) StreamFile(file string, target io.Writer) error {
 	if err != nil {
 		return err
 	}
-	/*
-		afc_error = afc_file_read(afc, handle, (char*)data, 0x1000, &bytes_read);
-					while(afc_error == AFC_E_SUCCESS && bytes_read > 0) {
-						fwrite(data, 1, bytes_read, output);
-						bytes_total += bytes_read;
-						afc_error = afc_file_read(afc, handle, (char*)data, 0x1000, &bytes_read);
-					}
-	*/
-    log.Debugf("remote file %s open with handle %d", file, handle)
-	data, bytesRead, err := conn.readBytes(handle, 100)
-	if err!=nil {return err}
-	log.Debugf("first 100 bytes read %x", bytesRead)
-	_, err = target.Write(data)
-	if err != nil {
-		return err
-	}
-	var readErr error
-	for bytesRead > 0 || readErr == nil {
-		data, bytesRead, readErr = conn.readBytes(handle, 4096)
+	log.Debugf("remote file %s open with handle %d", file, handle)
 
+	totalBytes := 0
+	bytesRead:=1
+	for bytesRead > 0 {
+		data, n, readErr := conn.readBytes(handle, 4096)
+		if readErr != nil {
+			return readErr
+		}
+		bytesRead = n
+		totalBytes += bytesRead
 		_, err = target.Write(data)
 		if err != nil {
 			return err
 		}
 	}
+	log.Debugf("finished reading %d kb %s", totalBytes/1024, file)
 	return conn.CloseHandle(handle)
 }
 
@@ -204,7 +196,9 @@ func (conn *Connection) readBytes(handle byte, length int) ([]byte, int, error) 
 	buf := bytes.Buffer{}
 
 	err := binary.Write(&buf, binary.LittleEndian, pl)
-	if err!=nil{return []byte{}, 0, err}
+	if err != nil {
+		return []byte{}, 0, err
+	}
 
 	final_pl := buf.Bytes()
 	hpl := uint64(len(final_pl))
