@@ -7,69 +7,70 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path"
-	"path/filepath"
 )
 
-const CRASH_REPORT_MOVER_SERVICE = "com.apple.crashreportmover"
-const CRASH_REPORT_COPY_MOBILE_SERVICE = "com.apple.crashreportcopymobile"
+const crashReportMoverService = "com.apple.crashreportmover"
+const crashReportCopyMobileService = "com.apple.crashreportcopymobile"
 
 func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) error {
 	err := moveReports(device)
 	if err != nil {
 		return err
 	}
-	deviceConn, err := ios.ConnectToService(device, CRASH_REPORT_COPY_MOBILE_SERVICE)
+	deviceConn, err := ios.ConnectToService(device, crashReportCopyMobileService)
 	if err != nil {
 		return err
 	}
 	afc := house_arrest.NewFromConn(deviceConn)
-	files, err := afc.ListFiles(".")
+	return copyReports(afc,".", pattern, targetdir)
+}
+
+func copyReports(afc *house_arrest.Connection, cwd string, pattern string, targetdir string) error {
+	targetdirInfo, err := os.Stat(targetdir)
 	if err != nil {
 		return err
 	}
-	var filteredFiles []string
-	for _, f := range files {
-		matches, err := filepath.Match(pattern, f)
-		if err != nil {
-			log.Warn("error while matching pattern", err)
-		}
-		if matches {
-			filteredFiles = append(filteredFiles, f)
-		}
+	files, err := afc.ListFiles(cwd, pattern)
+	if err != nil {
+		return err
 	}
 
-	log.Debugf("files:%+v", filteredFiles)
-	for _, f := range filteredFiles {
-		info, err := afc.GetFileInfo(f)
+	log.Debugf("files:%+v", files)
+	for _, f := range files {
+		if f == "." || f == ".." {
+			continue
+		}
+		devicePath := path.Join(cwd, f)
+		info, err := afc.GetFileInfo(devicePath)
 		if err != nil {
 			log.Warnf("failed getting info for file: %s", f)
 		}
-		log.Infof("%+v", info)
+		if info.IsDir() {
+			dir := path.Join(targetdir, f)
+			err := os.Mkdir(dir, targetdirInfo.Mode().Perm())
+			if err != nil {
+				return err
+			}
+			err = copyReports(afc, devicePath,"*", dir)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		log.Debugf("%+v", info)
 		fi, err := os.Create(path.Join(targetdir, f))
 		if err != nil {
 			panic(err)
 		}
-		err = afc.StreamFile(f, fi)
+		err = afc.StreamFile(devicePath, fi)
 		if err != nil {
 			return err
 		}
-		fi.Close()
+		err = fi.Close()
+		if err != nil {
+			return err
+		}
 	}
-	/*info, err := afc.GetFileInfo("Analytics-Journal-Never-2021-12-05-010127.0002.ips.ca.synced")
-	if err != nil {
-		return err
-	}
-	fmt.Printf("info:%+v\n", info)
-	info, err = afc.GetFileInfo("./Analytics-Journal-90Day-2021-12-28-010005.ips.ca.synced")
-	if err != nil {
-		return err
-	}
-	fmt.Printf("info:%+v\n", info)
-	info, err = afc.GetFileInfo(".")
-	if err != nil {
-		return err
-	}
-	fmt.Printf("info:%+v\n", info)*/
 	return nil
 }
 
@@ -78,27 +79,12 @@ func ListReports(device ios.DeviceEntry, pattern string) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
-	deviceConn, err := ios.ConnectToService(device, CRASH_REPORT_COPY_MOBILE_SERVICE)
+	deviceConn, err := ios.ConnectToService(device, crashReportCopyMobileService)
 	if err != nil {
 		return []string{}, err
 	}
 	afc := house_arrest.NewFromConn(deviceConn)
-	files, err := afc.ListFiles(".")
-	if err != nil {
-		return []string{}, err
-	}
-	var filteredFiles []string
-	for _, f := range files {
-		matches, err := filepath.Match(pattern, f)
-		if err != nil {
-			log.Warn("error while matching pattern", err)
-		}
-		if matches {
-			filteredFiles = append(filteredFiles, f)
-		}
-	}
-
-	return filteredFiles, nil
+	return afc.ListFiles(".", pattern)
 }
 
 func moveReports(device ios.DeviceEntry) error {
@@ -125,9 +111,9 @@ type moverConnection struct {
 	plistCodec ios.PlistCodec
 }
 
-//New returns a new ZipConduit Connection for the given DeviceID and Udid
+//NewWithHouseArrest returns a new ZipConduit Connection for the given DeviceID and Udid
 func newMover(device ios.DeviceEntry) (*moverConnection, error) {
-	deviceConn, err := ios.ConnectToService(device, CRASH_REPORT_MOVER_SERVICE)
+	deviceConn, err := ios.ConnectToService(device, crashReportMoverService)
 	if err != nil {
 		return &moverConnection{}, err
 	}

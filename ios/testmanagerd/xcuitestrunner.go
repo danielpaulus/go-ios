@@ -431,7 +431,7 @@ func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID s
 	}
 	log.Debugf("app info found: %+v", info)
 
-	houseArrestService, err := house_arrest.New(device, testRunnerBundleID)
+	houseArrestService, err := house_arrest.NewWithHouseArrest(device, testRunnerBundleID)
 	defer houseArrestService.Close()
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err

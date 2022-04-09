@@ -7,6 +7,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -22,10 +23,13 @@ type Connection struct {
 	packageNumber uint64
 }
 
+//NewFromConn allows to use AFC on a DeviceConnectionInterface, see crashreport for an example
 func NewFromConn(deviceConn ios.DeviceConnectionInterface) *Connection {
 	return &Connection{deviceConn: deviceConn}
 }
-func New(device ios.DeviceEntry, bundleID string) (*Connection, error) {
+
+//NewWithHouseArrest gives an AFC connection to an app container using the house arrest service
+func NewWithHouseArrest(device ios.DeviceEntry, bundleID string) (*Connection, error) {
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return &Connection{}, err
@@ -86,8 +90,8 @@ type vendContainerResponse struct {
 	Error  string
 }
 
-func (c Connection) Close() {
-	c.deviceConn.Close()
+func (conn Connection) Close() error {
+	return conn.deviceConn.Close()
 }
 
 func (conn *Connection) SendFile(fileContents []byte, filePath string) error {
@@ -102,7 +106,7 @@ func (conn *Connection) SendFile(fileContents []byte, filePath string) error {
 	return conn.CloseHandle(handle)
 }
 
-func (conn *Connection) ListFiles(filePath string) ([]string, error) {
+func (conn *Connection) ListFiles(filePath string, matchPattern string) ([]string, error) {
 	headerPayload := []byte(filePath)
 	headerLength := uint64(len(headerPayload))
 
@@ -116,7 +120,21 @@ func (conn *Connection) ListFiles(filePath string) ([]string, error) {
 		return []string{}, err
 	}
 	fileList := string(response.payload)
-	return strings.Split(fileList, string([]byte{0})), nil
+	files := strings.Split(fileList, string([]byte{0}))
+	var filteredFiles []string
+	for _, f := range files {
+		if f == "" {
+			continue
+		}
+		matches, err := filepath.Match(matchPattern, f)
+		if err != nil {
+			log.Warn("error while matching pattern", err)
+		}
+		if matches {
+			filteredFiles = append(filteredFiles, f)
+		}
+	}
+	return filteredFiles, nil
 }
 
 func (conn *Connection) openFileForWriting(filePath string) (byte, error) {
@@ -169,7 +187,7 @@ func (conn *Connection) StreamFile(file string, target io.Writer) error {
 	log.Debugf("remote file %s open with handle %d", file, handle)
 
 	totalBytes := 0
-	bytesRead:=1
+	bytesRead := 1
 	for bytesRead > 0 {
 		data, n, readErr := conn.readBytes(handle, 4096)
 		if readErr != nil {
@@ -295,6 +313,10 @@ type AFCFileInfo struct {
 	St_ifmt      string
 	St_mtime     uint64
 	St_birthtime uint64
+}
+
+func (info AFCFileInfo) IsDir() bool{
+	return info.St_ifmt == "S_IFDIR"
 }
 
 /*
