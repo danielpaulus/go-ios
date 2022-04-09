@@ -5,13 +5,15 @@ import (
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	log "github.com/sirupsen/logrus"
+	"os"
+	"path"
 	"path/filepath"
 )
 
 const CRASH_REPORT_MOVER_SERVICE = "com.apple.crashreportmover"
 const CRASH_REPORT_COPY_MOBILE_SERVICE = "com.apple.crashreportcopymobile"
 
-func DownloadReports(device ios.DeviceEntry, pattern string) error {
+func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) error {
 	err := moveReports(device)
 	if err != nil {
 		return err
@@ -36,7 +38,21 @@ func DownloadReports(device ios.DeviceEntry, pattern string) error {
 		}
 	}
 
-	fmt.Printf("files:%+v", filteredFiles)
+	log.Debugf("files:%+v", filteredFiles)
+	for _, f := range filteredFiles{
+		info, err := afc.GetFileInfo(f)
+		if err != nil{
+			log.Warnf("failed getting info for file: %s", f)
+		}
+		log.Infof("%+v", info)
+		fi, err := os.Create(path.Join(targetdir, f))
+		if err != nil {
+			panic(err)
+		}
+		err = afc.StreamFile(f, fi)
+		if err!=nil{return err}
+		fi.Close()
+	}
 	/*info, err := afc.GetFileInfo("Analytics-Journal-Never-2021-12-05-010127.0002.ips.ca.synced")
 	if err != nil {
 		return err

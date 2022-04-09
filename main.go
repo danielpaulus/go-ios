@@ -58,6 +58,7 @@ Usage:
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>]
   ios crash ls [<pattern>] [options]
+  ios crash cp <srcpattern> <target> [options]
   ios devicename [options] 
   ios date [options]
   ios devicestate list [options]
@@ -233,7 +234,7 @@ The commands work as following:
 	}
 
 	b, _ = arguments.Bool("crash")
-	if b{
+	if b {
 		ls, _ := arguments.Bool("ls")
 		if ls {
 			pattern, err := arguments.String("<pattern>")
@@ -245,9 +246,16 @@ The commands work as following:
 			println(convertToJSONString(files))
 			return
 		}
+		cp, _ := arguments.Bool("cp")
+		if cp {
+			pattern, _ := arguments.String("<srcpattern>")
+			target, _ := arguments.String("<target>")
+			log.Debugf("cp %s %s", pattern, target)
+			err := crashreport.DownloadReports(device, pattern, target)
+			exitIfError("failed downloading crashreports", err)
+		}
 		return
 	}
-
 
 	b, _ = arguments.Bool("pcap")
 	if b {
