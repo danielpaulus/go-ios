@@ -59,6 +59,7 @@ Usage:
   ios screenshot [options] [--output=<outfile>]
   ios crash ls [<pattern>] [options]
   ios crash cp <srcpattern> <target> [options]
+  ios crash rm <cwd> <pattern> [options]
   ios devicename [options] 
   ios date [options]
   ios devicestate list [options]
@@ -243,7 +244,11 @@ The commands work as following:
 			}
 			files, err := crashreport.ListReports(device, pattern)
 			exitIfError("failed listing crashreports", err)
-			println(convertToJSONString(files))
+			println(
+				convertToJSONString(
+					map[string]interface{}{"files": files, "length": len(files)},
+				),
+			)
 			return
 		}
 		cp, _ := arguments.Bool("cp")
@@ -253,6 +258,15 @@ The commands work as following:
 			log.Debugf("cp %s %s", pattern, target)
 			err := crashreport.DownloadReports(device, pattern, target)
 			exitIfError("failed downloading crashreports", err)
+		}
+
+		rm, _ := arguments.Bool("rm")
+		if rm {
+			cwd, _ := arguments.String("<cwd>")
+			pattern, _ := arguments.String("<pattern>")
+			log.Debugf("rm %s %s", cwd, pattern)
+			err := crashreport.RemoveReports(device, cwd, pattern)
+			exitIfError("failed deleting crashreports", err)
 		}
 		return
 	}

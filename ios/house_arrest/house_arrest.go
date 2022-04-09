@@ -260,6 +260,18 @@ func (conn *Connection) CloseHandle(handle byte) error {
 	return nil
 }
 
+func (conn *Connection) Delete(path string) error {
+	log.Debugf("Delete:%s", path)
+	headerPayload := []byte(path)
+	this_length := afc_header_size + uint64(len(headerPayload))
+	header := AfcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: AFC_OP_REMOVE_PATH_AND_CONTENTS, This_length: this_length, Entire_length: this_length}
+	conn.packageNumber++
+	packet := AfcPacket{header: header, headerPayload: headerPayload, payload: make([]byte, 0)}
+	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
+	log.Debugf("%+v", response)
+	return err
+}
+
 func (conn *Connection) GetFileInfo(path string) (AFCFileInfo, error) {
 	log.Debugf("GetFileInfo:%s", path)
 	headerPayload := []byte(path)
@@ -315,18 +327,6 @@ type AFCFileInfo struct {
 	St_birthtime uint64
 }
 
-func (info AFCFileInfo) IsDir() bool{
+func (info AFCFileInfo) IsDir() bool {
 	return info.St_ifmt == "S_IFDIR"
 }
-
-/*
-ret = afc_dispatch_packet(client, AfcOpGetFileInfo, data_len, NULL, 0, &bytes);
-if (ret != AFC_E_SUCCESS) {
-afc_unlock(client);
-Receive data
-ret = afc_receive_data(client, &received, &bytes);
-if (received) {
-*file_information = make_strings_list(received, bytes);
-free(received);
-}
-*/

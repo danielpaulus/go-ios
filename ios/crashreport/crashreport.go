@@ -12,7 +12,13 @@ import (
 const crashReportMoverService = "com.apple.crashreportmover"
 const crashReportCopyMobileService = "com.apple.crashreportcopymobile"
 
+//DownloadReports gets all crashreports based on the provided file pattern and writes them to targetdir.
+//Directories will be recursively added without applying the pattern recursively.
+// pattern can be typical filepattern, if you want all files use "*"
 func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) error {
+	if pattern == "" {
+		return fmt.Errorf("empty pattern not ok, just use *")
+	}
 	err := moveReports(device)
 	if err != nil {
 		return err
@@ -22,11 +28,12 @@ func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) e
 		return err
 	}
 	afc := house_arrest.NewFromConn(deviceConn)
-	return copyReports(afc,".", pattern, targetdir)
+	return copyReports(afc, ".", pattern, targetdir)
 }
 
-func copyReports(afc *house_arrest.Connection, cwd string, pattern string, targetdir string) error {
-	targetdirInfo, err := os.Stat(targetdir)
+func copyReports(afc *house_arrest.Connection, cwd string, pattern string, targetDir string) error {
+	log.WithFields(log.Fields{"dir": cwd, "pattern": pattern, "to": targetDir}).Info("downloading")
+	targetDirInfo, err := os.Stat(targetDir)
 	if err != nil {
 		return err
 	}
@@ -41,36 +48,73 @@ func copyReports(afc *house_arrest.Connection, cwd string, pattern string, targe
 			continue
 		}
 		devicePath := path.Join(cwd, f)
+		targetFilePath := path.Join(targetDir, f)
+		log.WithFields(log.Fields{"from": devicePath, "to": targetFilePath}).Info("downloading")
 		info, err := afc.GetFileInfo(devicePath)
 		if err != nil {
-			log.Warnf("failed getting info for file: %s", f)
+			log.Warnf("failed getting info for file: %s, skipping", f)
+			continue
 		}
+		log.Debugf("%+v", info)
+
 		if info.IsDir() {
-			dir := path.Join(targetdir, f)
-			err := os.Mkdir(dir, targetdirInfo.Mode().Perm())
+			err := os.Mkdir(targetFilePath, targetDirInfo.Mode().Perm())
 			if err != nil {
 				return err
 			}
-			err = copyReports(afc, devicePath,"*", dir)
+			err = copyReports(afc, devicePath, "*", targetFilePath)
 			if err != nil {
 				return err
 			}
 			continue
 		}
-		log.Debugf("%+v", info)
-		fi, err := os.Create(path.Join(targetdir, f))
-		if err != nil {
-			panic(err)
-		}
-		err = afc.StreamFile(devicePath, fi)
+
+		targetFileHandle, err := os.Create(targetFilePath)
 		if err != nil {
 			return err
 		}
-		err = fi.Close()
+		err = afc.StreamFile(devicePath, targetFileHandle)
+		if err != nil {
+			return err
+		}
+		err = targetFileHandle.Close()
+		if err != nil {
+			return err
+		}
+		log.WithFields(log.Fields{"from": devicePath, "to": targetFilePath}).Info("done")
+	}
+	return nil
+}
+
+func RemoveReports(device ios.DeviceEntry, cwd string, pattern string) error {
+	if pattern == "" {
+		return fmt.Errorf("empty pattern not ok, just use *")
+	}
+	log.WithFields(log.Fields{"cwd": cwd, "pattern": pattern}).Info("deleting")
+	err := moveReports(device)
+	if err != nil {
+		return err
+	}
+	deviceConn, err := ios.ConnectToService(device, crashReportCopyMobileService)
+	if err != nil {
+		return err
+	}
+	afc := house_arrest.NewFromConn(deviceConn)
+	files, err := afc.ListFiles(cwd, pattern)
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		if f == "." || f == ".." {
+			continue
+		}
+		log.WithFields(log.Fields{"path": path.Join(cwd, f)}).Info("delete")
+		err := afc.Delete(path.Join(cwd, f))
 		if err != nil {
 			return err
 		}
 	}
+	log.WithFields(log.Fields{"cwd": cwd, "pattern": pattern}).Info("done deleting")
 	return nil
 }
 

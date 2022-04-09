@@ -68,17 +68,18 @@ func Encode(packet AfcPacket, writer io.Writer) error {
 }
 
 const (
-	afc_magic                      uint64 = 0x4141504c36414643
-	afc_header_size                uint64 = 40
-	afc_fopen_wronly               uint64 = 0x3
-	afc_fopen_readonly             uint64 = 0x1
-	afc_operation_status           uint64 = 0x1
-	AfcOpData                      uint64 = 0x2
-	afc_operation_read_dir         uint64 = 0x3
-	afc_operation_file_open        uint64 = 0x0000000D
-	afc_operation_file_close       uint64 = 0x00000014
-	afc_operation_file_read        uint64 = 0x0000000F
-	afc_operation_file_write       uint64 = 0x00000010
-	afc_operation_file_open_result uint64 = 0x0000000E
-	AfcOpGetFileInfo               uint64 = 0x0000000A
+	afc_magic                       uint64 = 0x4141504c36414643
+	afc_header_size                 uint64 = 40
+	afc_fopen_wronly                uint64 = 0x3
+	afc_fopen_readonly              uint64 = 0x1
+	afc_operation_status            uint64 = 0x1
+	AfcOpData                       uint64 = 0x2
+	afc_operation_read_dir          uint64 = 0x3
+	afc_operation_file_open         uint64 = 0x0000000D
+	afc_operation_file_close        uint64 = 0x00000014
+	afc_operation_file_read         uint64 = 0x0000000F
+	afc_operation_file_write        uint64 = 0x00000010
+	afc_operation_file_open_result  uint64 = 0x0000000E
+	AFC_OP_REMOVE_PATH_AND_CONTENTS uint64 = 0x00000022
+	AfcOpGetFileInfo                uint64 = 0x0000000A
 )
