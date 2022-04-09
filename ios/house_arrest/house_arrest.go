@@ -187,29 +187,17 @@ func (conn *Connection) StreamFile(file string, target io.Writer) error {
 }
 
 func (conn *Connection) readBytes(handle byte, length int) ([]byte, int, error) {
-
-	type payloadstruct struct {
-		handle uint64
-		length uint64
-	}
-	pl := payloadstruct{handle: uint64(handle), length: uint64(length)}
-	buf := bytes.Buffer{}
-
-	err := binary.Write(&buf, binary.LittleEndian, pl)
-	if err != nil {
-		return []byte{}, 0, err
-	}
-
-	final_pl := buf.Bytes()
-	hpl := uint64(len(final_pl))
-	header := AfcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: afc_operation_file_read, This_length: hpl + afc_header_size, Entire_length: hpl + afc_header_size}
+	headerPayload := make([]byte, 16)
+	binary.LittleEndian.PutUint64(headerPayload, uint64(handle))
+	binary.LittleEndian.PutUint64(headerPayload[8:], uint64(length))
+	payloadLength := uint64(16)
+	header := AfcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: afc_operation_file_read, This_length: payloadLength + afc_header_size, Entire_length: payloadLength + afc_header_size}
 	conn.packageNumber++
-	packet := AfcPacket{header: header, headerPayload: final_pl, payload: make([]byte, 0)}
+	packet := AfcPacket{header: header, headerPayload: headerPayload, payload: make([]byte, 0)}
 	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
 	if err != nil {
 		return []byte{}, 0, err
 	}
-
 	return response.payload, len(response.payload), nil
 }
 
