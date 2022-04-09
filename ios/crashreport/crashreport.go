@@ -73,7 +73,7 @@ func copyReports(afc *house_arrest.Connection, cwd string, pattern string, targe
 		if err != nil {
 			return err
 		}
-		err = afc.StreamFile(devicePath, targetFileHandle)
+		err = afc.DownloadFile(devicePath, targetFileHandle)
 		if err != nil {
 			return err
 		}
