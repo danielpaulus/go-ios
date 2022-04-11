@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/crashreport"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"io/ioutil"
 	"path/filepath"
@@ -57,6 +58,9 @@ Usage:
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>]
+  ios crash ls [<pattern>] [options]
+  ios crash cp <srcpattern> <target> [options]
+  ios crash rm <cwd> <pattern> [options]
   ios devicename [options] 
   ios date [options]
   ios devicestate list [options]
@@ -69,6 +73,7 @@ Usage:
   ios profiles add <profileName>
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios ps [options]
+  ios ip [options]
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary]
   ios readpair [options]
@@ -103,9 +108,15 @@ The commands work as following:
    ios info [options]                                                 Prints a dump of Lockdown getValues.
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
-   ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it. You can specify a dir where images should be cached. The default is the current dir. 
+   ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
+   >                                                                  You can specify a dir where images should be cached.
+   >                                                                  The default is the current dir. 
    ios syslog [options]                                               Prints a device's log output
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
+   ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list, 
+   >                                                                  or use a pattern like 'ios crash ls "*ips*"' to filter
+   ios crash cp <srcpattern> <target> [options]                       copy "file pattern" to the target dir. Ex.: 'ios crash cp "*" "./crashes"'
+   ios crash rm <cwd> <pattern> [options]                             remove file pattern from dir. Ex.: 'ios crash rm "." "*"' to delete everything
    ios devicename [options]                                           Prints the devicename
    ios date [options]                                                 Prints the device date
    ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
@@ -123,13 +134,18 @@ The commands work as following:
    ios profiles remove <profileName>																	Remove the profileName from the device
    ios profiles add <profileName>																			Add the profileName to the device
    ios ps [options]                                                   Dumps a list of running processes on the device
+   ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
+   >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP. 
+   >                                                                  You have to disable the "automatic wifi address"-privacy feature of the device for this to work.
+   >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
+   >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
    ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
    >                                                                  It dumps every communication in plain text so it can be implemented easily. 
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
-   ios readpair                                                       Dump detailed information about the pairrecord for a device.                                              Starts a pcap dump of network traffic
+   ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
@@ -222,6 +238,18 @@ The commands work as following:
 		profileTypeId, _ := arguments.String("<profileTypeId>")
 		profileId, _ := arguments.String("<profileId>")
 		deviceState(device, false, enable, profileTypeId, profileId)
+	}
+
+	b, _ = arguments.Bool("ip")
+	if b {
+		ip, err := pcap.FindIp(device)
+		exitIfError("failed", err)
+		println(convertToJSONString(ip))
+		return
+	}
+
+	if crashCommand(device, arguments) {
+		return
 	}
 
 	b, _ = arguments.Bool("pcap")
@@ -444,42 +472,7 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("runwda")
-	if b {
-
-		bundleID, _ := arguments.String("--bundleid")
-		testbundleID, _ := arguments.String("--testrunnerbundleid")
-		xctestconfig, _ := arguments.String("--xctestconfig")
-		wdaargs := arguments["--arg"].([]string)
-		wdaenv := arguments["--env"].([]string)
-
-		if bundleID == "" && testbundleID == "" && xctestconfig == "" {
-			log.Info("no bundle ids specified, falling back to defaults")
-			bundleID, testbundleID, xctestconfig = "com.facebook.WebDriverAgentRunner.xctrunner", "com.facebook.WebDriverAgentRunner.xctrunner", "WebDriverAgentRunner.xctest"
-		}
-		if bundleID == "" || testbundleID == "" || xctestconfig == "" {
-			log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Error("please specify either NONE of bundleid, testbundleid and xctestconfig or ALL of them. At least one was empty.")
-			return
-		}
-		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
-		go func() {
-			err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
-
-			if err != nil {
-				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
-			}
-		}()
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		signal := <-c
-		log.Infof("os signal:%d received, closing..", signal)
-
-		err := testmanagerd.CloseXCUITestRunner()
-		if err != nil {
-			log.Error("Failed closing wda-testrunner")
-			os.Exit(1)
-		}
-		log.Info("Done Closing")
+	if runWdaCommand(device, arguments) {
 		return
 	}
 
@@ -513,6 +506,84 @@ The commands work as following:
 		return
 	}
 
+}
+
+func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
+	b, _ := arguments.Bool("runwda")
+	if b {
+		bundleID, _ := arguments.String("--bundleid")
+		testbundleID, _ := arguments.String("--testrunnerbundleid")
+		xctestconfig, _ := arguments.String("--xctestconfig")
+		wdaargs := arguments["--arg"].([]string)
+		wdaenv := arguments["--env"].([]string)
+
+		if bundleID == "" && testbundleID == "" && xctestconfig == "" {
+			log.Info("no bundle ids specified, falling back to defaults")
+			bundleID, testbundleID, xctestconfig = "com.facebook.WebDriverAgentRunner.xctrunner", "com.facebook.WebDriverAgentRunner.xctrunner", "WebDriverAgentRunner.xctest"
+		}
+		if bundleID == "" || testbundleID == "" || xctestconfig == "" {
+			log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Error("please specify either NONE of bundleid, testbundleid and xctestconfig or ALL of them. At least one was empty.")
+			return true
+		}
+		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
+		go func() {
+			err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
+
+			if err != nil {
+				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
+			}
+		}()
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		signal := <-c
+		log.Infof("os signal:%d received, closing..", signal)
+
+		err := testmanagerd.CloseXCUITestRunner()
+		if err != nil {
+			log.Error("Failed closing wda-testrunner")
+			os.Exit(1)
+		}
+		log.Info("Done Closing")
+	}
+	return b
+}
+
+func crashCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
+	b, _ := arguments.Bool("crash")
+	if b {
+		ls, _ := arguments.Bool("ls")
+		if ls {
+			pattern, err := arguments.String("<pattern>")
+			if err != nil || pattern == "" {
+				pattern = "*"
+			}
+			files, err := crashreport.ListReports(device, pattern)
+			exitIfError("failed listing crashreports", err)
+			println(
+				convertToJSONString(
+					map[string]interface{}{"files": files, "length": len(files)},
+				),
+			)
+		}
+		cp, _ := arguments.Bool("cp")
+		if cp {
+			pattern, _ := arguments.String("<srcpattern>")
+			target, _ := arguments.String("<target>")
+			log.Debugf("cp %s %s", pattern, target)
+			err := crashreport.DownloadReports(device, pattern, target)
+			exitIfError("failed downloading crashreports", err)
+		}
+
+		rm, _ := arguments.Bool("rm")
+		if rm {
+			cwd, _ := arguments.String("<cwd>")
+			pattern, _ := arguments.String("<pattern>")
+			log.Debugf("rm %s %s", cwd, pattern)
+			err := crashreport.RemoveReports(device, cwd, pattern)
+			exitIfError("failed deleting crashreports", err)
+		}
+	}
+	return b
 }
 
 func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId string, profileId string) {

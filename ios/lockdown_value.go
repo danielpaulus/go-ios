@@ -166,6 +166,23 @@ func GetProductVersion(device DeviceEntry) (*semver.Version, error) {
 	return v, err
 }
 
+//GetWifiMac gets the static MAC address of the device WiFi.
+//note: this does not report the dynamic MAC if you enable the
+//"automatic WiFi address" feature.
+func GetWifiMac(device DeviceEntry) (string, error) {
+	lockdownConnection, err := ConnectLockdownWithSession(device)
+	if err != nil {
+		return "", err
+	}
+	defer lockdownConnection.Close()
+	wifiMac, err := lockdownConnection.GetValue("WiFiAddress")
+	if err != nil {
+		return "", err
+	}
+
+	return wifiMac.(string), err
+}
+
 //GetProductVersion returns the ProductVersion of the device f.ex. "10.3"
 func (lockDownConn *LockDownConnection) GetProductVersion() (string, error) {
 	msg, err := lockDownConn.GetValue("ProductVersion")
