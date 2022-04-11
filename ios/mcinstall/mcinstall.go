@@ -1,15 +1,11 @@
 package mcinstall
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 
 	ios "github.com/danielpaulus/go-ios/ios"
-	plist "howett.net/plist"
 )
-
-type plistArray []interface{}
 
 const serviceName string = "com.apple.mobile.MCInstall"
 
@@ -31,39 +27,149 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	return &mcInstallConn, nil
 }
 
-func (mcInstallConn *Connection) readExchangeResponse(reader io.Reader) error {
+type ProfileInfo struct {
+	Identifier string
+	Manifest   ProfileManifest
+	Metadata   ProfileMetadata
+	Status     string
+}
+
+type ProfileMetadata struct {
+	PayloadDescription       string
+	PayloadDisplayName       string
+	PayloadRemovalDisallowed bool
+	PayloadUUID              string
+	PayloadVersion           uint64
+}
+
+type ProfileManifest struct {
+	Description string
+	IsActive    bool
+}
+
+func (mcInstallConn *Connection) readExchangeResponse(reader io.Reader) ([]ProfileInfo, error) {
 	responseBytes, err := mcInstallConn.plistCodec.Decode(reader)
-	fmt.Printf("Go %u %s", responseBytes, err)
 	if err != nil {
-		return err
+		return []ProfileInfo{}, err
 	}
 
-	response := getArrayFromBytes(responseBytes)
-	readyMessage, ok := response[0].(string)
+	dict, err := ios.ParsePlist(responseBytes)
+	if err != nil {
+		return []ProfileInfo{}, err
+	}
+	identifiersIntf, ok := dict["OrderedIdentifiers"]
+	if !ok {
+		return []ProfileInfo{}, fmt.Errorf("invalid plist response, missing key 'OrderedIdentifiers' dump: %x", responseBytes)
+	}
+	identifiers, ok := identifiersIntf.([]interface{})
+	if !ok {
+		return []ProfileInfo{}, fmt.Errorf("identifiers should be array, dump: %x", responseBytes)
+	}
+	profiles := make([]ProfileInfo, len(identifiers))
+	for i, id := range identifiers {
+		idString, ok := id.(string)
+		if !ok {
+			return []ProfileInfo{}, fmt.Errorf("identifiers should be array of strings, dump: %x", responseBytes)
+		}
+		profile, err := parseProfile(idString, dict)
+		if err != nil {
+			return []ProfileInfo{}, err
+		}
+		profiles[i] = profile
 
-	fmt.Printf("Go %s - %s", readyMessage, ok)
-	return nil
+	}
+
+	return profiles, nil
 }
 
-func getArrayFromBytes(plistBytes []byte) plistArray {
-	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
-	var data plistArray
-	_ = decoder.Decode(&data)
-	return data
+func parseProfile(idString string, dict map[string]interface{}) (ProfileInfo, error) {
+	result := ProfileInfo{}
+	result.Identifier = idString
+	manifestIntf, ok := dict["ProfileManifest"]
+	if !ok {
+		return result, fmt.Errorf("missing key ProfileManifest %+v", dict)
+	}
+	manifest, ok := manifestIntf.(map[string]interface{})
+	if !ok {
+		return result, fmt.Errorf("ProfileManifest should be a map %+v", dict)
+	}
+	manifestIntf, ok = manifest[idString]
+	if !ok {
+		return result, fmt.Errorf("missing key %s %+v", idString, dict)
+	}
+	manifest, ok = manifestIntf.(map[string]interface{})
+	if !ok {
+		return result, fmt.Errorf("%s should be a map %+v", idString, dict)
+	}
+	result.Manifest.IsActive, ok = manifest["IsActive"].(bool)
+	if !ok {
+		return result, fmt.Errorf("keyError %+v", dict)
+	}
+	result.Manifest.Description, ok = manifest["Description"].(string)
+	if !ok {
+		return result, fmt.Errorf("keyError %+v", dict)
+	}
+	result.Status, ok = dict["Status"].(string)
+	if !ok {
+		return result, fmt.Errorf("keyError %+v", dict)
+	}
+
+	metadataIntf, ok := dict["ProfileMetadata"]
+	if !ok {
+		return result, fmt.Errorf("missing key ProfileMetadata %+v", dict)
+	}
+	metadata, ok := metadataIntf.(map[string]interface{})
+	if !ok {
+		return result, fmt.Errorf("ProfileMetadata should be a map %+v", dict)
+	}
+	metadataIntf, ok = metadata[idString]
+	if !ok {
+		return result, fmt.Errorf("missing key %s %+v", idString, dict)
+	}
+	metadata, ok = metadataIntf.(map[string]interface{})
+	if !ok {
+		return result, fmt.Errorf("%s should be a map %+v", idString, dict)
+	}
+
+	result.Metadata.PayloadDescription, ok = metadata["PayloadDescription"].(string)
+	if !ok {
+		return result, fmt.Errorf("keyError PayloadDescription %+v", dict)
+	}
+	result.Metadata.PayloadDisplayName, ok = metadata["PayloadDisplayName"].(string)
+	if !ok {
+		return result, fmt.Errorf("keyError PayloadDisplayName %+v", dict)
+	}
+	result.Metadata.PayloadRemovalDisallowed, ok = metadata["PayloadRemovalDisallowed"].(bool)
+	if !ok {
+		return result, fmt.Errorf("keyError PayloadRemovalDisallowed %+v", dict)
+	}
+	result.Metadata.PayloadUUID, ok = metadata["PayloadUUID"].(string)
+	if !ok {
+		return result, fmt.Errorf("keyError PayloadUUID %+v", dict)
+	}
+	result.Metadata.PayloadVersion, ok = metadata["PayloadVersion"].(uint64)
+	if !ok {
+		return result, fmt.Errorf("keyError PayloadVersion %+v", dict)
+	}
+
+	return result, nil
 }
 
-func (mcInstallConn *Connection) HandleList() error {
+func (mcInstallConn *Connection) HandleList() ([]ProfileInfo, error) {
 	reader := mcInstallConn.deviceConn.Reader()
-	bytes, err := mcInstallConn.plistCodec.Encode([]interface{}{"RequestType", "GetProfileList"})
+	request := map[string]interface{}{"RequestType": "GetProfileList"}
+	requestBytes, err := mcInstallConn.plistCodec.Encode(request)
 	if err != nil {
-		return err
+		return []ProfileInfo{}, err
 	}
-	mcInstallConn.deviceConn.Send(bytes)
-	mcInstallConn.readExchangeResponse(reader)
-	return nil
+	err = mcInstallConn.deviceConn.Send(requestBytes)
+	if err != nil {
+		return []ProfileInfo{}, err
+	}
+	return mcInstallConn.readExchangeResponse(reader)
 }
 
 //Close closes the underlying DeviceConnection
-func (mcInstallConn *Connection) Close() {
-	mcInstallConn.deviceConn.Close()
+func (mcInstallConn *Connection) Close() error {
+	return mcInstallConn.deviceConn.Close()
 }

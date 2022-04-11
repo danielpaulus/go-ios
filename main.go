@@ -27,10 +27,10 @@ import (
 	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
+	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	"github.com/danielpaulus/go-ios/ios/notificationproxy"
 	"github.com/danielpaulus/go-ios/ios/pcap"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
-	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	syslog "github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
@@ -755,7 +755,9 @@ func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
 func handleProfileList(device ios.DeviceEntry) {
 	profileService, err := mcinstall.New(device)
 	exitIfError("Starting mcInstall failed with", err)
-	profileService.HandleList()
+	list, err := profileService.HandleList()
+	exitIfError("failed getting profile list", err)
+	fmt.Println(convertToJSONString(list))
 }
 
 func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
