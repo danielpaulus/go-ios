@@ -3,7 +3,7 @@ package crashreport
 import (
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/house_arrest"
+	"github.com/danielpaulus/go-ios/ios/afc"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path"
@@ -27,11 +27,11 @@ func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) e
 	if err != nil {
 		return err
 	}
-	afc := house_arrest.NewFromConn(deviceConn)
+	afc := afc.NewFromConn(deviceConn)
 	return copyReports(afc, ".", pattern, targetdir)
 }
 
-func copyReports(afc *house_arrest.Connection, cwd string, pattern string, targetDir string) error {
+func copyReports(afc *afc.Connection, cwd string, pattern string, targetDir string) error {
 	log.WithFields(log.Fields{"dir": cwd, "pattern": pattern, "to": targetDir}).Info("downloading")
 	targetDirInfo, err := os.Stat(targetDir)
 	if err != nil {
@@ -99,7 +99,7 @@ func RemoveReports(device ios.DeviceEntry, cwd string, pattern string) error {
 	if err != nil {
 		return err
 	}
-	afc := house_arrest.NewFromConn(deviceConn)
+	afc := afc.NewFromConn(deviceConn)
 	files, err := afc.ListFiles(cwd, pattern)
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func ListReports(device ios.DeviceEntry, pattern string) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
-	afc := house_arrest.NewFromConn(deviceConn)
+	afc := afc.NewFromConn(deviceConn)
 	return afc.ListFiles(".", pattern)
 }
 

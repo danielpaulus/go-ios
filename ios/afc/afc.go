@@ -1,4 +1,4 @@
-package house_arrest
+package afc
 
 import (
 	"bytes"
@@ -11,29 +11,34 @@ import (
 	"strings"
 )
 
+/*
+Contains a basic AFC Client. I did not implement support for everything libimobiledevice has.
+It only supports files and folders, no symlinks network sockets etc. I think that is usually
+not really needed anyway? Let me know if you miss anything or send a PR.
+*/
 const (
-	afc_magic                      uint64 = 0x4141504c36414643
-	afc_header_size                uint64 = 40
-	afc_fopen_wronly               uint64 = 0x3
-	afc_fopen_readonly             uint64 = 0x1
-	afc_operation_status           uint64 = 0x1
-	afcOpData                      uint64 = 0x2
-	afc_operation_read_dir         uint64 = 0x3
-	afc_operation_file_open        uint64 = 0x0000000D
-	afc_operation_file_close       uint64 = 0x00000014
-	afc_operation_file_read        uint64 = 0x0000000F
-	afc_operation_file_write       uint64 = 0x00000010
-	afc_operation_file_open_result uint64 = 0x0000000E
-	afcOpRemovePathAndContents     uint64 = 0x00000022
-	afcOpGetFileInfo               uint64 = 0x0000000A
+	afcMagic                   uint64 = 0x4141504c36414643
+	afcHeaderSize              uint64 = 40
+	afcFopenWronly             uint64 = 0x3
+	afcFopenReadonly           uint64 = 0x1
+	afcOperationStatus         uint64 = 0x1
+	afcOpData                  uint64 = 0x2
+	afcOperationReadDir        uint64 = 0x3
+	afcOperationFileOpen       uint64 = 0x0000000D
+	afcOperationFileClose      uint64 = 0x00000014
+	afcOperationFileRead       uint64 = 0x0000000F
+	afcOperationFileWrite      uint64 = 0x00000010
+	afcOperationFileOpenResult uint64 = 0x0000000E
+	afcOpRemovePathAndContents uint64 = 0x00000022
+	afcOpGetFileInfo           uint64 = 0x0000000A
 )
 
 type afcPacketHeader struct {
-	Magic         uint64
-	Entire_length uint64
-	This_length   uint64
-	Packet_num    uint64
-	Operation     uint64
+	Magic        uint64
+	EntireLength uint64
+	ThisLength   uint64
+	PacketNum    uint64
+	Operation    uint64
 }
 
 type afcPacket struct {
@@ -42,21 +47,20 @@ type afcPacket struct {
 	payload       []byte
 }
 
-//AFCFileInfo a struct containing file info
-type AFCFileInfo struct {
-	St_size      int
-	St_blocks    int
-	St_nlink     int
-	St_ifmt      string
-	St_mtime     uint64
-	St_birthtime uint64
+//FileInfo a struct containing file info
+type FileInfo struct {
+	StSize      int
+	StBlocks    int
+	StNlink     int
+	StIfmt      string
+	StMtime     uint64
+	StBirthtime uint64
 }
 
-func (info AFCFileInfo) IsDir() bool {
-	return info.St_ifmt == "S_IFDIR"
+//IsDir checks if info.StIfmt == "S_IFDIR" which means the FileInfo is for a directory
+func (info FileInfo) IsDir() bool {
+	return info.StIfmt == "S_IFDIR"
 }
-
-
 
 //SendFile writes fileContents to the given filePath on the device
 //FIXME: right now sends the entire byte array, will probably fail for larger files
@@ -78,8 +82,8 @@ func (conn *Connection) ListFiles(cwd string, matchPattern string) ([]string, er
 	headerPayload := []byte(cwd)
 	headerLength := uint64(len(headerPayload))
 
-	this_length := afc_header_size + headerLength
-	header := afcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: afc_operation_read_dir, This_length: this_length, Entire_length: this_length}
+	this_length := afcHeaderSize + headerLength
+	header := afcPacketHeader{Magic: afcMagic, PacketNum: conn.packageNumber, Operation: afcOperationReadDir, ThisLength: this_length, EntireLength: this_length}
 	conn.packageNumber++
 	packet := afcPacket{header: header, headerPayload: headerPayload, payload: make([]byte, 0)}
 
@@ -135,8 +139,8 @@ func (conn *Connection) DownloadFile(file string, target io.Writer) error {
 func (conn *Connection) Delete(path string) error {
 	log.Debugf("Delete:%s", path)
 	headerPayload := []byte(path)
-	this_length := afc_header_size + uint64(len(headerPayload))
-	header := afcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: afcOpRemovePathAndContents, This_length: this_length, Entire_length: this_length}
+	this_length := afcHeaderSize + uint64(len(headerPayload))
+	header := afcPacketHeader{Magic: afcMagic, PacketNum: conn.packageNumber, Operation: afcOpRemovePathAndContents, ThisLength: this_length, EntireLength: this_length}
 	conn.packageNumber++
 	packet := afcPacket{header: header, headerPayload: headerPayload, payload: make([]byte, 0)}
 	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
@@ -145,46 +149,46 @@ func (conn *Connection) Delete(path string) error {
 }
 
 //GetFileInfo gets basic info about the path on the device
-func (conn *Connection) GetFileInfo(path string) (AFCFileInfo, error) {
+func (conn *Connection) GetFileInfo(path string) (FileInfo, error) {
 	log.Debugf("GetFileInfo:%s", path)
 	headerPayload := []byte(path)
-	this_length := afc_header_size + uint64(len(headerPayload))
-	header := afcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: afcOpGetFileInfo, This_length: this_length, Entire_length: this_length}
+	this_length := afcHeaderSize + uint64(len(headerPayload))
+	header := afcPacketHeader{Magic: afcMagic, PacketNum: conn.packageNumber, Operation: afcOpGetFileInfo, ThisLength: this_length, EntireLength: this_length}
 	conn.packageNumber++
 	packet := afcPacket{header: header, headerPayload: headerPayload, payload: make([]byte, 0)}
 	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
 	log.Debugf("%+v", response)
 	if err != nil {
-		return AFCFileInfo{}, err
+		return FileInfo{}, err
 	}
 
-	if len(response.payload) != int(response.header.Entire_length-response.header.This_length) {
-		return AFCFileInfo{}, fmt.Errorf("not all payload data was received")
+	if len(response.payload) != int(response.header.EntireLength-response.header.ThisLength) {
+		return FileInfo{}, fmt.Errorf("not all payload data was received")
 	}
 	if response.header.Operation != afcOpData {
-		return AFCFileInfo{}, fmt.Errorf("expected afcOpData got: %d", response.header.Operation)
+		return FileInfo{}, fmt.Errorf("expected afcOpData got: %d", response.header.Operation)
 	}
 	res := bytes.Split(response.payload, []byte{0})
-	result := AFCFileInfo{}
+	result := FileInfo{}
 	for i, b := range res {
 		switch string(b) {
 		case "st_size":
-			result.St_size, _ = strconv.Atoi(string(res[i+1]))
+			result.StSize, _ = strconv.Atoi(string(res[i+1]))
 			break
 		case "st_blocks":
-			result.St_blocks, _ = strconv.Atoi(string(res[i+1]))
+			result.StBlocks, _ = strconv.Atoi(string(res[i+1]))
 			break
 		case "st_nlink":
-			result.St_nlink, _ = strconv.Atoi(string(res[i+1]))
+			result.StNlink, _ = strconv.Atoi(string(res[i+1]))
 			break
 		case "st_ifmt":
-			result.St_ifmt = string(res[i+1])
+			result.StIfmt = string(res[i+1])
 			break
 		case "st_mtime":
-			result.St_mtime, _ = strconv.ParseUint(string(res[i+1]), 0, 64)
+			result.StMtime, _ = strconv.ParseUint(string(res[i+1]), 0, 64)
 			break
 		case "st_birthtime":
-			result.St_birthtime, _ = strconv.ParseUint(string(res[i+1]), 0, 64)
+			result.StBirthtime, _ = strconv.ParseUint(string(res[i+1]), 0, 64)
 			break
 		}
 	}
@@ -195,10 +199,10 @@ func (conn *Connection) openFileForWriting(filePath string) (byte, error) {
 	pathBytes := []byte(filePath)
 	headerLength := 8 + uint64(len(pathBytes))
 	headerPayload := make([]byte, headerLength)
-	binary.LittleEndian.PutUint64(headerPayload, afc_fopen_wronly)
+	binary.LittleEndian.PutUint64(headerPayload, afcFopenWronly)
 	copy(headerPayload[8:], pathBytes)
-	this_length := afc_header_size + headerLength
-	header := afcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: afc_operation_file_open, This_length: this_length, Entire_length: this_length}
+	this_length := afcHeaderSize + headerLength
+	header := afcPacketHeader{Magic: afcMagic, PacketNum: conn.packageNumber, Operation: afcOperationFileOpen, ThisLength: this_length, EntireLength: this_length}
 	conn.packageNumber++
 	packet := afcPacket{header: header, headerPayload: headerPayload, payload: make([]byte, 0)}
 
@@ -206,8 +210,8 @@ func (conn *Connection) openFileForWriting(filePath string) (byte, error) {
 	if err != nil {
 		return 0, err
 	}
-	if response.header.Operation != afc_operation_file_open_result {
-		return 0, fmt.Errorf("Unexpected afc response, expected %x received %x", afc_operation_status, response.header.Operation)
+	if response.header.Operation != afcOperationFileOpenResult {
+		return 0, fmt.Errorf("Unexpected afc response, expected %x received %x", afcOperationStatus, response.header.Operation)
 	}
 	return response.headerPayload[0], nil
 }
@@ -216,10 +220,10 @@ func (conn *Connection) openFileForReading(filePath string) (byte, error) {
 	pathBytes := []byte(filePath)
 	headerLength := 8 + uint64(len(pathBytes))
 	headerPayload := make([]byte, headerLength)
-	binary.LittleEndian.PutUint64(headerPayload, afc_fopen_readonly)
+	binary.LittleEndian.PutUint64(headerPayload, afcFopenReadonly)
 	copy(headerPayload[8:], pathBytes)
-	this_length := afc_header_size + headerLength
-	header := afcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: afc_operation_file_open, This_length: this_length, Entire_length: this_length}
+	this_length := afcHeaderSize + headerLength
+	header := afcPacketHeader{Magic: afcMagic, PacketNum: conn.packageNumber, Operation: afcOperationFileOpen, ThisLength: this_length, EntireLength: this_length}
 	conn.packageNumber++
 	packet := afcPacket{header: header, headerPayload: headerPayload, payload: make([]byte, 0)}
 
@@ -227,8 +231,8 @@ func (conn *Connection) openFileForReading(filePath string) (byte, error) {
 	if err != nil {
 		return 0, err
 	}
-	if response.header.Operation != afc_operation_file_open_result {
-		return 0, fmt.Errorf("Unexpected afc response, expected %x received %x", afc_operation_status, response.header.Operation)
+	if response.header.Operation != afcOperationFileOpenResult {
+		return 0, fmt.Errorf("Unexpected afc response, expected %x received %x", afcOperationStatus, response.header.Operation)
 	}
 	return response.headerPayload[0], nil
 }
@@ -238,7 +242,7 @@ func (conn *Connection) readBytes(handle byte, length int) ([]byte, int, error) 
 	binary.LittleEndian.PutUint64(headerPayload, uint64(handle))
 	binary.LittleEndian.PutUint64(headerPayload[8:], uint64(length))
 	payloadLength := uint64(16)
-	header := afcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: afc_operation_file_read, This_length: payloadLength + afc_header_size, Entire_length: payloadLength + afc_header_size}
+	header := afcPacketHeader{Magic: afcMagic, PacketNum: conn.packageNumber, Operation: afcOperationFileRead, ThisLength: payloadLength + afcHeaderSize, EntireLength: payloadLength + afcHeaderSize}
 	conn.packageNumber++
 	packet := afcPacket{header: header, headerPayload: headerPayload, payload: make([]byte, 0)}
 	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
@@ -259,15 +263,15 @@ func (conn *Connection) sendAfcPacketAndAwaitResponse(packet afcPacket) (afcPack
 func (conn *Connection) sendFileContents(fileContents []byte, handle byte) error {
 	headerPayload := make([]byte, 8)
 	headerPayload[0] = handle
-	header := afcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: afc_operation_file_write, This_length: 8 + afc_header_size, Entire_length: 8 + afc_header_size + uint64(len(fileContents))}
+	header := afcPacketHeader{Magic: afcMagic, PacketNum: conn.packageNumber, Operation: afcOperationFileWrite, ThisLength: 8 + afcHeaderSize, EntireLength: 8 + afcHeaderSize + uint64(len(fileContents))}
 	conn.packageNumber++
 	packet := afcPacket{header: header, headerPayload: headerPayload, payload: fileContents}
 	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
 	if err != nil {
 		return err
 	}
-	if response.header.Operation != afc_operation_status {
-		return fmt.Errorf("Unexpected afc response, expected %x received %x", afc_operation_status, response.header.Operation)
+	if response.header.Operation != afcOperationStatus {
+		return fmt.Errorf("Unexpected afc response, expected %x received %x", afcOperationStatus, response.header.Operation)
 	}
 	return nil
 }
@@ -275,16 +279,16 @@ func (conn *Connection) sendFileContents(fileContents []byte, handle byte) error
 func (conn *Connection) closeHandle(handle byte) error {
 	headerPayload := make([]byte, 8)
 	headerPayload[0] = handle
-	this_length := 8 + afc_header_size
-	header := afcPacketHeader{Magic: afc_magic, Packet_num: conn.packageNumber, Operation: afc_operation_file_close, This_length: this_length, Entire_length: this_length}
+	this_length := 8 + afcHeaderSize
+	header := afcPacketHeader{Magic: afcMagic, PacketNum: conn.packageNumber, Operation: afcOperationFileClose, ThisLength: this_length, EntireLength: this_length}
 	conn.packageNumber++
 	packet := afcPacket{header: header, headerPayload: headerPayload, payload: make([]byte, 0)}
 	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
 	if err != nil {
 		return err
 	}
-	if response.header.Operation != afc_operation_status {
-		return fmt.Errorf("Unexpected afc response, expected %x received %x", afc_operation_status, response.header.Operation)
+	if response.header.Operation != afcOperationStatus {
+		return fmt.Errorf("Unexpected afc response, expected %x received %x", afcOperationStatus, response.header.Operation)
 	}
 	return nil
 }
@@ -295,17 +299,17 @@ func decode(reader io.Reader) (afcPacket, error) {
 	if err != nil {
 		return afcPacket{}, err
 	}
-	if header.Magic != afc_magic {
-		return afcPacket{}, fmt.Errorf("Wrong magic:%x expected: %x", header.Magic, afc_magic)
+	if header.Magic != afcMagic {
+		return afcPacket{}, fmt.Errorf("Wrong magic:%x expected: %x", header.Magic, afcMagic)
 	}
-	headerPayloadLength := header.This_length - afc_header_size
+	headerPayloadLength := header.ThisLength - afcHeaderSize
 	headerPayload := make([]byte, headerPayloadLength)
 	_, err = io.ReadFull(reader, headerPayload)
 	if err != nil {
 		return afcPacket{}, err
 	}
 
-	contentPayloadLength := header.Entire_length - header.This_length
+	contentPayloadLength := header.EntireLength - header.ThisLength
 	payload := make([]byte, contentPayloadLength)
 	_, err = io.ReadFull(reader, payload)
 	if err != nil {

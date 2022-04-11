@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	ios "github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/afc"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
-	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
@@ -238,13 +238,19 @@ func RunXCUITest(bundleID string, device ios.DeviceEntry) error {
 	//FIXME: this is redundant code, getting the app list twice and creating the appinfos twice
 	//just to generate the xctestConfigFileName. Should be cleaned up at some point.
 	installationProxy, err := installationproxy.New(device)
-	if err != nil{return err}
+	if err != nil {
+		return err
+	}
 	defer installationProxy.Close()
 
 	apps, err := installationProxy.BrowseUserApps()
-	if err != nil{return err}
-	info, err := getAppInfos(bundleID, testRunnerBundleID,apps)
-	if err != nil{return err}
+	if err != nil {
+		return err
+	}
+	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
+	if err != nil {
+		return err
+	}
 	xctestConfigFileName := info.targetAppBundleName + "UITests.xctest"
 	return RunXCUIWithBundleIds(bundleID, testRunnerBundleID, xctestConfigFileName, device, nil, nil)
 }
@@ -338,12 +344,11 @@ func RunXCUIWithBundleIds(
 		return RunXCUIWithBundleIds11(bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
 	}
 
-
-		conn, err := dtx.NewConnection(device, testmanagerdiOS14)
-		if err != nil {
-			return err
-		}
-		return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)
+	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
+	if err != nil {
+		return err
+	}
+	return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)
 
 }
 
@@ -431,7 +436,7 @@ func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID s
 	}
 	log.Debugf("app info found: %+v", info)
 
-	houseArrestService, err := house_arrest.NewWithHouseArrest(device, testRunnerBundleID)
+	houseArrestService, err := afc.NewWithHouseArrest(device, testRunnerBundleID)
 	defer houseArrestService.Close()
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
@@ -445,7 +450,7 @@ func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID s
 	return testSessionID, testConfigPath, testConfig, info, nil
 }
 
-func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *house_arrest.Connection, xctestConfigFileName string) (string, nskeyedarchiver.XCTestConfiguration, error) {
+func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *afc.Connection, xctestConfigFileName string) (string, nskeyedarchiver.XCTestConfiguration, error) {
 	relativeXcTestConfigPath := path.Join("tmp", testSessionID.String()+".xctestconfiguration")
 	xctestConfigPath := path.Join(info.testRunnerHomePath, relativeXcTestConfigPath)
 

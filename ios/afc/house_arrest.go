@@ -1,4 +1,4 @@
-package house_arrest
+package afc
 
 import (
 	"bytes"

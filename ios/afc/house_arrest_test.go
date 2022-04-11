@@ -1,4 +1,4 @@
-package house_arrest_test
+package afc_test
 
 /*
 import (
