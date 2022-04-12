@@ -32,14 +32,25 @@ If you miss something your Mac can do but go-iOS can't, just request a feature i
 All features:
 
 ```
+ The commands work as following:
+        The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command. 
+        By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
+        Specify -v for debug logging and -t for dumping every message.
+
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios info [options]                                                 Prints a dump of Lockdown getValues.
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
-   ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it. You can specify a dir where images should be cached. The default is the current dir. 
+   ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
+   >                                                                  You can specify a dir where images should be cached.
+   >                                                                  The default is the current dir. 
    ios syslog [options]                                               Prints a device's log output
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
+   ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list, 
+   >                                                                  or use a pattern like 'ios crash ls "*ips*"' to filter
+   ios crash cp <srcpattern> <target> [options]                       copy "file pattern" to the target dir. Ex.: 'ios crash cp "*" "./crashes"'
+   ios crash rm <cwd> <pattern> [options]                             remove file pattern from dir. Ex.: 'ios crash rm "." "*"' to delete everything
    ios devicename [options]                                           Prints the devicename
    ios date [options]                                                 Prints the device date
    ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
@@ -53,14 +64,23 @@ All features:
    ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
+   ios profiles list                                                  List the profiles on the device
+   ios profiles remove <profileName>                                  Remove the profileName from the device
+   ios profiles add <profileName> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. 
+   >                                                                  Use p12 file and password for silent installation on supervised devices.
    ios ps [options]                                                   Dumps a list of running processes on the device
+   ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
+   >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP. 
+   >                                                                  You have to disable the "automatic wifi address"-privacy feature of the device for this to work.
+   >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
+   >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
    ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
    >                                                                  It dumps every communication in plain text so it can be implemented easily. 
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
-   ios readpair                                                       Dump detailed information about the pairrecord for a device.                                              Starts a pcap dump of network traffic
+   ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.

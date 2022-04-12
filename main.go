@@ -68,9 +68,9 @@ Usage:
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
-  ios profiles list
-  ios profiles remove <profileName>
-  ios profiles add <profileName>
+  ios profile list [options]
+  ios profile remove <profileName> [options]
+  ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios ps [options]
   ios ip [options]
@@ -130,9 +130,10 @@ The commands work as following:
    ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
-   ios profiles list																									List the profiles on the device
-   ios profiles remove <profileName>																	Remove the profileName from the device
-   ios profiles add <profileName>																			Add the profileName to the device
+   ios profiles list                                                  List the profiles on the device
+   ios profiles remove <profileName>                                  Remove the profileName from the device
+   ios profiles add <profileName> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. 
+   >                                                                  Use p12 file and password for silent installation on supervised devices.
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
    >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP. 
@@ -366,6 +367,15 @@ The commands work as following:
 		b, _ = arguments.Bool("add")
 		if b {
 			name, _ := arguments.String("<profileName>")
+			p12file, _ := arguments.String("--p12file")
+			p12password, _ := arguments.String("--password")
+			if p12password == "" {
+				p12password = os.Getenv("P12_PASSWORD")
+			}
+			if p12file != "" {
+				handleProfileAddSupervised(device, name, p12file, p12password)
+				return
+			}
 			handleProfileAdd(device, name)
 		}
 		b, _ = arguments.Bool("remove")
@@ -790,6 +800,19 @@ func handleProfileAdd(device ios.DeviceEntry, file string) {
 	exitIfError("Starting mcInstall failed with", err)
 	filebytes, err := ioutil.ReadFile(file)
 	exitIfError("could not read profile-file", err)
+	err = profileService.AddProfile(filebytes)
+	exitIfError("failed adding profile", err)
+}
+
+func handleProfileAddSupervised(device ios.DeviceEntry, file string, p12file string, p12password string) {
+	profileService, err := mcinstall.New(device)
+	exitIfError("Starting mcInstall failed with", err)
+	filebytes, err := ioutil.ReadFile(file)
+	exitIfError("could not read profile-file", err)
+	p12bytes, err := ioutil.ReadFile(p12file)
+	exitIfError("could not read p12-file", err)
+	err = profileService.Escalate(p12bytes, p12password)
+	exitIfError("failed escalating with supervision certificate", err)
 	err = profileService.AddProfile(filebytes)
 	exitIfError("failed adding profile", err)
 }
