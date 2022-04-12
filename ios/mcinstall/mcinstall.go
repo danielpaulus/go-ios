@@ -2,6 +2,7 @@ package mcinstall
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
 
 	ios "github.com/danielpaulus/go-ios/ios"
@@ -172,4 +173,40 @@ func (mcInstallConn *Connection) HandleList() ([]ProfileInfo, error) {
 //Close closes the underlying DeviceConnection
 func (mcInstallConn *Connection) Close() error {
 	return mcInstallConn.deviceConn.Close()
+}
+
+func (mcInstallConn *Connection) AddProfile(profilePlist []byte) error {
+request := map[string]interface{}{"RequestType":"InstallProfile", "Payload": profilePlist}
+	requestBytes, err := mcInstallConn.plistCodec.Encode(request)
+	if err != nil {
+		return err
+	}
+	err = mcInstallConn.deviceConn.Send(requestBytes)
+	if err != nil {
+		return err
+	}
+	respBytes, err := mcInstallConn.plistCodec.Decode(mcInstallConn.deviceConn.Reader())
+	if err!=nil{
+		return err
+	}
+	log.Infof("received install response %x", respBytes)
+	return nil
+}
+
+func (mcInstallConn *Connection) RemoveProfile(identifier string) error {
+	request := map[string]interface{}{"RequestType":"RemoveProfile", "ProfileIdentifier": identifier}
+	requestBytes, err := mcInstallConn.plistCodec.Encode(request)
+	if err != nil {
+		return err
+	}
+	err = mcInstallConn.deviceConn.Send(requestBytes)
+	if err != nil {
+		return err
+	}
+	respBytes, err := mcInstallConn.plistCodec.Decode(mcInstallConn.deviceConn.Reader())
+	if err!=nil{
+		return err
+	}
+	log.Infof("received install response %x", respBytes)
+	return nil
 }

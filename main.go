@@ -162,6 +162,7 @@ The commands work as following:
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
+
 	exitIfError("failed parsing args", err)
 	disableJSON, _ := arguments.Bool("--nojson")
 	if disableJSON {
@@ -214,18 +215,8 @@ The commands work as following:
 	udid, _ := arguments.String("--udid")
 	device, err := ios.GetDevice(udid)
 	exitIfError("error getting devicelist", err)
-	conn, _ := diagnostics.New(device)
-	b, _ = arguments.Bool("mobilegestalt")
-	if b {
-		keys := arguments["<key>"].([]string)
-		plist, _ := arguments.Bool("--plist")
-		resp, _ := conn.MobileGestaltQuery(keys)
-		if plist {
-			fmt.Printf("%s", ios.ToPlist(resp))
-			return
-		}
-		jb, _ := json.Marshal(resp)
-		fmt.Printf("%s", jb)
+
+	if mobileGestaltCommand(device, arguments) {
 		return
 	}
 
@@ -285,37 +276,7 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("image")
-	if b {
-		list, _ := arguments.Bool("list")
-		if list {
-			listMountedImages(device)
-		}
-		mount, _ := arguments.Bool("mount")
-		if mount {
-			path, _ := arguments.String("--path")
-			err = imagemounter.MountImage(device, path)
-			if err != nil {
-				log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber, "err": err}).
-					Error("error mounting image")
-				return
-			}
-			log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
-		}
-		auto, _ := arguments.Bool("auto")
-		if auto {
-			basedir, _ := arguments.String("--basedir")
-			if basedir == "" {
-				basedir = "."
-			}
-			err = imagemounter.FixDevImage(device, basedir)
-			if err != nil {
-				log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber, "err": err}).
-					Error("error mounting image")
-				return
-			}
-			log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber}).Info("success mounting image")
-		}
+	if imageCommand1(device, arguments) {
 		return
 	}
 
@@ -402,6 +363,17 @@ The commands work as following:
 		if listCommand {
 			handleProfileList(device)
 		}
+		b, _ = arguments.Bool("add")
+		if b {
+			name, _ := arguments.String("<profileName>")
+			handleProfileAdd(device, name)
+		}
+		b, _ = arguments.Bool("remove")
+		if b {
+			name, _ := arguments.String("<profileName>")
+			handleProfileRemove(device, name)
+		}
+
 		return
 	}
 
@@ -506,6 +478,60 @@ The commands work as following:
 		return
 	}
 
+}
+
+func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
+	b, _ := arguments.Bool("mobilegestalt")
+	if b {
+		conn, _ := diagnostics.New(device)
+		keys := arguments["<key>"].([]string)
+		plist, _ := arguments.Bool("--plist")
+		resp, _ := conn.MobileGestaltQuery(keys)
+		if plist {
+			fmt.Printf("%s", ios.ToPlist(resp))
+			return true
+		}
+		jb, _ := json.Marshal(resp)
+		fmt.Printf("%s", jb)
+		return true
+	}
+	return b
+}
+
+func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
+	b, _ := arguments.Bool("image")
+	if b {
+		list, _ := arguments.Bool("list")
+		if list {
+			listMountedImages(device)
+		}
+		mount, _ := arguments.Bool("mount")
+		if mount {
+			path, _ := arguments.String("--path")
+			err := imagemounter.MountImage(device, path)
+			if err != nil {
+				log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber, "err": err}).
+					Error("error mounting image")
+				return true
+			}
+			log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
+		}
+		auto, _ := arguments.Bool("auto")
+		if auto {
+			basedir, _ := arguments.String("--basedir")
+			if basedir == "" {
+				basedir = "."
+			}
+			err := imagemounter.FixDevImage(device, basedir)
+			if err != nil {
+				log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber, "err": err}).
+					Error("error mounting image")
+				return true
+			}
+			log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber}).Info("success mounting image")
+		}
+	}
+	return b
 }
 
 func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
@@ -750,6 +776,22 @@ func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
 	<-c
 	log.Info("Shutting down debugproxy")
 	proxy.Close()
+}
+
+func handleProfileRemove(device ios.DeviceEntry, identifier string) {
+	profileService, err := mcinstall.New(device)
+	exitIfError("Starting mcInstall failed with", err)
+	err = profileService.RemoveProfile(identifier)
+	exitIfError("failed adding profile", err)
+}
+
+func handleProfileAdd(device ios.DeviceEntry, file string) {
+	profileService, err := mcinstall.New(device)
+	exitIfError("Starting mcInstall failed with", err)
+	filebytes, err := ioutil.ReadFile(file)
+	exitIfError("could not read profile-file", err)
+	err = profileService.AddProfile(filebytes)
+	exitIfError("failed adding profile", err)
 }
 
 func handleProfileList(device ios.DeviceEntry) {
