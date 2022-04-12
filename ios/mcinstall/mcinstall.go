@@ -3,6 +3,7 @@ package mcinstall
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/pkcs12"
 	"io"
 
 	ios "github.com/danielpaulus/go-ios/ios"
@@ -156,6 +157,81 @@ func parseProfile(idString string, dict map[string]interface{}) (ProfileInfo, er
 	return result, nil
 }
 
+func (mcInstallConn *Connection) Escalate(p12bytes []byte, p12Password string) error {
+	supervisedPrivateKey, supervisionCert, err := pkcs12.Decode(p12bytes, p12Password)
+	if err != nil {
+		return err
+	}
+	request := map[string]interface{}{"RequestType": "Escalate", "SupervisorCertificate": supervisionCert}
+	dict, err := mcInstallConn.sendAndReceive(request)
+	if err != nil {
+		return err
+	}
+	if !checkStatus(dict) {
+		return fmt.Errorf("escalate response had error %+v", dict)
+	}
+	challengeInt, ok := dict["Challenge"]
+	if !ok {
+		return fmt.Errorf("missing key Challenge %+v", dict)
+	}
+	challenge, ok := challengeInt.([]byte)
+	signedRequest, err := ios.Sign(challenge, supervisionCert, supervisedPrivateKey)
+	if err != nil {
+		return err
+	}
+
+	request = map[string]interface{}{"RequestType": "EscalateResponse", "SignedRequest": signedRequest}
+	dict, err = mcInstallConn.sendAndReceive(request)
+	if err != nil {
+		return err
+	}
+	if !checkStatus(dict) {
+		return fmt.Errorf("escalateresponse response had error %+v", dict)
+	}
+	request = map[string]interface{}{"RequestType": "ProceedWithKeybagMigration"}
+	dict, err = mcInstallConn.sendAndReceive(request)
+	if err != nil {
+		return err
+	}
+	if !checkStatus(dict) {
+		return fmt.Errorf("proceedWithKeybagMigration response had error %+v", dict)
+	}
+	return nil
+}
+
+func checkStatus(response map[string]interface{}) bool {
+	statusIntf, ok := response["Status"]
+	if !ok {
+		return false
+	}
+	status, ok := statusIntf.(string)
+	if !ok {
+		return false
+	}
+	if "Acknowledged" != status {
+		return false
+	}
+	return true
+}
+
+func (mcInstallConn *Connection) sendAndReceive(request map[string]interface{}) (map[string]interface{}, error) {
+	reader := mcInstallConn.deviceConn.Reader()
+	requestBytes, err := mcInstallConn.plistCodec.Encode(request)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+	err = mcInstallConn.deviceConn.Send(requestBytes)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+	responseBytes, err := mcInstallConn.plistCodec.Decode(reader)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+
+	return ios.ParsePlist(responseBytes)
+
+}
 func (mcInstallConn *Connection) HandleList() ([]ProfileInfo, error) {
 	reader := mcInstallConn.deviceConn.Reader()
 	request := map[string]interface{}{"RequestType": "GetProfileList"}
@@ -176,7 +252,7 @@ func (mcInstallConn *Connection) Close() error {
 }
 
 func (mcInstallConn *Connection) AddProfile(profilePlist []byte) error {
-request := map[string]interface{}{"RequestType":"InstallProfile", "Payload": profilePlist}
+	request := map[string]interface{}{"RequestType": "InstallProfile", "Payload": profilePlist}
 	requestBytes, err := mcInstallConn.plistCodec.Encode(request)
 	if err != nil {
 		return err
@@ -186,7 +262,7 @@ request := map[string]interface{}{"RequestType":"InstallProfile", "Payload": pro
 		return err
 	}
 	respBytes, err := mcInstallConn.plistCodec.Decode(mcInstallConn.deviceConn.Reader())
-	if err!=nil{
+	if err != nil {
 		return err
 	}
 	log.Infof("received install response %x", respBytes)
@@ -194,7 +270,7 @@ request := map[string]interface{}{"RequestType":"InstallProfile", "Payload": pro
 }
 
 func (mcInstallConn *Connection) RemoveProfile(identifier string) error {
-	request := map[string]interface{}{"RequestType":"RemoveProfile", "ProfileIdentifier": identifier}
+	request := map[string]interface{}{"RequestType": "RemoveProfile", "ProfileIdentifier": identifier}
 	requestBytes, err := mcInstallConn.plistCodec.Encode(request)
 	if err != nil {
 		return err
@@ -204,7 +280,7 @@ func (mcInstallConn *Connection) RemoveProfile(identifier string) error {
 		return err
 	}
 	respBytes, err := mcInstallConn.plistCodec.Decode(mcInstallConn.deviceConn.Reader())
-	if err!=nil{
+	if err != nil {
 		return err
 	}
 	log.Infof("received install response %x", respBytes)
