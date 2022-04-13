@@ -95,9 +95,9 @@ jobs:
           path: ./win-bin
       - name: Download and package windows binary
         run: |
-          unzip go-ios-win.zip
+          unzip go-ios-windows.zip
           echo "release_tag="$(cat release_tag) >> $GITHUB_ENV
-          rm go-ios-win.zip
+          rm go-ios-windows.zip
           zip -j go-ios-win.zip ios.exe
         working-directory: ./win-bin
       - name: Build
