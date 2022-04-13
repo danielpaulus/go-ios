@@ -59,7 +59,7 @@ jobs:
         working-directory: ./mac-bin
       - name: Build
         run: |
-          sed -i 's/version \= \"local-build\"/version = \"${{ env.release_tag }}\"/' main.go
+          sed -i 's/version \= \"local-build\"/version = \"1.0.0\"/' main.go
           mkdir bin
           go build -ldflags="-s -w" -o bin/ios
           cp ./mac-bin/go-ios-mac.zip .
