@@ -76,6 +76,8 @@ jobs:
           mkdir ./npm_publish/dist/go-ios-linux-amd64_linux_amd64
           cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64/ios
           cp ./bin/ios ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
+          echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" >> .npmrc
+          npm whoami
           cd npm_publish
           sed -i 's/\"local-build\"/\"${{ env.release_tag }}\"/' package.json
           npm install
