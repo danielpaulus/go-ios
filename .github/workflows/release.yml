@@ -1,7 +1,7 @@
 on:
   push:
-    #branches:
-    #  - main
+    branches:
+      - main
 name: Release-Go-iOS
 jobs:
   build_on_mac:
@@ -59,16 +59,16 @@ jobs:
         working-directory: ./mac-bin
       - name: Build
         run: |
-          sed -i 's/version \= \"local-build\"/version = \"1.0.0\"/' main.go
+          sed -i 's/version \= \"local-build\"/version = \"${{ env.release_tag }}\"/' main.go
           mkdir bin
           go build -ldflags="-s -w" -o bin/ios
           cp ./mac-bin/go-ios-mac.zip .
           zip -j go-ios-linux.zip bin/ios
-  #ä    - uses: AButler/upload-release-assets@v2.0
-  #      with:
-  #        files: "*.zip"
-  #        repo-token: ${{ secrets.GITHUB_TOKEN }}
-  #        release-tag: ${{ env.release_tag }}
+      - uses: AButler/upload-release-assets@v2.0
+        with:
+          files: "*.zip"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ env.release_tag }}
       - name: Publish NPM
         run: |
           mkdir ./npm_publish/dist
@@ -77,7 +77,6 @@ jobs:
           cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64/ios
           cp ./bin/ios ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
           echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" >> ~/.npmrc
-          npm whoami
           cd npm_publish
           sed -i 's/\"local-build\"/\"${{ env.release_tag }}\"/' package.json
           npm install
