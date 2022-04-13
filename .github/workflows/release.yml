@@ -50,7 +50,7 @@ jobs:
           path: ./win-bin
       - name: Build
         run: |
-          unzip windows-build.zip
+          unzip go-ios-windows.zip
           echo "release_tag="$(cat release_tag) >> $GITHUB_ENV
         working-directory: ./win-bin
       - name: Build
