@@ -33,4 +33,99 @@ jobs:
           name: windows-build
           path: go-ios-windows.zip
           retention-days: 1
-  
+  build_on_mac:
+    runs-on: macos-latest
+    needs: build_on_windows
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Download win release from previous job
+        uses: actions/download-artifact@v2
+        with:
+          name: windows-build
+          path: ./win-bin
+      - name: Build
+        run: |
+          unzip windows-build.zip
+          echo "release_tag="$(cat release_tag) >> $GITHUB_ENV
+        working-directory: ./win-bin
+      - name: Build
+        run: |
+          brew install gnu-sed
+          alias sed=gsed
+          gsed -i 's/version \= \"local-build\"/version = \"${{ env.release_tag }}\"/' main.go
+          mkdir bin
+          go build -ldflags="-s -w" -o bin/ios
+          zip -j go-ios-mac.zip bin/ios
+      - name: upload the macos build
+        uses: actions/upload-artifact@v2
+        with:
+          name: macos-build
+          path: go-ios-mac.zip
+          retention-days: 1
+  build_on_linux_and_release:
+    runs-on: ubuntu-latest
+    needs: build_on_mac
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Download mac release from previous job
+        uses: actions/download-artifact@v2
+        with:
+          name: macos-build
+          path: ./mac-bin
+      - name: Download and package mac binary
+        run: |
+          unzip go-ios-mac.zip
+          rm go-ios-mac.zip
+          zip -j go-ios-mac.zip ios
+        working-directory: ./mac-bin
+      - name: Download win release from previous job
+        uses: actions/download-artifact@v2
+        with:
+          name: windows-build
+          path: ./win-bin
+      - name: Download and package windows binary
+        run: |
+          unzip go-ios-win.zip
+          echo "release_tag="$(cat release_tag) >> $GITHUB_ENV
+          rm go-ios-win.zip
+          zip -j go-ios-win.zip ios.exe
+        working-directory: ./win-bin
+      - name: Build
+        run: |
+          sed -i 's/version \= \"local-build\"/version = \"${{ env.release_tag }}\"/' main.go
+          mkdir bin
+          go build -ldflags="-s -w" -o bin/ios
+          cp ./mac-bin/go-ios-mac.zip .
+          zip -j go-ios-linux.zip bin/ios
+      - uses: AButler/upload-release-assets@v2.0
+        with:
+          files: "*.zip"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ env.release_tag }}
+      - name: Publish NPM
+        run: |
+          mkdir ./npm_publish/dist
+          mkdir ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64
+          mkdir ./npm_publish/dist/go-ios-linux-amd64_linux_amd64
+          mkdir ./npm_publish/dist/go-ios-windows-amd64_windows_amd64
+          cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64/ios
+          cp ./win-bin/ios.exe ./npm_publish/dist/go-ios-windows-amd64_windows_amd64/ios
+          cp ./bin/ios ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
+          echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" >> ~/.npmrc
+          cd npm_publish
+          sed -i 's/\"local-build\"/\"${{ env.release_tag }}\"/' package.json
+          npm install
+          npm publish
+        env: 
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          
