@@ -25,7 +25,7 @@ jobs:
           get-content main.go | %{$_ -replace "local-build","${{ steps.create_release.outputs.current_tag }}"}
           mkdir bin
           go build -ldflags="-s -w" -o bin/ios.exe
-          echo ${{ steps.create_release.outputs.current_tag }} > release_tag
+          ${{ steps.create_release.outputs.current_tag }} | Out-File -encoding ascii release_tag -NoNewline
           Compress-Archive -Path .\bin\ios.exe, release_tag -CompressionLevel Optimal -DestinationPath go-ios-windows.zip
       - name: upload the windows build
         uses: actions/upload-artifact@v2
@@ -48,7 +48,7 @@ jobs:
         with:
           name: windows-build
           path: ./win-bin
-      - name: Build
+      - name: Extract release tag
         run: |
           unzip go-ios-windows.zip
           echo "release_tag="$(cat release_tag) >> $GITHUB_ENV
@@ -106,6 +106,7 @@ jobs:
           mkdir bin
           go build -ldflags="-s -w" -o bin/ios
           cp ./mac-bin/go-ios-mac.zip .
+          cp ./win-bin/go-ios-win.zip .
           zip -j go-ios-linux.zip bin/ios
       - uses: AButler/upload-release-assets@v2.0
         with:
