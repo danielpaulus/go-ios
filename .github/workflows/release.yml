@@ -79,5 +79,5 @@ jobs:
           npm install
           npm publish
         env: 
-          NODE_AUTH_TOKEN: {{ secrets.NODE_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           
