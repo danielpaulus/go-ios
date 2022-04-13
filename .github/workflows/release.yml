@@ -26,7 +26,7 @@ jobs:
           mkdir bin
           go build -ldflags="-s -w" -o bin/ios.exe
           echo ${{ steps.create_release.outputs.current_tag }} > release_tag
-          zip -j go-ios-windows.zip bin/ios.exe release_tag
+          Compress-Archive -Path .\bin\ios.exe, release_tag -CompressionLevel Optimal -DestinationPath go-ios-windows.zip
       - name: upload the windows build
         uses: actions/upload-artifact@v2
         with:
