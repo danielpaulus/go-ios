@@ -1,7 +1,7 @@
 on:
   push:
-    branches:
-      - main
+    #branches:
+    #  - main
 name: Release-Go-iOS
 jobs:
   build_on_mac:
@@ -64,11 +64,11 @@ jobs:
           go build -ldflags="-s -w" -o bin/ios
           cp ./mac-bin/go-ios-mac.zip .
           zip -j go-ios-linux.zip bin/ios
-      - uses: AButler/upload-release-assets@v2.0
-        with:
-          files: "*.zip"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          release-tag: ${{ env.release_tag }}
+  #ä    - uses: AButler/upload-release-assets@v2.0
+  #      with:
+  #        files: "*.zip"
+  #        repo-token: ${{ secrets.GITHUB_TOKEN }}
+  #        release-tag: ${{ env.release_tag }}
       - name: Publish NPM
         run: |
           mkdir ./npm_publish/dist
