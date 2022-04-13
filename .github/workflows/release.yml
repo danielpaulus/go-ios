@@ -69,3 +69,14 @@ jobs:
           files: "*.zip"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           release-tag: ${{ env.release_tag }}
+      - name: Publish NPM
+        run: |
+          mkdir ./npm_publish/dist
+          cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64/ios
+          cp ./bin/ios ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
+          cd npm_publish
+          npm install
+          npm publish
+        env: 
+          NODE_AUTH_TOKEN: {{ secrets.NODE_AUTH_TOKEN }}
+          
