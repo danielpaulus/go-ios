@@ -25,7 +25,7 @@ jobs:
           get-content main.go | %{$_ -replace "local-build","${{ steps.create_release.outputs.current_tag }}"}
           mkdir bin
           go build -ldflags="-s -w" -o bin/ios.exe
-          ${{ steps.create_release.outputs.current_tag }} | Out-File -encoding ascii release_tag -NoNewline
+          "${{ steps.create_release.outputs.current_tag }}" | Out-File -encoding ascii release_tag -NoNewline
           Compress-Archive -Path .\bin\ios.exe, release_tag -CompressionLevel Optimal -DestinationPath go-ios-windows.zip
       - name: upload the windows build
         uses: actions/upload-artifact@v2
