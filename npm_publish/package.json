@@ -1,0 +1,31 @@
+{
+    "name": "go-ios",
+    "version": "local-build",
+    "description": "Provide a stable and production ready opensource solution to automate iOS device on Linux, Windows and Mac OS X.",
+    "main": "index.js",
+    "scripts": {
+      "postinstall": "node postinstall.js install",
+      "preuninstall": "node postinstall.js uninstall"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/danielpaulus/go-ios.git"
+      },
+    "author": "Daniel Paulus",
+    "license": "MIT",
+    "bugs": {
+      "url": "https://github.com/danielpaulus/go-ios/issues"
+    },
+    "homepage": "https://github.com/danielpaulus/go-ios#readme",
+    "goBinary": {
+      "name": "ios",
+      "path": "./bin"
+    },
+    "files": [
+      "dist",
+      "postinstall.js"
+    ],
+    "dependencies": {
+      "mkdirp": "^1.0.4"
+    }
+  }

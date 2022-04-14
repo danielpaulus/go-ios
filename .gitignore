@@ -1,3 +1,4 @@
+node_modules
 *.mobileprovision
 *.p12
 testdata/wda-signed.ipa
