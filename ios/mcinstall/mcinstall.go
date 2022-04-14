@@ -267,8 +267,12 @@ func (mcInstallConn *Connection) addProfile(profilePlist []byte, installcmd stri
 	if err != nil {
 		return err
 	}
-	log.Infof("received install response %x", respBytes)
-	return nil
+	plist, err := ios.ParsePlist(respBytes)
+	if checkStatus(plist) {
+		return nil
+	}
+	log.Errorf("received remove response %+v", plist)
+	return fmt.Errorf("remove failed")
 }
 
 func (mcInstallConn *Connection) RemoveProfile(identifier string) error {
@@ -285,8 +289,12 @@ func (mcInstallConn *Connection) RemoveProfile(identifier string) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("received install response %x", respBytes)
-	return nil
+	plist, err := ios.ParsePlist(respBytes)
+	if checkStatus(plist) {
+		return nil
+	}
+	log.Errorf("received remove response %+v", plist)
+	return fmt.Errorf("remove failed")
 }
 
 func (mcInstallConn *Connection) AddProfileSupervised(filebytes []byte, bytes []byte, password string) error {

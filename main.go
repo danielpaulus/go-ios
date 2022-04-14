@@ -207,7 +207,7 @@ The commands work as following:
 	diagnosticsCommand, _ := arguments.Bool("diagnostics")
 	imageCommand, _ := arguments.Bool("image")
 	deviceStateCommand, _ := arguments.Bool("devicestate")
-	profileCommand, _ := arguments.Bool("profiles")
+	profileCommand, _ := arguments.Bool("profile")
 
 	if listCommand && !diagnosticsCommand && !imageCommand && !deviceStateCommand && !profileCommand {
 		b, _ = arguments.Bool("--details")
@@ -795,6 +795,7 @@ func handleProfileRemove(device ios.DeviceEntry, identifier string) {
 	exitIfError("Starting mcInstall failed with", err)
 	err = profileService.RemoveProfile(identifier)
 	exitIfError("failed adding profile", err)
+	log.Infof("profile '%s' removed",identifier)
 }
 
 func handleProfileAdd(device ios.DeviceEntry, file string) {
@@ -804,6 +805,7 @@ func handleProfileAdd(device ios.DeviceEntry, file string) {
 	exitIfError("could not read profile-file", err)
 	err = profileService.AddProfile(filebytes)
 	exitIfError("failed adding profile", err)
+	log.Info("profile installed, you have to accept it in the device settings")
 }
 
 func handleProfileAddSupervised(device ios.DeviceEntry, file string, p12file string, p12password string) {
@@ -815,6 +817,7 @@ func handleProfileAddSupervised(device ios.DeviceEntry, file string, p12file str
 	exitIfError("could not read p12-file", err)
 	err = profileService.AddProfileSupervised(filebytes,p12bytes, p12password)
 	exitIfError("failed adding profile", err)
+	log.Info("profile installed")
 }
 
 func handleProfileList(device ios.DeviceEntry) {
