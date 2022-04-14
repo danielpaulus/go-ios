@@ -64,9 +64,10 @@ All features:
    ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
-   ios profiles list                                                  List the profiles on the device
-   ios profiles remove <profileName>                                  Remove the profileName from the device
-   ios profiles add <profileName> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. 
+   ios profile list                                                   List the profiles on the device
+   ios profile remove <profileName>                                   Remove the profileName from the device
+   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device.
+   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> set global http proxy on supervised device
    >                                                                  Use p12 file and password for silent installation on supervised devices.
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.

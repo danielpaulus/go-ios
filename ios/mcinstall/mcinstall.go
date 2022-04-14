@@ -162,7 +162,7 @@ func (mcInstallConn *Connection) Escalate(p12bytes []byte, p12Password string) e
 	if err != nil {
 		return err
 	}
-	request := map[string]interface{}{"RequestType": "Escalate", "SupervisorCertificate": supervisionCert}
+	request := map[string]interface{}{"RequestType": "Escalate", "SupervisorCertificate": supervisionCert.Raw}
 	dict, err := mcInstallConn.sendAndReceive(request)
 	if err != nil {
 		return err
@@ -250,9 +250,11 @@ func (mcInstallConn *Connection) HandleList() ([]ProfileInfo, error) {
 func (mcInstallConn *Connection) Close() error {
 	return mcInstallConn.deviceConn.Close()
 }
-
 func (mcInstallConn *Connection) AddProfile(profilePlist []byte) error {
-	request := map[string]interface{}{"RequestType": "InstallProfile", "Payload": profilePlist}
+	return mcInstallConn.addProfile(profilePlist, "InstallProfile")
+}
+func (mcInstallConn *Connection) addProfile(profilePlist []byte, installcmd string) error {
+	request := map[string]interface{}{"RequestType": installcmd, "Payload": profilePlist}
 	requestBytes, err := mcInstallConn.plistCodec.Encode(request)
 	if err != nil {
 		return err
@@ -285,4 +287,12 @@ func (mcInstallConn *Connection) RemoveProfile(identifier string) error {
 	}
 	log.Infof("received install response %x", respBytes)
 	return nil
+}
+
+func (mcInstallConn *Connection) AddProfileSupervised(filebytes []byte, bytes []byte, password string) error {
+	err := mcInstallConn.Escalate(bytes, password)
+	if err != nil {
+		return err
+	}
+	return mcInstallConn.addProfile(filebytes, "InstallProfileSilent")
 }
