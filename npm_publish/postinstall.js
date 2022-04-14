@@ -10,7 +10,7 @@ var path = require('path'),
 
 // Mapping from Node's `process.arch` to Golang's `$GOARCH`
 var ARCH_MAPPING = {
-    "ia32": "386",
+   // "ia32": "386",
     "x64": "amd64",
     "arm": "arm"
 };
@@ -85,10 +85,12 @@ function validateConfiguration(packageJson) {
 }
 
 function parsePackageJson() {
+    if (process.arch !=="arm64" && process.platform !== "darwin"){
     if (!(process.arch in ARCH_MAPPING)) {
         console.error("Installation is not supported for this architecture: " + process.arch);
         return;
     }
+}
 
     if (!(process.platform in PLATFORM_MAPPING)) {
         console.error("Installation is not supported for this platform: " + process.platform);
@@ -142,9 +144,14 @@ async function install(callback) {
     if (!opts) return callback(INVALID_INPUT);
     mkdirp.sync(opts.binPath);
     console.info(`Copying the relevant binary for your platform ${process.platform}`);
-    const src= `./dist/go-ios-${process.platform}-${ARCH_MAPPING[process.arch]}_${process.platform}_${ARCH_MAPPING[process.arch]}/${opts.binName}`;
+    let src= `./dist/go-ios-${PLATFORM_MAPPING[process.platform]}-${ARCH_MAPPING[process.arch]}_${PLATFORM_MAPPING[process.platform]}_${ARCH_MAPPING[process.arch]}/${opts.binName}`;
+    if (process.arch ==="arm64" && process.platform === "darwin"){
+        console.log("using amd64 build on M1 mac")
+        src= `./dist/go-ios-${process.platform}-amd64_${process.platform}_amd64/${opts.binName}`;
+    }
     await execShellCommand(`cp ${src} ${opts.binPath}/${opts.binName}`);
     await verifyAndPlaceBinary(opts.binName, opts.binPath, callback);
+    console.log("\x1b[32m","go-ios installed, run 'ios --help' for details\n\n")
 }
 
 async function uninstall(callback) {
