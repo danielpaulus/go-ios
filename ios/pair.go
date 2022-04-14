@@ -2,10 +2,8 @@ package ios
 
 import (
 	"bytes"
-	"crypto"
 	"errors"
 	"fmt"
-	"github.com/fullsailor/pkcs7"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/pkcs12"
 	plist "howett.net/plist"
@@ -73,16 +71,7 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 	if err != nil {
 		return err
 	}
-	sd, err := pkcs7.NewSignedData(challengeBytes)
-
-	if err != nil {
-		return err
-	}
-	err = sd.AddSigner(cert, supervisedPrivateKey.(crypto.Signer), pkcs7.SignerInfoConfig{})
-	if err != nil {
-		return err
-	}
-	der, err := sd.Finish()
+	der, err := Sign(challengeBytes, cert, supervisedPrivateKey)
 	if err != nil {
 		return err
 	}

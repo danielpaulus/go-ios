@@ -1,6 +1,7 @@
 package ios
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -9,6 +10,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
+	"github.com/fullsailor/pkcs7"
 	"math/big"
 	"time"
 )
@@ -189,4 +191,18 @@ func savePEMKey(key *rsa.PrivateKey) []byte {
 		},
 	)
 	return privateKeyPem
+}
+
+func Sign(challengeBytes []byte, cert *x509.Certificate, supervisedPrivateKey interface{}) ([]byte, error) {
+	sd, err := pkcs7.NewSignedData(challengeBytes)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	err = sd.AddSigner(cert, supervisedPrivateKey.(crypto.Signer), pkcs7.SignerInfoConfig{})
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return sd.Finish()
 }

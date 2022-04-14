@@ -27,10 +27,10 @@ import (
 	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
+	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	"github.com/danielpaulus/go-ios/ios/notificationproxy"
 	"github.com/danielpaulus/go-ios/ios/pcap"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
-	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	syslog "github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
@@ -68,9 +68,10 @@ Usage:
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
-  ios profiles list
-  ios profiles remove <profileName>
-  ios profiles add <profileName>
+  ios profile list [options]
+  ios profile remove <profileName> [options]
+  ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
+  ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password>
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios ps [options]
   ios ip [options]
@@ -130,9 +131,11 @@ The commands work as following:
    ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
-   ios profiles list																									List the profiles on the device
-   ios profiles remove <profileName>																	Remove the profileName from the device
-   ios profiles add <profileName>																			Add the profileName to the device
+   ios profile list                                                   List the profiles on the device
+   ios profile remove <profileName>                                   Remove the profileName from the device
+   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
+   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
+   >                                                                  Use p12 file and password for silent installation on supervised devices.
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
    >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP. 
@@ -162,6 +165,7 @@ The commands work as following:
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
+
 	exitIfError("failed parsing args", err)
 	disableJSON, _ := arguments.Bool("--nojson")
 	if disableJSON {
@@ -203,7 +207,7 @@ The commands work as following:
 	diagnosticsCommand, _ := arguments.Bool("diagnostics")
 	imageCommand, _ := arguments.Bool("image")
 	deviceStateCommand, _ := arguments.Bool("devicestate")
-	profileCommand, _ := arguments.Bool("profiles")
+	profileCommand, _ := arguments.Bool("profile")
 
 	if listCommand && !diagnosticsCommand && !imageCommand && !deviceStateCommand && !profileCommand {
 		b, _ = arguments.Bool("--details")
@@ -214,18 +218,8 @@ The commands work as following:
 	udid, _ := arguments.String("--udid")
 	device, err := ios.GetDevice(udid)
 	exitIfError("error getting devicelist", err)
-	conn, _ := diagnostics.New(device)
-	b, _ = arguments.Bool("mobilegestalt")
-	if b {
-		keys := arguments["<key>"].([]string)
-		plist, _ := arguments.Bool("--plist")
-		resp, _ := conn.MobileGestaltQuery(keys)
-		if plist {
-			fmt.Printf("%s", ios.ToPlist(resp))
-			return
-		}
-		jb, _ := json.Marshal(resp)
-		fmt.Printf("%s", jb)
+
+	if mobileGestaltCommand(device, arguments) {
 		return
 	}
 
@@ -285,37 +279,7 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("image")
-	if b {
-		list, _ := arguments.Bool("list")
-		if list {
-			listMountedImages(device)
-		}
-		mount, _ := arguments.Bool("mount")
-		if mount {
-			path, _ := arguments.String("--path")
-			err = imagemounter.MountImage(device, path)
-			if err != nil {
-				log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber, "err": err}).
-					Error("error mounting image")
-				return
-			}
-			log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
-		}
-		auto, _ := arguments.Bool("auto")
-		if auto {
-			basedir, _ := arguments.String("--basedir")
-			if basedir == "" {
-				basedir = "."
-			}
-			err = imagemounter.FixDevImage(device, basedir)
-			if err != nil {
-				log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber, "err": err}).
-					Error("error mounting image")
-				return
-			}
-			log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber}).Info("success mounting image")
-		}
+	if imageCommand1(device, arguments) {
 		return
 	}
 
@@ -397,11 +361,31 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("profiles")
+	b, _ = arguments.Bool("profile")
 	if b {
 		if listCommand {
 			handleProfileList(device)
 		}
+		b, _ = arguments.Bool("add")
+		if b {
+			name, _ := arguments.String("<profileFile>")
+			p12file, _ := arguments.String("--p12file")
+			p12password, _ := arguments.String("--password")
+			if p12password == "" {
+				p12password = os.Getenv("P12_PASSWORD")
+			}
+			if p12file != "" {
+				handleProfileAddSupervised(device, name, p12file, p12password)
+				return
+			}
+			handleProfileAdd(device, name)
+		}
+		b, _ = arguments.Bool("remove")
+		if b {
+			name, _ := arguments.String("<profileName>")
+			handleProfileRemove(device, name)
+		}
+
 		return
 	}
 
@@ -506,6 +490,60 @@ The commands work as following:
 		return
 	}
 
+}
+
+func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
+	b, _ := arguments.Bool("mobilegestalt")
+	if b {
+		conn, _ := diagnostics.New(device)
+		keys := arguments["<key>"].([]string)
+		plist, _ := arguments.Bool("--plist")
+		resp, _ := conn.MobileGestaltQuery(keys)
+		if plist {
+			fmt.Printf("%s", ios.ToPlist(resp))
+			return true
+		}
+		jb, _ := json.Marshal(resp)
+		fmt.Printf("%s", jb)
+		return true
+	}
+	return b
+}
+
+func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
+	b, _ := arguments.Bool("image")
+	if b {
+		list, _ := arguments.Bool("list")
+		if list {
+			listMountedImages(device)
+		}
+		mount, _ := arguments.Bool("mount")
+		if mount {
+			path, _ := arguments.String("--path")
+			err := imagemounter.MountImage(device, path)
+			if err != nil {
+				log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber, "err": err}).
+					Error("error mounting image")
+				return true
+			}
+			log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
+		}
+		auto, _ := arguments.Bool("auto")
+		if auto {
+			basedir, _ := arguments.String("--basedir")
+			if basedir == "" {
+				basedir = "."
+			}
+			err := imagemounter.FixDevImage(device, basedir)
+			if err != nil {
+				log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber, "err": err}).
+					Error("error mounting image")
+				return true
+			}
+			log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber}).Info("success mounting image")
+		}
+	}
+	return b
 }
 
 func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
@@ -752,10 +790,42 @@ func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
 	proxy.Close()
 }
 
+func handleProfileRemove(device ios.DeviceEntry, identifier string) {
+	profileService, err := mcinstall.New(device)
+	exitIfError("Starting mcInstall failed with", err)
+	err = profileService.RemoveProfile(identifier)
+	exitIfError("failed adding profile", err)
+	log.Infof("profile '%s' removed",identifier)
+}
+
+func handleProfileAdd(device ios.DeviceEntry, file string) {
+	profileService, err := mcinstall.New(device)
+	exitIfError("Starting mcInstall failed with", err)
+	filebytes, err := ioutil.ReadFile(file)
+	exitIfError("could not read profile-file", err)
+	err = profileService.AddProfile(filebytes)
+	exitIfError("failed adding profile", err)
+	log.Info("profile installed, you have to accept it in the device settings")
+}
+
+func handleProfileAddSupervised(device ios.DeviceEntry, file string, p12file string, p12password string) {
+	profileService, err := mcinstall.New(device)
+	exitIfError("Starting mcInstall failed with", err)
+	filebytes, err := ioutil.ReadFile(file)
+	exitIfError("could not read profile-file", err)
+	p12bytes, err := ioutil.ReadFile(p12file)
+	exitIfError("could not read p12-file", err)
+	err = profileService.AddProfileSupervised(filebytes,p12bytes, p12password)
+	exitIfError("failed adding profile", err)
+	log.Info("profile installed")
+}
+
 func handleProfileList(device ios.DeviceEntry) {
 	profileService, err := mcinstall.New(device)
 	exitIfError("Starting mcInstall failed with", err)
-	profileService.HandleList()
+	list, err := profileService.HandleList()
+	exitIfError("failed getting profile list", err)
+	fmt.Println(convertToJSONString(list))
 }
 
 func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
