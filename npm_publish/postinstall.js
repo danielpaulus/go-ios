@@ -149,7 +149,12 @@ async function install(callback) {
         console.log("using amd64 build on M1 mac")
         src= `./dist/go-ios-${process.platform}-amd64_${process.platform}_amd64/${opts.binName}`;
     }
-    await execShellCommand(`cp ${src} ${opts.binPath}/${opts.binName}`);
+    if (PLATFORM_MAPPING[process.platform]==="windows"){
+        await execShellCommand(`copy ${src} ${opts.binPath}/${opts.binName}`);
+    }else {
+        await execShellCommand(`cp ${src} ${opts.binPath}/${opts.binName}`);
+    }
+
     await verifyAndPlaceBinary(opts.binName, opts.binPath, callback);
     console.log("\x1b[32m","go-ios installed, run 'ios --help' for details\n\n")
 }
