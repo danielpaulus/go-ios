@@ -120,7 +120,7 @@ jobs:
           mkdir ./npm_publish/dist/go-ios-linux-amd64_linux_amd64
           mkdir ./npm_publish/dist/go-ios-windows-amd64_windows_amd64
           cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64/ios
-          cp ./win-bin/ios.exe ./npm_publish/dist/go-ios-windows-amd64_windows_amd64/ios
+          cp ./win-bin/ios.exe ./npm_publish/dist/go-ios-windows-amd64_windows_amd64/ios.exe
           cp ./bin/ios ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
           echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" >> ~/.npmrc
           cd npm_publish
