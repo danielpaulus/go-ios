@@ -3,6 +3,8 @@
 # Go-iOS
 Welcome 👋
 
+New: `npm install -g go-ios` can be used to get going. Run `ios --help` after the installation for details. 
+
 The goal of this project is to provide a stable and production ready opensource solution to automate iOS device on Linux, Windows and Mac OS X. I am delighted to announce that a few companies including [headspin.io](https://www.headspin.io/) will use or are using go-iOS. 
 If you are interested in controlling iOS devices, please also check out https://github.com/nanoscopic/controlfloor written by my good friend @nanoscopic 
 
