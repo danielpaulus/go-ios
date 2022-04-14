@@ -32,7 +32,14 @@ If you miss something your Mac can do but go-iOS can't, just request a feature i
 All features:
 
 ```
- The commands work as following:
+Options:
+  -v --verbose   Enable Debug Logging.
+  -t --trace     Enable Trace Logging (dump every message).
+  --nojson       Disable JSON output (default).
+  -h --help      Show this screen.
+  --udid=<udid>  UDID of the device.
+
+The commands work as following:
         The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command. 
         By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
         Specify -v for debug logging and -t for dumping every message.
@@ -66,8 +73,8 @@ All features:
    >                                                                  by setting the environment variable 'P12_PASSWORD'
    ios profile list                                                   List the profiles on the device
    ios profile remove <profileName>                                   Remove the profileName from the device
-   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device.
-   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> set global http proxy on supervised device
+   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
+   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
    >                                                                  Use p12 file and password for silent installation on supervised devices.
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
