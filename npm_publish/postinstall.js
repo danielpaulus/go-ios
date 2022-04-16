@@ -156,7 +156,9 @@ async function install(callback) {
     }
 
     if (PLATFORM_MAPPING[process.platform]==="windows"){
-        await execShellCommand(`copy ${src} ${opts.binPath}/${opts.binName}`);
+        let cmd = `copy ${src} ${opts.binPath}/${opts.binName}`
+        cmd = cmd.replace(/\//g, "\\")
+        await execShellCommand(cmd);
     }else {
         await execShellCommand(`cp ${src} ${opts.binPath}/${opts.binName}`);
     }
