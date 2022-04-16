@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Build
         run: |
-          get-content main.go | %{$_ -replace "local-build","${{ steps.create_release.outputs.current_tag }}"}
+          ((Get-Content -path main.go -Raw) -replace "local-build","${{ steps.create_release.outputs.current_tag }}") | Set-Content -Path main.go  
           mkdir bin
           go build -ldflags="-s -w" -o bin/ios.exe
           "${{ steps.create_release.outputs.current_tag }}" | Out-File -Encoding utf8NoBOM release_tag -NoNewline
