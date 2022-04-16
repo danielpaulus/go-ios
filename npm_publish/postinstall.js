@@ -10,7 +10,7 @@ var path = require('path'),
 
 // Mapping from Node's `process.arch` to Golang's `$GOARCH`
 var ARCH_MAPPING = {
-   // "ia32": "386",
+    "ia32": "386",
     "x64": "amd64",
     "arm": "arm"
 };
@@ -149,8 +149,16 @@ async function install(callback) {
         console.log("using amd64 build on M1 mac")
         src= `./dist/go-ios-${process.platform}-amd64_${process.platform}_amd64/${opts.binName}`;
     }
+
+    if (process.arch ==="ia32" && process.platform === "w32")
+    {
+        src= `./dist/go-ios-${PLATFORM_MAPPING[process.platform]}-amd64_${PLATFORM_MAPPING[process.platform]}_amd64/${opts.binName}`;
+    }
+
     if (PLATFORM_MAPPING[process.platform]==="windows"){
-        await execShellCommand(`copy ${src} ${opts.binPath}/${opts.binName}`);
+        let cmd = `copy ${src} ${opts.binPath}/${opts.binName}`
+        cmd = cmd.replace(/\//g, "\\")
+        await execShellCommand(cmd);
     }else {
         await execShellCommand(`cp ${src} ${opts.binPath}/${opts.binName}`);
     }
