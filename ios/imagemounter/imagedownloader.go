@@ -2,16 +2,18 @@ package imagemounter
 
 import (
 	"fmt"
-	"github.com/Masterminds/semver"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/zipconduit"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
+
+	"github.com/Masterminds/semver"
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/zipconduit"
+	log "github.com/sirupsen/logrus"
 )
 
 const repo = "https://github.com/haikieu/xcode-developer-disk-image-all-platforms/raw/master/DiskImages/iPhoneOS.platform/DeviceSupport/%s.zip"
@@ -101,7 +103,13 @@ func DownloadImageFor(device ios.DeviceEntry, baseDir string) (string, error) {
 }
 
 func findImage(dir string, version string) (string, error) {
-	imageToFind := fmt.Sprintf("%s/%s", version, developerDiskImageDmg)
+	var imageToFind string
+	switch runtime.GOOS {
+	case "windows":
+		imageToFind = fmt.Sprintf("%s\\%s", version, developerDiskImageDmg)
+	default:
+		imageToFind = fmt.Sprintf("%s/%s", version, developerDiskImageDmg)
+	}
 	var imageWeFound string
 	err := filepath.Walk(dir,
 		func(path string, info os.FileInfo, err error) error {
