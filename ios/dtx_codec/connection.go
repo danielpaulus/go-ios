@@ -40,8 +40,11 @@ type GlobalDispatcher struct {
 const requestChannel = "_requestChannelWithCode:identifier:"
 
 //Close closes the underlying deviceConnection
-func (dtxConn *Connection) Close() {
-	dtxConn.deviceConnection.Close()
+func (dtxConn *Connection) Close() error {
+	if dtxConn.deviceConnection != nil {
+		return dtxConn.deviceConnection.Close()
+	}
+	return nil
 }
 
 //GlobalChannel returns the connections automatically created global channel.
