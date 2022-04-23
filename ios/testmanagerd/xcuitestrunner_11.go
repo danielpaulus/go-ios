@@ -22,6 +22,9 @@ func RunXCUIWithBundleIds11(
 	}
 	log.Debugf("test session setup ok")
 	conn, err := dtx.NewConnection(device, testmanagerd)
+	if err != nil {
+		return err
+	}
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
 
