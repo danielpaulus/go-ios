@@ -25,6 +25,10 @@ func SetupDecoders() {
 			"XCTCapabilities":           NewXCTCapabilities,
 			"NSUUID":                    NewNSUUIDFromBytes,
 			"XCActivityRecord":          DecodeXCActivityRecord,
+			"DTKTraceTapMessage":        NewDTKTraceTapMessage,
+			"NSValue": NewNSValue,
+			"XCTTestIdentifier": NewXCTTestIdentifier,
+			"DTTapStatusMessage": NewDTTapStatusMessage,
 		}
 	}
 }
@@ -249,6 +253,51 @@ func NewDTActivityTraceTapMessage(object map[string]interface{}, objects []inter
 	return DTActivityTraceTapMessage{DTTapMessagePlist: plist}
 }
 
+type DTKTraceTapMessage struct {
+	DTTapMessagePlist map[string]interface{}
+}
+func NewDTKTraceTapMessage(object map[string]interface{}, objects []interface{}) interface{} {
+	ref := object["DTTapMessagePlist"].(plist.UID)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	return DTKTraceTapMessage{DTTapMessagePlist: plist}
+}
+
+
+type NSValue struct {
+	NSSpecial uint64
+	NSRectval string
+}
+func NewNSValue(object map[string]interface{}, objects []interface{}) interface{} {
+	ref := object["NS.rectval"].(plist.UID)
+	rectval, _ := objects[ref].(string)
+	special := object["NS.special"].(uint64)
+	return NSValue{NSRectval: rectval, NSSpecial: special}
+}
+
+type XCTTestIdentifier struct {
+	O uint64
+	C []string
+}
+
+func (x XCTTestIdentifier) String() string{
+	return fmt.Sprintf("XCTTestIdentifier{o:%d , c:%v}", x.O, x.C)
+}
+func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) interface{} {
+	ref := object["c"].(plist.UID)
+	//plist, _ := extractObjects(objects[ref].(map[string]interface{}), objects)
+	fd := objects[ref].(map[string] interface{})
+	extractObjects,_ := extractObjects(toUidList(fd[nsObjects].([]interface{})), objects)
+	stringarray := make([]string, len(extractObjects))
+	for i, v := range extractObjects{
+		stringarray[i] = v.(string)
+	}
+	o := object["o"].(uint64)
+	return XCTTestIdentifier{
+		O: o,
+		C: stringarray,
+	}
+}
+
 //TODO: make this nice, partially extracting objects is not really cool
 type PartiallyExtractedXcTestConfig struct {
 	values map[string]interface{}
@@ -310,6 +359,16 @@ func NewDTTapHeartbeatMessage(object map[string]interface{}, objects []interface
 	ref := object["DTTapMessagePlist"].(plist.UID)
 	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
 	return DTTapHeartbeatMessage{DTTapMessagePlist: plist}
+}
+
+type DTTapStatusMessage struct {
+	DTTapMessagePlist map[string]interface{}
+}
+
+func NewDTTapStatusMessage(object map[string]interface{}, objects []interface{}) interface{} {
+	ref := object["DTTapMessagePlist"].(plist.UID)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	return DTTapStatusMessage{DTTapMessagePlist: plist}
 }
 
 func NewNSDate(object map[string]interface{}, objects []interface{}) interface{} {

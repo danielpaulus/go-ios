@@ -70,6 +70,44 @@ func TestNSUUID(t *testing.T) {
 	log.Info(unarchivedObject)
 }
 
+func TestXCTestIdentifier(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/xctestidentifier.bin")
+
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestNSValue(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/nsvalue.bin")
+
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestWTF(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/int64-value-in-nskeyedarchive.bin")
+
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
 func TestXCActivityRecord(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/XCActivityRecord.bin")
 
@@ -85,6 +123,19 @@ func TestXCActivityRecord(t *testing.T) {
 
 func TestDTTapHeartbeatMessage(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/DTTapHeartbeatMessage.bin")
+
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestDTTapstatusmessage(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/dttapstatusmessage.bin")
 
 	if err != nil {
 		log.Error(err)
