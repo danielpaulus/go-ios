@@ -214,5 +214,8 @@ func isPrimitiveObject(object interface{}) (interface{}, bool) {
 	if v, ok := object.([]uint8); ok {
 		return v, ok
 	}
+	if v, ok := object.(int64); ok {
+		return v, ok
+	}
 	return object, false
 }

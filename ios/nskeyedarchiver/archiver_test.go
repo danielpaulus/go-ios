@@ -96,7 +96,7 @@ func TestNSValue(t *testing.T) {
 }
 
 func TestWTF(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/whyisthisbroken.plist")
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/int64-value-in-nskeyedarchive.bin")
 
 	if err != nil {
 		log.Error(err)
