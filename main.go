@@ -71,7 +71,8 @@ Usage:
   ios profile list [options]
   ios profile remove <profileName> [options]
   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
-  ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password>
+  ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
+  ios httpproxy remove [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios ps [options]
   ios ip [options]
@@ -135,7 +136,9 @@ The commands work as following:
    ios profile remove <profileName>                                   Remove the profileName from the device
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
    ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
+   >                                                                  Specify proxy password either as argument or using the environment var: PROXY_PASSWORD
    >                                                                  Use p12 file and password for silent installation on supervised devices.
+   ios httpproxy remove [options]                                     Removes the global http proxy config. Only works with http proxies set by go-ios!
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
    >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP. 
@@ -358,6 +361,36 @@ The commands work as following:
 	b, _ = arguments.Bool("readpair")
 	if b {
 		readPair(device)
+		return
+	}
+
+	b, _ = arguments.Bool("httpproxy")
+	if b {
+		removeCommand, _ := arguments.Bool("remove")
+		if removeCommand {
+			mcinstall.RemoveProxy(device)
+			exitIfError("failed removing proxy", err)
+			log.Info("success")
+			return
+		}
+		host, _ := arguments.String("<host>")
+		port, _ := arguments.String("<port>")
+		user, _ := arguments.String("<user>")
+		pass, _ := arguments.String("<pass>")
+		if pass == "" {
+			pass = os.Getenv("PROXY_PASSWORD")
+		}
+		p12file, _ := arguments.String("--p12file")
+		p12password, _ := arguments.String("--password")
+		if p12password == "" {
+			p12password = os.Getenv("P12_PASSWORD")
+		}
+		p12bytes, err := ioutil.ReadFile(p12file)
+		exitIfError("could not read p12-file", err)
+
+		err = mcinstall.SetHttpProxy(device, host, port, user, pass, p12bytes, p12password)
+		exitIfError("failed", err)
+		log.Info("success")
 		return
 	}
 
@@ -795,7 +828,7 @@ func handleProfileRemove(device ios.DeviceEntry, identifier string) {
 	exitIfError("Starting mcInstall failed with", err)
 	err = profileService.RemoveProfile(identifier)
 	exitIfError("failed adding profile", err)
-	log.Infof("profile '%s' removed",identifier)
+	log.Infof("profile '%s' removed", identifier)
 }
 
 func handleProfileAdd(device ios.DeviceEntry, file string) {
@@ -815,7 +848,7 @@ func handleProfileAddSupervised(device ios.DeviceEntry, file string, p12file str
 	exitIfError("could not read profile-file", err)
 	p12bytes, err := ioutil.ReadFile(p12file)
 	exitIfError("could not read p12-file", err)
-	err = profileService.AddProfileSupervised(filebytes,p12bytes, p12password)
+	err = profileService.AddProfileSupervised(filebytes, p12bytes, p12password)
 	exitIfError("failed adding profile", err)
 	log.Info("profile installed")
 }

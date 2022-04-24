@@ -42,9 +42,9 @@ Options:
   --udid=<udid>  UDID of the device.
 
 The commands work as following:
-        The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command. 
-        By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
-        Specify -v for debug logging and -t for dumping every message.
+	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
+	By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
+	Specify -v for debug logging and -t for dumping every message.
 
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
@@ -53,10 +53,10 @@ The commands work as following:
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
-   >                                                                  The default is the current dir. 
+   >                                                                  The default is the current dir.
    ios syslog [options]                                               Prints a device's log output
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
-   ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list, 
+   ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list,
    >                                                                  or use a pattern like 'ios crash ls "*ips*"' to filter
    ios crash cp <srcpattern> <target> [options]                       copy "file pattern" to the target dir. Ex.: 'ios crash cp "*" "./crashes"'
    ios crash rm <cwd> <pattern> [options]                             remove file pattern from dir. Ex.: 'ios crash rm "." "*"' to delete everything
@@ -67,42 +67,43 @@ The commands work as following:
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
-   >                                                                  it in plist format by adding the --plist param. 
+   >                                                                  it in plist format by adding the --plist param.
    >                                                                  Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
    ios diagnostics list [options]                                     List diagnostic infos
-   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
+   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
    ios profile list                                                   List the profiles on the device
    ios profile remove <profileName>                                   Remove the profileName from the device
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
    ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
+   >                                                                  Specify proxy password either as argument or using the environment var: PROXY_PASSWORD
    >                                                                  Use p12 file and password for silent installation on supervised devices.
+   ios httpproxy remove [options]                                     Removes the global http proxy config. Only works with http proxies set by go-ios!
    ios ps [options]                                                   Dumps a list of running processes on the device
    ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
-   >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP. 
+   >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP.
    >                                                                  You have to disable the "automatic wifi address"-privacy feature of the device for this to work.
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
    >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
-   >                                                                  It dumps every communication in plain text so it can be implemented easily. 
+   ios dproxy [--binary]                                              Starts the reverse engineering proxy server.
+   >                                                                  It dumps every communication in plain text so it can be implemented easily.
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
-   >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
+   >                                                                  The --binary flag will dump everything in raw binary without any decoding.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
-   ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
+   ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
    ios kill <bundleID> [options]                                      Kill app with the bundleID on the device.
-   ios runtest <bundleID>                                             Run a XCUITest. 
+   ios runtest <bundleID>                                             Run a XCUITest.
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
-   ios ax [options]                                                   Access accessibility inspector features. 
+   ios ax [options]                                                   Access accessibility inspector features.
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
-
 ```

@@ -135,7 +135,7 @@ func parseProfile(idString string, dict map[string]interface{}) (ProfileInfo, er
 
 	result.Metadata.PayloadDescription, ok = metadata["PayloadDescription"].(string)
 	if !ok {
-		return result, fmt.Errorf("keyError PayloadDescription %+v", dict)
+		result.Metadata.PayloadDescription = ""
 	}
 	result.Metadata.PayloadDisplayName, ok = metadata["PayloadDisplayName"].(string)
 	if !ok {
@@ -297,10 +297,10 @@ func (mcInstallConn *Connection) RemoveProfile(identifier string) error {
 	return fmt.Errorf("remove failed")
 }
 
-func (mcInstallConn *Connection) AddProfileSupervised(filebytes []byte, bytes []byte, password string) error {
-	err := mcInstallConn.Escalate(bytes, password)
+func (mcInstallConn *Connection) AddProfileSupervised(profileFileBytes []byte, p12fileBytes []byte, password string) error {
+	err := mcInstallConn.Escalate(p12fileBytes, password)
 	if err != nil {
 		return err
 	}
-	return mcInstallConn.addProfile(filebytes, "InstallProfileSilent")
+	return mcInstallConn.addProfile(profileFileBytes, "InstallProfileSilent")
 }
