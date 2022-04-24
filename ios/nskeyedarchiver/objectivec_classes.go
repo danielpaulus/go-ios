@@ -27,6 +27,7 @@ func SetupDecoders() {
 			"XCActivityRecord":          DecodeXCActivityRecord,
 			"DTKTraceTapMessage":        NewDTKTraceTapMessage,
 			"NSValue": NewNSValue,
+			"XCTTestIdentifier": NewXCTTestIdentifier,
 		}
 	}
 }
@@ -270,6 +271,30 @@ func NewNSValue(object map[string]interface{}, objects []interface{}) interface{
 	rectval, _ := objects[ref].(string)
 	special := object["NS.special"].(uint64)
 	return NSValue{NSRectval: rectval, NSSpecial: special}
+}
+
+type XCTTestIdentifier struct {
+	O uint64
+	C []string
+}
+
+func (x XCTTestIdentifier) String() string{
+	return fmt.Sprintf("XCTTestIdentifier{o:%d , c:%v}", x.O, x.C)
+}
+func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) interface{} {
+	ref := object["c"].(plist.UID)
+	//plist, _ := extractObjects(objects[ref].(map[string]interface{}), objects)
+	fd := objects[ref].(map[string] interface{})
+	extractObjects,_ := extractObjects(toUidList(fd[nsObjects].([]interface{})), objects)
+	stringarray := make([]string, len(extractObjects))
+	for i, v := range extractObjects{
+		stringarray[i] = v.(string)
+	}
+	o := object["o"].(uint64)
+	return XCTTestIdentifier{
+		O: o,
+		C: stringarray,
+	}
 }
 
 //TODO: make this nice, partially extracting objects is not really cool
