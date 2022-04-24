@@ -134,6 +134,19 @@ func TestDTTapHeartbeatMessage(t *testing.T) {
 	log.Info(unarchivedObject)
 }
 
+func TestDTTapstatusmessage(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/dttapstatusmessage.bin")
+
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
 //TODO currently uint64 dicts are decoded by converting the keys to strings, might wanna fix this later
 func TestIntKeyDictionary(t *testing.T) {
 

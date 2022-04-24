@@ -28,6 +28,7 @@ func SetupDecoders() {
 			"DTKTraceTapMessage":        NewDTKTraceTapMessage,
 			"NSValue": NewNSValue,
 			"XCTTestIdentifier": NewXCTTestIdentifier,
+			"DTTapStatusMessage": NewDTTapStatusMessage,
 		}
 	}
 }
@@ -358,6 +359,16 @@ func NewDTTapHeartbeatMessage(object map[string]interface{}, objects []interface
 	ref := object["DTTapMessagePlist"].(plist.UID)
 	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
 	return DTTapHeartbeatMessage{DTTapMessagePlist: plist}
+}
+
+type DTTapStatusMessage struct {
+	DTTapMessagePlist map[string]interface{}
+}
+
+func NewDTTapStatusMessage(object map[string]interface{}, objects []interface{}) interface{} {
+	ref := object["DTTapMessagePlist"].(plist.UID)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	return DTTapStatusMessage{DTTapMessagePlist: plist}
 }
 
 func NewNSDate(object map[string]interface{}, objects []interface{}) interface{} {
