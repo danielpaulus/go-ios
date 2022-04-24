@@ -26,6 +26,7 @@ func SetupDecoders() {
 			"NSUUID":                    NewNSUUIDFromBytes,
 			"XCActivityRecord":          DecodeXCActivityRecord,
 			"DTKTraceTapMessage":        NewDTKTraceTapMessage,
+			"NSValue": NewNSValue,
 		}
 	}
 }
@@ -257,6 +258,18 @@ func NewDTKTraceTapMessage(object map[string]interface{}, objects []interface{})
 	ref := object["DTTapMessagePlist"].(plist.UID)
 	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
 	return DTKTraceTapMessage{DTTapMessagePlist: plist}
+}
+
+
+type NSValue struct {
+	NSSpecial uint64
+	NSRectval string
+}
+func NewNSValue(object map[string]interface{}, objects []interface{}) interface{} {
+	ref := object["NS.rectval"].(plist.UID)
+	rectval, _ := objects[ref].(string)
+	special := object["NS.special"].(uint64)
+	return NSValue{NSRectval: rectval, NSSpecial: special}
 }
 
 //TODO: make this nice, partially extracting objects is not really cool
