@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/crashreport"
-	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"io/ioutil"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
+
+	"github.com/danielpaulus/go-ios/ios/crashreport"
+	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 
 	"github.com/danielpaulus/go-ios/ios/debugserver"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
@@ -19,6 +20,8 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios/simlocation"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/accessibility"
@@ -92,6 +95,8 @@ Usage:
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
+  ios setlocation [--lat=<lat>] [--lon=<lon>]
+  ios resetlocation
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -165,6 +170,8 @@ The commands work as following:
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
+   ios setlocation [--lat=<lat>] [--lon=<lon>]						  Sets the location of the device to the provided by latitude and longtitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
+   ios resetlocation												  Resets the location of the device
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -322,6 +329,21 @@ The commands work as following:
 		saveScreenshot(device, path)
 		return
 	}
+
+	b, _ = arguments.Bool("setlocation")
+	if b {
+		lat, _ := arguments.String("--lat")
+		lon, _ := arguments.String("--lon")
+		setLocation(device, lat, lon)
+		return
+	}
+
+	b, _ = arguments.Bool("resetlocation")
+	if b {
+		resetLocation(device)
+		return
+	}
+
 	b, _ = arguments.Bool("devicename")
 	if b {
 		printDeviceName(device)
@@ -947,6 +969,26 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 	} else {
 		log.WithFields(log.Fields{"outputPath": outputPath}).Info("File saved successfully")
 	}
+}
+
+func setLocation(device ios.DeviceEntry, lat string, lon string) {
+	locationService, err := simlocation.New(device)
+	exitIfError("Starting location service failed with", err)
+
+	err = locationService.SetLocation(lat, lon)
+	exitIfError("Setting location failed with", err)
+
+	locationService.Close()
+}
+
+func resetLocation(device ios.DeviceEntry) {
+	locationService, err := simlocation.New(device)
+	exitIfError("Starting location service failed with", err)
+
+	locationService.ResetLocation()
+	exitIfError("Resetting location failed with", err)
+
+	locationService.Close()
 }
 
 func processList(device ios.DeviceEntry) {
