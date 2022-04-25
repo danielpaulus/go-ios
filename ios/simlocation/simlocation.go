@@ -3,9 +3,13 @@ package simlocation
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strconv"
+	"time"
 
 	ios "github.com/danielpaulus/go-ios/ios"
 )
@@ -67,6 +71,75 @@ func (locationConn *Connection) SetLocation(lat string, lon string) error {
 	return nil
 }
 
+func (locationConn *Connection) SetLocationGPX(filePath string) error {
+	gpxFile, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer gpxFile.Close()
+
+	byteData, err := ioutil.ReadAll(gpxFile)
+	if err != nil {
+		return err
+	}
+
+	var tracks Tracks
+
+	err = xml.Unmarshal(byteData, &tracks)
+	if err != nil {
+		return err
+	}
+
+	var lastPointTime time.Time
+
+	for _, segment := range tracks.TrackSegments {
+		for _, point := range segment.TrackPoints {
+			if !lastPointTime.IsZero() {
+				layout := "2022-01-01T00:00:00.000Z"
+				pointTime, err := time.Parse(layout, point.PointTime)
+				if err != nil {
+					return err
+				}
+
+				duration := pointTime.Unix() - lastPointTime.Unix()
+				if duration >= 0 {
+					time.Sleep(time.Duration(duration) * time.Second)
+				}
+			}
+			lastPointTime = time.Now()
+			pointLon := point.PointLongtitude
+			pointLat := point.PointLatitude
+
+			latitude, err := strconv.ParseFloat(pointLat, 64)
+			if err != nil {
+				return err
+			}
+
+			longtitude, err := strconv.ParseFloat(pointLon, 64)
+			if err != nil {
+				return err
+			}
+
+			data := new(locationData)
+			data.lat = latitude
+			data.lon = longtitude
+
+			// Generate the byte data needed by the service to set the location
+			locationBytes, err := data.LocationBytes()
+			if err != nil {
+				return err
+			}
+
+			err = locationConn.deviceConn.Send(locationBytes)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (locationConn *Connection) ResetLocation() error {
 	buf := new(bytes.Buffer)
 
@@ -111,4 +184,24 @@ func (l *locationData) LocationBytes() ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// GPX parsing
+
+type Tracks struct {
+	XMLName       xml.Name       `xml:"trk"`
+	TrackSegments []TrackSegment `xml:"trkseg"`
+	Name          string         `xml:"name"`
+}
+
+type TrackSegment struct {
+	XMLName     xml.Name     `xml:"trkseg"`
+	TrackPoints []TrackPoint `xml:"trkpt"`
+}
+
+type TrackPoint struct {
+	XMLName         xml.Name `xml:"trkpt"`
+	PointLongtitude string   `xml:"lon,attr"`
+	PointLatitude   string   `xml:"lat,attr"`
+	PointTime       string   `xml:"time"`
 }

@@ -95,7 +95,7 @@ Usage:
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
-  ios setlocation [--lat=<lat>] [--lon=<lon>]
+  ios setlocation [--lat=<lat>] [--lon=<lon>] [--gpxfilepath=<gpxfilepath>]
   ios resetlocation
 
 Options:
@@ -170,7 +170,7 @@ The commands work as following:
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
-   ios setlocation [--lat=<lat>] [--lon=<lon>]						  Sets the location of the device to the provided by latitude and longtitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
+   ios setlocation [--lat=<lat>] [--lon=<lon>] [--gpxfilepath=<gpxfilepath>] Sets the location of the device to the provided by latitude and longtitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
    ios resetlocation												  Resets the location of the device
 
   `, version)
@@ -334,7 +334,13 @@ The commands work as following:
 	if b {
 		lat, _ := arguments.String("--lat")
 		lon, _ := arguments.String("--lon")
-		setLocation(device, lat, lon)
+		gpxFilePath, _ := arguments.String("--gpxfilepath")
+
+		if gpxFilePath != "" {
+			setLocationGPX(device, gpxFilePath)
+		} else {
+			setLocation(device, lat, lon)
+		}
 		return
 	}
 
@@ -976,6 +982,16 @@ func setLocation(device ios.DeviceEntry, lat string, lon string) {
 	exitIfError("Starting location service failed with", err)
 
 	err = locationService.SetLocation(lat, lon)
+	exitIfError("Setting location failed with", err)
+
+	locationService.Close()
+}
+
+func setLocationGPX(device ios.DeviceEntry, gpxFilePath string) {
+	locationService, err := simlocation.New(device)
+	exitIfError("Starting location service failed with", err)
+
+	err = locationService.SetLocationGPX(gpxFilePath)
 	exitIfError("Setting location failed with", err)
 
 	locationService.Close()
