@@ -92,21 +92,21 @@ func (l *locationData) LocationBytes() ([]byte, error) {
 		return nil, fmt.Errorf("creating location bytes: %w", err)
 	}
 
-	fmt.Printf("latitude before formatting is: %v", l.lat)
-	latS := []byte(strconv.FormatFloat(l.lat, 'E', -1, 64))
-	fmt.Printf("latitude after formatting to a string is: %v", strconv.FormatFloat(l.lat, 'E', -1, 64))
-	if err := binary.Write(buf, binary.BigEndian, uint32(len(latS))); err != nil {
+	latString := fmt.Sprintf("%f", l.lat)
+	latBytes := []byte(latString)
+	if err := binary.Write(buf, binary.BigEndian, uint32(len(latBytes))); err != nil {
 		return nil, fmt.Errorf("creating location bytes: %w", err)
 	}
-	if err := binary.Write(buf, binary.BigEndian, latS); err != nil {
+	if err := binary.Write(buf, binary.BigEndian, latBytes); err != nil {
 		return nil, fmt.Errorf("creating location bytes: %w", err)
 	}
 
-	lonS := []byte(strconv.FormatFloat(l.lon, 'E', -1, 64))
-	if err := binary.Write(buf, binary.BigEndian, uint32(len(lonS))); err != nil {
+	lonString := fmt.Sprintf("%f", l.lon)
+	lonBytes := []byte(lonString)
+	if err := binary.Write(buf, binary.BigEndian, uint32(len(lonBytes))); err != nil {
 		return nil, fmt.Errorf("creating location bytes: %w", err)
 	}
-	if err := binary.Write(buf, binary.BigEndian, lonS); err != nil {
+	if err := binary.Write(buf, binary.BigEndian, lonBytes); err != nil {
 		return nil, fmt.Errorf("creating location bytes: %w", err)
 	}
 
