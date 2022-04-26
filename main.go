@@ -981,33 +981,18 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 }
 
 func setLocation(device ios.DeviceEntry, lat string, lon string) {
-	locationService, err := simlocation.New(device)
-	exitIfError("Starting location service failed with", err)
-
-	err = locationService.SetLocation(lat, lon)
+	err := simlocation.SetLocation(device, lat, lon)
 	exitIfError("Setting location failed with", err)
-
-	locationService.Close()
 }
 
 func setLocationGPX(device ios.DeviceEntry, gpxFilePath string) {
-	locationService, err := simlocation.New(device)
-	exitIfError("Starting location service failed with", err)
-
-	err = locationService.SetLocationGPX(gpxFilePath)
+	err := simlocation.SetLocationGPX(device, gpxFilePath)
 	exitIfError("Setting location failed with", err)
-
-	locationService.Close()
 }
 
 func resetLocation(device ios.DeviceEntry) {
-	locationService, err := simlocation.New(device)
-	exitIfError("Starting location service failed with", err)
-
-	locationService.ResetLocation()
+	err := simlocation.ResetLocation(device)
 	exitIfError("Resetting location failed with", err)
-
-	locationService.Close()
 }
 
 func processList(device ios.DeviceEntry) {
