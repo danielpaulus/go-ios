@@ -171,7 +171,7 @@ The commands work as following:
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
-   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]			  Updates the location of the device to the provided by latitude and longtitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
+   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]			  Updates the location of the device to the provided by latitude and longitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
    ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]		  Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
    ios resetlocation [options]										  Resets the location of the device to the actual one
 

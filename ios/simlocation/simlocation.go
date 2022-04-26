@@ -39,10 +39,10 @@ func (locationConn *Connection) Close() {
 	locationConn.deviceConn.Close()
 }
 
-// Set the device location to a point by latitude and longtitude
+// Set the device location to a point by latitude and longitude
 func SetLocation(device ios.DeviceEntry, lat string, lon string) error {
 	if lat == "" || lon == "" {
-		return errors.New("Please provide non-empty values for latitude and longtitude")
+		return errors.New("Please provide non-empty values for latitude and longitude")
 	}
 
 	// Create new connection to the location service
@@ -56,16 +56,16 @@ func SetLocation(device ios.DeviceEntry, lat string, lon string) error {
 		return err
 	}
 
-	longtitude, err := strconv.ParseFloat(lon, 64)
+	longitude, err := strconv.ParseFloat(lon, 64)
 	if err != nil {
 		return err
 	}
 
 	data := new(locationData)
 	data.lat = latitude
-	data.lon = longtitude
+	data.lon = longitude
 
-	log.WithFields(log.Fields{"latitude": latitude, "longtitude": longtitude}).
+	log.WithFields(log.Fields{"latitude": latitude, "longitude": longitude}).
 		Info("Simulating device location")
 
 	// Generate the byte data needed by the service to set the location
@@ -101,10 +101,10 @@ type TrackSegment struct {
 }
 
 type TrackPoint struct {
-	XMLName         xml.Name `xml:"trkpt"`
-	PointLongtitude string   `xml:"lon,attr"`
-	PointLatitude   string   `xml:"lat,attr"`
-	PointTime       string   `xml:"time"`
+	XMLName        xml.Name `xml:"trkpt"`
+	PointLongitude string   `xml:"lon,attr"`
+	PointLatitude  string   `xml:"lat,attr"`
+	PointTime      string   `xml:"time"`
 }
 
 // Simulate live tracking using a gpx file
@@ -158,10 +158,10 @@ func SetLocationGPX(device ios.DeviceEntry, filePath string) error {
 
 				// Change the last point time to the time of the currently set point
 				lastPointTime = currentPointTime
-				pointLon := point.PointLongtitude
+				pointLon := point.PointLongitude
 				pointLat := point.PointLatitude
 
-				// Set the current point location by its latitude and longtitude
+				// Set the current point location by its latitude and longitude
 				SetLocation(device, pointLat, pointLon)
 			}
 		}
