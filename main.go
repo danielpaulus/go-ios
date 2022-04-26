@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/crashreport"
-	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"io/ioutil"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
+
+	"github.com/danielpaulus/go-ios/ios/crashreport"
+	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 
 	"github.com/danielpaulus/go-ios/ios/debugserver"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
@@ -19,6 +20,8 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios/simlocation"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/accessibility"
@@ -92,6 +95,9 @@ Usage:
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
+  ios setlocation [options] [--lat=<lat>] [--lon=<lon>]
+  ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
+  ios resetlocation [options]
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -165,6 +171,9 @@ The commands work as following:
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
+   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]			  Updates the location of the device to the provided by latitude and longitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
+   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]		  Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
+   ios resetlocation [options]										  Resets the location of the device to the actual one
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -322,6 +331,28 @@ The commands work as following:
 		saveScreenshot(device, path)
 		return
 	}
+
+	b, _ = arguments.Bool("setlocation")
+	if b {
+		lat, _ := arguments.String("--lat")
+		lon, _ := arguments.String("--lon")
+		setLocation(device, lat, lon)
+		return
+	}
+
+	b, _ = arguments.Bool("setlocationgpx")
+	if b {
+		gpxFilePath, _ := arguments.String("--gpxfilepath")
+		setLocationGPX(device, gpxFilePath)
+		return
+	}
+
+	b, _ = arguments.Bool("resetlocation")
+	if b {
+		resetLocation(device)
+		return
+	}
+
 	b, _ = arguments.Bool("devicename")
 	if b {
 		printDeviceName(device)
@@ -947,6 +978,21 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 	} else {
 		log.WithFields(log.Fields{"outputPath": outputPath}).Info("File saved successfully")
 	}
+}
+
+func setLocation(device ios.DeviceEntry, lat string, lon string) {
+	err := simlocation.SetLocation(device, lat, lon)
+	exitIfError("Setting location failed with", err)
+}
+
+func setLocationGPX(device ios.DeviceEntry, gpxFilePath string) {
+	err := simlocation.SetLocationGPX(device, gpxFilePath)
+	exitIfError("Setting location failed with", err)
+}
+
+func resetLocation(device ios.DeviceEntry) {
+	err := simlocation.ResetLocation(device)
+	exitIfError("Resetting location failed with", err)
 }
 
 func processList(device ios.DeviceEntry) {
