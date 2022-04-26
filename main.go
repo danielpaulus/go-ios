@@ -95,9 +95,9 @@ Usage:
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
-  ios setlocation [--lat=<lat>] [--lon=<lon>]
-  ios setlocationgpx [--gpxfilepath=<gpxfilepath>]
-  ios resetlocation
+  ios setlocation [options] [--lat=<lat>] [--lon=<lon>]
+  ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
+  ios resetlocation [options]
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -171,9 +171,9 @@ The commands work as following:
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
-   ios setlocation [--lat=<lat>] [--lon=<lon>]						  Updates the location of the device to the provided by latitude and longtitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
-   ios setlocationgpx [--gpxfilepath=<gpxfilepath>]					  Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
-   ios resetlocation												  Resets the location of the device to the actual one
+   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]			  Updates the location of the device to the provided by latitude and longtitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
+   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]		  Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
+   ios resetlocation [options]										  Resets the location of the device to the actual one
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
