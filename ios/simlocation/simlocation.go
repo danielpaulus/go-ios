@@ -83,56 +83,66 @@ func (locationConn *Connection) SetLocationGPX(filePath string) error {
 		return err
 	}
 
-	var tracks Tracks
+	var gpx Gpx
 
-	err = xml.Unmarshal(byteData, &tracks)
+	err = xml.Unmarshal(byteData, &gpx)
 	if err != nil {
 		return err
 	}
 
 	var lastPointTime time.Time
 
-	for _, segment := range tracks.TrackSegments {
-		for _, point := range segment.TrackPoints {
-			if !lastPointTime.IsZero() {
-				layout := "2022-01-01T00:00:00.000Z"
-				pointTime, err := time.Parse(layout, point.PointTime)
+	for _, track := range gpx.Tracks {
+		for _, segment := range track.TrackSegments {
+			for _, point := range segment.TrackPoints {
+				currentPointTime, err := time.Parse(time.RFC3339, point.PointTime)
+				if !lastPointTime.IsZero() {
+					fmt.Println("we are inside lastpoint non zero\n")
+					fmt.Printf("%v\n", lastPointTime)
+					//layout := "2022-01-01T01:01:01.000Z"
+					fmt.Printf("this is before attempting to parse: %v\n", point.PointTime)
+					//pointTime, err := time.Parse(time.RFC3339, point.PointTime)
+					if err != nil {
+						return err
+					}
+					fmt.Println("are we waiting\n")
+					fmt.Printf("pointTime is %v\n", currentPointTime)
+					duration := currentPointTime.Unix() - lastPointTime.Unix()
+					fmt.Printf("the duration calculated is: %v\n", duration)
+					if duration >= 0 {
+						time.Sleep(time.Duration(duration) * time.Second)
+					}
+				}
+				fmt.Println("we are outside lastpoint non zero\n")
+				fmt.Printf("%v\n", lastPointTime)
+				lastPointTime = currentPointTime
+				pointLon := point.PointLongtitude
+				pointLat := point.PointLatitude
+
+				latitude, err := strconv.ParseFloat(pointLat, 64)
 				if err != nil {
 					return err
 				}
 
-				duration := pointTime.Unix() - lastPointTime.Unix()
-				if duration >= 0 {
-					time.Sleep(time.Duration(duration) * time.Second)
+				longtitude, err := strconv.ParseFloat(pointLon, 64)
+				if err != nil {
+					return err
 				}
-			}
-			lastPointTime = time.Now()
-			pointLon := point.PointLongtitude
-			pointLat := point.PointLatitude
 
-			latitude, err := strconv.ParseFloat(pointLat, 64)
-			if err != nil {
-				return err
-			}
+				data := new(locationData)
+				data.lat = latitude
+				data.lon = longtitude
 
-			longtitude, err := strconv.ParseFloat(pointLon, 64)
-			if err != nil {
-				return err
-			}
+				// Generate the byte data needed by the service to set the location
+				locationBytes, err := data.LocationBytes()
+				if err != nil {
+					return err
+				}
 
-			data := new(locationData)
-			data.lat = latitude
-			data.lon = longtitude
-
-			// Generate the byte data needed by the service to set the location
-			locationBytes, err := data.LocationBytes()
-			if err != nil {
-				return err
-			}
-
-			err = locationConn.deviceConn.Send(locationBytes)
-			if err != nil {
-				return err
+				err = locationConn.deviceConn.Send(locationBytes)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -188,7 +198,12 @@ func (l *locationData) LocationBytes() ([]byte, error) {
 
 // GPX parsing
 
-type Tracks struct {
+type Gpx struct {
+	XMLName xml.Name `xml:"gpx"`
+	Tracks  []Track  `xml:"trk"`
+}
+
+type Track struct {
 	XMLName       xml.Name       `xml:"trk"`
 	TrackSegments []TrackSegment `xml:"trkseg"`
 	Name          string         `xml:"name"`

@@ -95,7 +95,8 @@ Usage:
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
-  ios setlocation [--lat=<lat>] [--lon=<lon>] [--gpxfilepath=<gpxfilepath>]
+  ios setlocation [--lat=<lat>] [--lon=<lon>]
+  ios setlocationgpx [--gpxfilepath=<gpxfilepath>]
   ios resetlocation
 
 Options:
@@ -170,8 +171,9 @@ The commands work as following:
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
-   ios setlocation [--lat=<lat>] [--lon=<lon>] [--gpxfilepath=<gpxfilepath>] Sets the location of the device to the provided by latitude and longtitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
-   ios resetlocation												  Resets the location of the device
+   ios setlocation [--lat=<lat>] [--lon=<lon>]						  Updates the location of the device to the provided by latitude and longtitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
+   ios setlocationgpx [--gpxfilepath=<gpxfilepath>]					  Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
+   ios resetlocation												  Resets the location of the device to the actual one
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -334,13 +336,14 @@ The commands work as following:
 	if b {
 		lat, _ := arguments.String("--lat")
 		lon, _ := arguments.String("--lon")
-		gpxFilePath, _ := arguments.String("--gpxfilepath")
+		setLocation(device, lat, lon)
+		return
+	}
 
-		if gpxFilePath != "" {
-			setLocationGPX(device, gpxFilePath)
-		} else {
-			setLocation(device, lat, lon)
-		}
+	b, _ = arguments.Bool("setlocationgpx")
+	if b {
+		gpxFilePath, _ := arguments.String("--gpxfilepath")
+		setLocationGPX(device, gpxFilePath)
 		return
 	}
 
