@@ -60,9 +60,13 @@ func startNewProxyConnection(clientConn net.Conn, deviceID int, phonePort uint16
 	//proxyConn := iosproxy{clientConn, deviceConn}
 	go func() {
 		io.Copy(clientConn, deviceConn.Reader())
+                clientConn.Close()
+                deviceConn.Close()
 	}()
 	go func() {
 		io.Copy(deviceConn.Writer(), clientConn)
+                clientConn.Close()
+                deviceConn.Close()
 	}()
 }
 
