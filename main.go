@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/afc"
@@ -685,7 +686,7 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 		go func() {
-			err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
+			err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
 
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")

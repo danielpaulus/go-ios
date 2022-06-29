@@ -1,6 +1,7 @@
 package testmanagerd
 
 import (
+	"context"
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -8,7 +9,8 @@ import (
 	"strings"
 )
 
-func RunXCUIWithBundleIds11(
+func RunXCUIWithBundleIds11Ctx(
+	ctx context.Context,
 	bundleID string,
 	testRunnerBundleID string,
 	xctestConfigFileName string,
@@ -66,6 +68,18 @@ func RunXCUIWithBundleIds11(
 	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 25)
 	if err != nil {
 		log.Error(err)
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			log.Infof("Killing WebDriverAgent with pid %d ...", pid)
+			err = pControl.KillProcess(pid)
+			if err != nil {
+				return err
+			}
+			log.Info("WDA killed with success")
+		}
+		return nil
 	}
 	log.Debugf("done starting test")
 	<-closeChan
