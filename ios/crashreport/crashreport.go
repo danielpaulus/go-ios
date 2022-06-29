@@ -50,14 +50,14 @@ func copyReports(afc *afc.Connection, cwd string, pattern string, targetDir stri
 		devicePath := path.Join(cwd, f)
 		targetFilePath := path.Join(targetDir, f)
 		log.WithFields(log.Fields{"from": devicePath, "to": targetFilePath}).Info("downloading")
-		info, err := afc.GetFileInfo(devicePath)
+		info, err := afc.Stat(devicePath)
 		if err != nil {
 			log.Warnf("failed getting info for file: %s, skipping", f)
 			continue
 		}
 		log.Debugf("%+v", info)
 
-		if info.IsDir() {
+		if info.IsDir(){
 			err := os.Mkdir(targetFilePath, targetDirInfo.Mode().Perm())
 			if err != nil {
 				return err
@@ -69,15 +69,7 @@ func copyReports(afc *afc.Connection, cwd string, pattern string, targetDir stri
 			continue
 		}
 
-		targetFileHandle, err := os.Create(targetFilePath)
-		if err != nil {
-			return err
-		}
-		err = afc.DownloadFile(devicePath, targetFileHandle)
-		if err != nil {
-			return err
-		}
-		err = targetFileHandle.Close()
+		err = afc.PullSingleFile(devicePath, targetFilePath)
 		if err != nil {
 			return err
 		}
@@ -109,7 +101,7 @@ func RemoveReports(device ios.DeviceEntry, cwd string, pattern string) error {
 			continue
 		}
 		log.WithFields(log.Fields{"path": path.Join(cwd, f)}).Info("delete")
-		err := afc.Delete(path.Join(cwd, f))
+		err := afc.Remove(path.Join(cwd, f))
 		if err != nil {
 			return err
 		}
