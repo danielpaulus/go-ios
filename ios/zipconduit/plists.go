@@ -59,17 +59,17 @@ func evaluateProgress(progressUpdate map[string]interface{}) (bool, int, string,
 		return false, 0, "", fmt.Errorf("failed installing: '%s' errorDescription:'%s'", errorMessage, description)
 	}
 
+	var percent int
 	percentIntf, ok := installProgressDict["PercentComplete"]
-	if !ok {
-		return false, 0, "", fmt.Errorf("invalid installProgressDict, missing PercentComplete field:+%+v", progressUpdate)
+	if ok {
+		percent = int(percentIntf.(uint64))
 	}
-	percent := int(percentIntf.(uint64))
 
+	var status string
 	statusIntf, ok = installProgressDict["Status"]
-	if !ok {
-		return false, 0, "", fmt.Errorf("invalid installProgressDict, missing Status field:+%+v", progressUpdate)
+	if ok {
+		status = statusIntf.(string)
 	}
-	status := statusIntf.(string)
 	return false, percent, status, nil
 }
 
