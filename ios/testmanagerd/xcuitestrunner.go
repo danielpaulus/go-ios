@@ -1,6 +1,7 @@
 package testmanagerd
 
 import (
+	"context"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	"path"
@@ -265,13 +266,13 @@ func RunXCUITest(bundleID string, device ios.DeviceEntry) error {
 		return err
 	}
 	xctestConfigFileName := info.targetAppBundleName + "UITests.xctest"
-	return RunXCUIWithBundleIds(bundleID, testRunnerBundleID, xctestConfigFileName, device, nil, nil)
+	return RunXCUIWithBundleIdsCtx(nil, bundleID, testRunnerBundleID, xctestConfigFileName, device, nil, nil)
 }
 
 var closeChan = make(chan interface{})
 var closedChan = make(chan interface{})
 
-func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, xctestConfigFileName string,
+func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, testRunnerBundleID string, xctestConfigFileName string,
 	device ios.DeviceEntry, conn *dtx.Connection, args []string, env []string) error {
 	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
@@ -325,7 +326,22 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 36)
 	if err != nil {
 		log.Error(err)
+		return err
 	}
+
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			log.Infof("Killing WebDriverAgent with pid %d ...", pid)
+			err = pControl.KillProcess(pid)
+			if err != nil {
+				return err
+			}
+			log.Info("WDA killed with success")
+		}
+		return nil
+	}
+
 	<-closeChan
 	log.Infof("Killing UITest with pid %d ...", pid)
 	err = pControl.KillProcess(pid)
@@ -339,7 +355,8 @@ func runXUITestWithBundleIdsXcode12(bundleID string, testRunnerBundleID string, 
 
 }
 
-func RunXCUIWithBundleIds(
+func RunXCUIWithBundleIdsCtx(
+	ctx context.Context,
 	bundleID string,
 	testRunnerBundleID string,
 	xctestConfigFileName string,
@@ -354,14 +371,14 @@ func RunXCUIWithBundleIds(
 	log.Debugf("%v", version)
 	if version.LessThan(ios.IOS14()) {
 		log.Infof("iOS version: %s detected, running with ios11 support", version)
-		return RunXCUIWithBundleIds11(bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
+		return RunXCUIWithBundleIds11Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
 	}
 
 	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
 	if err != nil {
 		return err
 	}
-	return runXUITestWithBundleIdsXcode12(bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)
+	return runXUITestWithBundleIdsXcode12Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, conn, wdaargs, wdaenv)
 
 }
 
