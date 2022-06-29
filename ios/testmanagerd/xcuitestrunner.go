@@ -2,12 +2,12 @@ package testmanagerd
 
 import (
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/afc"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -449,7 +449,7 @@ func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID s
 	}
 	log.Debugf("app info found: %+v", info)
 
-	houseArrestService, err := afc.NewWithHouseArrest(device, testRunnerBundleID)
+	houseArrestService, err := house_arrest.New(device, testRunnerBundleID)
 	defer houseArrestService.Close()
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
@@ -463,7 +463,7 @@ func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID s
 	return testSessionID, testConfigPath, testConfig, info, nil
 }
 
-func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *afc.Connection, xctestConfigFileName string) (string, nskeyedarchiver.XCTestConfiguration, error) {
+func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *house_arrest.Connection, xctestConfigFileName string) (string, nskeyedarchiver.XCTestConfiguration, error) {
 	relativeXcTestConfigPath := path.Join("tmp", testSessionID.String()+".xctestconfiguration")
 	xctestConfigPath := path.Join(info.testRunnerHomePath, relativeXcTestConfigPath)
 
