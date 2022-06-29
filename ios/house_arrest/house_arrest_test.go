@@ -1,4 +1,4 @@
-package afc_test
+package house_arrest_test
 
 /*
 import (
@@ -13,7 +13,7 @@ import (
 
 func TestIT(t *testing.T) {
 	device := ios.ListDevices().DeviceList[0]
-	conn, err := house_arrest.NewWithHouseArrest(device.DeviceID, device.Properties.SerialNumber, "d.blaUITests.xctrunner")
+	conn, err := house_arrest.New(device.DeviceID, device.Properties.SerialNumber, "d.blaUITests.xctrunner")
 	list, err := conn.ListFiles("tmp")
 	log.Info(list)
 	filePath := "tmp/test1003.txt"
