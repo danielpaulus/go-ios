@@ -50,7 +50,10 @@ func (xdc XCTestManager_DaemonConnectionInterface) startExecutingTestPlanWithPro
 
 func (xdc XCTestManager_DaemonConnectionInterface) authorizeTestSessionWithProcessID(pid uint64) (bool, error) {
 	rply, err := xdc.IDEDaemonProxy.MethodCall("_IDE_authorizeTestSessionWithProcessID:", pid)
-
+	if err != nil {
+		log.Errorf("authorizeTestSessionWithProcessID failed: %v, err:%v", pid, err)
+		return false, err
+	}
 	returnValue := rply.Payload[0]
 	var val bool
 	var ok bool
@@ -63,11 +66,14 @@ func (xdc XCTestManager_DaemonConnectionInterface) authorizeTestSessionWithProce
 }
 
 func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifierAndCaps(uuid uuid.UUID, caps nskeyedarchiver.XCTCapabilities) (nskeyedarchiver.XCTCapabilities, error) {
-	rply, err := xdc.IDEDaemonProxy.MethodCall("_IDE_initiateSessionWithIdentifier:capabilities:", nskeyedarchiver.NewNSUUID(uuid), caps)
-
-	returnValue := rply.Payload[0]
 	var val nskeyedarchiver.XCTCapabilities
 	var ok bool
+	rply, err := xdc.IDEDaemonProxy.MethodCall("_IDE_initiateSessionWithIdentifier:capabilities:", nskeyedarchiver.NewNSUUID(uuid), caps)
+	if err != nil {
+		log.Errorf("initiateSessionWithIdentifierAndCaps failed: %v", err)
+		return val, err
+	}
+	returnValue := rply.Payload[0]
 	if val, ok = returnValue.(nskeyedarchiver.XCTCapabilities); !ok {
 		return val, fmt.Errorf("_IDE_initiateSessionWithIdentifier:capabilities: got wrong returnvalue: %s", rply.Payload)
 	}
@@ -76,11 +82,15 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifier
 	return val, err
 }
 func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionWithCapabilities(caps nskeyedarchiver.XCTCapabilities) (nskeyedarchiver.XCTCapabilities, error) {
-	rply, err := xdc.IDEDaemonProxy.MethodCall("_IDE_initiateControlSessionWithCapabilities:", caps)
-
-	returnValue := rply.Payload[0]
 	var val nskeyedarchiver.XCTCapabilities
 	var ok bool
+	rply, err := xdc.IDEDaemonProxy.MethodCall("_IDE_initiateControlSessionWithCapabilities:", caps)
+	if err != nil {
+		log.Errorf("initiateControlSessionWithCapabilities failed: %v", err)
+		return val, err
+	}
+	returnValue := rply.Payload[0]
+
 	if val, ok = returnValue.(nskeyedarchiver.XCTCapabilities); !ok {
 		return val, fmt.Errorf("_IDE_initiateControlSessionWithCapabilities got wrong returnvalue: %s", rply.Payload)
 	}
@@ -91,16 +101,19 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSessionWithCap
 
 func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifier(sessionIdentifier uuid.UUID, protocolVersion uint64) (uint64, error) {
 	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName}).Debug("Launching init test Session")
+	var val uint64
+	var ok bool
 	rply, err := xdc.IDEDaemonProxy.MethodCall(
 		"_IDE_initiateSessionWithIdentifier:forClient:atPath:protocolVersion:",
 		nskeyedarchiver.NewNSUUID(sessionIdentifier),
 		"thephonedoesntcarewhatisendhereitseems",
 		"/Applications/Xcode.app",
 		protocolVersion)
-
+	if err != nil {
+		log.Errorf("initiateSessionWithIdentifier failed: %v", err)
+		return val, err
+	}
 	returnValue := rply.Payload[0]
-	var val uint64
-	var ok bool
 	if val, ok = returnValue.(uint64); !ok {
 		return 0, fmt.Errorf("initiateSessionWithIdentifier got wrong returnvalue: %s", rply.Payload)
 	}
