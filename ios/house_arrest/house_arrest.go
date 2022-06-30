@@ -5,8 +5,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/afc"
 	"strings"
+
+	"github.com/danielpaulus/go-ios/ios/afc"
 
 	"github.com/danielpaulus/go-ios/ios"
 
@@ -82,7 +83,9 @@ type vendContainerResponse struct {
 }
 
 func (c Connection) Close() {
-	c.deviceConn.Close()
+	if c.deviceConn != nil {
+		c.deviceConn.Close()
+	}
 }
 
 func (conn *Connection) SendFile(fileContents []byte, filePath string) error {
