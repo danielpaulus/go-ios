@@ -57,6 +57,7 @@ func (d *Channel) MethodCall(selector string, args ...interface{}) (Message, err
 	msg, err := d.SendAndAwaitReply(true, Methodinvocation, payload, auxiliary)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed starting invoking method")
+		return msg, err
 	}
 	if msg.HasError() {
 		return msg, fmt.Errorf("Failed invoking method '%s' with error: %s", selector, msg.Payload[0])
@@ -73,6 +74,7 @@ func (d *Channel) MethodCallAsync(selector string, args ...interface{}) error {
 	err := d.Send(false, Methodinvocation, payload, auxiliary)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed starting invoking method")
+		return err
 	}
 	return nil
 }

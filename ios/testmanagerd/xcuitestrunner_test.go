@@ -4,6 +4,7 @@
 package testmanagerd_test
 
 import (
+	"context"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
@@ -52,7 +53,7 @@ func TestXcuiTest(t *testing.T) {
 	var wdaargs []string
 	var wdaenv []string
 	go func() {
-		err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
+		err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
 
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")

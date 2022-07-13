@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/afc"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
@@ -92,6 +95,8 @@ Usage:
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [options]
   ios debug [options] [--stop-at-entry] <app_path>
+  ios fsync (rm | tree | mkdir) --path=<targetPath>
+  ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath> 
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
@@ -168,6 +173,8 @@ The commands work as following:
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [options]                                                   Access accessibility inspector features. 
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
+   ios fsync (rm | tree | mkdir) --path=<targetPath>                  Remove | treeview | mkdir in target path.
+   ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
@@ -554,6 +561,56 @@ The commands work as following:
 		return
 	}
 
+	b, _ = arguments.Bool("fsync")
+	if b {
+		afcService, err := afc.New(device)
+		exitIfError("fsync: connect afc service failed", err)
+		b, _ = arguments.Bool("rm")
+		if b {
+			path, _ := arguments.String("--path")
+			err = afcService.Remove(path)
+			exitIfError("fsync: remove failed", err)
+		}
+
+		b, _ = arguments.Bool("tree")
+		if b {
+			path, _ := arguments.String("--path")
+			err = afcService.TreeView(path, "", true)
+			exitIfError("fsync: tree view failed", err)
+		}
+
+		b, _ = arguments.Bool("mkdir")
+		if b {
+			path, _ := arguments.String("--path")
+			err = afcService.MkDir(path)
+			exitIfError("fsync: mkdir failed", err)
+		}
+
+		b, _ = arguments.Bool("pull")
+		if b {
+			sp, _ := arguments.String("--srcPath")
+			dp, _ := arguments.String("--dstPath")
+			if dp != "" {
+				ret, _ := ios.PathExists(dp)
+				if !ret {
+					err = os.MkdirAll(dp, os.ModePerm)
+					exitIfError("mkdir failed", err)
+				}
+			}
+			dp = path.Join(dp, filepath.Base(sp))
+			err = afcService.Pull(sp, dp)
+			exitIfError("fsync: pull failed", err)
+		}
+		b, _ = arguments.Bool("push")
+		if b {
+			sp, _ := arguments.String("--srcPath")
+			dp, _ := arguments.String("--dstPath")
+			err = afcService.Push(sp, dp)
+			exitIfError("fsync: push failed", err)
+		}
+		afcService.Close()
+		return
+	}
 }
 
 func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
@@ -629,7 +686,7 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 		go func() {
-			err := testmanagerd.RunXCUIWithBundleIds(bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
+			err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
 
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
