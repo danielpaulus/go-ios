@@ -103,6 +103,7 @@ Usage:
   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]
   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
   ios resetlocation [options]
+  ios assistivetouch (enable | disable | toggle | get) [options]
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -178,9 +179,10 @@ The commands work as following:
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
-   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]			  Updates the location of the device to the provided by latitude and longitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
-   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]		  Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
-   ios resetlocation [options]										  Resets the location of the device to the actual one
+   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]              Updates the location of the device to the provided by latitude and longitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
+   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]         Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
+   ios resetlocation [options]                                        Resets the location of the device to the actual one
+   ios assistivetouch (enable | disable | toggle | get) [options]     Enables, disables, toggles, or returns the state of the "AssistiveTouch" software home-screen button. iOS 11+ only.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -310,6 +312,28 @@ The commands work as following:
 		language(device, locale, newlang)
 		return
 	}
+
+	b, _ = arguments.Bool("assistivetouch")
+	if b {
+		b, _ = arguments.Bool("enable")
+		if b {
+			assistiveTouch(device, "enable")
+		}
+		b, _ = arguments.Bool("disable")
+		if b {
+			assistiveTouch(device, "disable")
+		}
+		b, _ = arguments.Bool("toggle")
+		if b {
+			assistiveTouch(device, "toggle")
+		}
+		b, _ = arguments.Bool("get")
+		if b {
+			assistiveTouch(device, "get")
+		}
+	}
+
+
 
 	b, _ = arguments.Bool("dproxy")
 	if b {
@@ -842,6 +866,33 @@ func language(device ios.DeviceEntry, locale string, language string) {
 	exitIfError("failed getting language", err)
 
 	fmt.Println(convertToJSONString(lang))
+}
+
+func assistiveTouch(device ios.DeviceEntry, operation string) {
+	wasEnabled, err := ios.GetAssistiveTouch(device)
+	var enable bool
+	exitIfError("failed getting current AssistiveTouch status", err)
+
+	if operation == "enable" {
+		enable = true
+	} else if operation == "disable" {
+		enable = false
+	} else if operation == "toggle" {
+		enable = !wasEnabled
+	} else{ // get
+		enable = wasEnabled
+	}
+	if operation != "get" && wasEnabled != enable {
+		err = ios.SetAssistiveTouch(device, enable)
+		exitIfError("failed setting AssistiveTouch", err)
+	}
+	if operation == "get" {
+		if JSONdisabled {
+			fmt.Printf("%t\n", enable)
+		} else {
+			fmt.Println(convertToJSONString(map[string]bool{"AssistiveTouchEnabled":enable}))
+		}
+	}
 }
 
 func startAx(device ios.DeviceEntry) {

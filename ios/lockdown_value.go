@@ -114,7 +114,7 @@ type valueRequest struct {
 	Key     string `plist:"Key,omitempty"`
 	Request string
 	Domain  string `plist:"Domain,omitempty"`
-	Value   string `plist:"Value,omitempty"`
+	Value   interface{} `plist:"Value,omitempty"`
 }
 
 func newGetValue(key string) valueRequest {
@@ -126,7 +126,7 @@ func newGetValue(key string) valueRequest {
 	return data
 }
 
-func newSetValue(key string, domain string, value string) valueRequest {
+func newSetValue(key string, domain string, value interface{}) valueRequest {
 	data := valueRequest{
 		Label:   "go.ios.control",
 		Key:     key,
@@ -215,7 +215,7 @@ func (lockDownConn *LockDownConnection) GetValueForDomain(key string, domain str
 }
 
 //SetValueForDomain sets the string value for the lockdown key and domain. If the device returns an error it will be returned as a go error.
-func (lockDownConn *LockDownConnection) SetValueForDomain(key string, domain string, value string) error {
+func (lockDownConn *LockDownConnection) SetValueForDomain(key string, domain string, value interface{}) error {
 	gv := newSetValue(key, domain, value)
 	lockDownConn.Send(gv)
 	resp, err := lockDownConn.ReadMessage()
