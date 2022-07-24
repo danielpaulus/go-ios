@@ -44,6 +44,7 @@ import (
 
 //JSONdisabled enables or disables output in JSON format
 var JSONdisabled = false
+var prettyJSON = false
 
 func main() {
 	Main()
@@ -107,7 +108,8 @@ Usage:
 Options:
   -v --verbose   Enable Debug Logging.
   -t --trace     Enable Trace Logging (dump every message).
-  --nojson       Disable JSON output (default).
+  --nojson       Disable JSON output
+  --pretty       Pretty-print JSON command output
   -h --help      Show this screen.
   --udid=<udid>  UDID of the device.
 
@@ -191,6 +193,11 @@ The commands work as following:
 		JSONdisabled = true
 	} else {
 		log.SetFormatter(&log.JSONFormatter{})
+	}
+
+	pretty, _ := arguments.Bool("--pretty")
+	if pretty{
+		prettyJSON = true
 	}
 
 	traceLevelEnabled, _ := arguments.Bool("--trace")
@@ -621,11 +628,11 @@ func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		plist, _ := arguments.Bool("--plist")
 		resp, _ := conn.MobileGestaltQuery(keys)
 		if plist {
-			fmt.Printf("%s", ios.ToPlist(resp))
+			fmt.Printf("%s\n", ios.ToPlist(resp))
 			return true
 		}
-		jb, _ := json.Marshal(resp)
-		fmt.Printf("%s", jb)
+		jb, _ := marshalJSON(resp)
+		fmt.Printf("%s\n", jb)
 		return true
 	}
 	return b
@@ -753,7 +760,7 @@ func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId s
 		if JSONdisabled {
 			outputPrettyStateList(profileTypes)
 		} else {
-			b, err := json.Marshal(profileTypes)
+			b, err := marshalJSON(profileTypes)
 			exitIfError("failed json conversion", err)
 			println(string(b))
 		}
@@ -1203,15 +1210,23 @@ func readPair(device ios.DeviceEntry) {
 	if err != nil {
 		exitIfError("failed reading pairrecord", err)
 	}
-	json, err := json.Marshal(record)
+	json, err := marshalJSON(record)
 	if err != nil {
 		exitIfError("failed converting to json", err)
 	}
-	fmt.Printf("%s", json)
+	fmt.Printf("%s\n", json)
+}
+
+func marshalJSON(data interface{}) ([]byte, error){
+	if prettyJSON{
+		return json.MarshalIndent(data,"","    ")
+	}else{
+		return json.Marshal(data)
+	}
 }
 
 func convertToJSONString(data interface{}) string {
-	b, err := json.Marshal(data)
+	b, err := marshalJSON(data)
 	if err != nil {
 		fmt.Println(err)
 		return ""
