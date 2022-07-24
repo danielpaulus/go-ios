@@ -546,11 +546,11 @@ The commands work as following:
 			}
 		}
 		if bundleID != "" {
-			log.Errorf("process of ", bundleID, " not found")
+			log.Error("process of ", bundleID, " not found")
 		} else if processName != "" {
-			log.Errorf("process named ", processName, " not found")
+			log.Error("process named ", processName, " not found")
 		} else {
-			log.Errorf("process with pid ", processID, " not found")
+			log.Error("process with pid ", processID, " not found")
 		}
 		os.Exit(1)
 		return
