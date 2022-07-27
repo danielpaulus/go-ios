@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -80,7 +81,7 @@ Usage:
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
   ios httpproxy remove [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
-  ios ps [options]
+  ios ps [--apps] [options]
   ios ip [options]
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary]
@@ -88,7 +89,7 @@ Usage:
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
-  ios apps [--system] [options]
+  ios apps [--system] [--all] [options]
   ios launch <bundleID> [options]
   ios kill <bundleID> [options]
   ios runtest <bundleID> [options]
@@ -150,7 +151,10 @@ The commands work as following:
    >                                                                  Specify proxy password either as argument or using the environment var: PROXY_PASSWORD
    >                                                                  Use p12 file and password for silent installation on supervised devices.
    ios httpproxy remove [options]                                     Removes the global http proxy config. Only works with http proxies set by go-ios!
-   ios ps [options]                                                   Dumps a list of running processes on the device
+   ios ps [--apps] [options]                                          Dumps a list of running processes on the device.
+   >                                                                  Use --nojson for a human-readable listing including BundleID when available. (not included with JSON output)
+   >                                                                  --apps limits output to processes flagged by iOS as "isApplication". This greatly-filtered list
+   >                                                                  should at least include user-installed software.  Additional packages will also be displayed depending on the version of iOS.
    ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
    >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP. 
    >                                                                  You have to disable the "automatic wifi address"-privacy feature of the device for this to work.
@@ -165,7 +169,7 @@ The commands work as following:
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
-   ios apps [--system]                                                Retrieves a list of installed applications. --system prints out preinstalled system apps.
+   ios apps [--system] [--all]                                        Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
    ios kill <bundleID> [options]                                      Kill app with the bundleID on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
@@ -280,7 +284,8 @@ The commands work as following:
 
 	b, _ = arguments.Bool("ps")
 	if b {
-		processList(device)
+		applicationsOnly, _ := arguments.Bool("--apps")
+		processList(device, applicationsOnly)
 		return
 	}
 
@@ -370,7 +375,8 @@ The commands work as following:
 
 	if b {
 		system, _ := arguments.Bool("--system")
-		printInstalledApps(device, system)
+		all, _ := arguments.Bool("--all")
+		printInstalledApps(device, system, all)
 		return
 	}
 
@@ -979,21 +985,22 @@ func printDeviceDate(device ios.DeviceEntry) {
 	}
 
 }
-func printInstalledApps(device ios.DeviceEntry, system bool) {
+func printInstalledApps(device ios.DeviceEntry, system bool, all bool) {
 	svc, _ := installationproxy.New(device)
-	if !system {
-		response, err := svc.BrowseUserApps()
-		exitIfError("browsing user apps failed", err)
-
-		if JSONdisabled {
-			log.Info(response)
-		} else {
-			fmt.Println(convertToJSONString(response))
-		}
-		return
+	var err error
+	var response []installationproxy.AppInfo
+	appType := ""
+	if all {
+		response, err = svc.BrowseAllApps()
+		appType = "all"
+	} else if system {
+		response, err = svc.BrowseSystemApps()
+		appType = "system"
+	} else {
+		response, err = svc.BrowseUserApps()
+		appType = "user"
 	}
-	response, err := svc.BrowseSystemApps()
-	exitIfError("browsing system apps failed", err)
+	exitIfError("browsing " + appType + " apps failed", err)
 
 	if JSONdisabled {
 		log.Info(response)
@@ -1052,14 +1059,28 @@ func resetLocation(device ios.DeviceEntry) {
 	exitIfError("Resetting location failed with", err)
 }
 
-func processList(device ios.DeviceEntry) {
+func processList(device ios.DeviceEntry, applicationsOnly bool) {
 	service, err := instruments.NewDeviceInfoService(device)
 	defer service.Close()
 	if err != nil {
 		exitIfError("failed opening deviceInfoService for getting process list", err)
 	}
 	processList, err := service.ProcessList()
-	fmt.Println(convertToJSONString(processList))
+	if applicationsOnly {
+		var applicationProcessList []instruments.ProcessInfo
+		for _, processInfo := range processList {
+			if processInfo.IsApplication {
+				applicationProcessList = append(applicationProcessList,processInfo)
+			}
+		}
+		processList = applicationProcessList
+	}
+
+	if JSONdisabled {
+		outputProcessListNoJSON(device, processList)
+	} else {
+		fmt.Println(convertToJSONString(processList))
+	}
 }
 
 func printDeviceList(details bool) {
@@ -1109,6 +1130,46 @@ func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 		allValues, err := ios.GetValues(device)
 		exitIfError("failed getting values", err)
 		fmt.Printf("%s  %s  %s %s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion)
+	}
+}
+
+func outputProcessListNoJSON(device ios.DeviceEntry, processes []instruments.ProcessInfo) {
+	sort.Slice(processes, func(i, j int) bool {
+		return processes[i].Pid < processes[j].Pid
+	})
+	svc, _ := installationproxy.New(device)
+	response, err := svc.BrowseAllApps()
+	appInfoByExecutableName := make(map[string] installationproxy.AppInfo)
+
+	if err != nil {
+		log.Error("browsing installed apps failed. bundleID will not be included in output")
+	} else {
+		for _, app := range response {
+			appInfoByExecutableName[app.CFBundleExecutable] = app
+		}
+	}
+
+	var maxPid uint64
+	maxNameLength := 15
+
+	for _, processInfo := range processes {
+		if processInfo.Pid > maxPid {
+			maxPid = processInfo.Pid
+		}
+		if len(processInfo.Name) > maxNameLength {
+			maxNameLength = len(processInfo.Name)
+		}
+	}
+	maxPidLength := len(fmt.Sprintf("%d",maxPid))
+
+	fmt.Printf("%*s %-*s %s  %s\n", maxPidLength, "PID", maxNameLength, "NAME", "START_DATE         ", "BUNDLE_ID")
+	for _, processInfo := range processes {
+		bundleID := ""
+		appInfo, exists := appInfoByExecutableName[processInfo.Name]
+		if exists{
+			bundleID = appInfo.CFBundleIdentifier
+		}
+		fmt.Printf("%*d %-*s %s  %s\n", maxPidLength, processInfo.Pid, maxNameLength, processInfo.Name, processInfo.StartDate.Format("2006-01-02 15:04:05"), bundleID)
 	}
 }
 
