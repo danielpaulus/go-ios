@@ -52,7 +52,10 @@ func extractObjects(objectRefs []plist.UID, objects []interface{}) ([]interface{
 			continue
 		}
 		//if this crashes, I forgot a primitive type
-		nonPrimitiveObjectRef := objectRef.(map[string]interface{})
+		nonPrimitiveObjectRef,ok := objectRef.(map[string]interface{})
+		if !ok{
+			return []interface{}{}, fmt.Errorf("object not a dictionary: %+v", objectRef)
+		}
 		if object, ok := isArrayObject(nonPrimitiveObjectRef, objects); ok {
 			extractObjects, err := extractObjects(toUidList(object[nsObjects].([]interface{})), objects)
 			if err != nil {
@@ -209,6 +212,9 @@ func isPrimitiveObject(object interface{}) (interface{}, bool) {
 		return v, ok
 	}
 	if v, ok := object.([]uint8); ok {
+		return v, ok
+	}
+	if v, ok := object.(int64); ok {
 		return v, ok
 	}
 	return object, false

@@ -57,10 +57,11 @@ func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interfa
 		arguments,
 		options)
 	if err != nil {
-		log.WithFields(log.Fields{"channel_id": processControlChannelName, "error": err}).Info("failed starting process")
+		log.WithFields(log.Fields{"channel_id": processControlChannelName, "error": err}).Errorln("failed starting process: ", bundleID)
+		return 0, err
 	}
 	if msg.HasError() {
-		return 0, fmt.Errorf("Failed starting process: %s", msg.Payload[0])
+		return 0, fmt.Errorf("Failed starting process: %s, msg:%v", bundleID, msg.Payload[0])
 	}
 	if pid, ok := msg.Payload[0].(uint64); ok {
 		log.WithFields(log.Fields{"channel_id": processControlChannelName, "pid": pid}).Info("Process started successfully")

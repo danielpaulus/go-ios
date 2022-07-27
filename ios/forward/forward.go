@@ -1,9 +1,11 @@
 package forward
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
+	"sync"
 
 	"github.com/danielpaulus/go-ios/ios"
 	log "github.com/sirupsen/logrus"
@@ -37,33 +39,67 @@ func connectionAccept(l net.Listener, deviceID int, phonePort uint16) {
 			continue
 		}
 		log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn)}).Info("new client connected")
-		go startNewProxyConnection(clientConn, deviceID, phonePort)
+		go StartNewProxyConnection(context.TODO(), clientConn, deviceID, phonePort)
 	}
 }
 
-func startNewProxyConnection(clientConn net.Conn, deviceID int, phonePort uint16) {
+func StartNewProxyConnection(ctx context.Context, clientConn net.Conn, deviceID int, phonePort uint16) error {
 	usbmuxConn, err := ios.NewUsbMuxConnectionSimple()
 	if err != nil {
 		log.Errorf("could not connect to usbmuxd: %+v", err)
 		clientConn.Close()
-		return
+		return fmt.Errorf("could not connect to usbmuxd: %v", err)
 	}
 	muxError := usbmuxConn.Connect(deviceID, phonePort)
 	if muxError != nil {
 		log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn), "err": muxError, "phonePort": phonePort}).Infof("could not connect to phone")
 		clientConn.Close()
-		return
+		return fmt.Errorf("could not connect to port:%d on iOS: %v", phonePort, err)
 	}
 	log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn), "phonePort": phonePort}).Infof("Connected to port")
 	deviceConn := usbmuxConn.ReleaseDeviceConnection()
 
 	//proxyConn := iosproxy{clientConn, deviceConn}
+	ctx2, cancel := context.WithCancel(ctx)
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	closed := false
 	go func() {
 		io.Copy(clientConn, deviceConn.Reader())
+		if ctx2.Err() == nil {
+			cancel()
+			clientConn.Close()
+			deviceConn.Close()
+			closed = true
+		}
+
+		log.Errorf("forward: close clientConn <-- deviceConn")
+		wg.Done()
 	}()
+
+	wg.Add(1)
 	go func() {
 		io.Copy(deviceConn.Writer(), clientConn)
+		if ctx2.Err() == nil {
+			cancel()
+			clientConn.Close()
+			deviceConn.Close()
+			closed = true
+		}
+
+		log.Errorf("forward: close clientConn --> deviceConn")
+		wg.Done()
 	}()
+
+	<-ctx2.Done()
+	if !closed {
+		clientConn.Close()
+		deviceConn.Close()
+	}
+
+	wg.Wait()
+	return nil
 }
 
 func (proxyConn *iosproxy) Close() {
