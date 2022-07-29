@@ -33,7 +33,8 @@ func GetAssistiveTouch(device DeviceEntry) (bool, error) {
 
 	if err != nil {
 		return false, err
-	}else if enabledIntf == nil{
+	}
+	if enabledIntf == nil{
 		// In testing, nil was returned in only one case, on an iOS 14.7 device that should already have been paired.
 		// Calling SetAssistiveTouch() directly returned the somewhat more useful error: SetProhibited
 		// After re-running "go-ios pair", full functionality returned.
@@ -42,7 +43,7 @@ func GetAssistiveTouch(device DeviceEntry) (bool, error) {
 	enabledUint64, ok := enabledIntf.(uint64)
 	if !ok {
 		// On iOS 10.x at least, "false" is returned, perhaps for any key at all.  Attempting to manipulate AssistiveTouchEnabledByiTunes had no effect
-		return false, fmt.Errorf("Expected unit64 0 or 1 when querying %s.%s, but received %T:%+v. Is this device running iOS 11+.", accessibilityDomain, assistiveTouchKey, enabledIntf, enabledIntf)
+		return false, fmt.Errorf("Expected unit64 0 or 1 when querying %s.%s, but received %T:%+v. Is this device running iOS 11+?", accessibilityDomain, assistiveTouchKey, enabledIntf, enabledIntf)
 	} else if enabledUint64 != 0 && enabledUint64 != 1{
 		// So far this has never happened
 		return false, fmt.Errorf("Expected a value of 0 or 1 for %s.%s, received %d instead!", accessibilityDomain, assistiveTouchKey, enabledUint64)
