@@ -33,7 +33,7 @@ func SetLanguage(device DeviceEntry, config LanguageConfiguration) error {
 		}
 	}
 	if config.Language != "" {
-		log.Debugf("Setting language: %s", config.Locale)
+		log.Debugf("Setting language: %s", config.Language)
 		return lockDownConn.SetValueForDomain("Language", languageDomain, config.Language)
 	}
 	return nil
