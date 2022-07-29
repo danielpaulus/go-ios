@@ -92,7 +92,7 @@ Usage:
   ios uninstall <bundleID> [options]
   ios apps [--system] [--all] [options]
   ios launch <bundleID> [options]
-  ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [--system] [options]
+  ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest <bundleID> [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [options]
@@ -173,9 +173,7 @@ The commands work as following:
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system] [--all]                                        Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
-   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [--system] [options] Kill app with the specified bundleID, process id, or process name on the device.
-   >                                                                  When run with <bundleID>, limited to user-installed apps by default. Include --system to kill system apps by bundle ID.
-   >                                                                  When run with --pid or --process, no such restriction applies, but "kill" may still fail due to insufficient permissions.
+   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
@@ -504,7 +502,6 @@ The commands work as following:
 		bundleID, _ := arguments.String("<bundleID>")
 		processIDint, _ := arguments.Int("--pid")
 		processName, _ := arguments.String("--process")
-		killSystemApplications, _ := arguments.Bool("--system")
 
 		processID := uint64(processIDint)
 
@@ -518,15 +515,9 @@ The commands work as following:
 
 		// Look for correct process exe name for this bundleID. By default, searches only user-installed apps.
 		if bundleID != ""{
-			if killSystemApplications{
-				// TODO: It is my suggestion/intention that this line be replaced with the function below, from PR #151 "Add human-friendly ps output."
-				// response, err = svc.BrowseAllApps()
-				response, err = svc.BrowseSystemApps()
-				exitIfError("browsing system apps failed", err)
-			} else {
-				response, err = svc.BrowseUserApps()
-				exitIfError("browsing user apps failed", err)
-			}
+			response, err = svc.BrowseAllApps()
+			exitIfError("browsing apps failed", err)
+
 			for _, app := range response {
 				if app.CFBundleIdentifier == bundleID {
 					processName = app.CFBundleExecutable
@@ -534,7 +525,6 @@ The commands work as following:
 				}
 			}
 			if processName == "" {
-				// Note: this is not an entirely accurate message. Without the --system flag, for example, com.apple.Maps will return this message
 				log.Errorf(bundleID, " not installed")
 				os.Exit(1)
 				return
