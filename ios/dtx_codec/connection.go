@@ -133,7 +133,6 @@ func reader(dtxConn *Connection) {
 			log.Errorf("error reading dtx connection %+v", err)
 			return
 		}
-
 		if _channel, ok := dtxConn.activeChannels.Load(msg.ChannelCode); ok {
 			channel := _channel.(*Channel)
 			channel.Dispatch(msg)
@@ -162,6 +161,13 @@ func (dtxConn *Connection) ForChannelRequest(messageDispatcher Dispatcher) *Chan
 	//TODO: Setting the channel code here manually to -1 for making testmanagerd work. For some reason it requests the TestDriver proxy channel with code 1 but sends messages on -1. Should probably be fixed somehow
 	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
 	dtxConn.activeChannels.Store(-1, channel)
+	return channel
+}
+
+func (dtxConn *Connection) AddMinusOneReceiver(messageDispatcher Dispatcher) *Channel {
+	//4294967295
+	channel := &Channel{channelCode: -1, channelName: "c -1/ 4294967295 receiver channel ", messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
+	dtxConn.activeChannels.Store(4294967295, channel)
 	return channel
 }
 
