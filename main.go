@@ -92,7 +92,7 @@ Usage:
   ios uninstall <bundleID> [options]
   ios apps [--system] [--all] [options]
   ios launch <bundleID> [options]
-  ios kill <bundleID> [options]
+  ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest <bundleID> [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [options]
@@ -173,7 +173,7 @@ The commands work as following:
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system] [--all]                                        Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
-   ios kill <bundleID> [options]                                      Kill app with the bundleID on the device.
+   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
@@ -498,35 +498,64 @@ The commands work as following:
 
 	b, _ = arguments.Bool("kill")
 	if b {
+		var response []installationproxy.AppInfo
 		bundleID, _ := arguments.String("<bundleID>")
-		if bundleID == "" {
+		processIDint, _ := arguments.Int("--pid")
+		processName, _ := arguments.String("--process")
+
+		processID := uint64(processIDint)
+
+		// Technically "Mach Kernel" is process 0, I suppose we provide no way to attempt to kill that.
+		if bundleID == "" && processID == 0 && processName == "" {
 			log.Fatal("please provide a bundleID")
 		}
 		pControl, err := instruments.NewProcessControl(device)
 		exitIfError("processcontrol failed", err)
 		svc, _ := installationproxy.New(device)
-		response, err := svc.BrowseUserApps()
-		exitIfError("browsing user apps failed", err)
+
+		// Look for correct process exe name for this bundleID. By default, searches only user-installed apps.
+		if bundleID != ""{
+			response, err = svc.BrowseAllApps()
+			exitIfError("browsing apps failed", err)
+
+			for _, app := range response {
+				if app.CFBundleIdentifier == bundleID {
+					processName = app.CFBundleExecutable
+					break
+				}
+			}
+			if processName == "" {
+				log.Errorf(bundleID, " not installed")
+				os.Exit(1)
+				return
+			}
+		}
+
 		service, err := instruments.NewDeviceInfoService(device)
 		defer service.Close()
 		exitIfError("failed opening deviceInfoService for getting process list", err)
 		processList, _ := service.ProcessList()
-		for _, app := range response {
-			if app.CFBundleIdentifier == bundleID {
-				// ps
-				for _, p := range processList {
-					if p.Name == app.CFBundleExecutable {
-						err = pControl.KillProcess(p.Pid)
-						exitIfError("kill process failed", err)
-						log.Info(bundleID, " killd, Pid: ", p.Pid)
-						return
-					}
+		// ps
+		for _, p := range processList {
+			if (processID > 0 && p.Pid == processID) || (processName != "" && p.Name == processName) {
+				err = pControl.KillProcess(p.Pid)
+				exitIfError("kill process failed ", err)
+				if bundleID != "" {
+					log.Info(bundleID, " killed, Pid: ", p.Pid)
+				} else {
+					log.Info(p.Name, " killed, Pid: ", p.Pid)
 				}
-				log.Error("process of ", bundleID, " not found")
 				return
 			}
 		}
-		log.Error(bundleID, "not installed")
+		if bundleID != "" {
+			log.Error("process of ", bundleID, " not found")
+		} else if processName != "" {
+			log.Error("process named ", processName, " not found")
+		} else {
+			log.Error("process with pid ", processID, " not found")
+		}
+		os.Exit(1)
 		return
 	}
 
