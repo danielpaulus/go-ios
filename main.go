@@ -765,7 +765,8 @@ func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			for {
 				notification, err := listenerFunc()
 				if err != nil {
-					log.Fatal(err)
+					log.Error(err)
+					return
 				}
 				s, _ := json.Marshal(notification)
 				println(string(s))
