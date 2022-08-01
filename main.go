@@ -756,7 +756,6 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 	b, _ := arguments.Bool("instruments")
 	if b {
-		log.Info("yo")
 		listenerFunc, closeFunc, err := instruments.ListenAppStateNotifications(device)
 		if err != nil {
 			log.Fatal(err)
