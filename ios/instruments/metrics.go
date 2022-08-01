@@ -1,52 +1,77 @@
 package instruments
 
 import (
-	"encoding/json"
+	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
+	"io"
+	"time"
 )
 
-type yo struct {
+type channelDispatcher struct {
+	messageChannel chan dtx.Message
+	closeChannel   chan struct{}
 }
 
-func (y yo) Dispatch(msg dtx.Message) {
-
-	log.Infof("%+v", msg.Payload[0])
-	if "applicationStateNotification:" == msg.Payload[0].(string) {
-		data, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
-		if err != nil {
-			log.Warn(err)
-		}
-		resp := data[0]
-		jsonString, err := json.Marshal(resp)
-		println(string(jsonString))
-		//log.Infof("%+v", data)
-	}
-}
-
-func GetMetrics(device ios.DeviceEntry) error {
+func ListenAppStateNotifications(device ios.DeviceEntry) (func() (map[string]interface{}, error), func() error, error) {
 	conn, err := connectInstruments(device)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	conn.AddMinusOneReceiver(yo{})
-	channel := conn.RequestChannelIdentifier(mobileNotificationsChannel, yo{})
+	dispatcher := channelDispatcher{messageChannel: make(chan dtx.Message), closeChannel: make(chan struct{})}
+	conn.AddDefaultChannelReceiver(dispatcher)
+	channel := conn.RequestChannelIdentifier(mobileNotificationsChannel, channelDispatcher{})
 	resp, err := channel.MethodCall("setApplicationStateNotificationsEnabled:", true)
 	if err != nil {
 		log.Errorf("resp:%+v, %+v", resp, resp.Payload[0])
-		return err
+		return nil, nil, err
 	}
-	log.Infof("ok: %+v", resp)
+	log.Debugf("appstatenotifications enabled successfully: %+v", resp)
 	resp, err = channel.MethodCall("setMemoryNotificationsEnabled:", true)
 	if err != nil {
 		log.Errorf("resp:%+v, %+v", resp, resp.Payload[0])
-		return err
+		return nil, nil, err
 	}
-	log.Infof("ok: %+v", resp)
-	/*
-		INFO[0006] 9.0 c5 setApplicationStateNotificationsEnabled: [{t:binary, v:true},]  d=out id="#43"
-		INFO[0006] 10.0 c5 setMemoryNotificationsEnabled: [{t:binary, v:true},]  d=out id="#43"*/
-	return nil
+	log.Debugf("memory notifications enabled: %+v", resp)
+
+	return dispatcher.Receive, dispatcher.Close, nil
+}
+
+func (dispatcher channelDispatcher) Receive() (map[string]interface{}, error) {
+
+	var msg dtx.Message
+L:
+	for {
+		select {
+		case msg = <-dispatcher.messageChannel:
+			if "applicationStateNotification:" == msg.Payload[0].(string) {
+				break L
+			}
+		case <-dispatcher.closeChannel:
+			return map[string]interface{}{}, io.EOF
+		}
+	}
+
+	data, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+	resp := data[0]
+	return resp.(map[string]interface{}), nil
+
+}
+
+func (dispatcher *channelDispatcher) Close() error {
+	select {
+	case dispatcher.closeChannel <- struct{}{}:
+		return nil
+	case <-time.After(time.Second * 5):
+		return fmt.Errorf("timeout")
+	}
+}
+
+func (dispatcher channelDispatcher) Dispatch(msg dtx.Message) {
+	dispatcher.messageChannel <- msg
 }

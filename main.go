@@ -757,10 +757,27 @@ func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 	b, _ := arguments.Bool("instruments")
 	if b {
 		log.Info("yo")
-		instruments.GetMetrics(device)
+		listenerFunc, closeFunc, err := instruments.ListenAppStateNotifications(device)
+		if err != nil {
+			log.Fatal(err)
+		}
+		go func() {
+			for {
+				notification, err := listenerFunc()
+				if err != nil {
+					log.Fatal(err)
+				}
+				s, _ := json.Marshal(notification)
+				println(string(s))
+			}
+		}()
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		<-c
+		err = closeFunc()
+		if err != nil {
+			log.Warnf("timeout during close %v", err)
+		}
 	}
 	return b
 }
