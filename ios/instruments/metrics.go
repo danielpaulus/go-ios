@@ -1,8 +1,10 @@
 package instruments
 
 import (
+	"encoding/json"
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
+	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -13,7 +15,14 @@ func (y yo) Dispatch(msg dtx.Message) {
 
 	log.Infof("%+v", msg.Payload[0])
 	if "applicationStateNotification:" == msg.Payload[0].(string) {
-		log.Infof("%+v", msg.Auxiliary)
+		data, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
+		if err != nil {
+			log.Warn(err)
+		}
+		resp := data[0]
+		jsonString, err := json.Marshal(resp)
+		println(string(jsonString))
+		//log.Infof("%+v", data)
 	}
 }
 
