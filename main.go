@@ -106,6 +106,7 @@ Usage:
   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]
   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
   ios resetlocation [options]
+  ios assistivetouch (enable | disable | toggle | get) [--force] [options]
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -186,9 +187,10 @@ The commands work as following:
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
-   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]			  Updates the location of the device to the provided by latitude and longitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
-   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]		  Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
-   ios resetlocation [options]										  Resets the location of the device to the actual one
+   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]              Updates the location of the device to the provided by latitude and longitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
+   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]         Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
+   ios resetlocation [options]                                        Resets the location of the device to the actual one
+   ios assistivetouch (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "AssistiveTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -327,6 +329,29 @@ The commands work as following:
 		language(device, locale, newlang)
 		return
 	}
+
+	b, _ = arguments.Bool("assistivetouch")
+	if b {
+		force, _ := arguments.Bool("--force")
+		b, _ = arguments.Bool("enable")
+		if b {
+			assistiveTouch(device, "enable", force)
+		}
+		b, _ = arguments.Bool("disable")
+		if b {
+			assistiveTouch(device, "disable", force)
+		}
+		b, _ = arguments.Bool("toggle")
+		if b {
+			assistiveTouch(device, "toggle" , force)
+		}
+		b, _ = arguments.Bool("get")
+		if b {
+			assistiveTouch(device, "get", force)
+		}
+	}
+
+
 
 	b, _ = arguments.Bool("dproxy")
 	if b {
@@ -918,6 +943,52 @@ func language(device ios.DeviceEntry, locale string, language string) {
 	exitIfError("failed getting language", err)
 
 	fmt.Println(convertToJSONString(lang))
+}
+
+func assistiveTouch(device ios.DeviceEntry, operation string, force bool) {
+	var enable bool
+
+	if !force {
+		version, err := ios.GetProductVersion(device)
+		exitIfError("failed getting device product version", err)
+
+		if version.LessThan(ios.IOS11()) {
+			log.Errorf("iOS Version 11.0+ required to manipulate AssistiveTouch.  iOS version: %s detected. Use --force to override.", version)
+			os.Exit(1)
+		}
+	}
+
+	wasEnabled, err := ios.GetAssistiveTouch(device)
+
+	if err != nil{
+		if force && ( operation == "enable" || operation == "disable" ) {
+			log.WithFields(log.Fields{"error": err}).Warn("Failed getting current AssistiveTouch status. Continuing anyway.")
+		} else{
+			exitIfError("failed getting current AssistiveTouch status", err)
+		}
+	}
+
+	switch {
+	case operation == "enable":
+		enable = true
+	case operation == "disable":
+		enable = false
+	case operation == "toggle": 
+		enable = !wasEnabled
+	default: // get
+		enable = wasEnabled
+	}
+	if operation != "get" && ( force || wasEnabled != enable ) {
+		err = ios.SetAssistiveTouch(device, enable)
+		exitIfError("failed setting AssistiveTouch", err)
+	}
+	if operation == "get" {
+		if JSONdisabled {
+			fmt.Printf("%t\n", enable)
+		} else {
+			fmt.Println(convertToJSONString(map[string]bool{"AssistiveTouchEnabled":enable}))
+		}
+	}
 }
 
 func startAx(device ios.DeviceEntry) {

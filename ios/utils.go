@@ -94,14 +94,16 @@ func PathExists(path string) (bool, error) {
 	return false, err
 }
 
-//IOS14 semver.MustParse("14.0")
 func IOS14() *semver.Version {
 	return semver.MustParse("14.0")
 }
 
-//IOS12 semver.MustParse("12.0")
 func IOS12() *semver.Version {
 	return semver.MustParse("12.0")
+}
+
+func IOS11() *semver.Version {
+	return semver.MustParse("11.0")
 }
 
 //FixWindowsPaths replaces backslashes with forward slashes and removes the X: style
