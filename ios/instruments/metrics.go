@@ -15,6 +15,40 @@ type channelDispatcher struct {
 	closeChannel   chan struct{}
 }
 
+func toMap(msg dtx.Message) (string, map[string]interface{}, error) {
+	if len(msg.Payload) != 1 {
+		return "", map[string]interface{}{}, fmt.Errorf("error extracting, msg %+v has payload size !=1", msg)
+	}
+	selector, ok := msg.Payload[0].(string)
+	if !ok {
+		return "", map[string]interface{}{}, fmt.Errorf("error extracting, msg %+v payload: %+v wasn't a string", msg, msg.Payload[0])
+	}
+	args := msg.Auxiliary.GetArguments()
+	if len(args) == 0 {
+		return "", map[string]interface{}{}, fmt.Errorf("error extracting, msg %+v has an empty auxiliary dictionary", msg)
+	}
+
+	data, ok := args[0].([]byte)
+	if !ok {
+		return "", map[string]interface{}{}, fmt.Errorf("error extracting, msg %+v invalid aux", msg)
+	}
+
+	unarchived, err := nskeyedarchiver.Unarchive(data)
+	if err != nil {
+		return "", map[string]interface{}{}, err
+	}
+	if len(unarchived) == 0 {
+		return "", map[string]interface{}{}, fmt.Errorf("error extracting, msg %+v invalid aux", msg)
+	}
+
+	aux, ok := unarchived[0].(map[string]interface{})
+	if !ok {
+		return "", map[string]interface{}{}, fmt.Errorf("error extracting, msg %+v auxiliary: %+v didn't contain a map[string]interface{}", msg, msg.Payload[0])
+	}
+
+	return selector, aux, nil
+}
+
 func ListenAppStateNotifications(device ios.DeviceEntry) (func() (map[string]interface{}, error), func() error, error) {
 	conn, err := connectInstruments(device)
 	if err != nil {
@@ -40,27 +74,20 @@ func ListenAppStateNotifications(device ios.DeviceEntry) (func() (map[string]int
 }
 
 func (dispatcher channelDispatcher) Receive() (map[string]interface{}, error) {
-
-	var msg dtx.Message
-L:
 	for {
 		select {
-		case msg = <-dispatcher.messageChannel:
-			if "applicationStateNotification:" == msg.Payload[0].(string) {
-				break L
+		case msg := <-dispatcher.messageChannel:
+			selector, result, err := toMap(msg)
+			if "applicationStateNotification:" == selector && err == nil {
+				return result, nil
+			}
+			if err != nil {
+				log.Debugf("error extracting message %+v, %v", msg, err)
 			}
 		case <-dispatcher.closeChannel:
 			return map[string]interface{}{}, io.EOF
 		}
 	}
-
-	data, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
-	if err != nil {
-		return map[string]interface{}{}, err
-	}
-	resp := data[0]
-	return resp.(map[string]interface{}), nil
-
 }
 
 func (dispatcher *channelDispatcher) Close() error {
