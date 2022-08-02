@@ -133,7 +133,6 @@ func reader(dtxConn *Connection) {
 			log.Errorf("error reading dtx connection %+v", err)
 			return
 		}
-
 		if _channel, ok := dtxConn.activeChannels.Load(msg.ChannelCode); ok {
 			channel := _channel.(*Channel)
 			channel.Dispatch(msg)
@@ -160,8 +159,19 @@ func (dtxConn *Connection) ForChannelRequest(messageDispatcher Dispatcher) *Chan
 	//code := msg.Auxiliary.GetArguments()[0].(uint32)
 	identifier, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
 	//TODO: Setting the channel code here manually to -1 for making testmanagerd work. For some reason it requests the TestDriver proxy channel with code 1 but sends messages on -1. Should probably be fixed somehow
+	//TODO: try to refactor testmanagerd/xcuitest code and use AddDefaultChannelReceiver instead of this function. The only code calling this is in testmanagerd right now.
 	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
 	dtxConn.activeChannels.Store(-1, channel)
+	return channel
+}
+
+//AddDefaultChannelReceiver let's you set the Dispatcher for the Channel with code -1 ( or 4294967295 for uint32).
+// I am just calling it the "default" channel now, without actually figuring out what it is for exactly from disassembled code.
+// If someone wants to do that and bring some clarity, please go ahead :-)
+// This channel seems to always be there without explicitly requesting it and sometimes it is used.
+func (dtxConn *Connection) AddDefaultChannelReceiver(messageDispatcher Dispatcher) *Channel {
+	channel := &Channel{channelCode: -1, channelName: "c -1/ 4294967295 receiver channel ", messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
+	dtxConn.activeChannels.Store(4294967295, channel)
 	return channel
 }
 

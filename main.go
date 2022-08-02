@@ -66,6 +66,7 @@ Usage:
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>]
+  ios instruments notifications [options]
   ios crash ls [<pattern>] [options]
   ios crash cp <srcpattern> <target> [options]
   ios crash rm <cwd> <pattern> [options]
@@ -130,6 +131,7 @@ The commands work as following:
    >                                                                  The default is the current dir. 
    ios syslog [options]                                               Prints a device's log output
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
+   ios instruments notifications [options]                            Listen to application state notifications                                    
    ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list, 
    >                                                                  or use a pattern like 'ios crash ls "*ips*"' to filter
    ios crash cp <srcpattern> <target> [options]                       copy "file pattern" to the target dir. Ex.: 'ios crash cp "*" "./crashes"'
@@ -202,7 +204,7 @@ The commands work as following:
 	}
 
 	pretty, _ := arguments.Bool("--pretty")
-	if pretty{
+	if pretty {
 		prettyJSON = true
 	}
 
@@ -275,6 +277,9 @@ The commands work as following:
 	}
 
 	if crashCommand(device, arguments) {
+		return
+	}
+	if instrumentsCommand(device, arguments) {
 		return
 	}
 
@@ -539,7 +544,7 @@ The commands work as following:
 		svc, _ := installationproxy.New(device)
 
 		// Look for correct process exe name for this bundleID. By default, searches only user-installed apps.
-		if bundleID != ""{
+		if bundleID != "" {
 			response, err = svc.BrowseAllApps()
 			exitIfError("browsing apps failed", err)
 
@@ -770,6 +775,35 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			os.Exit(1)
 		}
 		log.Info("Done Closing")
+	}
+	return b
+}
+
+func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
+	b, _ := arguments.Bool("instruments")
+	if b {
+		listenerFunc, closeFunc, err := instruments.ListenAppStateNotifications(device)
+		if err != nil {
+			log.Fatal(err)
+		}
+		go func() {
+			for {
+				notification, err := listenerFunc()
+				if err != nil {
+					log.Error(err)
+					return
+				}
+				s, _ := json.Marshal(notification)
+				println(string(s))
+			}
+		}()
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		<-c
+		err = closeFunc()
+		if err != nil {
+			log.Warnf("timeout during close %v", err)
+		}
 	}
 	return b
 }
@@ -1107,7 +1141,7 @@ func printInstalledApps(device ios.DeviceEntry, system bool, all bool) {
 		response, err = svc.BrowseUserApps()
 		appType = "user"
 	}
-	exitIfError("browsing " + appType + " apps failed", err)
+	exitIfError("browsing "+appType+" apps failed", err)
 
 	if JSONdisabled {
 		log.Info(response)
@@ -1177,7 +1211,7 @@ func processList(device ios.DeviceEntry, applicationsOnly bool) {
 		var applicationProcessList []instruments.ProcessInfo
 		for _, processInfo := range processList {
 			if processInfo.IsApplication {
-				applicationProcessList = append(applicationProcessList,processInfo)
+				applicationProcessList = append(applicationProcessList, processInfo)
 			}
 		}
 		processList = applicationProcessList
@@ -1246,7 +1280,7 @@ func outputProcessListNoJSON(device ios.DeviceEntry, processes []instruments.Pro
 	})
 	svc, _ := installationproxy.New(device)
 	response, err := svc.BrowseAllApps()
-	appInfoByExecutableName := make(map[string] installationproxy.AppInfo)
+	appInfoByExecutableName := make(map[string]installationproxy.AppInfo)
 
 	if err != nil {
 		log.Error("browsing installed apps failed. bundleID will not be included in output")
@@ -1267,13 +1301,13 @@ func outputProcessListNoJSON(device ios.DeviceEntry, processes []instruments.Pro
 			maxNameLength = len(processInfo.Name)
 		}
 	}
-	maxPidLength := len(fmt.Sprintf("%d",maxPid))
+	maxPidLength := len(fmt.Sprintf("%d", maxPid))
 
 	fmt.Printf("%*s %-*s %s  %s\n", maxPidLength, "PID", maxNameLength, "NAME", "START_DATE         ", "BUNDLE_ID")
 	for _, processInfo := range processes {
 		bundleID := ""
 		appInfo, exists := appInfoByExecutableName[processInfo.Name]
-		if exists{
+		if exists {
 			bundleID = appInfo.CFBundleIdentifier
 		}
 		fmt.Printf("%*d %-*s %s  %s\n", maxPidLength, processInfo.Pid, maxNameLength, processInfo.Name, processInfo.StartDate.Format("2006-01-02 15:04:05"), bundleID)
@@ -1378,10 +1412,10 @@ func readPair(device ios.DeviceEntry) {
 	fmt.Printf("%s\n", json)
 }
 
-func marshalJSON(data interface{}) ([]byte, error){
-	if prettyJSON{
-		return json.MarshalIndent(data,"","    ")
-	}else{
+func marshalJSON(data interface{}) ([]byte, error) {
+	if prettyJSON {
+		return json.MarshalIndent(data, "", "    ")
+	} else {
 		return json.Marshal(data)
 	}
 }
