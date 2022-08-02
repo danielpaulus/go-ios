@@ -66,7 +66,7 @@ Usage:
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>]
-  ios instruments [options]
+  ios instruments notifications [options]
   ios crash ls [<pattern>] [options]
   ios crash cp <srcpattern> <target> [options]
   ios crash rm <cwd> <pattern> [options]
@@ -130,6 +130,7 @@ The commands work as following:
    >                                                                  The default is the current dir. 
    ios syslog [options]                                               Prints a device's log output
    ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
+   ios instruments notifications [options]                            Listen to application state notifications                                    
    ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list, 
    >                                                                  or use a pattern like 'ios crash ls "*ips*"' to filter
    ios crash cp <srcpattern> <target> [options]                       copy "file pattern" to the target dir. Ex.: 'ios crash cp "*" "./crashes"'
