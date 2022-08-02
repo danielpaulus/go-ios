@@ -8,8 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const processControlChannelName = "com.apple.instruments.server.services.processcontrol"
-
 type ProcessControl struct {
 	processControlChannel *dtx.Channel
 	conn                  *dtx.Connection
@@ -32,7 +30,7 @@ func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
 	if err != nil {
 		return nil, err
 	}
-	processControlChannel := dtxConn.RequestChannelIdentifier(processControlChannelName, loggingDispatcher{dtxConn})
+	processControlChannel := dtxConn.RequestChannelIdentifier(procControlChannel, loggingDispatcher{dtxConn})
 	return &ProcessControl{processControlChannel: processControlChannel, conn: dtxConn}, nil
 }
 
@@ -47,7 +45,7 @@ func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interfa
 	//seems like the path does not matter
 	const path = "/private/"
 
-	log.WithFields(log.Fields{"channel_id": processControlChannelName, "bundleID": bundleID}).Info("Launching process")
+	log.WithFields(log.Fields{"channel_id": procControlChannel, "bundleID": bundleID}).Info("Launching process")
 
 	msg, err := p.processControlChannel.MethodCall(
 		"launchSuspendedProcessWithDevicePath:bundleIdentifier:environment:arguments:options:",
@@ -57,14 +55,14 @@ func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interfa
 		arguments,
 		options)
 	if err != nil {
-		log.WithFields(log.Fields{"channel_id": processControlChannelName, "error": err}).Errorln("failed starting process: ", bundleID)
+		log.WithFields(log.Fields{"channel_id": procControlChannel, "error": err}).Errorln("failed starting process: ", bundleID)
 		return 0, err
 	}
 	if msg.HasError() {
 		return 0, fmt.Errorf("Failed starting process: %s, msg:%v", bundleID, msg.Payload[0])
 	}
 	if pid, ok := msg.Payload[0].(uint64); ok {
-		log.WithFields(log.Fields{"channel_id": processControlChannelName, "pid": pid}).Info("Process started successfully")
+		log.WithFields(log.Fields{"channel_id": procControlChannel, "pid": pid}).Info("Process started successfully")
 		return pid, nil
 	}
 	return 0, fmt.Errorf("pid returned in payload was not of type uint64 for processcontroll.startprocess, instead: %s", msg.Payload)
