@@ -33,6 +33,27 @@ func (d DeviceInfoService) NameForPid(pid uint64) error {
 	return err
 }
 
+// HardwareInformation gets some nice extra details from Instruments. Here is an example result for an old iPhone 5:
+// map[hwCPU64BitCapable:1 hwCPUsubtype:1 hwCPUtype:16777228 numberOfCpus:2 numberOfPhysicalCpus:2 speedOfCpus:0]
+func (d DeviceInfoService) HardwareInformation() (map[string]interface{}, error) {
+	response, err := d.channel.MethodCall("hardwareInformation")
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+	return extractMapPayload(response)
+}
+
+// NetworkInformation gets a list of all network interfaces for the device. Example result:
+// map[en0:Wi-Fi en1:Ethernet Adaptor (en1) en2:Ethernet Adaptor (en2) lo0:Loopback pdp_ip0:Cellular (pdp_ip0)
+// pdp_ip1:Cellular (pdp_ip1) pdp_ip2:Cellular (pdp_ip2) pdp_ip3:Cellular (pdp_ip3) pdp_ip4:Cellular (pdp_ip4)]
+func (d DeviceInfoService) NetworkInformation() (map[string]interface{}, error) {
+	response, err := d.channel.MethodCall("networkInformation")
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+	return extractMapPayload(response)
+}
+
 func mapToProcInfo(procList []interface{}) []ProcessInfo {
 	result := make([]ProcessInfo, len(procList))
 	for i, procMapInt := range procList {
