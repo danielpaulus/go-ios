@@ -57,6 +57,20 @@ func TestXCTCaps(t *testing.T) {
 	log.Info(unarchivedObject)
 }
 
+func TestDTSysmonTap(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/DTSysmonTapMessage.bin")
+
+	if err != nil {
+
+		log.Error(err)
+		t.Fatal()
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
 func TestNSUUID(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/nsuuid.bin")
 
