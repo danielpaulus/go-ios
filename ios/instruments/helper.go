@@ -65,3 +65,14 @@ func toMap(msg dtx.Message) (string, map[string]interface{}, error) {
 
 	return selector, aux, nil
 }
+
+func extractMapPayload(message dtx.Message) (map[string]interface{}, error) {
+	if len(message.Payload) != 1 {
+		return map[string]interface{}{}, fmt.Errorf("payload of message should have only one element: %+v", message)
+	}
+	response, ok := message.Payload[0].(map[string]interface{})
+	if !ok {
+		return map[string]interface{}{}, fmt.Errorf("payload type of message should be map[string]interface{}: %+v", message)
+	}
+	return response, nil
+}

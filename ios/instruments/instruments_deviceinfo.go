@@ -1,7 +1,6 @@
 package instruments
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -34,17 +33,6 @@ func (d DeviceInfoService) NameForPid(pid uint64) error {
 	return err
 }
 
-func ExtractMapPayload(message dtx.Message) (map[string]interface{}, error) {
-	if len(message.Payload) != 1 {
-		return map[string]interface{}{}, fmt.Errorf("payload of message should have only one element: %+v", message)
-	}
-	response, ok := message.Payload[0].(map[string]interface{})
-	if !ok {
-		return map[string]interface{}{}, fmt.Errorf("payload type of message should be map[string]interface{}: %+v", message)
-	}
-	return response, nil
-}
-
 // HardwareInformation gets some nice extra details from Instruments. Here is an example result for an old iPhone 5:
 // map[hwCPU64BitCapable:1 hwCPUsubtype:1 hwCPUtype:16777228 numberOfCpus:2 numberOfPhysicalCpus:2 speedOfCpus:0]
 func (d DeviceInfoService) HardwareInformation() (map[string]interface{}, error) {
@@ -52,7 +40,7 @@ func (d DeviceInfoService) HardwareInformation() (map[string]interface{}, error)
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
-	return ExtractMapPayload(response)
+	return extractMapPayload(response)
 }
 
 // NetworkInformation gets a list of all network interfaces for the device. Example result:
@@ -63,7 +51,7 @@ func (d DeviceInfoService) NetworkInformation() (map[string]interface{}, error) 
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
-	return ExtractMapPayload(response)
+	return extractMapPayload(response)
 }
 
 func mapToProcInfo(procList []interface{}) []ProcessInfo {
