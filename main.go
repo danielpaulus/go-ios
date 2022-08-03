@@ -343,15 +343,13 @@ The commands work as following:
 		}
 		b, _ = arguments.Bool("toggle")
 		if b {
-			assistiveTouch(device, "toggle" , force)
+			assistiveTouch(device, "toggle", force)
 		}
 		b, _ = arguments.Bool("get")
 		if b {
 			assistiveTouch(device, "get", force)
 		}
 	}
-
-
 
 	b, _ = arguments.Bool("dproxy")
 	if b {
@@ -960,10 +958,10 @@ func assistiveTouch(device ios.DeviceEntry, operation string, force bool) {
 
 	wasEnabled, err := ios.GetAssistiveTouch(device)
 
-	if err != nil{
-		if force && ( operation == "enable" || operation == "disable" ) {
+	if err != nil {
+		if force && (operation == "enable" || operation == "disable") {
 			log.WithFields(log.Fields{"error": err}).Warn("Failed getting current AssistiveTouch status. Continuing anyway.")
-		} else{
+		} else {
 			exitIfError("failed getting current AssistiveTouch status", err)
 		}
 	}
@@ -973,12 +971,12 @@ func assistiveTouch(device ios.DeviceEntry, operation string, force bool) {
 		enable = true
 	case operation == "disable":
 		enable = false
-	case operation == "toggle": 
+	case operation == "toggle":
 		enable = !wasEnabled
 	default: // get
 		enable = wasEnabled
 	}
-	if operation != "get" && ( force || wasEnabled != enable ) {
+	if operation != "get" && (force || wasEnabled != enable) {
 		err = ios.SetAssistiveTouch(device, enable)
 		exitIfError("failed setting AssistiveTouch", err)
 	}
@@ -986,7 +984,7 @@ func assistiveTouch(device ios.DeviceEntry, operation string, force bool) {
 		if JSONdisabled {
 			fmt.Printf("%t\n", enable)
 		} else {
-			fmt.Println(convertToJSONString(map[string]bool{"AssistiveTouchEnabled":enable}))
+			fmt.Println(convertToJSONString(map[string]bool{"AssistiveTouchEnabled": enable}))
 		}
 	}
 }
@@ -1353,6 +1351,25 @@ func printDeviceInfo(device ios.DeviceEntry) {
 	if err != nil {
 		exitIfError("failed getting info", err)
 	}
+	svc, err := instruments.NewDeviceInfoService(device)
+	if err != nil {
+		log.Debugf("could not open instruments, probably dev image not mounted %v", err)
+	}
+	if err == nil {
+		info, err := svc.NetworkInformation()
+		if err != nil {
+			log.Debugf("error getting networkinfo from instruments %v", err)
+		} else {
+			allValues["instruments:networkInformation"] = info
+		}
+		info, err = svc.HardwareInformation()
+		if err != nil {
+			log.Debugf("error getting hardwareinfo from instruments %v", err)
+		} else {
+			allValues["instruments:hardwareInformation"] = info
+		}
+	}
+
 	fmt.Println(convertToJSONString(allValues))
 }
 

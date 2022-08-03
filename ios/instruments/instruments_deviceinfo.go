@@ -1,6 +1,7 @@
 package instruments
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -31,6 +32,38 @@ func (d DeviceInfoService) ProcessList() ([]ProcessInfo, error) {
 func (d DeviceInfoService) NameForPid(pid uint64) error {
 	_, err := d.channel.MethodCall("execnameForPid:", pid)
 	return err
+}
+
+func ExtractMapPayload(message dtx.Message) (map[string]interface{}, error) {
+	if len(message.Payload) != 1 {
+		return map[string]interface{}{}, fmt.Errorf("payload of message should have only one element: %+v", message)
+	}
+	response, ok := message.Payload[0].(map[string]interface{})
+	if !ok {
+		return map[string]interface{}{}, fmt.Errorf("payload type of message should be map[string]interface{}: %+v", message)
+	}
+	return response, nil
+}
+
+// HardwareInformation gets some nice extra details from Instruments. Here is an example result for an old iPhone 5:
+// map[hwCPU64BitCapable:1 hwCPUsubtype:1 hwCPUtype:16777228 numberOfCpus:2 numberOfPhysicalCpus:2 speedOfCpus:0]
+func (d DeviceInfoService) HardwareInformation() (map[string]interface{}, error) {
+	response, err := d.channel.MethodCall("hardwareInformation")
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+	return ExtractMapPayload(response)
+}
+
+// NetworkInformation gets a list of all network interfaces for the device. Example result:
+// map[en0:Wi-Fi en1:Ethernet Adaptor (en1) en2:Ethernet Adaptor (en2) lo0:Loopback pdp_ip0:Cellular (pdp_ip0)
+// pdp_ip1:Cellular (pdp_ip1) pdp_ip2:Cellular (pdp_ip2) pdp_ip3:Cellular (pdp_ip3) pdp_ip4:Cellular (pdp_ip4)]
+func (d DeviceInfoService) NetworkInformation() (map[string]interface{}, error) {
+	response, err := d.channel.MethodCall("networkInformation")
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+	return ExtractMapPayload(response)
 }
 
 func mapToProcInfo(procList []interface{}) []ProcessInfo {
