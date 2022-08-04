@@ -20,7 +20,7 @@ If you miss something your Mac can do but go-iOS can't, just request a feature i
 1. Using golang to compile static, small and fast binaries for all platforms very easily. 
    
    *Build Manual*: Install golang and run `go build`
-2. All output as JSON so you can easily use go-iOS form any other programming language
+2. All output as JSON so you can easily use go-iOS from any other programming language
 3. Everything is a module, you can use go-iOS in golang projects as a module dependency easily
 
 # Features:
