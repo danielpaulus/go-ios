@@ -8,6 +8,7 @@ import (
 
 const bv41 = 0x62763431
 
+//https://discuss.appium.io/t/how-to-parse-trace-file-to-get-cpu-performance-usage-data-for-ios-apps/35334/2
 func Decompress(data []byte) error {
 	//no idea what the first four bytes mean
 	totalUncompressedSize := binary.LittleEndian.Uint32(data)
