@@ -1,13 +1,13 @@
 import lz4.block
 import lz4.frame 
 #f = open("/Users/danielpaulus/privaterepos/go-ios/ios/dtx_codec/fixtures/lz4block.bin", "rb")
-f = open("/Users/danielpaulus/privaterepos/go-ios/chunk2", "rb")
+f = open("/Users/danielpaulus/privaterepos/go-ios/allchunks", "rb")
 compressed = f.read()
 print(len(compressed))
 comspize = 18117
-uncompsize = 65536
+uncompsize = 6553600
 last_uncompressed = b''
-result = lz4.block.decompress(compressed, uncompsize, dict=last_uncompressed)
+result = lz4.block.decompress(compressed,  uncompsize, dict=last_uncompressed)
 
 
 newFile = open("uncomp.bin", "wb")
