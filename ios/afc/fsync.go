@@ -31,6 +31,13 @@ type statInfo struct {
 	stLinktarget string
 }
 
+type AFCDeviceInfo struct {
+	Model      string
+	TotalBytes uint64
+	FreeBytes  uint64
+	BlockSize  uint64
+}
+
 func (s *statInfo) IsDir() bool {
 	return s.stIfmt == "S_IFDIR"
 }
@@ -401,6 +408,52 @@ func (conn *Connection) Push(srcPath, dstPath string) error {
 		}
 	}
 	return nil
+}
+
+func (conn *Connection) GetSpaceInfo() (*AFCDeviceInfo, error) {
+	thisLength := Afc_header_size
+	header := AfcPacketHeader{Magic: Afc_magic, Packet_num: conn.packageNumber, Operation: Afc_operation_device_info, This_length: thisLength, Entire_length: thisLength}
+	conn.packageNumber++
+	packet := AfcPacket{Header: header, HeaderPayload: nil, Payload: nil}
+	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
+	if err != nil {
+		return nil, err
+	}
+	if err = conn.checkOperationStatus(response); err != nil {
+		return nil, fmt.Errorf("mkdir: unexpected afc status: %v", err)
+	}
+
+	bs := bytes.Split(response.Payload, []byte{0})
+	strs := make([]string, len(bs)-1)
+	for i := 0; i < len(strs); i++ {
+		strs[i] = string(bs[i])
+	}
+	m := make(map[string]string)
+	if strs != nil {
+		for i := 0; i < len(strs); i += 2 {
+			m[strs[i]] = strs[i+1]
+		}
+	}
+
+	totalBytes, err := strconv.ParseUint(m["FSTotalBytes"], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	freeBytes, err := strconv.ParseUint(m["FSFreeBytes"], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	blockSize, err := strconv.ParseUint(m["FSBlockSize"], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AFCDeviceInfo{
+		Model:      m["Model"],
+		TotalBytes: totalBytes,
+		FreeBytes:  freeBytes,
+		BlockSize:  blockSize,
+	}, nil
 }
 
 func (conn *Connection) Close() {

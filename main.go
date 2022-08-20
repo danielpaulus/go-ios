@@ -107,6 +107,7 @@ Usage:
   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
   ios resetlocation [options]
   ios assistivetouch (enable | disable | toggle | get) [--force] [options]
+  ios diskspace
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -191,6 +192,7 @@ The commands work as following:
    ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]         Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
    ios resetlocation [options]                                        Resets the location of the device to the actual one
    ios assistivetouch (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "AssistiveTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
+   ios diskspace 													  Prints disk space info.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -680,6 +682,22 @@ The commands work as following:
 			exitIfError("fsync: push failed", err)
 		}
 		afcService.Close()
+		return
+	}
+
+	b, _ = arguments.Bool("diskspace")
+	if b {
+		afcService, err := afc.New(device)
+		exitIfError("connect afc service failed", err)
+		info, err := afcService.GetSpaceInfo()
+		if err != nil {
+			exitIfError("get device info push failed", err)
+		}
+		fmt.Printf("      Model: %s\n", info.Model)
+		fmt.Printf("  BlockSize: %d\n", info.BlockSize/8)
+		fmt.Printf("  FreeSpace: %s\n", ios.ByteCountDecimal(int64(info.FreeBytes)))
+		fmt.Printf("  UsedSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes-info.FreeBytes)))
+		fmt.Printf(" TotalSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes)))
 		return
 	}
 }
