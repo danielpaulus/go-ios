@@ -91,7 +91,7 @@ Usage:
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
-  ios apps [--system] [--all] [options]
+  ios apps [--system] [--all] [--list] [options]
   ios launch <bundleID> [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest <bundleID> [options]
@@ -409,9 +409,10 @@ The commands work as following:
 	b, _ = arguments.Bool("apps")
 
 	if b {
+		list, _ := arguments.Bool("--list")
 		system, _ := arguments.Bool("--system")
 		all, _ := arguments.Bool("--all")
-		printInstalledApps(device, system, all)
+		printInstalledApps(device, system, all, list)
 		return
 	}
 
@@ -1124,7 +1125,7 @@ func printDeviceDate(device ios.DeviceEntry) {
 	}
 
 }
-func printInstalledApps(device ios.DeviceEntry, system bool, all bool) {
+func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool) {
 	svc, _ := installationproxy.New(device)
 	var err error
 	var response []installationproxy.AppInfo
@@ -1140,6 +1141,13 @@ func printInstalledApps(device ios.DeviceEntry, system bool, all bool) {
 		appType = "user"
 	}
 	exitIfError("browsing "+appType+" apps failed", err)
+
+	if list {
+		for _, v := range response {
+			fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString)
+		}
+		return
+	}
 
 	if JSONdisabled {
 		log.Info(response)
