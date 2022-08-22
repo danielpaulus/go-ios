@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
@@ -60,6 +61,35 @@ func Main() {
 	authorized := router.Group("/", gin.BasicAuth(gin.Accounts{
 		"admin": "admin123", // username : admin, password : admin123
 	}))
+
+	authorized.GET("/info", func(c *gin.Context) {
+
+		device, _ := ios.GetDevice("")
+
+		allValues, err := ios.GetValuesPlist(device)
+		if err != nil {
+			print(err)
+		}
+		svc, err := instruments.NewDeviceInfoService(device)
+		if err != nil {
+			log.Debugf("could not open instruments, probably dev image not mounted %v", err)
+		}
+		if err == nil {
+			info, err := svc.NetworkInformation()
+			if err != nil {
+				log.Debugf("error getting networkinfo from instruments %v", err)
+			} else {
+				allValues["instruments:networkInformation"] = info
+			}
+			info, err = svc.HardwareInformation()
+			if err != nil {
+				log.Debugf("error getting hardwareinfo from instruments %v", err)
+			} else {
+				allValues["instruments:hardwareInformation"] = info
+			}
+		}
+		c.IndentedJSON(http.StatusOK, allValues)
+	})
 
 	authorized.GET("/shot", func(c *gin.Context) {
 
