@@ -14,7 +14,7 @@ type serviceConfig struct {
 	handshakeOnlySSL bool
 }
 
-//serviceConfigurations stores info about which codec to use for which service by name.
+//serviceConfigurations stores info about which codec to use for which restapi by name.
 //In addition, DTX based services only execute a SSL Handshake
 //and then go back to sending unencrypted data right after the handshake.
 var serviceConfigurations = map[string]serviceConfig{

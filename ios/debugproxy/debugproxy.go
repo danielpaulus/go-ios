@@ -26,7 +26,7 @@ type DebugProxy struct {
 	WorkingDir        string
 }
 
-//PhoneServiceInformation contains info about a service started on the phone via lockdown.
+//PhoneServiceInformation contains info about a restapi started on the phone via lockdown.
 type PhoneServiceInformation struct {
 	ServicePort uint16
 	ServiceName string
@@ -150,7 +150,7 @@ func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.P
 	p := ProxyConnection{info.ID, pairRecord, debugProxy, info, logger, sync.Mutex{}, false}
 
 	if binaryMode {
-		binOnUnixSocket := BinaryForwardingProxy{ios.NewDeviceConnectionWithConn(conn), NewBinDumpOnly("does not matter", filepath.Join(info.ConnectionPath, "rawbindump-from-host-service.bin"), logger)}
+		binOnUnixSocket := BinaryForwardingProxy{ios.NewDeviceConnectionWithConn(conn), NewBinDumpOnly("does not matter", filepath.Join(info.ConnectionPath, "rawbindump-from-host-restapi.bin"), logger)}
 		binToDevice := BinaryForwardingProxy{devConn, NewBinDumpOnly("does not matter", filepath.Join(info.ConnectionPath, "rawbindump-from-device.bin"), logger)}
 		go proxyBinDumpConnection(&p, binOnUnixSocket, binToDevice)
 		return

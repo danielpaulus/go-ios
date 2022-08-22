@@ -8,7 +8,7 @@ import (
 //Lockdownport is the port of the always running lockdownd on the iOS device.
 const Lockdownport uint16 = 32498
 
-//LockDownConnection allows you to interact with the Lockdown service on the phone.
+//LockDownConnection allows you to interact with the Lockdown restapi on the phone.
 //You can use this to grab basic info from the device and start other services on the phone.
 type LockDownConnection struct {
 	deviceConnection DeviceConnectionInterface

@@ -634,7 +634,7 @@ The commands work as following:
 	b, _ = arguments.Bool("fsync")
 	if b {
 		afcService, err := afc.New(device)
-		exitIfError("fsync: connect afc service failed", err)
+		exitIfError("fsync: connect afc restapi failed", err)
 		b, _ = arguments.Bool("rm")
 		if b {
 			path, _ := arguments.String("--path")
@@ -1104,7 +1104,7 @@ func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
 func printDiagnostics(device ios.DeviceEntry) {
 	log.Debug("print diagnostics")
 	diagnosticsService, err := diagnostics.New(device)
-	exitIfError("Starting diagnostics service failed with", err)
+	exitIfError("Starting diagnostics restapi failed with", err)
 
 	values, err := diagnosticsService.AllValues()
 	exitIfError("getting valued failed", err)

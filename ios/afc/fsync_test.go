@@ -8,7 +8,7 @@ func TestConnection_Remove(t *testing.T) {
 
 	conn, err := New(deviceEnrty)
 	if err != nil {
-		log.Fatalf("connect service failed: %v", err)
+		log.Fatalf("connect restapi failed: %v", err)
 	}
 
 	err = conn.Remove("/DCIM/goios")
@@ -22,7 +22,7 @@ func TestConnection_Mkdir(t *testing.T) {
 
 	conn, err := New(deviceEnrty)
 	if err != nil {
-		log.Fatalf("connect service failed: %v", err)
+		log.Fatalf("connect restapi failed: %v", err)
 	}
 
 	err = conn.MkDir("/DCIM/TestDir")
@@ -36,7 +36,7 @@ func TestConnection_stat(t *testing.T) {
 
 	conn, err := New(deviceEnrty)
 	if err != nil {
-		log.Fatalf("connect service failed: %v", err)
+		log.Fatalf("connect restapi failed: %v", err)
 	}
 
 	si, err := conn.Stat("/DCIM/architecture_diagram.png")
@@ -51,7 +51,7 @@ func TestConnection_listDir(t *testing.T) {
 
 	conn, err := New(deviceEnrty)
 	if err != nil {
-		log.Fatalf("connect service failed: %v", err)
+		log.Fatalf("connect restapi failed: %v", err)
 	}
 
 	flist, err := conn.listDir("/DCIM/")
@@ -68,7 +68,7 @@ func TestConnection_TreeView(t *testing.T) {
 
 	conn, err := New(deviceEnrty)
 	if err != nil {
-		log.Fatalf("connect service failed: %v", err)
+		log.Fatalf("connect restapi failed: %v", err)
 	}
 
 	err = conn.TreeView("/DCIM/", "", true)
@@ -82,7 +82,7 @@ func TestConnection_pullSingleFile(t *testing.T) {
 
 	conn, err := New(deviceEnrty)
 	if err != nil {
-		log.Fatalf("connect service failed: %v", err)
+		log.Fatalf("connect restapi failed: %v", err)
 	}
 
 	err = conn.PullSingleFile("/DCIM/architecture_diagram.png", "architecture_diagram.png")
@@ -96,7 +96,7 @@ func TestConnection_Pull(t *testing.T) {
 
 	conn, err := New(deviceEnrty)
 	if err != nil {
-		log.Fatalf("connect service failed: %v", err)
+		log.Fatalf("connect restapi failed: %v", err)
 	}
 	srcPath := "/DCIM/"
 	dstpath := "TempRecv"
@@ -111,7 +111,7 @@ func TestConnection_Push(t *testing.T) {
 	deviceEnrty, _ := ios.GetDevice(test_device_udid)
 	conn, err := New(deviceEnrty)
 	if err != nil {
-		log.Fatalf("connect service failed: %v", err)
+		log.Fatalf("connect restapi failed: %v", err)
 	}
 
 	srcPath := "your src path"
