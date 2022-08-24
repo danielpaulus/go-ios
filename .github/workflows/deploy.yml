@@ -1,0 +1,52 @@
+name: Deploy
+
+on: [push]
+
+jobs:
+  deploy:
+    name: Deploy my app
+
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: chrnorm/deployment-action@v2
+        name: Create GitHub deployment
+        id: deployment
+        with:
+          token: '${{ github.token }}'
+          environment-url: https://f3da-2003-c2-6f16-4201-a0b8-3b82-2678-10fd.eu.ngrok.io
+          environment: staging
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: kill old server
+        run: killall restapi || /bin/true
+      - name: compile
+        run: cd restapi && go build
+      - name: Deploy my app
+        run: |
+          cd restapi
+          ./restapi
+
+      - name: Update deployment status (success)
+        if: success()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: '${{ github.token }}'
+          environment-url: ${{ steps.deployment.outputs.environment_url }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: 'success'
+
+      - name: Update deployment status (failure)
+        if: failure()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: '${{ github.token }}'
+          environment-url: ${{ steps.deployment.outputs.environment_url }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: 'failure'

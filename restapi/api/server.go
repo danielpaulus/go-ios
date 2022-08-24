@@ -119,7 +119,7 @@ func Main() {
 	//Parse Static files
 	router.StaticFile("/", "./public/index.html")
 
-	router.Run(":8085")
+	router.Run(":8080")
 }
 
 func MustMarshal(v interface{}) string {
