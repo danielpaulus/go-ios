@@ -25,13 +25,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: kill old server
-        run: killall restapi || /bin/true
+        run: systemctl --user stop goios
       - name: compile
         run: cd restapi && go build
       - name: Deploy my app
         run: |
           cd restapi
-          nohup ./restapi &
+          cp ./restapi /usr/local/bin
+          systemctl --user start goios
 
       - name: Update deployment status (success)
         if: success()
