@@ -27,7 +27,11 @@ jobs:
       - name: kill old server
         run: systemctl --user stop goios
       - name: compile
-        run: cd restapi && go build && swag init
+        run: |
+          cd restapi
+          go install github.com/swaggo/swag/cmd/swag@latest
+          swag init
+          go build
       - name: Deploy my app
         run: |
           cd restapi
