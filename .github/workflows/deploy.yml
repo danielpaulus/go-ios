@@ -31,7 +31,7 @@ jobs:
       - name: Deploy my app
         run: |
           cd restapi
-          sudo cp ./restapi /usr/local/bin
+          cp ./restapi /home/ganjalf/
           systemctl --user start goios
 
       - name: Update deployment status (success)
