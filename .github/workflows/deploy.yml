@@ -31,7 +31,7 @@ jobs:
       - name: Deploy my app
         run: |
           cd restapi
-          ./restapi
+          nohup ./restapi &
 
       - name: Update deployment status (success)
         if: success()
