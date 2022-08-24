@@ -7,6 +7,8 @@ import (
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	"github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
 	"io"
 	"net/http"
 	"strings"
@@ -62,34 +64,9 @@ func Main() {
 		"admin": "admin123", // username : admin, password : admin123
 	}))
 
-	authorized.GET("/info", func(c *gin.Context) {
-
-		device, _ := ios.GetDevice("")
-
-		allValues, err := ios.GetValuesPlist(device)
-		if err != nil {
-			print(err)
-		}
-		svc, err := instruments.NewDeviceInfoService(device)
-		if err != nil {
-			log.Debugf("could not open instruments, probably dev image not mounted %v", err)
-		}
-		if err == nil {
-			info, err := svc.NetworkInformation()
-			if err != nil {
-				log.Debugf("error getting networkinfo from instruments %v", err)
-			} else {
-				allValues["instruments:networkInformation"] = info
-			}
-			info, err = svc.HardwareInformation()
-			if err != nil {
-				log.Debugf("error getting hardwareinfo from instruments %v", err)
-			} else {
-				allValues["instruments:hardwareInformation"] = info
-			}
-		}
-		c.IndentedJSON(http.StatusOK, allValues)
-	})
+	v1 := router.Group("/api/v1")
+	print(v1)
+	authorized.GET("/info", Info)
 
 	authorized.GET("/shot", func(c *gin.Context) {
 
@@ -102,7 +79,6 @@ func Main() {
 		c.Data(http.StatusOK, "application/octet-stream", b)
 	})
 
-	// Authorized client can stream the event
 	authorized.GET("/stream", func(c *gin.Context) {
 		// We are streaming current time to clients in the interval 10 seconds
 		log.Info("connect")
@@ -119,7 +95,47 @@ func Main() {
 	//Parse Static files
 	router.StaticFile("/", "./public/index.html")
 
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	router.Run(":8080")
+}
+
+// GetBookByISBN locates the book whose ISBN value matches the isbn
+// GetBookByISBN                godoc
+// @Summary      Get single book by isbn
+// @Description  Returns the book whose ISBN value matches the isbn.
+// @Tags         books
+// @Produce      json
+// @Param        isbn  path      string  true  "search book by isbn"
+// @Success      200  {object}  map[string]interface{}
+// @Router       /books/{isbn} [get]
+func Info(c *gin.Context) {
+
+	device, _ := ios.GetDevice("")
+
+	allValues, err := ios.GetValuesPlist(device)
+	if err != nil {
+		print(err)
+	}
+	svc, err := instruments.NewDeviceInfoService(device)
+	if err != nil {
+		log.Debugf("could not open instruments, probably dev image not mounted %v", err)
+	}
+	if err == nil {
+		info, err := svc.NetworkInformation()
+		if err != nil {
+			log.Debugf("error getting networkinfo from instruments %v", err)
+		} else {
+			allValues["instruments:networkInformation"] = info
+		}
+		info, err = svc.HardwareInformation()
+		if err != nil {
+			log.Debugf("error getting hardwareinfo from instruments %v", err)
+		} else {
+			allValues["instruments:hardwareInformation"] = info
+		}
+	}
+	c.IndentedJSON(http.StatusOK, allValues)
 }
 
 func MustMarshal(v interface{}) string {

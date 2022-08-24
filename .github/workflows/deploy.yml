@@ -27,11 +27,14 @@ jobs:
       - name: kill old server
         run: systemctl --user stop goios
       - name: compile
-        run: cd restapi && go build
+        run: cd restapi && go build && swag init
       - name: Deploy my app
         run: |
           cd restapi
           cp ./restapi /home/ganjalf/
+          rm -rf /home/ganjalf/docs
+          mkdir /home/ganjalf/docs
+          cp -R ./docs /home/ganjalf/docs
           systemctl --user start goios
 
       - name: Update deployment status (success)
