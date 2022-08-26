@@ -55,7 +55,7 @@ func Info(c *gin.Context) {
 // @Produce      png
 // @Param        udid  path      string  true  "device udid"
 // @Success      200  {object}  []byte
-// @Router       /device/{udid}/info [get]
+// @Router       /device/{udid}/screenshot [get]
 func Screenshot(c *gin.Context) {
 	udid := c.Param("udid")
 	device, _ := ios.GetDevice(udid)
