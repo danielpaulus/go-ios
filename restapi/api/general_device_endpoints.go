@@ -13,7 +13,7 @@ import (
 // Info                godoc
 // @Summary      Get lockdown info for a device by udid
 // @Description  Returns all lockdown values and additional instruments properties for development enabled devices.
-// @Tags         books
+// @Tags         general_device_specific
 // @Produce      json
 // @Param        udid  path      string  true  "device udid"
 // @Success      200  {object}  map[string]interface{}
@@ -51,7 +51,7 @@ func Info(c *gin.Context) {
 // Screenshot                godoc
 // @Summary      Get screenshot for device
 // @Description Takes a png screenshot and returns it.
-// @Tags         screenshotr
+// @Tags         general_device_specific
 // @Produce      png
 // @Param        udid  path      string  true  "device udid"
 // @Success      200  {object}  []byte
