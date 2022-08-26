@@ -10,13 +10,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v1
-
+      - name: Extract ngrok url
+        run: echo "NGROK_URL=$(curl -s localhost:4040/api/tunnels | jq ".tunnels[0].public_url")" >> $GITHUB_ENV
       - uses: chrnorm/deployment-action@v2
         name: Create GitHub deployment
         id: deployment
         with:
           token: '${{ github.token }}'
-          environment-url: https://f3da-2003-c2-6f16-4201-a0b8-3b82-2678-10fd.eu.ngrok.io
+          environment-url:  ${{ env.NGROK_URL }}
           environment: staging
       - name: Install Go
         uses: actions/setup-go@v2
