@@ -20,8 +20,8 @@ import (
 // @Success      200  {object}  map[string]interface{}
 // @Router       /books/{isbn} [get]
 func Info(c *gin.Context) {
-
-	device, _ := ios.GetDevice("")
+	uid := c.Param("uid")
+	device, _ := ios.GetDevice(uid)
 
 	allValues, err := ios.GetValuesPlist(device)
 	if err != nil {
