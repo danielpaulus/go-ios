@@ -6,8 +6,6 @@ import (
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
 	"net/http"
-	"strings"
-	"sync"
 )
 
 //limitNumClients uses a go channel to rate limit a handler.
@@ -24,6 +22,7 @@ func limitNumClients(f http.HandlerFunc, maxClients int) http.HandlerFunc {
 	}
 }
 
+/*
 func limitNumClientsUDID(f http.HandlerFunc) http.HandlerFunc {
 	maxClients := 1
 	semaMap := map[string]chan struct{}{}
@@ -47,7 +46,7 @@ func limitNumClientsUDID(f http.HandlerFunc) http.HandlerFunc {
 		f(w, r)
 	}
 }
-
+*/
 func Main() {
 	router := gin.Default()
 
