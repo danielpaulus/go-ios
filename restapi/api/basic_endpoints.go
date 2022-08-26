@@ -61,6 +61,14 @@ func Listen(c *gin.Context) {
 
 }
 
+func List(c *gin.Context) {
+	// We are streaming current time to clients in the interval 10 seconds
+	log.Info("connect")
+	a, _, _ := ios.Listen()
+	list, _ := a()
+	c.IndentedJSON(http.StatusOK, list)
+}
+
 func Screenshot(c *gin.Context) {
 
 	dev, _ := ios.GetDevice("")

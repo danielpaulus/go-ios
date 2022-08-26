@@ -60,6 +60,7 @@ func Main() {
 	v1.GET("/info", Info)
 	v1.GET("/shot", Screenshot)
 	v1.GET("/listen", Listen)
+	v1.GET("/list", List)
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
