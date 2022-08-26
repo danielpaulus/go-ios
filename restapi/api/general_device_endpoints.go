@@ -9,18 +9,18 @@ import (
 	"net/http"
 )
 
-// GetBookByISBN locates the book whose ISBN value matches the isbn
-// GetBookByISBN                godoc
-// @Summary      Get single book by isbn
-// @Description  Returns the book whose ISBN value matches the isbn.
+// Info gets device info
+// Info                godoc
+// @Summary      Get lockdown info for a device by udid
+// @Description  Returns all lockdown values and additional instruments properties for development enabled devices.
 // @Tags         books
 // @Produce      json
-// @Param        isbn  path      string  true  "search book by isbn"
+// @Param        udid
 // @Success      200  {object}  map[string]interface{}
-// @Router       /books/{isbn} [get]
+// @Router       /device/{udid}/info [get]
 func Info(c *gin.Context) {
-	uid := c.Param("uid")
-	device, _ := ios.GetDevice(uid)
+	udid := c.Param("udid")
+	device, _ := ios.GetDevice(udid)
 
 	allValues, err := ios.GetValuesPlist(device)
 	if err != nil {
@@ -48,8 +48,8 @@ func Info(c *gin.Context) {
 }
 
 func Screenshot(c *gin.Context) {
-	uid := c.Param("uid")
-	device, _ := ios.GetDevice(uid)
+	udid := c.Param("udid")
+	device, _ := ios.GetDevice(udid)
 
 	conn, err := screenshotr.New(device)
 	log.Error(err)

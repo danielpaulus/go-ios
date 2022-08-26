@@ -56,7 +56,7 @@ func Main() {
 	v1 := router.Group("/api/v1", gin.BasicAuth(gin.Accounts{
 		"admin": "admin123", // username : admin, password : admin123
 	}))
-	device := v1.Group("/device/:uid")
+	device := v1.Group("/device/:udid")
 	device.GET("/info", Info)
 	device.GET("/screenshot", Screenshot)
 
