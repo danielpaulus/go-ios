@@ -15,7 +15,7 @@ import (
 )
 
 /**
-Typical weird iOS restapi :-D
+Typical weird iOS service :-D
 It is a kind of special "zip" format that XCode uses to send files&folder to devices.
 Sadly it is not compliant with all standard zip libraries, in particular it does not work
 with the golang zipWriter implementation... OF COURSE ;-)

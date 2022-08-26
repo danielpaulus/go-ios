@@ -16,7 +16,7 @@ type iosproxy struct {
 	deviceConn ios.DeviceConnectionInterface
 }
 
-//Forward forwards every connection made to the hostPort to whatever restapi runs inside an app on the device on phonePort.
+//Forward forwards every connection made to the hostPort to whatever service runs inside an app on the device on phonePort.
 func Forward(device ios.DeviceEntry, hostPort uint16, phonePort uint16) error {
 
 	log.Infof("Start listening on port %d forwarding to port %d on device", hostPort, phonePort)

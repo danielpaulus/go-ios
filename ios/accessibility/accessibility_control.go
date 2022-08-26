@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//ControlInterface provides a simple interface to controlling the AX restapi on the device
+//ControlInterface provides a simple interface to controlling the AX service on the device
 //It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
 	channel *dtx.Channel

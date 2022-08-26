@@ -45,7 +45,7 @@ func SetLocation(device ios.DeviceEntry, lat string, lon string) error {
 		return errors.New("Please provide non-empty values for latitude and longitude")
 	}
 
-	// Create new connection to the location restapi
+	// Create new connection to the location service
 	locationConn, err := New(device)
 	if err != nil {
 		return err
@@ -68,7 +68,7 @@ func SetLocation(device ios.DeviceEntry, lat string, lon string) error {
 	log.WithFields(log.Fields{"latitude": latitude, "longitude": longitude}).
 		Info("Simulating device location")
 
-	// Generate the byte data needed by the restapi to set the location
+	// Generate the byte data needed by the service to set the location
 	locationBytes, err := data.LocationBytes()
 	if err != nil {
 		return err
@@ -171,7 +171,7 @@ func SetLocationGPX(device ios.DeviceEntry, filePath string) error {
 }
 
 func ResetLocation(device ios.DeviceEntry) error {
-	// Create a new connection to the location restapi
+	// Create a new connection to the location service
 	locationConn, err := New(device)
 	if err != nil {
 		return err
@@ -179,7 +179,7 @@ func ResetLocation(device ios.DeviceEntry) error {
 
 	buf := new(bytes.Buffer)
 
-	// The location restapi accepts the binary representation of 1 to reset to the original location
+	// The location service accepts the binary representation of 1 to reset to the original location
 	err = binary.Write(buf, binary.BigEndian, uint32(1))
 	if err != nil {
 		return err

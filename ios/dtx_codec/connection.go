@@ -89,7 +89,7 @@ func notifyOfPublishedCapabilities(msg Message) {
 	log.Debug("capabs received")
 }
 
-//NewConnection connects and starts reading from a Dtx based restapi on the device
+//NewConnection connects and starts reading from a Dtx based service on the device
 func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, error) {
 	conn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
