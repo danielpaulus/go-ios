@@ -15,7 +15,7 @@ import (
 // @Description  Returns all lockdown values and additional instruments properties for development enabled devices.
 // @Tags         books
 // @Produce      json
-// @Param        udid
+// @Param        udid  path      string  true  "device udid"
 // @Success      200  {object}  map[string]interface{}
 // @Router       /device/{udid}/info [get]
 func Info(c *gin.Context) {
