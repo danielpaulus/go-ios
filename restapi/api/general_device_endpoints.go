@@ -47,6 +47,15 @@ func Info(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, allValues)
 }
 
+// Screenshot grab screenshot from a device
+// Screenshot                godoc
+// @Summary      Get screenshot for device
+// @Description Takes a png screenshot and returns it.
+// @Tags         screenshotr
+// @Produce      png
+// @Param        udid  path      string  true  "device udid"
+// @Success      200  {object}  []byte
+// @Router       /device/{udid}/info [get]
 func Screenshot(c *gin.Context) {
 	udid := c.Param("udid")
 	device, _ := ios.GetDevice(udid)
