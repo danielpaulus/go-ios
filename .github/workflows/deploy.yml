@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v1
       - name: Extract ngrok url
         run: |
-          echo "NGROK_URL=$(curl -s localhost:4040/api/tunnels | jq ".tunnels[0].public_url")" >> $GITHUB_ENV
+          echo "NGROK_URL=$(curl -s localhost:4040/api/tunnels | jq -r ".tunnels[0].public_url")" >> $GITHUB_ENV
           curl -s localhost:4040/api/tunnels | jq ".tunnels[0].public_url"
           cat $GITHUB_ENV
       - uses: chrnorm/deployment-action@v2
