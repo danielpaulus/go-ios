@@ -55,7 +55,7 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *ios.LockD
 
 		err = lockdownOnUnixSocket.Send(decodedResponse)
 		if err != nil {
-			p.log.Info("Failed sending LockdownMessage from device to host restapi", decodedResponse, err)
+			p.log.Info("Failed sending LockdownMessage from device to host service", decodedResponse, err)
 		}
 		if decodedResponse["EnableSessionSSL"] == true {
 			lockdownToDevice.EnableSessionSsl(p.pairRecord)
