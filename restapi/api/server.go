@@ -1,15 +1,10 @@
 package api
 
 import (
-	"encoding/json"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/instruments"
-	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
-	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -59,91 +54,20 @@ func Main() {
 	// Add event-streaming headers
 	router.Use(HeadersMiddleware())
 
-	// Basic Authentication
-	authorized := router.Group("/", gin.BasicAuth(gin.Accounts{
+	v1 := router.Group("/api/v1", gin.BasicAuth(gin.Accounts{
 		"admin": "admin123", // username : admin, password : admin123
 	}))
 
-	v1 := router.Group("/api/v1")
-	print(v1)
-	authorized.GET("/info", Info)
-
-	authorized.GET("/shot", func(c *gin.Context) {
-
-		dev, _ := ios.GetDevice("")
-		conn, err := screenshotr.New(dev)
-		log.Error(err)
-		b, _ := conn.TakeScreenshot()
-
-		c.Header("Content-Type", "image/png")
-		c.Data(http.StatusOK, "application/octet-stream", b)
-	})
-
-	authorized.GET("/stream", func(c *gin.Context) {
-		// We are streaming current time to clients in the interval 10 seconds
-		log.Info("connect")
-		a, _, _ := ios.Listen()
-		c.Stream(func(w io.Writer) bool {
-			l, _ := a()
-			// Stream message to client from message channel
-			w.Write([]byte(MustMarshal(l)))
-			return true
-		})
-
-	})
-
-	//Parse Static files
-	router.StaticFile("/", "./public/index.html")
+	v1.GET("/info", Info)
+	v1.GET("/shot", Screenshot)
+	v1.GET("/listen", Listen)
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	router.Run(":8080")
-}
-
-// GetBookByISBN locates the book whose ISBN value matches the isbn
-// GetBookByISBN                godoc
-// @Summary      Get single book by isbn
-// @Description  Returns the book whose ISBN value matches the isbn.
-// @Tags         books
-// @Produce      json
-// @Param        isbn  path      string  true  "search book by isbn"
-// @Success      200  {object}  map[string]interface{}
-// @Router       /books/{isbn} [get]
-func Info(c *gin.Context) {
-
-	device, _ := ios.GetDevice("")
-
-	allValues, err := ios.GetValuesPlist(device)
+	err := router.Run(":8080")
 	if err != nil {
-		print(err)
+		log.Error(err)
 	}
-	svc, err := instruments.NewDeviceInfoService(device)
-	if err != nil {
-		log.Debugf("could not open instruments, probably dev image not mounted %v", err)
-	}
-	if err == nil {
-		info, err := svc.NetworkInformation()
-		if err != nil {
-			log.Debugf("error getting networkinfo from instruments %v", err)
-		} else {
-			allValues["instruments:networkInformation"] = info
-		}
-		info, err = svc.HardwareInformation()
-		if err != nil {
-			log.Debugf("error getting hardwareinfo from instruments %v", err)
-		} else {
-			allValues["instruments:hardwareInformation"] = info
-		}
-	}
-	c.IndentedJSON(http.StatusOK, allValues)
-}
-
-func MustMarshal(v interface{}) string {
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
 }
 
 func HeadersMiddleware() gin.HandlerFunc {

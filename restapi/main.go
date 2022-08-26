@@ -7,17 +7,16 @@ import (
 	"os"
 )
 
-// @title           Swagger Example API
+// @title           Go-iOS API
 // @version         1.0
-// @description     This is a sample server celler server.
-// @termsOfService  http://swagger.io/terms/
+// @description     Exposes go-ios features as REST API calls.
+// @termsOfService  https://github.com/danielpaulus/go-ios
 
-// @contact.name   API Support
-// @contact.url    http://www.swagger.io/support
-// @contact.email  support@swagger.io
+// @contact.name   Daniel Paulus
+// @contact.url    https://github.com/danielpaulus/go-ios
 
-// @license.name  Apache 2.0
-// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
 
 // @host      localhost:8080
 // @BasePath  /api/v1
@@ -25,7 +24,5 @@ import (
 // @securityDefinitions.basic  BasicAuth
 func main() {
 	log.WithFields(log.Fields{"args": os.Args, "version": api.GetVersion()}).Infof("starting go-iOS-API")
-
-	const address = "0.0.0.0:16800"
 	api.Main()
 }
