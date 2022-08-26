@@ -58,7 +58,8 @@ func Main() {
 	}))
 	device := v1.Group("/device/:uid")
 	device.GET("/info", Info)
-	v1.GET("/shot", Screenshot)
+	device.GET("/screenshot", Screenshot)
+
 	v1.GET("/listen", Listen)
 	v1.GET("/list", List)
 

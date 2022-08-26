@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/instruments"
+	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -44,4 +45,16 @@ func Info(c *gin.Context) {
 		}
 	}
 	c.IndentedJSON(http.StatusOK, allValues)
+}
+
+func Screenshot(c *gin.Context) {
+	uid := c.Param("uid")
+	device, _ := ios.GetDevice(uid)
+
+	conn, err := screenshotr.New(device)
+	log.Error(err)
+	b, _ := conn.TakeScreenshot()
+
+	c.Header("Content-Type", "image/png")
+	c.Data(http.StatusOK, "application/octet-stream", b)
 }
