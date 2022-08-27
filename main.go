@@ -46,6 +46,7 @@ import (
 //JSONdisabled enables or disables output in JSON format
 var JSONdisabled = false
 var prettyJSON = false
+var exitOnEOF = false
 
 func main() {
 	Main()
@@ -111,6 +112,7 @@ Usage:
 Options:
   -v --verbose   Enable Debug Logging.
   -t --trace     Enable Trace Logging (dump every message).
+  -e --eof       Exit when stdin is closed.
   --nojson       Disable JSON output
   --pretty       Pretty-print JSON command output
   -h --help      Show this screen.
@@ -207,6 +209,8 @@ The commands work as following:
 	if pretty {
 		prettyJSON = true
 	}
+
+	exitOnEOF, _ = arguments.Bool("--eof")
 
 	traceLevelEnabled, _ := arguments.Bool("--trace")
 	if traceLevelEnabled {
@@ -755,24 +759,12 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			return true
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
-		go func() {
-			err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
 
-			if err != nil {
-				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
-			}
-		}()
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		signal := <-c
-		log.Infof("os signal:%d received, closing..", signal)
-
-		err := testmanagerd.CloseXCUITestRunner()
+		// When executed with a non-nil context, this function does not return until complete
+		err := testmanagerd.RunXCUIWithBundleIdsCtx(getInterruptContext(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
 		if err != nil {
-			log.Error("Failed closing wda-testrunner")
-			os.Exit(1)
+			log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 		}
-		log.Info("Done Closing")
 	}
 	return b
 }
@@ -795,9 +787,7 @@ func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 				println(string(s))
 			}
 		}()
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		<-c
+		waitForInterrupt()
 		err = closeFunc()
 		if err != nil {
 			log.Warnf("timeout during close %v", err)
@@ -866,9 +856,7 @@ func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId s
 		err = control.Enable(pType, profile)
 		exitIfError("could not enable profile", err)
 		log.Infof("Profile %s - %s is active! waiting for SIGTERM..", profileTypeId, profileId)
-		c := make(chan os.Signal, syscall.SIGTERM)
-		signal.Notify(c, os.Interrupt)
-		<-c
+		waitForInterrupt()
 		log.Infof("Disabling profiletype %s", profileTypeId)
 		err = control.Disable(pType)
 		exitIfError("could not disable profile", err)
@@ -1015,9 +1003,7 @@ func startAx(device ios.DeviceEntry) {
 
 		exitIfError("ax failed", err)
 	}()
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
+	waitForInterrupt()
 }
 
 func printVersion() {
@@ -1049,9 +1035,7 @@ func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
 		log.WithFields(log.Fields{"error": err}).Infof("DebugProxy Terminated abnormally")
 		os.Exit(0)
 	}()
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
+	waitForInterrupt()
 	log.Info("Shutting down debugproxy")
 	proxy.Close()
 }
@@ -1096,9 +1080,7 @@ func handleProfileList(device ios.DeviceEntry) {
 
 func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
 	forward.Forward(device, uint16(hostPort), uint16(targetPort))
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
+	waitForInterrupt()
 }
 
 func printDiagnostics(device ios.DeviceEntry) {
@@ -1341,9 +1323,7 @@ func startListening() {
 			}
 		}
 	}()
-	c := make(chan os.Signal, syscall.SIGTERM)
-	signal.Notify(c, os.Interrupt)
-	<-c
+	waitForInterrupt()
 }
 
 func printDeviceInfo(device ios.DeviceEntry) {
@@ -1398,9 +1378,7 @@ func runSyslog(device ios.DeviceEntry) {
 			}
 		}
 	}()
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
+	waitForInterrupt()
 }
 
 func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password string) {
@@ -1450,4 +1428,42 @@ func exitIfError(msg string, err error) {
 	if err != nil {
 		log.WithFields(log.Fields{"err": err}).Fatalf(msg)
 	}
+}
+
+var interruptContext context.Context
+func getInterruptContext() context.Context {
+	if interruptContext != nil {
+		return interruptContext
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	if exitOnEOF {
+		go func() {
+			data := make([]byte, 2)
+			for {
+				n, err := os.Stdin.Read(data)
+				if err != nil || n == 0 {
+					cancel()
+					return
+				}
+			}
+		}()
+	}
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+		select {
+			case signal := <-c:
+				log.Infof("os signal:%d received, closing...", signal)
+				cancel()
+			case <- ctx.Done():
+				log.Info("received EOF on stdin, closing...")
+		}
+	}()
+	interruptContext = ctx
+	return interruptContext
+}
+
+func waitForInterrupt() {
+	ctx := getInterruptContext()
+	<- ctx.Done()
 }
