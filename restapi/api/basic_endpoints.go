@@ -39,8 +39,12 @@ func Listen(c *gin.Context) {
 // @Router       /list [get]
 func List(c *gin.Context) {
 	// We are streaming current time to clients in the interval 10 seconds
-	log.Info("connect")
-	a, _, _ := ios.Listen()
-	list, _ := a()
+	log.Info("ListDevices")
+	list, err := ios.ListDevices()
+	if err != nil {
+		c.Error(err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": "Failed getting device list with error", "error": err.Error()})
+		return
+	}
 	c.IndentedJSON(http.StatusOK, list)
 }

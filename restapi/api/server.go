@@ -5,7 +5,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
+	"io"
 	"net/http"
+	"os"
 )
 
 //limitNumClients uses a go channel to rate limit a handler.
@@ -47,9 +49,11 @@ func limitNumClientsUDID(f http.HandlerFunc) http.HandlerFunc {
 	}
 }
 */
+
 func Main() {
 	router := gin.Default()
-
+	myfile, _ := os.Create("go-ios.log")
+	gin.DefaultWriter = io.MultiWriter(myfile, os.Stdout)
 	// Add event-streaming headers
 	router.Use(HeadersMiddleware())
 
