@@ -39,7 +39,7 @@ func Listen(c *gin.Context) {
 // @Router       /list [get]
 func List(c *gin.Context) {
 	// We are streaming current time to clients in the interval 10 seconds
-	log.Info("ListDevices")
+
 	list, err := ios.ListDevices()
 	if err != nil {
 		c.Error(err)

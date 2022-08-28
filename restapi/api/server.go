@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
 	"io"
@@ -52,9 +52,11 @@ func limitNumClientsUDID(f http.HandlerFunc) http.HandlerFunc {
 
 func Main() {
 	router := gin.Default()
+	log := logrus.New()
 	myfile, _ := os.Create("go-ios.log")
 	gin.DefaultWriter = io.MultiWriter(myfile, os.Stdout)
 	// Add event-streaming headers
+	router.Use(MyLogger(log), gin.Recovery())
 	router.Use(HeadersMiddleware())
 
 	v1 := router.Group("/api/v1", gin.BasicAuth(gin.Accounts{
