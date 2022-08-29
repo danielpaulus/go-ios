@@ -59,7 +59,7 @@ func DownloadImageFor(device ios.DeviceEntry, baseDir string) (string, error) {
 		return "", err
 	}
 	if imageDownloaded != "" {
-		log.Infof("%s already downloaded from https://github.com/haikieu/", imageDownloaded)
+		log.Infof("%s already downloaded from https://github.com/mspvirajpatel/", imageDownloaded)
 		return imageDownloaded, nil
 	}
 	downloadUrl := ""
