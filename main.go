@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/afc"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+
+	"github.com/danielpaulus/go-ios/ios/afc"
 
 	"github.com/danielpaulus/go-ios/ios/crashreport"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
@@ -723,7 +724,7 @@ func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		if auto {
 			basedir, _ := arguments.String("--basedir")
 			if basedir == "" {
-				basedir = "."
+				basedir = "./devimages"
 			}
 			err := imagemounter.FixDevImage(device, basedir)
 			if err != nil {
@@ -1095,7 +1096,8 @@ func handleProfileList(device ios.DeviceEntry) {
 }
 
 func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
-	forward.Forward(device, uint16(hostPort), uint16(targetPort))
+	err := forward.Forward(device, uint16(hostPort), uint16(targetPort))
+	exitIfError("failed to forward port", err)
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
