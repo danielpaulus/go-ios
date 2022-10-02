@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/afc"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+
+	"github.com/danielpaulus/go-ios/ios/afc"
 
 	"github.com/danielpaulus/go-ios/ios/crashreport"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
@@ -723,7 +724,7 @@ func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		if auto {
 			basedir, _ := arguments.String("--basedir")
 			if basedir == "" {
-				basedir = "."
+				basedir = "./devimages"
 			}
 			err := imagemounter.FixDevImage(device, basedir)
 			if err != nil {
