@@ -24,32 +24,6 @@ func limitNumClients(f http.HandlerFunc, maxClients int) http.HandlerFunc {
 	}
 }
 
-/*
-func limitNumClientsUDID(f http.HandlerFunc) http.HandlerFunc {
-	maxClients := 1
-	semaMap := map[string]chan struct{}{}
-	mux := sync.Mutex{}
-	return func(w http.ResponseWriter, r *http.Request) {
-		udid := strings.TrimSpace(r.URL.Query().Get("udid"))
-		if udid == "" {
-			serverError("missing udid", http.StatusBadRequest, w)
-			return
-		}
-		mux.Lock()
-		var sema chan struct{}
-		sema, ok := semaMap[udid]
-		if !ok {
-			sema = make(chan struct{}, maxClients)
-			semaMap[udid] = sema
-		}
-		mux.Unlock()
-		sema <- struct{}{}
-		defer func() { <-sema }()
-		f(w, r)
-	}
-}
-*/
-
 func Main() {
 	router := gin.Default()
 	log := logrus.New()
@@ -57,16 +31,14 @@ func Main() {
 	gin.DefaultWriter = io.MultiWriter(myfile, os.Stdout)
 	// Add event-streaming headers
 	router.Use(MyLogger(log), gin.Recovery())
-	router.Use(HeadersMiddleware())
 
-	v1 := router.Group("/api/v1", gin.BasicAuth(gin.Accounts{
+	/*v1 := router.Group("/api/v1", gin.BasicAuth(gin.Accounts{
 		"admin": "admin123", // username : admin, password : admin123
-	}))
-	device := v1.Group("/device/:udid")
-	device.GET("/info", Info)
-	device.GET("/screenshot", Screenshot)
+	}))*/
+	v1 := router.Group("/api/v1")
+	registerDeviceSpecificEndpoints(v1)
 
-	v1.GET("/listen", Listen)
+	initStreamingResponseRoutes(v1)
 	v1.GET("/list", List)
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -74,15 +46,5 @@ func Main() {
 	err := router.Run(":8080")
 	if err != nil {
 		log.Error(err)
-	}
-}
-
-func HeadersMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Content-Type", "text/event-stream")
-		c.Writer.Header().Set("Cache-Control", "no-cache")
-		c.Writer.Header().Set("Connection", "keep-alive")
-		c.Writer.Header().Set("Transfer-Encoding", "chunked")
-		c.Next()
 	}
 }
