@@ -92,7 +92,7 @@ Usage:
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
-  ios apps [--system] [--all] [options]
+  ios apps [--system] [--all] [--list] [options]
   ios launch <bundleID> [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest <bundleID> [options]
@@ -175,7 +175,7 @@ The commands work as following:
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
-   ios apps [--system] [--all]                                        Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps.
+   ios apps [--system] [--all] [--list]                               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
@@ -410,9 +410,10 @@ The commands work as following:
 	b, _ = arguments.Bool("apps")
 
 	if b {
+		list, _ := arguments.Bool("--list")
 		system, _ := arguments.Bool("--system")
 		all, _ := arguments.Bool("--all")
-		printInstalledApps(device, system, all)
+		printInstalledApps(device, system, all, list)
 		return
 	}
 
@@ -1126,7 +1127,7 @@ func printDeviceDate(device ios.DeviceEntry) {
 	}
 
 }
-func printInstalledApps(device ios.DeviceEntry, system bool, all bool) {
+func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool) {
 	svc, _ := installationproxy.New(device)
 	var err error
 	var response []installationproxy.AppInfo
@@ -1143,6 +1144,12 @@ func printInstalledApps(device ios.DeviceEntry, system bool, all bool) {
 	}
 	exitIfError("browsing "+appType+" apps failed", err)
 
+	if list {
+		for _, v := range response {
+			fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString)
+		}
+		return
+	}
 	if JSONdisabled {
 		log.Info(response)
 	} else {
