@@ -169,6 +169,52 @@ func (conn *Connection) listDir(path string) ([]string, error) {
 	return fileList, nil
 }
 
+func (conn *Connection) GetSpaceInfo() (*AFCDeviceInfo, error) {
+	thisLength := Afc_header_size
+	header := AfcPacketHeader{Magic: Afc_magic, Packet_num: conn.packageNumber, Operation: Afc_operation_device_info, This_length: thisLength, Entire_length: thisLength}
+	conn.packageNumber++
+	packet := AfcPacket{Header: header, HeaderPayload: nil, Payload: nil}
+	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
+	if err != nil {
+		return nil, err
+	}
+	if err = conn.checkOperationStatus(response); err != nil {
+		return nil, fmt.Errorf("mkdir: unexpected afc status: %v", err)
+	}
+
+	bs := bytes.Split(response.Payload, []byte{0})
+	strs := make([]string, len(bs)-1)
+	for i := 0; i < len(strs); i++ {
+		strs[i] = string(bs[i])
+	}
+	m := make(map[string]string)
+	if strs != nil {
+		for i := 0; i < len(strs); i += 2 {
+			m[strs[i]] = strs[i+1]
+		}
+	}
+
+	totalBytes, err := strconv.ParseUint(m["FSTotalBytes"], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	freeBytes, err := strconv.ParseUint(m["FSFreeBytes"], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	blockSize, err := strconv.ParseUint(m["FSBlockSize"], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AFCDeviceInfo{
+		Model:      m["Model"],
+		TotalBytes: totalBytes,
+		FreeBytes:  freeBytes,
+		BlockSize:  blockSize,
+	}, nil
+}
+
 //ListFiles returns all files in the given directory, matching the pattern.
 //Example: ListFiles(".", "*") returns all files and dirs in the current path the afc connection is in
 func (conn *Connection) ListFiles(cwd string, matchPattern string) ([]string, error) {

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/afc"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+
+	"github.com/danielpaulus/go-ios/ios/afc"
 
 	"github.com/danielpaulus/go-ios/ios/crashreport"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
@@ -91,7 +92,7 @@ Usage:
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
-  ios apps [--system] [--all] [options]
+  ios apps [--system] [--all] [--list] [options]
   ios launch <bundleID> [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest <bundleID> [options]
@@ -107,6 +108,7 @@ Usage:
   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
   ios resetlocation [options]
   ios assistivetouch (enable | disable | toggle | get) [--force] [options]
+  ios diskspace [options]
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -174,7 +176,7 @@ The commands work as following:
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
-   ios apps [--system] [--all]                                        Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps.
+   ios apps [--system] [--all] [--list]                               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number.
    ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
@@ -191,6 +193,7 @@ The commands work as following:
    ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]         Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
    ios resetlocation [options]                                        Resets the location of the device to the actual one
    ios assistivetouch (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "AssistiveTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
+   ios diskspace [options]											  Prints disk space info.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -409,9 +412,10 @@ The commands work as following:
 	b, _ = arguments.Bool("apps")
 
 	if b {
+		list, _ := arguments.Bool("--list")
 		system, _ := arguments.Bool("--system")
 		all, _ := arguments.Bool("--all")
-		printInstalledApps(device, system, all)
+		printInstalledApps(device, system, all, list)
 		return
 	}
 
@@ -681,6 +685,22 @@ The commands work as following:
 		afcService.Close()
 		return
 	}
+
+	b, _ = arguments.Bool("diskspace")
+	if b {
+		afcService, err := afc.New(device)
+		exitIfError("connect afc service failed", err)
+		info, err := afcService.GetSpaceInfo()
+		if err != nil {
+			exitIfError("get device info push failed", err)
+		}
+		fmt.Printf("      Model: %s\n", info.Model)
+		fmt.Printf("  BlockSize: %d\n", info.BlockSize/8)
+		fmt.Printf("  FreeSpace: %s\n", ios.ByteCountDecimal(int64(info.FreeBytes)))
+		fmt.Printf("  UsedSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes-info.FreeBytes)))
+		fmt.Printf(" TotalSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes)))
+		return
+	}
 }
 
 func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
@@ -723,7 +743,7 @@ func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		if auto {
 			basedir, _ := arguments.String("--basedir")
 			if basedir == "" {
-				basedir = "."
+				basedir = "./devimages"
 			}
 			err := imagemounter.FixDevImage(device, basedir)
 			if err != nil {
@@ -1095,7 +1115,8 @@ func handleProfileList(device ios.DeviceEntry) {
 }
 
 func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
-	forward.Forward(device, uint16(hostPort), uint16(targetPort))
+	err := forward.Forward(device, uint16(hostPort), uint16(targetPort))
+	exitIfError("failed to forward port", err)
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
@@ -1124,7 +1145,7 @@ func printDeviceDate(device ios.DeviceEntry) {
 	}
 
 }
-func printInstalledApps(device ios.DeviceEntry, system bool, all bool) {
+func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool) {
 	svc, _ := installationproxy.New(device)
 	var err error
 	var response []installationproxy.AppInfo
@@ -1141,6 +1162,12 @@ func printInstalledApps(device ios.DeviceEntry, system bool, all bool) {
 	}
 	exitIfError("browsing "+appType+" apps failed", err)
 
+	if list {
+		for _, v := range response {
+			fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString)
+		}
+		return
+	}
 	if JSONdisabled {
 		log.Info(response)
 	} else {
