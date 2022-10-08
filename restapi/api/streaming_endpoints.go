@@ -9,14 +9,6 @@ import (
 	"net/http"
 )
 
-func initStreamingResponseRoutes(group *gin.RouterGroup) {
-	router := group.Group("")
-	router.Use(HeadersMiddleware())
-
-	router.GET("/listen", Listen)
-
-}
-
 // Syslog
 // Listen                godoc
 // @Summary      Uses SSE to connect to the LISTEN command
@@ -62,14 +54,4 @@ func Listen(c *gin.Context) {
 		return true
 	})
 
-}
-
-func HeadersMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Content-Type", "text/event-stream")
-		c.Writer.Header().Set("Cache-Control", "no-cache")
-		c.Writer.Header().Set("Connection", "keep-alive")
-		c.Writer.Header().Set("Transfer-Encoding", "chunked")
-		c.Next()
-	}
 }

@@ -7,10 +7,16 @@ import (
 	"net/http"
 )
 
-func initAppRoutes(group *gin.RouterGroup) {
-	router := group.Group("/app")
-	router.GET("/", ListApps)
-}
+/*
+APIs needed to solve automation problem:
+1. app install
+2. dev image mount and check
+3. run wda
+4. wda shim/ tap and screenshot
+5. signing api
+6. wda binary download
+
+*/
 
 func ListApps(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
