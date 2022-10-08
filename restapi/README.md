@@ -8,10 +8,10 @@ go run main.go
 plug an ios device into your machine and test on localhost:8080
 
 ## structure
-  api/routes.go  contains all routes
-  api/middleware.go contains all middlewares
-  api/*_endpoints.go contains endpoints that mostly mirror go-ios docopt commands
-  api/server.go the server config
+ - api/routes.go  contains all routes
+ - api/middleware.go contains all middlewares
+ - api/*_endpoints.go contains endpoints that mostly mirror go-ios docopt commands
+ - api/server.go the server config
 
 
 ## to dos
