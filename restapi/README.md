@@ -1,9 +1,9 @@
 # Go-iOS REST API
 
 ## getting started:
-go install github.com/swaggo/swag/cmd/swag@latest
-swag init
-go run main.go
+- go install github.com/swaggo/swag/cmd/swag@latest
+- swag init
+- go run main.go
 
 plug an ios device into your machine and test on localhost:8080
 
