@@ -68,12 +68,18 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 	if v, ok := object.(map[string]interface{}); ok {
 		return serializeMap(v, objects, buildClassDict("NSDictionary", "NSObject"))
 	}
+	typeOf := reflect.TypeOf(object)
+	name := typeOf.Name()
+	//seems like Name() can be empty for pointer types
+	if name == "" {
+		name = typeOf.String()
+	}
 
 	if encoderFunc, ok := encodableClasses[reflect.TypeOf(object).Name()]; ok {
 		return encoderFunc(object, objects)
 	}
 
-	panic(fmt.Errorf("NSKeyedArchiver Unsupported type:%s", object))
+	panic(fmt.Errorf("NSKeyedArchiver Unsupported object: '%s' of type:%s", object, typeOf))
 }
 
 func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, plist.UID) {

@@ -16,6 +16,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestArchiveSlice(t *testing.T) {
+	var option = make(map[string]interface{})
+	option["name"] = "james"
+	option["age"] = 20
+	children := []string{"abc", "def", "ok"}
+	option["children"] = children
+	data, err := archiver.ArchiveBin(option)
+	if err != nil {
+		fmt.Printf("encode data %v fail %v", data, err)
+	}
+}
+
 //TODO currently only partially decoding XCTestConfig is supported, fix later
 func TestXCTestconfig(t *testing.T) {
 	uuid := uuid.New()
