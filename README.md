@@ -5,8 +5,6 @@
 # Go-iOS
 Welcome 👋
 
-https://quii.gitbook.io/learn-go-with-tests/build-an-application/command-line
-https://github.com/golang-standards/project-layout
 New: `npm install -g go-ios` can be used to get going. Run `ios --help` after the installation for details. 
 
 The goal of this project is to provide a stable and production ready opensource solution to automate iOS device on Linux, Windows and Mac OS X. I am delighted to announce that a few companies including [headspin.io](https://www.headspin.io/) will use or are using go-iOS. 
@@ -17,6 +15,8 @@ Follow my twitter for updates or check out my medium blog: https://daniel-paulus
 If you are interested in using go-iOS please get in touch on LinkedIn, Twitter or the Github discussions above, I always love to hear what people are doing with it. 
 
 If you miss something your Mac can do but go-iOS can't, just request a feature in the issues tab.
+# New REST-API
+Go-iOS is getting an experimental REST-API check it out [https://github.com/danielpaulus/go-ios/tree/main/ios]()https://github.com/danielpaulus/go-ios/tree/main/ios 
 
 # Design principles:
 1. Using golang to compile static, small and fast binaries for all platforms very easily. 
