@@ -22,10 +22,17 @@ func TestArchiveSlice(t *testing.T) {
 	option["age"] = 20
 	children := []string{"abc", "def", "ok"}
 	option["children"] = children
-	data, err := archiver.ArchiveBin(option)
+	data, err := archiver.ArchiveXML(option)
 	if err != nil {
-		fmt.Printf("encode data %v fail %v", data, err)
+		t.FailNow()
 	}
+	intf, err := archiver.Unarchive([]byte(data))
+	val := intf[0].(map[string]interface{})["children"].([]interface{})
+	assert.Equal(t, "abc", val[0])
+	assert.Equal(t, "def", val[1])
+	assert.Equal(t, "ok", val[2])
+	print(val)
+
 }
 
 //TODO currently only partially decoding XCTestConfig is supported, fix later

@@ -75,7 +75,7 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 		name = typeOf.String()
 	}
 
-	if encoderFunc, ok := encodableClasses[reflect.TypeOf(object).Name()]; ok {
+	if encoderFunc, ok := encodableClasses[name]; ok {
 		return encoderFunc(object, objects)
 	}
 
@@ -84,12 +84,12 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 
 func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	arrayDict := map[string]interface{}{}
-	index := len(objects)
+	arrayObjectIndex := len(objects)
 	objects = append(objects, arrayDict)
 
-	index = len(objects)
+	classDefinitionIndex := len(objects)
 	objects = append(objects, buildClassDict("NSArray", "NSObject"))
-	arrayDict["$class"] = plist.UID(index)
+	arrayDict["$class"] = plist.UID(classDefinitionIndex)
 	itemRefs := make([]plist.UID, len(array))
 	for index, item := range array {
 		var uid plist.UID
@@ -97,7 +97,7 @@ func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, 
 		itemRefs[index] = uid
 	}
 	arrayDict["NS.objects"] = itemRefs
-	return objects, plist.UID(index)
+	return objects, plist.UID(arrayObjectIndex)
 }
 
 func serializeMap(mapObject map[string]interface{}, objects []interface{}, classDict map[string]interface{}) ([]interface{}, plist.UID) {
