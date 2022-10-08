@@ -8,7 +8,7 @@ import (
 )
 
 // @title           Go-iOS API
-// @version         1.0
+// @version         0.01
 // @description     Exposes go-ios features as REST API calls.
 // @termsOfService  https://github.com/danielpaulus/go-ios
 
