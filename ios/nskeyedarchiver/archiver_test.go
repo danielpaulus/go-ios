@@ -16,6 +16,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestArchiveSlice(t *testing.T) {
+	var option = make(map[string]interface{})
+	option["name"] = "james"
+	option["age"] = 20
+	children := []string{"abc", "def", "ok"}
+	option["children"] = children
+	data, err := archiver.ArchiveXML(option)
+	if err != nil {
+		t.FailNow()
+	}
+	intf, err := archiver.Unarchive([]byte(data))
+	val := intf[0].(map[string]interface{})["children"].([]interface{})
+	assert.Equal(t, "abc", val[0])
+	assert.Equal(t, "def", val[1])
+	assert.Equal(t, "ok", val[2])
+	print(val)
+
+}
+
 //TODO currently only partially decoding XCTestConfig is supported, fix later
 func TestXCTestconfig(t *testing.T) {
 	uuid := uuid.New()
