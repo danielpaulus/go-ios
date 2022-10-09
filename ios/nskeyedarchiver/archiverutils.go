@@ -18,6 +18,14 @@ func getKeysOfMap(themap map[string]interface{}) []string {
 	return result
 }
 
+func toInterfaceSlice(stringSlice []string) []interface{} {
+	result := make([]interface{}, len(stringSlice))
+	for i, e := range stringSlice {
+		result[i] = e
+	}
+	return result
+}
+
 //toUidList type asserts a []interface{} to a []plist.UID by iterating through the list.
 func toUidList(list []interface{}) []plist.UID {
 	l := len(list)

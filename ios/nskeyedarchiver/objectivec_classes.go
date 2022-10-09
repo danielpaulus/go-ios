@@ -26,9 +26,9 @@ func SetupDecoders() {
 			"NSUUID":                    NewNSUUIDFromBytes,
 			"XCActivityRecord":          DecodeXCActivityRecord,
 			"DTKTraceTapMessage":        NewDTKTraceTapMessage,
-			"NSValue": NewNSValue,
-			"XCTTestIdentifier": NewXCTTestIdentifier,
-			"DTTapStatusMessage": NewDTTapStatusMessage,
+			"NSValue":                   NewNSValue,
+			"XCTTestIdentifier":         NewXCTTestIdentifier,
+			"DTTapStatusMessage":        NewDTTapStatusMessage,
 		}
 	}
 }
@@ -42,6 +42,7 @@ func SetupEncoders() {
 			"NSNull":              archiveNSNull,
 			"NSMutableDictionary": archiveNSMutableDictionary,
 			"XCTCapabilities":     archiveXCTCapabilities,
+			"[]string":            archiveStringSlice,
 		}
 	}
 }
@@ -256,17 +257,18 @@ func NewDTActivityTraceTapMessage(object map[string]interface{}, objects []inter
 type DTKTraceTapMessage struct {
 	DTTapMessagePlist map[string]interface{}
 }
+
 func NewDTKTraceTapMessage(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["DTTapMessagePlist"].(plist.UID)
 	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
 	return DTKTraceTapMessage{DTTapMessagePlist: plist}
 }
 
-
 type NSValue struct {
 	NSSpecial uint64
 	NSRectval string
 }
+
 func NewNSValue(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["NS.rectval"].(plist.UID)
 	rectval, _ := objects[ref].(string)
@@ -279,16 +281,16 @@ type XCTTestIdentifier struct {
 	C []string
 }
 
-func (x XCTTestIdentifier) String() string{
+func (x XCTTestIdentifier) String() string {
 	return fmt.Sprintf("XCTTestIdentifier{o:%d , c:%v}", x.O, x.C)
 }
 func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["c"].(plist.UID)
 	//plist, _ := extractObjects(objects[ref].(map[string]interface{}), objects)
-	fd := objects[ref].(map[string] interface{})
-	extractObjects,_ := extractObjects(toUidList(fd[nsObjects].([]interface{})), objects)
+	fd := objects[ref].(map[string]interface{})
+	extractObjects, _ := extractObjects(toUidList(fd[nsObjects].([]interface{})), objects)
 	stringarray := make([]string, len(extractObjects))
-	for i, v := range extractObjects{
+	for i, v := range extractObjects {
 		stringarray[i] = v.(string)
 	}
 	o := object["o"].(uint64)
@@ -409,7 +411,10 @@ type NSMutableDictionary struct {
 func NewNSMutableDictionary(internalDict map[string]interface{}) interface{} {
 	return NSMutableDictionary{internalDict}
 }
-
+func archiveStringSlice(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	sl := object.([]string)
+	return serializeArray(toInterfaceSlice(sl), objects)
+}
 func archiveNSMutableDictionary(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	mut := object.(NSMutableDictionary)
 	return serializeMap(mut.internalDict, objects, buildClassDict("NSMutableDictionary", "NSDictionary", "NSObject"))

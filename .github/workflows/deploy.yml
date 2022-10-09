@@ -1,0 +1,64 @@
+name: Deploy
+
+on: [workflow_dispatch]
+
+jobs:
+  deploy:
+    name: Deploy my app
+
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Extract ngrok url
+        run: |
+          echo "NGROK_URL=$(curl -s localhost:4040/api/tunnels | jq -r ".tunnels[0].public_url")" >> $GITHUB_ENV
+          curl -s localhost:4040/api/tunnels | jq ".tunnels[0].public_url"
+          cat $GITHUB_ENV
+      - uses: chrnorm/deployment-action@v2
+        name: Create GitHub deployment
+        id: deployment
+        with:
+          token: '${{ github.token }}'
+          environment-url:  ${{ env.NGROK_URL }}
+          environment: staging
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: kill old server
+        run: systemctl --user stop goios
+      - name: compile
+        run: |
+          cd restapi
+          go install github.com/swaggo/swag/cmd/swag@latest
+          swag init
+          go build
+      - name: Deploy my app
+        run: |
+          cd restapi
+          cp ./restapi /home/ganjalf/
+          rm -rf /home/ganjalf/docs
+          mkdir /home/ganjalf/docs
+          cp -R ./docs /home/ganjalf/docs
+          systemctl --user start goios
+
+      - name: Update deployment status (success)
+        if: success()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: '${{ github.token }}'
+          environment-url: ${{ steps.deployment.outputs.environment_url }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: 'success'
+
+      - name: Update deployment status (failure)
+        if: failure()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: '${{ github.token }}'
+          environment-url: ${{ steps.deployment.outputs.environment_url }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: 'failure'
