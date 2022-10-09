@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"reflect"
 
 	"testing"
@@ -15,6 +16,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestSavedState(t *testing.T) {
+	bytes, _ := os.ReadFile("fixtures/savedstate.plist")
+	res, err := nskeyedarchiver.Unarchive(bytes)
+	if assert.NoError(t, err) {
+		nskm := res[0].(map[string]interface{})
+		assert.Equal(t, float64(1053), nskm["MenuBar AvailableSpace"])
+	}
+
+}
 
 //TODO currently only partially decoding XCTestConfig is supported, fix later
 func TestXCTestconfig(t *testing.T) {

@@ -8,6 +8,16 @@ import (
 	plist "howett.net/plist"
 )
 
+func getKeysOfMap(themap map[string]interface{}) []string {
+	result := make([]string, len(themap))
+	i := 0
+	for key, _ := range themap {
+		result[i] = key
+		i++
+	}
+	return result
+}
+
 //toUidList type asserts a []interface{} to a []plist.UID by iterating through the list.
 func toUidList(list []interface{}) []plist.UID {
 	l := len(list)
