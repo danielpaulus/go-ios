@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"strings"
-
 	plist "howett.net/plist"
+	"regexp"
 )
 
 func areNumeric(keys []string) bool {
 	for _, key := range keys {
-		if !strings.HasPrefix(key, "$") {
+		match, _ := regexp.MatchString("\\$[0-9]+", key)
+		if !match {
 			return false
 		}
 
