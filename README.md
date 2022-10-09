@@ -15,6 +15,8 @@ Follow my twitter for updates or check out my medium blog: https://daniel-paulus
 If you are interested in using go-iOS please get in touch on LinkedIn, Twitter or the Github discussions above, I always love to hear what people are doing with it. 
 
 If you miss something your Mac can do but go-iOS can't, just request a feature in the issues tab.
+# New REST-API
+Go-iOS is getting an experimental REST-API check it out [https://github.com/danielpaulus/go-ios/tree/main/restapi](https://github.com/danielpaulus/go-ios/tree/main/restapi) 
 
 # Design principles:
 1. Using golang to compile static, small and fast binaries for all platforms very easily. 
