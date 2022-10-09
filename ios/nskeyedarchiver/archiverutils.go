@@ -4,9 +4,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	plist "howett.net/plist"
 )
+
+func areNumeric(keys []string) bool {
+	for _, key := range keys {
+		if !strings.HasPrefix(key, "$") {
+			return false
+		}
+
+	}
+	return true
+}
 
 func getKeysOfMap(themap map[string]interface{}) []string {
 	result := make([]string, len(themap))

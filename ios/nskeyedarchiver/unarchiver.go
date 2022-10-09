@@ -32,9 +32,18 @@ func extractObjectsFromTop(top map[string]interface{}, objects []interface{}) ([
 	if root, ok := top["root"]; ok {
 		return extractObjects([]plist.UID{root.(plist.UID)}, objects)
 	}
+
 	objectRefs := make([]plist.UID, objectCount)
-	//convert the Dictionary with the objectReferences into a flat list of UIDs, so we can reuse the extractObjects function later
 	keys := getKeysOfMap(top)
+	//if all keys are like $0, $1 etc. the code returns an array
+	if areNumeric(keys) {
+		for i := 0; i < objectCount; i++ {
+			objectIndex := top[fmt.Sprintf("$%d", i)].(plist.UID)
+			objectRefs[i] = objectIndex
+		}
+		return extractObjects(objectRefs, objects)
+	}
+	// otherwise return a map as the only object in []interface{}
 	for i, key := range keys {
 		objectIndex := top[key].(plist.UID)
 		objectRefs[i] = objectIndex
@@ -43,6 +52,7 @@ func extractObjectsFromTop(top map[string]interface{}, objects []interface{}) ([
 	if err != nil {
 		return extractedObjects, err
 	}
+
 	result := map[string]interface{}{}
 	for i, key := range keys {
 		result[key] = extractedObjects[i]
