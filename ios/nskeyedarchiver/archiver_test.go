@@ -22,9 +22,11 @@ func TestSavedState(t *testing.T) {
 	res, err := nskeyedarchiver.Unarchive(bytes)
 	if assert.NoError(t, err) {
 		nskm := res[0].(map[string]interface{})
+		assert.Equal(t, uint64(25919), nskm["CoreGraphics Window ID"])
+		assert.Equal(t, true, nskm["MenuBar Main"])
+		assert.Equal(t, []interface{}{"MenuBar Main", "MenuBar AvailableSpace", "CoreGraphics Window ID"}, nskm["_NSDictionaryKeys"])
 		assert.Equal(t, float64(1053), nskm["MenuBar AvailableSpace"])
 	}
-
 }
 
 func TestArchiveSlice(t *testing.T) {
