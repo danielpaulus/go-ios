@@ -14,7 +14,6 @@ func areNumeric(keys []string) bool {
 		if !match {
 			return false
 		}
-
 	}
 	return true
 }
