@@ -12,22 +12,17 @@ import (
 
 var sm sync.Map
 
-var locksMap = make(map[string]*MappedDevice)
+var locksMap = make(map[string]*LockedDevice)
 var lockMutex sync.Mutex
 
 type GenericLockResponse struct {
 	Message string `json:"message"`
 }
 
-type MappedDevice struct {
-	LockID   string
-	LastUsed int64
-}
-
 type LockedDevice struct {
-	UDID              string `json:"udid"`
-	LockID            string `json:"lock"`
-	LastUsedTimestamp int64  `json:"lastUsed"`
+	UDID              string `json:"udid,omitempty"`
+	LockID            string `json:"lock_id"`
+	LastUsedTimestamp int64  `json:"lastUsed,omitempty"`
 }
 
 type LockResponse struct {
@@ -41,7 +36,7 @@ func CleanLocksCRON() {
 		lockMutex.Lock()
 		for key, element := range locksMap {
 			current_timestamp := time.Now().UnixMilli()
-			diff := current_timestamp - element.LastUsed
+			diff := current_timestamp - element.LastUsedTimestamp
 
 			if diff > 60000 {
 				delete(locksMap, key)
@@ -49,7 +44,6 @@ func CleanLocksCRON() {
 		}
 		lockMutex.Unlock()
 	}
-
 }
 
 func LockDevice(c *gin.Context) {
@@ -62,11 +56,11 @@ func LockDevice(c *gin.Context) {
 	lock_id := randomLockID()
 	time_now := time.Now().UnixMilli()
 
-	mappedDevice := MappedDevice{LockID: lock_id, LastUsed: time_now}
+	lockedDevice := LockedDevice{LockID: lock_id, LastUsedTimestamp: time_now}
 
 	map_udid := locksMap[udid]
 	if map_udid == nil {
-		locksMap[udid] = &mappedDevice
+		locksMap[udid] = &lockedDevice
 	} else {
 		c.IndentedJSON(http.StatusOK, GenericLockResponse{Message: "Device with UDID: " + udid + " already locked."})
 		return
@@ -91,7 +85,7 @@ func GetLocks(c *gin.Context) {
 			locked_devices = append(locked_devices, LockedDevice{
 				UDID:              key,
 				LockID:            element.LockID,
-				LastUsedTimestamp: element.LastUsed,
+				LastUsedTimestamp: element.LastUsedTimestamp,
 			})
 		}
 	}
@@ -100,8 +94,6 @@ func GetLocks(c *gin.Context) {
 }
 
 func RemoveDeviceLock(c *gin.Context) {
-	defer lockMutex.Unlock()
-
 	udid := c.Param("udid")
 
 	locked_device := locksMap[udid]
@@ -109,8 +101,10 @@ func RemoveDeviceLock(c *gin.Context) {
 		c.IndentedJSON(http.StatusOK, GenericLockResponse{Message: "Device with UDID: " + udid + " is not locked."})
 		return
 	} else {
+		defer lockMutex.Unlock()
 		lockMutex.Lock()
 		delete(locksMap, udid)
+		c.IndentedJSON(http.StatusOK, GenericLockResponse{Message: "Device with UDID: " + udid + " successfully unlocked."})
 	}
 }
 

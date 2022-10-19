@@ -12,6 +12,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	lock := router.Group("/lock/:udid")
 	lock.Use(DeviceMiddleware())
 	lock.POST("/", LockDevice)
+	lock.DELETE("/", RemoveDeviceLock)
 
 	router.GET("/locks", GetLocks)
 
