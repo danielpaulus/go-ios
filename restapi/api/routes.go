@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/shamanec/api/lockdevice"
+	_ "github.com/shamanec/go-ios/restapi/api/lock"
 )
 
 func registerRoutes(router *gin.RouterGroup) {
@@ -14,7 +14,7 @@ func registerRoutes(router *gin.RouterGroup) {
 
 	lock := router.Group("/lock/:udid")
 	lock.Use(DeviceMiddleware())
-	lock.POST("/", lockdevice.LockDevice)
+	lock.POST("/", lock.LockDevice)
 	lock.DELETE("/", lockdevice.RemoveDeviceLock)
 
 	router.GET("/locks", lockdevice.GetLocks)
