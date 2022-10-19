@@ -1,6 +1,9 @@
 package api
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/shamanec/api/lockdevice"
+)
 
 func registerRoutes(router *gin.RouterGroup) {
 	router.GET("/list", List)
@@ -11,10 +14,10 @@ func registerRoutes(router *gin.RouterGroup) {
 
 	lock := router.Group("/lock/:udid")
 	lock.Use(DeviceMiddleware())
-	lock.POST("/", LockDevice)
-	lock.DELETE("/", RemoveDeviceLock)
+	lock.POST("/", lockdevice.LockDevice)
+	lock.DELETE("/", lockdevice.RemoveDeviceLock)
 
-	router.GET("/locks", GetLocks)
+	router.GET("/locks", lockdevice.GetLocks)
 
 	initAppRoutes(device)
 	initStreamingResponseRoutes(device, router)

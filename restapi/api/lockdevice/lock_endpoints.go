@@ -1,4 +1,4 @@
-package api
+package lock
 
 import (
 	"math/rand"
@@ -94,6 +94,9 @@ func GetLocks(c *gin.Context) {
 }
 
 func RemoveDeviceLock(c *gin.Context) {
+	defer lockMutex.Unlock()
+	lockMutex.Lock()
+
 	udid := c.Param("udid")
 
 	locked_device := locksMap[udid]
@@ -101,8 +104,7 @@ func RemoveDeviceLock(c *gin.Context) {
 		c.IndentedJSON(http.StatusOK, GenericLockResponse{Message: "Device with UDID: " + udid + " is not locked."})
 		return
 	} else {
-		defer lockMutex.Unlock()
-		lockMutex.Lock()
+
 		delete(locksMap, udid)
 		c.IndentedJSON(http.StatusOK, GenericLockResponse{Message: "Device with UDID: " + udid + " successfully unlocked."})
 	}
