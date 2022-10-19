@@ -9,6 +9,12 @@ func registerRoutes(router *gin.RouterGroup) {
 	device.GET("/info", Info)
 	device.GET("/screenshot", Screenshot)
 
+	lock := router.Group("/lock/:udid")
+	lock.Use(DeviceMiddleware())
+	lock.POST("/", LockDevice)
+
+	router.GET("/locks", GetLocks)
+
 	initAppRoutes(device)
 	initStreamingResponseRoutes(device, router)
 }

@@ -1,12 +1,13 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
-	"github.com/swaggo/files"
-	"github.com/swaggo/gin-swagger"
 	"io"
 	"os"
+
+	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func Main() {
@@ -18,6 +19,8 @@ func Main() {
 
 	v1 := router.Group("/api/v1")
 	registerRoutes(v1)
+
+	go CleanLocksCRON()
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
