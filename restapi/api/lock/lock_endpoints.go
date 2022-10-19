@@ -65,7 +65,7 @@ func LockDevice(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, lockResponse{LockID: lock_id})
 }
 
-func GetLocks(c *gin.Context) {
+func GetLockedDevices(c *gin.Context) {
 	lockMutex.Lock()
 	defer lockMutex.Unlock()
 
@@ -87,7 +87,7 @@ func GetLocks(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, locked_devices)
 }
 
-func RemoveDeviceLock(c *gin.Context) {
+func DeleteDeviceLock(c *gin.Context) {
 	udid := c.Param("udid")
 
 	defer lockMutex.Unlock()

@@ -15,9 +15,9 @@ func registerRoutes(router *gin.RouterGroup) {
 	locks := router.Group("/lock/:udid")
 	locks.Use(DeviceMiddleware())
 	locks.POST("/", lock.LockDevice)
-	locks.DELETE("/", lock.RemoveDeviceLock)
+	locks.DELETE("/", lock.DeleteDeviceLock)
 
-	router.GET("/locks", lock.GetLocks)
+	router.GET("/locks", lock.GetLockedDevices)
 
 	initAppRoutes(device)
 	initStreamingResponseRoutes(device, router)
