@@ -4,7 +4,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/danielpaulus/go-ios/restapi/api/lock"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	swaggerFiles "github.com/swaggo/files"
@@ -20,8 +19,6 @@ func Main() {
 
 	v1 := router.Group("/api/v1")
 	registerRoutes(v1)
-
-	go lock.CleanLocksCRON()
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

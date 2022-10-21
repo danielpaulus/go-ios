@@ -21,6 +21,7 @@ func registerRoutes(router *gin.RouterGroup) {
 
 	initAppRoutes(device)
 	initStreamingResponseRoutes(device, router)
+	go lock.CleanLocksCRON()
 }
 func initAppRoutes(group *gin.RouterGroup) {
 	router := group.Group("/app")

@@ -13,7 +13,7 @@ import (
 var locksMap = make(map[string]*lockedDevice)
 var lockMutex sync.Mutex
 
-type genericlockResponse struct {
+type genericLockResponse struct {
 	Message string `json:"message"`
 }
 
@@ -31,6 +31,7 @@ func CleanLocksCRON() {
 	defer lockMutex.Unlock()
 
 	// Every 5 minutes loop through the map of locked devices and check if a locked device last used timestamp was more than 5 minutes(300000 ms) ago
+	// If any, remove them from the map
 	for range time.Tick(time.Minute * 5) {
 		lockMutex.Lock()
 		for key, element := range locksMap {
@@ -58,7 +59,7 @@ func LockDevice(c *gin.Context) {
 		newLockedDevice := lockedDevice{LockID: lock_id, LastUsedTimestamp: time.Now().UnixMilli()}
 		locksMap[udid] = &newLockedDevice
 	} else {
-		c.IndentedJSON(http.StatusOK, genericlockResponse{Message: "Already locked"})
+		c.IndentedJSON(http.StatusOK, genericLockResponse{Message: "Already locked"})
 		return
 	}
 
@@ -71,7 +72,7 @@ func GetLockedDevices(c *gin.Context) {
 
 	var locked_devices []lockedDevice
 	if len(locksMap) == 0 {
-		c.IndentedJSON(http.StatusOK, genericlockResponse{Message: "No locked devices found"})
+		c.IndentedJSON(http.StatusOK, genericLockResponse{Message: "No locked devices found"})
 		return
 	} else {
 		// Build the JSON array of currently locked devices
@@ -90,17 +91,17 @@ func GetLockedDevices(c *gin.Context) {
 func DeleteDeviceLock(c *gin.Context) {
 	udid := c.Param("udid")
 
-	defer lockMutex.Unlock()
 	lockMutex.Lock()
+	defer lockMutex.Unlock()
 
 	// Check if there is a locked device for the respective UDID
 	device := locksMap[udid]
 	if device == nil {
-		c.IndentedJSON(http.StatusOK, genericlockResponse{Message: "Not locked"})
+		c.IndentedJSON(http.StatusNotFound, genericLockResponse{Message: "Not locked"})
 		return
 	} else {
 		delete(locksMap, udid)
-		c.IndentedJSON(http.StatusOK, genericlockResponse{Message: "Successfully unlocked"})
+		c.IndentedJSON(http.StatusOK, genericLockResponse{Message: "Successfully unlocked"})
 	}
 }
 
