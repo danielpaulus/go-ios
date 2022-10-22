@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/danielpaulus/go-ios/restapi/api/lock"
+	"github.com/danielpaulus/go-ios/restapi/api/reservation"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,16 +12,15 @@ func registerRoutes(router *gin.RouterGroup) {
 	device.GET("/info", Info)
 	device.GET("/screenshot", Screenshot)
 
-	locks := router.Group("/lock/:udid")
-	locks.Use(DeviceMiddleware())
-	locks.POST("/", lock.LockDevice)
-	locks.DELETE("/", lock.DeleteDeviceLock)
-
-	router.GET("/locks", lock.GetLockedDevices)
+	router.GET("/reserved-devices", reservation.GetReservedDevices)
+	reservations := router.Group("/reserve/:udid")
+	reservations.Use(DeviceMiddleware())
+	reservations.POST("/", reservation.ReserveDevice)
+	reservations.DELETE("/", reservation.ReleaseDevice)
 
 	initAppRoutes(device)
 	initStreamingResponseRoutes(device, router)
-	go lock.CleanLocksCRON()
+	go reservation.CleanReservationsCRON()
 }
 func initAppRoutes(group *gin.RouterGroup) {
 	router := group.Group("/app")
