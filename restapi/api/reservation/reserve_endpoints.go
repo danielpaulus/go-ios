@@ -23,9 +23,9 @@ type reservedDevice struct {
 func CleanReservationsCRON() {
 	defer reserveMutex.Unlock()
 
-	// Every 5 minutes loop through the map of reserved devices and check if a reserved device last used timestamp was more than 5 minutes(300000 ms) ago
+	// Every minute loop through the map of reserved devices and check if a reserved device last used timestamp was more than 5 minutes(300000 ms) ago
 	// If any, remove them from the map
-	for range time.Tick(time.Minute * 5) {
+	for range time.Tick(time.Second * 60) {
 		reserveMutex.Lock()
 		for udid, reservedDevice := range reservedDevicesMap {
 			currentTimestamp := time.Now().UnixMilli()
