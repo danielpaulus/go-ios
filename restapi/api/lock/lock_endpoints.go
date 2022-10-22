@@ -66,6 +66,23 @@ func LockDevice(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, lockResponse{LockID: lock_id})
 }
 
+func DeleteDeviceLock(c *gin.Context) {
+	udid := c.Param("udid")
+
+	lockMutex.Lock()
+	defer lockMutex.Unlock()
+
+	// Check if there is a locked device for the respective UDID
+	device := locksMap[udid]
+	if device == nil {
+		c.IndentedJSON(http.StatusNotFound, genericLockResponse{Message: "Not locked"})
+		return
+	} else {
+		delete(locksMap, udid)
+		c.IndentedJSON(http.StatusOK, genericLockResponse{Message: "Successfully unlocked"})
+	}
+}
+
 func GetLockedDevices(c *gin.Context) {
 	lockMutex.Lock()
 	defer lockMutex.Unlock()
@@ -86,23 +103,6 @@ func GetLockedDevices(c *gin.Context) {
 	}
 
 	c.IndentedJSON(http.StatusOK, locked_devices)
-}
-
-func DeleteDeviceLock(c *gin.Context) {
-	udid := c.Param("udid")
-
-	lockMutex.Lock()
-	defer lockMutex.Unlock()
-
-	// Check if there is a locked device for the respective UDID
-	device := locksMap[udid]
-	if device == nil {
-		c.IndentedJSON(http.StatusNotFound, genericLockResponse{Message: "Not locked"})
-		return
-	} else {
-		delete(locksMap, udid)
-		c.IndentedJSON(http.StatusOK, genericLockResponse{Message: "Successfully unlocked"})
-	}
 }
 
 const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
