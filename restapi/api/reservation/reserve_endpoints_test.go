@@ -81,15 +81,15 @@ func TestReleasingDevice(t *testing.T) {
 		t.FailNow()
 	}
 
-	var lockid_exists = false
+	var reservationid_exists = false
 	for _, device := range devicesResponse {
 		if device.ReservationID == reserveID {
-			lockid_exists = true
+			reservationid_exists = true
 			require.Equal(t, device.UDID, randomDeviceUDID, "Device UDID does not correspond to the ReservationID, expected UDID=%v, got=%v", randomDeviceUDID, device.UDID)
 			require.NotEmpty(t, device.LastUsedTimestamp, "`lastUsed` is empty but it shouldn't be")
 		}
 	}
-	require.True(t, lockid_exists, "Could not find device with `reservation_id`=%v in GET /reserved-devices response", reserveID)
+	require.True(t, reservationid_exists, "Could not find device with `reservation_id`=%v in GET /reserved-devices response", reserveID)
 
 	// Release the reserved device
 	releaseDeviceRequest := deleteReservation(t, responseRecorder)
