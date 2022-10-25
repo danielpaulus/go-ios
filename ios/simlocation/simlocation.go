@@ -162,7 +162,10 @@ func SetLocationGPX(device ios.DeviceEntry, filePath string) error {
 				pointLat := point.PointLatitude
 
 				// Set the current point location by its latitude and longitude
-				SetLocation(device, pointLat, pointLon)
+				err = SetLocation(device, pointLat, pointLon)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
