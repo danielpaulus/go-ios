@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,7 +17,7 @@ var randomDeviceUDID string
 var r *gin.Engine
 
 func setupRouter() *gin.Engine {
-	randomDeviceUDID = randomReservationID()
+	randomDeviceUDID = uuid.New().String()
 
 	r := gin.Default()
 	r.Use(fakeDeviceMiddleware())
@@ -100,7 +101,7 @@ func TestReleasingDevice(t *testing.T) {
 	r.ServeHTTP(responseRecorder, getDevicesRequest)
 	require.Equal(t, http.StatusOK, responseRecorder.Code, "GET %v was unsuccessful", getDevicesRequest.URL)
 
-	var noReservedDevicesResponse reservedDevice
+	var noReservedDevicesResponse []reservedDevice
 	responseData, _ = ioutil.ReadAll(responseRecorder.Body)
 	err = json.Unmarshal(responseData, &noReservedDevicesResponse)
 	if err != nil {
@@ -108,7 +109,7 @@ func TestReleasingDevice(t *testing.T) {
 		t.FailNow()
 	}
 
-	require.Equal(t, noReservedDevicesResponse.Message, "No reserved devices found")
+	require.Equal(t, noReservedDevicesResponse, []reservedDevice{})
 }
 
 func TestValidateDeviceNotReserved(t *testing.T) {
