@@ -10,6 +10,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	device.GET("/screenshot", Screenshot)
 	device.POST("/setlocation", SetLocation)
 	device.POST("/resetlocation", ResetLocation)
+	device.POST("/enablestate", EnableDeviceState)
 
 	initAppRoutes(device)
 	initStreamingResponseRoutes(device, router)

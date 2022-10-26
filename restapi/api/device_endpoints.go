@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -115,5 +117,80 @@ func ResetLocation(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 	} else {
 		c.JSON(http.StatusOK, GenericResponse{Message: "Device location reset"})
+	}
+}
+
+var conditionedDevicesMap = make(map[string]*conditionedDevice)
+var changedStateDevicesMutex sync.Mutex
+
+type conditionedDevice struct {
+	DeviceConditions []deviceConditions
+}
+
+type deviceConditions struct {
+	ProfileTypeID string
+	ProfileID     string
+	Timestamp     int64
+	StateControl  *instruments.DeviceStateControl
+}
+
+func ResetDeviceStateCRON(control *instruments.DeviceStateControl, pType instruments.ProfileType, timestamp int64) {
+	for range time.Tick(time.Second * 10) {
+		currentTimestamp := time.Now().UnixMilli()
+		diff := currentTimestamp - timestamp
+
+		if diff > 120000 {
+			err := control.Disable(pType)
+			if err != nil {
+				log.Error("Could not disable device state inside CRON")
+				break
+			}
+			break
+		}
+	}
+}
+
+func EnableDeviceState(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+
+	profileTypeID := c.Query("profileTypeID")
+	if profileTypeID == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "profileTypeID query param is missing"})
+		return
+	}
+
+	profileID := c.Query("profileID")
+	if profileID == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "profileID query param is missing"})
+		return
+	}
+
+	control, err := instruments.NewDeviceStateControl(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	profileTypes, err := control.List()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	pType, profile, err := instruments.VerifyProfileAndType(profileTypes, profileTypeID, profileID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	err = control.Enable(pType, profile)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	} else {
+		newDeviceConditions := deviceConditions{ProfileTypeID: profileTypeID, ProfileID: profileID, Timestamp: time.Now().UnixMilli(), StateControl: control}
+		conditionedDevicesMap[device.Properties.SerialNumber].DeviceConditions = append(conditionedDevicesMap[device.Properties.SerialNumber].DeviceConditions, newDeviceConditions)
+		go ResetDeviceStateCRON(control, pType, time.Now().UnixMilli())
+		c.JSON(http.StatusOK, GenericResponse{Message: "Enabled Profile=" + profileID + " for ProfileType=" + profileTypeID})
 	}
 }
