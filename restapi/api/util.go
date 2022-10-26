@@ -3,14 +3,20 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
+
+type GenericResponse struct {
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
 
 //GetVersion reads the contents of the file version.txt and returns it.
 //If the file cannot be read, it returns "could not read version"

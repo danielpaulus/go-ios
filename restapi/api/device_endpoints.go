@@ -1,12 +1,14 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
+	"github.com/danielpaulus/go-ios/ios/simlocation"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 // Info gets device info
@@ -63,4 +65,55 @@ func Screenshot(c *gin.Context) {
 
 	c.Header("Content-Type", "image/png")
 	c.Data(http.StatusOK, "application/octet-stream", b)
+}
+
+// Change the current device location
+// @Summary      Change the current device location
+// @Description Change the current device location to provided latitude and longtitude
+// @Tags         general_device_specific
+// @Produce      json
+// @Param        latitude  query      string  true  "Location latitude"
+// @Param        longtitude  query      string  true  "Location longtitude"
+// @Success      200  {object}  GenericResponse
+// @Failure		 422  {object}  GenericResponse
+// @Failure		 500  {object}  GenericResponse
+// @Router       /device/{udid}/setlocation [post]
+func SetLocation(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	latitude := c.Query("latitude")
+	if latitude == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "latitude query param is missing"})
+		return
+	}
+
+	longtitude := c.Query("longtitude")
+	if longtitude == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "longtitude query param is missing"})
+		return
+	}
+
+	err := simlocation.SetLocation(device, latitude, longtitude)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, GenericResponse{Message: "Device location set to latitude=" + latitude + ", longtitude=" + longtitude})
+}
+
+// Reset to the actual device location
+// @Summary      Reset the changed device location
+// @Description  Reset the changed device location to the actual one
+// @Tags         general_device_specific
+// @Produce      json
+// @Success      200
+// @Failure      500  {object}  GenericResponse
+// @Router       /device/{udid}/resetlocation [post]
+func ResetLocation(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	err := simlocation.ResetLocation(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, GenericResponse{Message: "Device location reset"})
 }
