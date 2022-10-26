@@ -120,29 +120,26 @@ func ResetLocation(c *gin.Context) {
 	}
 }
 
-var conditionedDevicesMap = make(map[string]*conditionedDevice)
-var changedStateDevicesMutex sync.Mutex
-
-type conditionedDevice struct {
-	DeviceConditions []deviceConditions
-}
+var conditionedDevicesMap = make(map[string]*deviceConditions)
+var conditionedDevicesMutex sync.Mutex
 
 type deviceConditions struct {
-	ProfileTypeID string
-	ProfileID     string
-	Timestamp     int64
-	StateControl  *instruments.DeviceStateControl
+	ProfileType  instruments.ProfileType
+	Profile      instruments.Profile
+	Timestamp    int64
+	StateControl *instruments.DeviceStateControl
 }
 
-func ResetDeviceStateCRON(control *instruments.DeviceStateControl, pType instruments.ProfileType, timestamp int64) {
-	for range time.Tick(time.Second * 10) {
+func ResetDeviceStateCRON(deviceConditions *deviceConditions) {
+	for range time.Tick(time.Second * 30) {
 		currentTimestamp := time.Now().UnixMilli()
-		diff := currentTimestamp - timestamp
+		diff := currentTimestamp - deviceConditions.Timestamp
 
-		if diff > 120000 {
-			err := control.Disable(pType)
+		if diff > (time.Minute * 10).Milliseconds() {
+			// Disable() does not throw an error even if the respective condition is no longer active on the device
+			err := deviceConditions.StateControl.Disable(deviceConditions.ProfileType)
 			if err != nil {
-				log.Error("Could not disable device state inside CRON")
+				log.Error("CRON did not disable device condition:" + err.Error())
 				break
 			}
 			break
@@ -150,8 +147,18 @@ func ResetDeviceStateCRON(control *instruments.DeviceStateControl, pType instrum
 	}
 }
 
-func EnableDeviceState(c *gin.Context) {
+func EnableDeviceCondition(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	udid := device.Properties.SerialNumber
+
+	conditionedDevicesMutex.Lock()
+	defer conditionedDevicesMutex.Unlock()
+
+	conditionedDevice, exists := conditionedDevicesMap[udid]
+	if exists {
+		c.JSON(http.StatusOK, GenericResponse{Error: "Device is already conditioned - profileTypeID=" + conditionedDevice.ProfileType.Identifier + ", profileID=" + conditionedDevice.Profile.Identifier})
+		return
+	}
 
 	profileTypeID := c.Query("profileTypeID")
 	if profileTypeID == "" {
@@ -177,20 +184,45 @@ func EnableDeviceState(c *gin.Context) {
 		return
 	}
 
-	pType, profile, err := instruments.VerifyProfileAndType(profileTypes, profileTypeID, profileID)
+	profileType, profile, err := instruments.VerifyProfileAndType(profileTypes, profileTypeID, profileID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 		return
 	}
 
-	err = control.Enable(pType, profile)
+	err = control.Enable(profileType, profile)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 		return
-	} else {
-		newDeviceConditions := deviceConditions{ProfileTypeID: profileTypeID, ProfileID: profileID, Timestamp: time.Now().UnixMilli(), StateControl: control}
-		conditionedDevicesMap[device.Properties.SerialNumber].DeviceConditions = append(conditionedDevicesMap[device.Properties.SerialNumber].DeviceConditions, newDeviceConditions)
-		go ResetDeviceStateCRON(control, pType, time.Now().UnixMilli())
-		c.JSON(http.StatusOK, GenericResponse{Message: "Enabled Profile=" + profileID + " for ProfileType=" + profileTypeID})
 	}
+
+	newDeviceConditions := deviceConditions{ProfileType: profileType, Profile: profile, Timestamp: time.Now().UnixMilli(), StateControl: control}
+	conditionedDevicesMap[device.Properties.SerialNumber] = &newDeviceConditions
+	go ResetDeviceStateCRON(&newDeviceConditions)
+
+	c.JSON(http.StatusOK, GenericResponse{Message: "Enabled Profile=" + profileID + " for ProfileType=" + profileTypeID})
+}
+
+func DisableDeviceCondition(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	udid := device.Properties.SerialNumber
+
+	conditionedDevicesMutex.Lock()
+	defer conditionedDevicesMutex.Unlock()
+
+	conditionedDevice, exists := conditionedDevicesMap[udid]
+	if !exists {
+		c.JSON(http.StatusOK, GenericResponse{Error: "Device has no active condition"})
+		return
+	}
+
+	err := conditionedDevice.StateControl.Disable(conditionedDevice.ProfileType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	delete(conditionedDevicesMap, udid)
+
+	c.JSON(http.StatusOK, GenericResponse{Message: "Device condition disabled"})
 }
