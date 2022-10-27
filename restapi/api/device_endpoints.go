@@ -96,9 +96,9 @@ func SetLocation(c *gin.Context) {
 	err := simlocation.SetLocation(device, latitude, longtitude)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
-	} else {
-		c.JSON(http.StatusOK, GenericResponse{Message: "Device location set to latitude=" + latitude + ", longtitude=" + longtitude})
 	}
+
+	c.JSON(http.StatusOK, GenericResponse{Message: "Device location set to latitude=" + latitude + ", longtitude=" + longtitude})
 }
 
 // Reset to the actual device location
@@ -114,9 +114,9 @@ func ResetLocation(c *gin.Context) {
 	err := simlocation.ResetLocation(device)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
-	} else {
-		c.JSON(http.StatusOK, GenericResponse{Message: "Device location reset"})
 	}
+
+	c.JSON(http.StatusOK, GenericResponse{Message: "Device location reset"})
 }
 
 //========================================
