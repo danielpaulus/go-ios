@@ -3,7 +3,6 @@ package api
 import (
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -120,33 +119,55 @@ func ResetLocation(c *gin.Context) {
 	}
 }
 
+//========================================
+// DEVICE STATE CONDITIONS
+//========================================
+
 var conditionedDevicesMap = make(map[string]*deviceConditions)
 var conditionedDevicesMutex sync.Mutex
 
 type deviceConditions struct {
 	ProfileType  instruments.ProfileType
 	Profile      instruments.Profile
-	Timestamp    int64
 	StateControl *instruments.DeviceStateControl
 }
 
-func ResetDeviceStateCRON(deviceConditions *deviceConditions) {
-	for range time.Tick(time.Second * 30) {
-		currentTimestamp := time.Now().UnixMilli()
-		diff := currentTimestamp - deviceConditions.Timestamp
+// Get a list of the available conditions that can be applied on the device
+// @Summary      Get a list of available device conditions
+// @Description  Get a list of the available conditions that can be applied on the device
+// @Tags         general_device_specific
+// @Produce      json
+// @Success      200  {object}  []instruments.ProfileType
+// @Failure      500  {object}  GenericResponse
+// @Router       /device/{udid}/conditions [get]
+func GetSupportedConditions(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 
-		if diff > (time.Minute * 10).Milliseconds() {
-			// Disable() does not throw an error even if the respective condition is no longer active on the device
-			err := deviceConditions.StateControl.Disable(deviceConditions.ProfileType)
-			if err != nil {
-				log.Error("CRON did not disable device condition:" + err.Error())
-				break
-			}
-			break
-		}
+	control, err := instruments.NewDeviceStateControl(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
 	}
+
+	profileTypes, err := control.List()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, profileTypes)
 }
 
+// Enable condition on a device
+// @Summary      Enable condition on a device
+// @Description  Enable condition on a device by provided profileTypeID and profileID
+// @Tags         general_device_specific
+// @Produce      json
+// @Param        profileTypeID  query      string  true  "Identifier of the profile type, eg. SlowNetworkCondition"
+// @Param        profileID  query      string  true  "Identifier of the sub-profile, eg. SlowNetwork100PctLoss"
+// @Success      200  {object}  GenericResponse
+// @Failure      500  {object}  GenericResponse
+// @Router       /device/{udid}/enable-condition [put]
 func EnableDeviceCondition(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 	udid := device.Properties.SerialNumber
@@ -156,7 +177,7 @@ func EnableDeviceCondition(c *gin.Context) {
 
 	conditionedDevice, exists := conditionedDevicesMap[udid]
 	if exists {
-		c.JSON(http.StatusOK, GenericResponse{Error: "Device is already conditioned - profileTypeID=" + conditionedDevice.ProfileType.Identifier + ", profileID=" + conditionedDevice.Profile.Identifier})
+		c.JSON(http.StatusOK, GenericResponse{Error: "Device has an active condition - profileTypeID=" + conditionedDevice.ProfileType.Identifier + ", profileID=" + conditionedDevice.Profile.Identifier})
 		return
 	}
 
@@ -196,13 +217,24 @@ func EnableDeviceCondition(c *gin.Context) {
 		return
 	}
 
-	newDeviceConditions := deviceConditions{ProfileType: profileType, Profile: profile, Timestamp: time.Now().UnixMilli(), StateControl: control}
+	// When we apply a condition using a specific *instruments.DeviceStateControl pointer, we need that same pointer to disable it
+	// Creating a new *DeviceStateControl and providing the same profileType WILL NOT disable the already active condition
+	// For this reason we keep a map of `deviceConditions` that contain their original *DeviceStateControl pointers
+	// which we can use in `DisableDeviceCondition()` to successfully disable the active condition
+	newDeviceConditions := deviceConditions{ProfileType: profileType, Profile: profile, StateControl: control}
 	conditionedDevicesMap[device.Properties.SerialNumber] = &newDeviceConditions
-	go ResetDeviceStateCRON(&newDeviceConditions)
 
-	c.JSON(http.StatusOK, GenericResponse{Message: "Enabled Profile=" + profileID + " for ProfileType=" + profileTypeID})
+	c.JSON(http.StatusOK, GenericResponse{Message: "Enabled condition for ProfileType=" + profileTypeID + " and Profile=" + profileID})
 }
 
+// Disable the currently active condition on a device
+// @Summary      Disable the currently active condition on a device
+// @Description  Disable the currently active condition on a device
+// @Tags         general_device_specific
+// @Produce      json
+// @Success      200  {object}  GenericResponse
+// @Failure      500  {object}  GenericResponse
+// @Router       /device/{udid}/disable-condition [post]
 func DisableDeviceCondition(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 	udid := device.Properties.SerialNumber
@@ -216,6 +248,7 @@ func DisableDeviceCondition(c *gin.Context) {
 		return
 	}
 
+	// Disable() does not throw an error if the respective condition is not active on the device
 	err := conditionedDevice.StateControl.Disable(conditionedDevice.ProfileType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
