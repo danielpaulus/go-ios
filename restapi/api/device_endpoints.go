@@ -123,10 +123,10 @@ func ResetLocation(c *gin.Context) {
 // DEVICE STATE CONDITIONS
 //========================================
 
-var conditionedDevicesMap = make(map[string]*deviceConditions)
-var conditionedDevicesMutex sync.Mutex
+var deviceConditionsMap = make(map[string]deviceCondition)
+var deviceConditionsMutex sync.Mutex
 
-type deviceConditions struct {
+type deviceCondition struct {
 	ProfileType  instruments.ProfileType
 	Profile      instruments.Profile
 	StateControl *instruments.DeviceStateControl
@@ -172,10 +172,10 @@ func EnableDeviceCondition(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 	udid := device.Properties.SerialNumber
 
-	conditionedDevicesMutex.Lock()
-	defer conditionedDevicesMutex.Unlock()
+	deviceConditionsMutex.Lock()
+	defer deviceConditionsMutex.Unlock()
 
-	conditionedDevice, exists := conditionedDevicesMap[udid]
+	conditionedDevice, exists := deviceConditionsMap[udid]
 	if exists {
 		c.JSON(http.StatusOK, GenericResponse{Error: "Device has an active condition - profileTypeID=" + conditionedDevice.ProfileType.Identifier + ", profileID=" + conditionedDevice.Profile.Identifier})
 		return
@@ -221,8 +221,8 @@ func EnableDeviceCondition(c *gin.Context) {
 	// Creating a new *DeviceStateControl and providing the same profileType WILL NOT disable the already active condition
 	// For this reason we keep a map of `deviceConditions` that contain their original *DeviceStateControl pointers
 	// which we can use in `DisableDeviceCondition()` to successfully disable the active condition
-	newDeviceConditions := deviceConditions{ProfileType: profileType, Profile: profile, StateControl: control}
-	conditionedDevicesMap[device.Properties.SerialNumber] = &newDeviceConditions
+	newDeviceCondition := deviceCondition{ProfileType: profileType, Profile: profile, StateControl: control}
+	deviceConditionsMap[device.Properties.SerialNumber] = newDeviceCondition
 
 	c.JSON(http.StatusOK, GenericResponse{Message: "Enabled condition for ProfileType=" + profileTypeID + " and Profile=" + profileID})
 }
@@ -239,10 +239,10 @@ func DisableDeviceCondition(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 	udid := device.Properties.SerialNumber
 
-	conditionedDevicesMutex.Lock()
-	defer conditionedDevicesMutex.Unlock()
+	deviceConditionsMutex.Lock()
+	defer deviceConditionsMutex.Unlock()
 
-	conditionedDevice, exists := conditionedDevicesMap[udid]
+	conditionedDevice, exists := deviceConditionsMap[udid]
 	if !exists {
 		c.JSON(http.StatusOK, GenericResponse{Error: "Device has no active condition"})
 		return
@@ -255,7 +255,7 @@ func DisableDeviceCondition(c *gin.Context) {
 		return
 	}
 
-	delete(conditionedDevicesMap, udid)
+	delete(deviceConditionsMap, udid)
 
 	c.JSON(http.StatusOK, GenericResponse{Message: "Device condition disabled"})
 }
