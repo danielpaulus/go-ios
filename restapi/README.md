@@ -2,7 +2,7 @@
 
 ## getting started:
 - go install github.com/swaggo/swag/cmd/swag@latest
-- swag init
+- swag init --parseDependency
 - go run main.go
 
 plug an ios device into your machine and test on localhost:8080
