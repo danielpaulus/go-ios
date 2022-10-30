@@ -28,8 +28,11 @@ func registerRoutes(router *gin.RouterGroup) {
 	go reservation.CleanReservationsCRON()
 }
 func initAppRoutes(group *gin.RouterGroup) {
-	router := group.Group("/app")
+	router := group.Group("/apps")
 	router.GET("/", ListApps)
+	router.POST("/launch", LaunchApp)
+	router.POST("/kill", KillApp)
+	router.Use(LimitNumClientsUDID())
 }
 
 func initStreamingResponseRoutes(device *gin.RouterGroup, router *gin.RouterGroup) {
