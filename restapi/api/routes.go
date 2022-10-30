@@ -13,6 +13,9 @@ func registerRoutes(router *gin.RouterGroup) {
 	device.GET("/screenshot", Screenshot)
 	device.PUT("/setlocation", SetLocation)
 	device.POST("/resetlocation", ResetLocation)
+	device.GET("/conditions", GetSupportedConditions)
+	device.PUT("/enable-condition", EnableDeviceCondition)
+	device.POST("/disable-condition", DisableDeviceCondition)
 
 	router.GET("/reserved-devices", reservation.GetReservedDevices)
 	reservations := router.Group("/reserve/:udid")
