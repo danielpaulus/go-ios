@@ -1,6 +1,7 @@
 package reservation
 
 import (
+	"errors"
 	"net/http"
 	"sync"
 	"time"
@@ -12,31 +13,13 @@ import (
 var reservedDevicesMap = make(map[string]*reservedDevice)
 var reserveMutex sync.Mutex
 var ReservedDevicesTimeout time.Duration = 5
+var ReserveAdminUUID = "go-admin"
 
 type reservedDevice struct {
 	Message           string `json:"message,omitempty"`
 	UDID              string `json:"udid,omitempty"`
 	ReservationID     string `json:"reservationID,omitempty"`
 	LastUsedTimestamp int64  `json:"lastUsed,omitempty"`
-}
-
-func CleanReservationsCRON() {
-	defer reserveMutex.Unlock()
-
-	// Every minute loop through the map of reserved devices and check if a reserved device last used timestamp was more than 5 minutes(300000 ms) ago
-	// If any, remove them from the map
-	for range time.Tick(time.Second * 60) {
-		reserveMutex.Lock()
-		for udid, reservedDevice := range reservedDevicesMap {
-			currentTimestamp := time.Now().UnixMilli()
-			diff := currentTimestamp - reservedDevice.LastUsedTimestamp
-
-			if diff > (time.Minute * ReservedDevicesTimeout).Milliseconds() {
-				delete(reservedDevicesMap, udid)
-			}
-		}
-		reserveMutex.Unlock()
-	}
 }
 
 // Reserve device access
@@ -122,4 +105,39 @@ func GetReservedDevices(c *gin.Context) {
 	}
 
 	c.IndentedJSON(http.StatusOK, reserved_devices)
+}
+
+func CleanReservationsCRON() {
+	defer reserveMutex.Unlock()
+
+	// Every minute loop through the map of reserved devices and check if a reserved device last used timestamp was more than X minutes ago
+	// If any, remove them from the map
+	for range time.Tick(time.Second * 60) {
+		reserveMutex.Lock()
+		for udid, reservedDevice := range reservedDevicesMap {
+			currentTimestamp := time.Now().UnixMilli()
+			diff := currentTimestamp - reservedDevice.LastUsedTimestamp
+
+			if diff > (time.Minute * ReservedDevicesTimeout).Milliseconds() {
+				delete(reservedDevicesMap, udid)
+			}
+		}
+		reserveMutex.Unlock()
+	}
+}
+
+func CheckDeviceReserved(deviceUDID string, reservationID string) error {
+	reserveMutex.Lock()
+	defer reserveMutex.Unlock()
+
+	reservedDevice, exists := reservedDevicesMap[deviceUDID]
+	if exists {
+		if reservedDevice.ReservationID == reservationID || ReserveAdminUUID == reservationID {
+			reservedDevice.LastUsedTimestamp = time.Now().UnixMilli()
+			return nil
+		}
+
+		return errors.New("Device is already reserved with another reservationID")
+	}
+	return errors.New("You need to reserve the device before using it")
 }

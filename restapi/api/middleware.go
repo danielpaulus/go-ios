@@ -1,11 +1,13 @@
 package api
 
 import (
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/restapi/api/reservation"
+	"github.com/gin-gonic/gin"
 )
 
 // DeviceMiddleware makes sure a udid was specified and that a device with that UDID
@@ -65,6 +67,24 @@ func StreamingHeaderMiddleware() gin.HandlerFunc {
 		c.Writer.Header().Set("Cache-Control", "no-cache")
 		c.Writer.Header().Set("Connection", "keep-alive")
 		c.Writer.Header().Set("Transfer-Encoding", "chunked")
+		c.Next()
+	}
+}
+
+func ReserveDevicesMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		udid := c.Param("udid")
+		reservationID := c.Request.Header.Get("X-GO-IOS-RESERVE")
+		if reservationID == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, GenericResponse{Error: "X-GO-IOS-RESERVE header is missing or it has an empty value"})
+			return
+		}
+
+		err := reservation.CheckDeviceReserved(udid, reservationID)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, GenericResponse{Error: err.Error()})
+			return
+		}
 		c.Next()
 	}
 }

@@ -29,10 +29,11 @@ func registerRoutes(router *gin.RouterGroup) {
 }
 func initAppRoutes(group *gin.RouterGroup) {
 	router := group.Group("/apps")
+	router.Use(LimitNumClientsUDID())
+	router.Use(ReserveDevicesMiddleware())
 	router.GET("/", ListApps)
 	router.POST("/launch", LaunchApp)
 	router.POST("/kill", KillApp)
-	router.Use(LimitNumClientsUDID())
 }
 
 func initStreamingResponseRoutes(device *gin.RouterGroup, router *gin.RouterGroup) {
