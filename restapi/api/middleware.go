@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/restapi/api/reservation"
 	"github.com/gin-gonic/gin"
 )
 
@@ -80,7 +79,7 @@ func ReserveDevicesMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		err := reservation.CheckDeviceReserved(udid, reservationID)
+		err := CheckDeviceReserved(udid, reservationID)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, GenericResponse{Error: err.Error()})
 			return

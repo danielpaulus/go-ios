@@ -1,7 +1,8 @@
-package reservation
+package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -24,6 +25,9 @@ func setupRouter() *gin.Engine {
 	r.POST("/reserve/:udid", ReserveDevice)
 	r.DELETE("/reserve/:udid", ReleaseDevice)
 	r.GET("/reserved-devices", GetReservedDevices)
+
+	r.Use(ReserveDevicesMiddleware())
+	r.POST("/:udid/launch", LaunchApp)
 
 	reservedDevicesMap = make(map[string]*reservedDevice)
 	return r
@@ -120,6 +124,109 @@ func TestValidateDeviceNotReserved(t *testing.T) {
 	releaseDeviceRequest := deleteReservation(t, responseRecorder)
 	require.Equal(t, http.StatusNotFound, responseRecorder.Code, "DELETE %v was unsuccessful", releaseDeviceRequest.URL)
 	validateNotReserved(t, responseRecorder)
+}
+
+func TestValidateMiddlewareHeaderMissing(t *testing.T) {
+	r = setupRouter()
+	responseRecorder := httptest.NewRecorder()
+
+	launchAppRequest, err := http.NewRequest("POST", randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+	r.ServeHTTP(responseRecorder, launchAppRequest)
+	require.Equal(t, http.StatusBadRequest, responseRecorder.Code, "Code should be BadRequest if X-GO-IOS-RESERVE header is missing")
+
+	var response GenericResponse
+	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	err = json.Unmarshal(responseData, &response)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	require.NotEmpty(t, response.Error, "There is no error message returned when X-GO-IOS-RESERVE header is missing")
+	fmt.Println(response.Error)
+}
+
+func TestValidateMiddlewareHeaderEmpty(t *testing.T) {
+	r = setupRouter()
+	responseRecorder := httptest.NewRecorder()
+
+	launchAppRequest, err := http.NewRequest("POST", randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+	launchAppRequest.Header.Add("X-GO-IOS-RESERVE", "")
+	r.ServeHTTP(responseRecorder, launchAppRequest)
+	require.Equal(t, http.StatusBadRequest, responseRecorder.Code, "Code should be BadRequest if X-GO-IOS-RESERVE header is empty")
+
+	var response GenericResponse
+	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	err = json.Unmarshal(responseData, &response)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	require.NotEmpty(t, response.Error, "There is no error message returned when X-GO-IOS-RESERVE header is missing")
+	fmt.Println(response.Error)
+}
+
+func TestValidateMiddlewareHeaderDeviceNotReserved(t *testing.T) {
+	r = setupRouter()
+	responseRecorder := httptest.NewRecorder()
+
+	launchAppRequest, err := http.NewRequest("POST", randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+	launchAppRequest.Header.Add("X-GO-IOS-RESERVE", "go-admin")
+	r.ServeHTTP(responseRecorder, launchAppRequest)
+	require.Equal(t, http.StatusBadRequest, responseRecorder.Code, "Code should be BadRequest if X-GO-IOS-RESERVE header is empty")
+
+	var response GenericResponse
+	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	err = json.Unmarshal(responseData, &response)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	require.NotEmpty(t, response.Error, "There is no error message returned when X-GO-IOS-RESERVE header is missing")
+	fmt.Println(response.Error)
+}
+
+func TestValidateMiddlewareDeviceReservedWrongUUID(t *testing.T) {
+	r = setupRouter()
+	responseRecorder := httptest.NewRecorder()
+
+	reserveRequest := postReservation(t, responseRecorder)
+	require.Equal(t, http.StatusOK, responseRecorder.Code, "POST to %v was unsuccessful", reserveRequest.URL)
+
+	launchAppRequest, err := http.NewRequest("POST", randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+	launchAppRequest.Header.Set("X-GO-IOS-RESERVE", "bad-uuid")
+	r.ServeHTTP(responseRecorder, launchAppRequest)
+	//require.Equal(t, http.StatusBadRequest, responseRecorder.Code, "Code should be BadRequest if X-GO-IOS-RESERVE header is empty")
+
+	var response GenericResponse
+	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	fmt.Println(string(responseData))
+	err = json.Unmarshal(responseData, &response)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	require.NotEmpty(t, response.Error, "There is no error message returned when X-GO-IOS-RESERVE header is missing")
+	fmt.Println(response.Error)
 }
 
 // HELPER FUNCTIONS
