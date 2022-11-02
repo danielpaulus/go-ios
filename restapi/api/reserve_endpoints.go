@@ -143,7 +143,6 @@ func CheckDeviceReserved(deviceUDID string, reservationID string) error {
 			reservedDevice.LastUsedTimestamp = time.Now().UnixMilli()
 			return nil
 		}
-
 		return errors.New("Device is already reserved with another reservationID")
 	}
 	return errors.New("You need to reserve the device before using it")

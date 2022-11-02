@@ -22,8 +22,8 @@ func setupRouter() *gin.Engine {
 
 	r := gin.Default()
 	r.Use(fakeDeviceMiddleware())
-	r.POST("/reserve/:udid", ReserveDevice)
-	r.DELETE("/reserve/:udid", ReleaseDevice)
+	r.POST("/:udid/reserve", ReserveDevice)
+	r.DELETE("/:udid/:reserve", ReleaseDevice)
 	r.GET("/reserved-devices", GetReservedDevices)
 
 	r.Use(ReserveDevicesMiddleware())
@@ -130,7 +130,7 @@ func TestValidateMiddlewareHeaderMissing(t *testing.T) {
 	r = setupRouter()
 	responseRecorder := httptest.NewRecorder()
 
-	launchAppRequest, err := http.NewRequest("POST", randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
+	launchAppRequest, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -154,7 +154,7 @@ func TestValidateMiddlewareHeaderEmpty(t *testing.T) {
 	r = setupRouter()
 	responseRecorder := httptest.NewRecorder()
 
-	launchAppRequest, err := http.NewRequest("POST", randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
+	launchAppRequest, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -179,7 +179,7 @@ func TestValidateMiddlewareHeaderDeviceNotReserved(t *testing.T) {
 	r = setupRouter()
 	responseRecorder := httptest.NewRecorder()
 
-	launchAppRequest, err := http.NewRequest("POST", randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
+	launchAppRequest, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -207,18 +207,18 @@ func TestValidateMiddlewareDeviceReservedWrongUUID(t *testing.T) {
 	reserveRequest := postReservation(t, responseRecorder)
 	require.Equal(t, http.StatusOK, responseRecorder.Code, "POST to %v was unsuccessful", reserveRequest.URL)
 
-	launchAppRequest, err := http.NewRequest("POST", randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
+	responseRecorder = httptest.NewRecorder()
+	launchAppRequest, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
 	}
 	launchAppRequest.Header.Set("X-GO-IOS-RESERVE", "bad-uuid")
 	r.ServeHTTP(responseRecorder, launchAppRequest)
-	//require.Equal(t, http.StatusBadRequest, responseRecorder.Code, "Code should be BadRequest if X-GO-IOS-RESERVE header is empty")
+	require.Equal(t, http.StatusBadRequest, responseRecorder.Code, "Code should be BadRequest if X-GO-IOS-RESERVE header is empty")
 
 	var response GenericResponse
 	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
-	fmt.Println(string(responseData))
 	err = json.Unmarshal(responseData, &response)
 	if err != nil {
 		t.Error(err)
@@ -226,12 +226,11 @@ func TestValidateMiddlewareDeviceReservedWrongUUID(t *testing.T) {
 	}
 
 	require.NotEmpty(t, response.Error, "There is no error message returned when X-GO-IOS-RESERVE header is missing")
-	fmt.Println(response.Error)
 }
 
 // HELPER FUNCTIONS
 func postReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder) *http.Request {
-	reserveDevice, err := http.NewRequest("POST", "/reserve/"+randomDeviceUDID, nil)
+	reserveDevice, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/reserve", nil)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -243,7 +242,7 @@ func postReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder) 
 }
 
 func deleteReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder) *http.Request {
-	releaseDeviceRequest, err := http.NewRequest("DELETE", "/reserve/"+randomDeviceUDID, nil)
+	releaseDeviceRequest, err := http.NewRequest("DELETE", "/"+randomDeviceUDID+"/reserve", nil)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
