@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -131,14 +130,9 @@ func CheckDeviceReserved(deviceUDID string, reservationID string) error {
 	reserveMutex.Lock()
 	defer reserveMutex.Unlock()
 
-	fmt.Println("checkvam v mapa za " + deviceUDID)
-	fmt.Printf("tova e mapa v momenta: %v \n", reservedDevicesMap)
 	reservedDevice, exists := reservedDevicesMap[deviceUDID]
 
 	if exists {
-		fmt.Println(reservationID)
-		fmt.Println("DEVAISA E V MAPA")
-		fmt.Println(reservedDevice.ReservationID)
 		if reservedDevice.ReservationID == reservationID || ReserveAdminUUID == reservationID {
 			reservedDevice.LastUsedTimestamp = time.Now().UnixMilli()
 			return nil

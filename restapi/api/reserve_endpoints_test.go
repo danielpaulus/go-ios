@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -45,8 +44,7 @@ func TestDeviceReservation(t *testing.T) {
 	responseRecorder := httptest.NewRecorder()
 
 	// Reserve the device
-	reserveRequest := postReservation(t, responseRecorder)
-	require.Equal(t, http.StatusOK, responseRecorder.Code, "POST to %v was unsuccessful", reserveRequest.URL)
+	postReservation(t, responseRecorder)
 	validateSuccessfulReservation(t, responseRecorder)
 }
 
@@ -55,13 +53,12 @@ func TestDeviceReservationAlreadyReserved(t *testing.T) {
 	responseRecorder := httptest.NewRecorder()
 
 	// Reserve the device
-	reserveRequest := postReservation(t, responseRecorder)
-	require.Equal(t, http.StatusOK, responseRecorder.Code, "Initial POST to %v was unsuccessful", reserveRequest.URL)
+	postReservation(t, responseRecorder)
 	validateSuccessfulReservation(t, responseRecorder)
 
 	// Try to reserve the already reserved device
-	reserveRequest = postReservation(t, responseRecorder)
-	require.Equal(t, http.StatusOK, responseRecorder.Code, "Second POST to %v was unsuccessful", reserveRequest.URL)
+	responseRecorder = httptest.NewRecorder()
+	postReservation(t, responseRecorder)
 	validateDeviceAlreadyReserved(t, responseRecorder)
 }
 
@@ -70,11 +67,11 @@ func TestReleasingDevice(t *testing.T) {
 	responseRecorder := httptest.NewRecorder()
 
 	// Reserve the device
-	reserveRequest := postReservation(t, responseRecorder)
-	require.Equal(t, http.StatusOK, responseRecorder.Code, "POST to %v was unsuccessful", reserveRequest.URL)
+	postReservation(t, responseRecorder)
 	reserveID := validateSuccessfulReservation(t, responseRecorder)
 
 	// Validate device is in /reserved-devices list
+	responseRecorder = httptest.NewRecorder()
 	getDevicesRequest := getReservedDevices(t, responseRecorder)
 	require.Equal(t, http.StatusOK, responseRecorder.Code, "GET %v was unsuccessful", getDevicesRequest.URL)
 
@@ -97,6 +94,7 @@ func TestReleasingDevice(t *testing.T) {
 	require.True(t, reservationid_exists, "Could not find device with `reservation_id`=%v in GET /reserved-devices response", reserveID)
 
 	// Release the reserved device
+	responseRecorder = httptest.NewRecorder()
 	releaseDeviceRequest := deleteReservation(t, responseRecorder)
 	require.Equal(t, http.StatusOK, responseRecorder.Code, "DELETE %v was unsuccessful", releaseDeviceRequest.URL)
 	validateDeviceReleased(t, responseRecorder)
@@ -147,7 +145,6 @@ func TestValidateMiddlewareHeaderMissing(t *testing.T) {
 	}
 
 	require.NotEmpty(t, response.Error, "There is no error message returned when X-GO-IOS-RESERVE header is missing")
-	fmt.Println(response.Error)
 }
 
 func TestValidateMiddlewareHeaderEmpty(t *testing.T) {
@@ -172,7 +169,6 @@ func TestValidateMiddlewareHeaderEmpty(t *testing.T) {
 	}
 
 	require.NotEmpty(t, response.Error, "There is no error message returned when X-GO-IOS-RESERVE header is missing")
-	fmt.Println(response.Error)
 }
 
 func TestValidateMiddlewareHeaderDeviceNotReserved(t *testing.T) {
@@ -197,15 +193,13 @@ func TestValidateMiddlewareHeaderDeviceNotReserved(t *testing.T) {
 	}
 
 	require.NotEmpty(t, response.Error, "There is no error message returned when X-GO-IOS-RESERVE header is missing")
-	fmt.Println(response.Error)
 }
 
 func TestValidateMiddlewareDeviceReservedWrongUUID(t *testing.T) {
 	r = setupRouter()
 	responseRecorder := httptest.NewRecorder()
 
-	reserveRequest := postReservation(t, responseRecorder)
-	require.Equal(t, http.StatusOK, responseRecorder.Code, "POST to %v was unsuccessful", reserveRequest.URL)
+	postReservation(t, responseRecorder)
 
 	responseRecorder = httptest.NewRecorder()
 	launchAppRequest, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
@@ -226,6 +220,46 @@ func TestValidateMiddlewareDeviceReservedWrongUUID(t *testing.T) {
 	}
 
 	require.NotEmpty(t, response.Error, "There is no error message returned when X-GO-IOS-RESERVE header is missing")
+}
+
+func TestValidateMiddlewareDeviceReservedValidUUID(t *testing.T) {
+	r = setupRouter()
+	responseRecorder := httptest.NewRecorder()
+
+	postReservation(t, responseRecorder)
+	reservationID := validateSuccessfulReservation(t, responseRecorder)
+
+	responseRecorder = httptest.NewRecorder()
+	launchAppRequest, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+	launchAppRequest.Header.Set("X-GO-IOS-RESERVE", reservationID)
+	r.ServeHTTP(responseRecorder, launchAppRequest)
+	// Launching app does not really work with a mocked device
+	// We check that status is not 400 because in the current scenario 400 is only returned when there is a problem with the reservation header
+	require.NotEqual(t, http.StatusBadRequest, responseRecorder.Code)
+}
+
+func TestValidateMiddlewareDeviceReservedAdminUUID(t *testing.T) {
+	r = setupRouter()
+	responseRecorder := httptest.NewRecorder()
+
+	postReservation(t, responseRecorder)
+	validateSuccessfulReservation(t, responseRecorder)
+
+	responseRecorder = httptest.NewRecorder()
+	launchAppRequest, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+	launchAppRequest.Header.Set("X-GO-IOS-RESERVE", ReserveAdminUUID)
+	r.ServeHTTP(responseRecorder, launchAppRequest)
+	// Launching app does not really work with a mocked device
+	// We check that status is not 400 because in the current scenario 400 is only returned when there is a problem with the reservation header
+	require.NotEqual(t, http.StatusBadRequest, responseRecorder.Code)
 }
 
 // HELPER FUNCTIONS
