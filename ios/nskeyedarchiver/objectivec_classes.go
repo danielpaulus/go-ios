@@ -43,6 +43,7 @@ func SetupEncoders() {
 			"NSNull":              archiveNSNull,
 			"NSMutableDictionary": archiveNSMutableDictionary,
 			"XCTCapabilities":     archiveXCTCapabilities,
+			"[]string":            archiveStringSlice,
 		}
 	}
 }
@@ -411,7 +412,10 @@ type NSMutableDictionary struct {
 func NewNSMutableDictionary(internalDict map[string]interface{}) interface{} {
 	return NSMutableDictionary{internalDict}
 }
-
+func archiveStringSlice(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	sl := object.([]string)
+	return serializeArray(toInterfaceSlice(sl), objects)
+}
 func archiveNSMutableDictionary(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	mut := object.(NSMutableDictionary)
 	return serializeMap(mut.internalDict, objects, buildClassDict("NSMutableDictionary", "NSDictionary", "NSObject"))

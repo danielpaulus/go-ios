@@ -22,11 +22,11 @@ func Forward(device ios.DeviceEntry, hostPort uint16, phonePort uint16) error {
 	log.Infof("Start listening on port %d forwarding to port %d on device", hostPort, phonePort)
 	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", hostPort))
 
-	go connectionAccept(l, device.DeviceID, phonePort)
-
 	if err != nil {
 		return err
 	}
+
+	go connectionAccept(l, device.DeviceID, phonePort)
 
 	return nil
 }
