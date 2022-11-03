@@ -215,8 +215,12 @@ func (d Message) parsePayloadBytes(messageBytes []byte) ([]interface{}, error) {
 		return []interface{}{messageBytes[offset:]}, nil
 	}
 	if d.PayloadHeader.MessageType == LZ4CompressedMessage {
-		log.Infof("skipping lz4 compressed msg: %x", messageBytes[offset:])
-		Decompress(messageBytes[offset:])
+		uncompressed, err := Decompress(messageBytes[offset:])
+		if err == nil {
+			log.Infof("lz4 compressed %d bytes/ %d uncompressed ", len(messageBytes[offset:]), len(uncompressed))
+		} else {
+			log.Infof("skipping lz4 compressed msg with %d bytes, decompression error %v", len(messageBytes[offset:]), err)
+		}
 		return []interface{}{messageBytes[offset:]}, nil
 	}
 	return nskeyedarchiver.Unarchive(messageBytes[offset:])

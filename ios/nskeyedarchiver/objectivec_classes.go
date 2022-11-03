@@ -30,6 +30,8 @@ func SetupDecoders() {
 			"NSValue":                   NewNSValue,
 			"XCTTestIdentifier":         NewXCTTestIdentifier,
 			"DTTapStatusMessage":        NewDTTapStatusMessage,
+			"DTTapMessage":              NewDTTapMessage,
+			"DTCPUClusterInfo":          NewDTCPUClusterInfo,
 		}
 	}
 }
@@ -348,6 +350,10 @@ type DTTapHeartbeatMessage struct {
 	DTTapMessagePlist map[string]interface{}
 }
 
+type DTTapMessage struct {
+	DTTapMessagePlist map[string]interface{}
+}
+
 type XCTCapabilities struct {
 	CapabilitiesDictionary map[string]interface{}
 }
@@ -362,6 +368,12 @@ func NewDTTapHeartbeatMessage(object map[string]interface{}, objects []interface
 	ref := object["DTTapMessagePlist"].(plist.UID)
 	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
 	return DTTapHeartbeatMessage{DTTapMessagePlist: plist}
+}
+
+func NewDTTapMessage(object map[string]interface{}, objects []interface{}) interface{} {
+	ref := object["DTTapMessagePlist"].(plist.UID)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	return DTTapMessage{DTTapMessagePlist: plist}
 }
 
 type DTTapStatusMessage struct {
@@ -383,6 +395,15 @@ func NewNSDate(object map[string]interface{}, objects []interface{}) interface{}
 }
 func (n NSDate) String() string {
 	return fmt.Sprintf("%s", n.Timestamp)
+}
+
+type DTCPUClusterInfo struct {
+	ClusterID    uint64
+	ClusterFlags uint64
+}
+
+func NewDTCPUClusterInfo(object map[string]interface{}, objects []interface{}) interface{} {
+	return DTCPUClusterInfo{ClusterID: object["_clusterID"].(uint64), ClusterFlags: object["_clusterFlags"].(uint64)}
 }
 
 type NSNull struct {

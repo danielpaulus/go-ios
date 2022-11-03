@@ -3,13 +3,12 @@ package dtx
 import (
 	"encoding/binary"
 	"github.com/pierrec/lz4"
-	log "github.com/sirupsen/logrus"
 )
 
 const bv41 = 0x62763431
 
 //https://discuss.appium.io/t/how-to-parse-trace-file-to-get-cpu-performance-usage-data-for-ios-apps/35334/2
-func Decompress(data []byte) error {
+func Decompress(data []byte) ([]byte, error) {
 	//no idea what the first four bytes mean
 	totalUncompressedSize := binary.LittleEndian.Uint32(data)
 	data = data[4:]
@@ -30,9 +29,8 @@ func Decompress(data []byte) error {
 	uncompressedData := make([]byte, totalUncompressedSize+100)
 	n, err := lz4.UncompressBlock(compressedAgg, uncompressedData)
 	if err != nil {
-		log.Info(n)
-		log.Warn(err)
+		return []byte{}, err
 	}
-	log.Infof("%x", uncompressedData[:n])
-	return nil
+	//log.Infof("uncompressed lz4 data of %d bytes", len(uncompressedData[:n]))
+	return uncompressedData[:n], nil
 }

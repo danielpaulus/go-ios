@@ -133,7 +133,11 @@ func logDtxMessageNice(log *log.Entry, msg dtx.Message) {
 		return
 	}
 	if msg.PayloadHeader.MessageType == dtx.UnknownTypeOne {
-		log.Infof("type1: %x", msg.Payload[0])
+		if len(msg.Payload) > 0 {
+			log.Infof("type1 with payload: %x", msg.Payload[0])
+			return
+		}
+		log.Infof("type1 without payload: %+v", msg)
 		return
 	}
 	if msg.PayloadHeader.MessageType == dtx.ResponseWithReturnValueInPayload {
