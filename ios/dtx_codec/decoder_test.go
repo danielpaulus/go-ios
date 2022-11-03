@@ -32,6 +32,22 @@ func TestErrors(t *testing.T) {
 
 }
 
+func TestLZ4CompressedDtxMessage(t *testing.T) {
+	dat, err := ioutil.ReadFile("fixtures/instruments-metrics-dtx.bin")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fixtureMsg, _, err := dtx.DecodeNonBlocking(dat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Infof("%v", fixtureMsg)
+	assert.NoError(t, err)
+
+}
+
 func TestCodec2(t *testing.T) {
 	dat, err := ioutil.ReadFile("fixtures/requestChannelWithCodeIdentifier.bin")
 
