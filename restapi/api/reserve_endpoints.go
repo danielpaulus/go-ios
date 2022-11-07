@@ -56,33 +56,26 @@ func ReserveDevice(c *gin.Context) {
 // @Summary      Release a device
 // @Description  Release a device by provided UDID
 // @Tags         reservations
-// @Param        udid  path      string  true  "device udid"
 // @Param        reservationID  path      string  true  "reservation ID generated when reserving device"
 // @Produce      json
 // @Success      200  {object} reservedDevice
 // @Failure      404  {object} reservedDevice
-// @Router       /{udid}/reservations/{reservationID} [delete]
+// @Router       /reservations/{reservationID} [delete]
 func ReleaseDevice(c *gin.Context) {
-	udid := c.Param("udid")
 	reservationID := c.Param("reservationID")
 
 	reserveMutex.Lock()
 	defer reserveMutex.Unlock()
 
-	// Check if there is a reserved device for the respective UDID
-	device := reservedDevicesMap[udid]
-	if device == nil {
-		c.IndentedJSON(http.StatusNotFound, reservedDevice{Message: "Not reserved"})
-		return
+	for udid, device := range reservedDevicesMap {
+		if device.ReservationID == reservationID {
+			delete(reservedDevicesMap, udid)
+			c.IndentedJSON(http.StatusOK, reservedDevice{Message: "Successfully released"})
+			return
+		}
 	}
 
-	if device.ReservationID != reservationID {
-		c.IndentedJSON(http.StatusUnprocessableEntity, reservedDevice{Message: "Cannot release device, wrong reservationID"})
-		return
-	}
-
-	delete(reservedDevicesMap, udid)
-	c.IndentedJSON(http.StatusOK, reservedDevice{Message: "Successfully released"})
+	c.IndentedJSON(http.StatusNotFound, reservedDevice{Message: "Not reserved or wrong reservationID"})
 }
 
 // Get all reserved devices

@@ -22,7 +22,7 @@ func setupRouter() *gin.Engine {
 	r := gin.Default()
 	r.Use(fakeDeviceMiddleware())
 	r.POST("/:udid/reservations", ReserveDevice)
-	r.DELETE("/:udid/reservations/:reservationID", ReleaseDevice)
+	r.DELETE("/reservations/:reservationID", ReleaseDevice)
 	r.GET("/reservations", GetReservedDevices)
 
 	reservedDevicesMap = make(map[string]*reservedDevice)
@@ -291,7 +291,7 @@ func postReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder) 
 }
 
 func deleteReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder, reservationID string) *http.Request {
-	releaseDeviceRequest, err := http.NewRequest("DELETE", "/"+randomDeviceUDID+"/reservations/"+reservationID, nil)
+	releaseDeviceRequest, err := http.NewRequest("DELETE", "/reservations/"+reservationID, nil)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -347,7 +347,7 @@ func validateNotReserved(t *testing.T, responseRecorder *httptest.ResponseRecord
 		t.FailNow()
 	}
 
-	require.Equal(t, "Not reserved", notReservedResponse.Message)
+	require.Equal(t, "Not reserved or wrong reservationID", notReservedResponse.Message)
 }
 
 func validateDeviceReleased(t *testing.T, responseRecorder *httptest.ResponseRecorder) {
