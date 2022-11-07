@@ -2,7 +2,7 @@ package api
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,12 +21,9 @@ func setupRouter() *gin.Engine {
 
 	r := gin.Default()
 	r.Use(fakeDeviceMiddleware())
-	r.POST("/:udid/reserve", ReserveDevice)
-	r.DELETE("/:udid/:reserve", ReleaseDevice)
-	r.GET("/reserved-devices", GetReservedDevices)
-
-	r.Use(ReserveDevicesMiddleware())
-	r.POST("/:udid/launch", LaunchApp)
+	r.POST("/:udid/reservations", ReserveDevice)
+	r.DELETE("/:udid/reservations/:reservationID", ReleaseDevice)
+	r.GET("/reservations", GetReservedDevices)
 
 	reservedDevicesMap = make(map[string]*reservedDevice)
 	return r
@@ -68,15 +65,15 @@ func TestReleasingDevice(t *testing.T) {
 
 	// Reserve the device
 	postReservation(t, responseRecorder)
-	reserveID := validateSuccessfulReservation(t, responseRecorder)
+	reservationID := validateSuccessfulReservation(t, responseRecorder)
 
-	// Validate device is in /reserved-devices list
+	// Validate device is in /reservations list
 	responseRecorder = httptest.NewRecorder()
 	getDevicesRequest := getReservedDevices(t, responseRecorder)
 	require.Equal(t, http.StatusOK, responseRecorder.Code, "GET %v was unsuccessful", getDevicesRequest.URL)
 
 	var devicesResponse []reservedDevice
-	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	responseData, _ := io.ReadAll(responseRecorder.Body)
 	err := json.Unmarshal(responseData, &devicesResponse)
 	if err != nil {
 		t.Error(err)
@@ -85,26 +82,26 @@ func TestReleasingDevice(t *testing.T) {
 
 	var reservationid_exists = false
 	for _, device := range devicesResponse {
-		if device.ReservationID == reserveID {
+		if device.ReservationID == reservationID {
 			reservationid_exists = true
 			require.Equal(t, device.UDID, randomDeviceUDID, "Device UDID does not correspond to the ReservationID, expected UDID=%v, got=%v", randomDeviceUDID, device.UDID)
 			require.NotEmpty(t, device.LastUsedTimestamp, "`lastUsed` is empty but it shouldn't be")
 		}
 	}
-	require.True(t, reservationid_exists, "Could not find device with `reservation_id`=%v in GET /reserved-devices response", reserveID)
+	require.True(t, reservationid_exists, "Could not find device with `reservationID`=%v in GET /reservations response", reservationID)
 
 	// Release the reserved device
 	responseRecorder = httptest.NewRecorder()
-	releaseDeviceRequest := deleteReservation(t, responseRecorder)
+	releaseDeviceRequest := deleteReservation(t, responseRecorder, reservationID)
 	require.Equal(t, http.StatusOK, responseRecorder.Code, "DELETE %v was unsuccessful", releaseDeviceRequest.URL)
 	validateDeviceReleased(t, responseRecorder)
 
-	// Validate no reserved devices present in /reserved-devices response
+	// Validate no reserved devices present in /reservations response
 	r.ServeHTTP(responseRecorder, getDevicesRequest)
 	require.Equal(t, http.StatusOK, responseRecorder.Code, "GET %v was unsuccessful", getDevicesRequest.URL)
 
 	var noReservedDevicesResponse []reservedDevice
-	responseData, _ = ioutil.ReadAll(responseRecorder.Body)
+	responseData, _ = io.ReadAll(responseRecorder.Body)
 	err = json.Unmarshal(responseData, &noReservedDevicesResponse)
 	if err != nil {
 		t.Error(err)
@@ -119,13 +116,16 @@ func TestValidateDeviceNotReserved(t *testing.T) {
 	responseRecorder := httptest.NewRecorder()
 
 	// Validate device not reserved response
-	releaseDeviceRequest := deleteReservation(t, responseRecorder)
+	releaseDeviceRequest := deleteReservation(t, responseRecorder, "test")
 	require.Equal(t, http.StatusNotFound, responseRecorder.Code, "DELETE %v was unsuccessful", releaseDeviceRequest.URL)
 	validateNotReserved(t, responseRecorder)
 }
 
 func TestValidateMiddlewareHeaderMissing(t *testing.T) {
 	r = setupRouter()
+	r.Use(ReserveDevicesMiddleware())
+	r.POST("/:udid/launch", LaunchApp)
+
 	responseRecorder := httptest.NewRecorder()
 
 	launchAppRequest, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
@@ -137,7 +137,7 @@ func TestValidateMiddlewareHeaderMissing(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, responseRecorder.Code, "Code should be BadRequest if X-GO-IOS-RESERVE header is missing")
 
 	var response GenericResponse
-	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	responseData, _ := io.ReadAll(responseRecorder.Body)
 	err = json.Unmarshal(responseData, &response)
 	if err != nil {
 		t.Error(err)
@@ -149,6 +149,9 @@ func TestValidateMiddlewareHeaderMissing(t *testing.T) {
 
 func TestValidateMiddlewareHeaderEmpty(t *testing.T) {
 	r = setupRouter()
+	r.Use(ReserveDevicesMiddleware())
+	r.POST("/:udid/launch", LaunchApp)
+
 	responseRecorder := httptest.NewRecorder()
 
 	launchAppRequest, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
@@ -161,7 +164,7 @@ func TestValidateMiddlewareHeaderEmpty(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, responseRecorder.Code, "Code should be BadRequest if X-GO-IOS-RESERVE header is empty")
 
 	var response GenericResponse
-	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	responseData, _ := io.ReadAll(responseRecorder.Body)
 	err = json.Unmarshal(responseData, &response)
 	if err != nil {
 		t.Error(err)
@@ -173,6 +176,9 @@ func TestValidateMiddlewareHeaderEmpty(t *testing.T) {
 
 func TestValidateMiddlewareHeaderDeviceNotReserved(t *testing.T) {
 	r = setupRouter()
+	r.Use(ReserveDevicesMiddleware())
+	r.POST("/:udid/launch", LaunchApp)
+
 	responseRecorder := httptest.NewRecorder()
 
 	launchAppRequest, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/launch?bundleID=com.apple.Preferences", nil)
@@ -185,7 +191,7 @@ func TestValidateMiddlewareHeaderDeviceNotReserved(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, responseRecorder.Code, "Code should be BadRequest if X-GO-IOS-RESERVE header is empty")
 
 	var response GenericResponse
-	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	responseData, _ := io.ReadAll(responseRecorder.Body)
 	err = json.Unmarshal(responseData, &response)
 	if err != nil {
 		t.Error(err)
@@ -197,6 +203,9 @@ func TestValidateMiddlewareHeaderDeviceNotReserved(t *testing.T) {
 
 func TestValidateMiddlewareDeviceReservedWrongUUID(t *testing.T) {
 	r = setupRouter()
+	r.Use(ReserveDevicesMiddleware())
+	r.POST("/:udid/launch", LaunchApp)
+
 	responseRecorder := httptest.NewRecorder()
 
 	postReservation(t, responseRecorder)
@@ -212,7 +221,7 @@ func TestValidateMiddlewareDeviceReservedWrongUUID(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, responseRecorder.Code, "Code should be BadRequest if X-GO-IOS-RESERVE header is empty")
 
 	var response GenericResponse
-	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	responseData, _ := io.ReadAll(responseRecorder.Body)
 	err = json.Unmarshal(responseData, &response)
 	if err != nil {
 		t.Error(err)
@@ -224,6 +233,9 @@ func TestValidateMiddlewareDeviceReservedWrongUUID(t *testing.T) {
 
 func TestValidateMiddlewareDeviceReservedValidUUID(t *testing.T) {
 	r = setupRouter()
+	r.Use(ReserveDevicesMiddleware())
+	r.POST("/:udid/launch", LaunchApp)
+
 	responseRecorder := httptest.NewRecorder()
 
 	postReservation(t, responseRecorder)
@@ -244,6 +256,9 @@ func TestValidateMiddlewareDeviceReservedValidUUID(t *testing.T) {
 
 func TestValidateMiddlewareDeviceReservedAdminUUID(t *testing.T) {
 	r = setupRouter()
+	r.Use(ReserveDevicesMiddleware())
+	r.POST("/:udid/launch", LaunchApp)
+
 	responseRecorder := httptest.NewRecorder()
 
 	postReservation(t, responseRecorder)
@@ -255,7 +270,7 @@ func TestValidateMiddlewareDeviceReservedAdminUUID(t *testing.T) {
 		t.Error(err)
 		t.FailNow()
 	}
-	launchAppRequest.Header.Set("X-GO-IOS-RESERVE", ReserveAdminUUID)
+	launchAppRequest.Header.Set("X-GO-IOS-RESERVE", reserveAdminUUID)
 	r.ServeHTTP(responseRecorder, launchAppRequest)
 	// Launching app does not really work with a mocked device
 	// We check that status is not 400 because in the current scenario 400 is only returned when there is a problem with the reservation header
@@ -264,7 +279,7 @@ func TestValidateMiddlewareDeviceReservedAdminUUID(t *testing.T) {
 
 // HELPER FUNCTIONS
 func postReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder) *http.Request {
-	reserveDevice, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/reserve", nil)
+	reserveDevice, err := http.NewRequest("POST", "/"+randomDeviceUDID+"/reservations", nil)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -275,8 +290,8 @@ func postReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder) 
 	return reserveDevice
 }
 
-func deleteReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder) *http.Request {
-	releaseDeviceRequest, err := http.NewRequest("DELETE", "/"+randomDeviceUDID+"/reserve", nil)
+func deleteReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder, reservationID string) *http.Request {
+	releaseDeviceRequest, err := http.NewRequest("DELETE", "/"+randomDeviceUDID+"/reservations/"+reservationID, nil)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -287,7 +302,7 @@ func deleteReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder
 }
 
 func getReservedDevices(t *testing.T, responseRecorder *httptest.ResponseRecorder) *http.Request {
-	getDevicesRequest, err := http.NewRequest("GET", "/reserved-devices", nil)
+	getDevicesRequest, err := http.NewRequest("GET", "/reservations", nil)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -299,7 +314,7 @@ func getReservedDevices(t *testing.T, responseRecorder *httptest.ResponseRecorde
 
 func validateSuccessfulReservation(t *testing.T, responseRecorder *httptest.ResponseRecorder) string {
 	var reservationIDResponse reservedDevice
-	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	responseData, _ := io.ReadAll(responseRecorder.Body)
 	err := json.Unmarshal(responseData, &reservationIDResponse)
 	if err != nil {
 		t.Error(err)
@@ -313,7 +328,7 @@ func validateSuccessfulReservation(t *testing.T, responseRecorder *httptest.Resp
 
 func validateDeviceAlreadyReserved(t *testing.T, responseRecorder *httptest.ResponseRecorder) {
 	var alreadyReservedResponse reservedDevice
-	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	responseData, _ := io.ReadAll(responseRecorder.Body)
 	err := json.Unmarshal(responseData, &alreadyReservedResponse)
 	if err != nil {
 		t.Error(err)
@@ -325,7 +340,7 @@ func validateDeviceAlreadyReserved(t *testing.T, responseRecorder *httptest.Resp
 
 func validateNotReserved(t *testing.T, responseRecorder *httptest.ResponseRecorder) {
 	var notReservedResponse reservedDevice
-	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	responseData, _ := io.ReadAll(responseRecorder.Body)
 	err := json.Unmarshal(responseData, &notReservedResponse)
 	if err != nil {
 		t.Error(err)
@@ -337,7 +352,7 @@ func validateNotReserved(t *testing.T, responseRecorder *httptest.ResponseRecord
 
 func validateDeviceReleased(t *testing.T, responseRecorder *httptest.ResponseRecorder) {
 	var deviceReleasedResponse reservedDevice
-	responseData, _ := ioutil.ReadAll(responseRecorder.Body)
+	responseData, _ := io.ReadAll(responseRecorder.Body)
 	err := json.Unmarshal(responseData, &deviceReleasedResponse)
 	if err != nil {
 		t.Error(err)

@@ -12,8 +12,8 @@ import (
 
 var reservedDevicesMap = make(map[string]*reservedDevice)
 var reserveMutex sync.Mutex
-var ReservedDevicesTimeout time.Duration = 5
-var ReserveAdminUUID = "go-admin"
+var reservedDevicesTimeout time.Duration = 5
+var reserveAdminUUID = "go-admin"
 
 type reservedDevice struct {
 	Message           string `json:"message,omitempty"`
@@ -26,10 +26,11 @@ type reservedDevice struct {
 // List          godoc
 // @Summary      Reserve a device
 // @Description  Reserve a device by provided UDID
-// @Tags         reserve
+// @Tags         reservations
+// @Param        udid  path      string  true  "device udid"
 // @Produce      json
 // @Success      200  {object} reservedDevice
-// @Router       /reserve/:udid [post]
+// @Router       /{udid}/reservations [post]
 func ReserveDevice(c *gin.Context) {
 	udid := c.Param("udid")
 	reservationID := uuid.New().String()
@@ -54,13 +55,16 @@ func ReserveDevice(c *gin.Context) {
 // List          godoc
 // @Summary      Release a device
 // @Description  Release a device by provided UDID
-// @Tags         reserve
+// @Tags         reservations
+// @Param        udid  path      string  true  "device udid"
+// @Param        reservationID  path      string  true  "reservation ID generated when reserving device"
 // @Produce      json
 // @Success      200  {object} reservedDevice
 // @Failure      404  {object} reservedDevice
-// @Router       /reserve/:udid [delete]
+// @Router       /{udid}/reservations/{reservationID} [delete]
 func ReleaseDevice(c *gin.Context) {
 	udid := c.Param("udid")
+	reservationID := c.Param("reservationID")
 
 	reserveMutex.Lock()
 	defer reserveMutex.Unlock()
@@ -72,6 +76,11 @@ func ReleaseDevice(c *gin.Context) {
 		return
 	}
 
+	if device.ReservationID != reservationID {
+		c.IndentedJSON(http.StatusUnprocessableEntity, reservedDevice{Message: "Cannot release device, wrong reservationID"})
+		return
+	}
+
 	delete(reservedDevicesMap, udid)
 	c.IndentedJSON(http.StatusOK, reservedDevice{Message: "Successfully released"})
 }
@@ -80,10 +89,10 @@ func ReleaseDevice(c *gin.Context) {
 // List          godoc
 // @Summary      Get a list of reserved devices
 // @Description  Get a list of reserved devices with UDID, ReservationID and last used timestamp
-// @Tags         reserve
+// @Tags         reservations
 // @Produce      json
 // @Success      200  {object} []reservedDevice
-// @Router       /reserved-devices [get]
+// @Router       /reservations [get]
 func GetReservedDevices(c *gin.Context) {
 	reserveMutex.Lock()
 	defer reserveMutex.Unlock()
@@ -107,7 +116,7 @@ func GetReservedDevices(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, reserved_devices)
 }
 
-func CleanReservationsCRON() {
+func cleanReservationsCRON() {
 	defer reserveMutex.Unlock()
 
 	// Every minute loop through the map of reserved devices and check if a reserved device last used timestamp was more than X minutes ago
@@ -118,7 +127,7 @@ func CleanReservationsCRON() {
 			currentTimestamp := time.Now().UnixMilli()
 			diff := currentTimestamp - reservedDevice.LastUsedTimestamp
 
-			if diff > (time.Minute * ReservedDevicesTimeout).Milliseconds() {
+			if diff > (time.Minute * reservedDevicesTimeout).Milliseconds() {
 				delete(reservedDevicesMap, udid)
 			}
 		}
@@ -126,14 +135,14 @@ func CleanReservationsCRON() {
 	}
 }
 
-func CheckDeviceReserved(deviceUDID string, reservationID string) error {
+func checkDeviceReserved(deviceUDID string, reservationID string) error {
 	reserveMutex.Lock()
 	defer reserveMutex.Unlock()
 
 	reservedDevice, exists := reservedDevicesMap[deviceUDID]
 
 	if exists {
-		if reservedDevice.ReservationID == reservationID || ReserveAdminUUID == reservationID {
+		if reservedDevice.ReservationID == reservationID || reserveAdminUUID == reservationID {
 			reservedDevice.LastUsedTimestamp = time.Now().UnixMilli()
 			return nil
 		}
