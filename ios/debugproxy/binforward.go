@@ -6,17 +6,17 @@ import (
 	"path"
 
 	ios "github.com/danielpaulus/go-ios/ios"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 type serviceConfig struct {
-	codec            func(string, string, *log.Entry) decoder
+	codec            func(string, string, *logrus.Entry) decoder
 	handshakeOnlySSL bool
 }
 
-//serviceConfigurations stores info about which codec to use for which service by name.
-//In addition, DTX based services only execute a SSL Handshake
-//and then go back to sending unencrypted data right after the handshake.
+// serviceConfigurations stores info about which codec to use for which service by name.
+// In addition, DTX based services only execute a SSL Handshake
+// and then go back to sending unencrypted data right after the handshake.
 var serviceConfigurations = map[string]serviceConfig{
 	"com.apple.instruments.remoteserver":                      {NewDtxDecoder, true},
 	"com.apple.accessibility.axAuditDaemon.remoteserver":      {NewDtxDecoder, true},
@@ -64,7 +64,7 @@ func handleConnectToService(connectRequest ios.UsbMuxMessage,
 	serviceInfo PhoneServiceInformation) {
 	err := muxToDevice.SendMuxMessage(connectRequest)
 	if err != nil {
-		panic("Failed sending muxmessage to device")
+		logrus.WithError(err).Error("Failed sending muxmessage to device")
 	}
 	connectResponse, err := muxToDevice.ReadMessage()
 	muxOnUnixSocket.SendMuxMessage(connectResponse)
@@ -128,7 +128,7 @@ func proxyBinFromDeviceToHost(p *ProxyConnection, binOnUnixSocket BinaryForwardi
 			p.log.Debug("Failed reading bytes", err)
 			return
 		}
-		p.log.WithFields(log.Fields{"direction": "device2host"}).Trace(hex.Dump(bytes))
+		p.log.WithFields(logrus.Fields{"direction": "device2host"}).Trace(hex.Dump(bytes))
 		binOnUnixSocket.Send(bytes)
 	}
 }

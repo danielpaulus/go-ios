@@ -1,6 +1,9 @@
 package diagnostics
 
-import ios "github.com/danielpaulus/go-ios/ios"
+import (
+	ios "github.com/danielpaulus/go-ios/ios"
+	"github.com/sirupsen/logrus"
+)
 
 func ioregentryRequest(key string) []byte {
 	requestMap := map[string]interface{}{
@@ -9,7 +12,7 @@ func ioregentryRequest(key string) []byte {
 	}
 	bt, err := ios.PlistCodec{}.Encode(requestMap)
 	if err != nil {
-		panic("query request encoding should never fail")
+		logrus.WithError(err).Error("query request encoding should never fail")
 	}
 	return bt
 }

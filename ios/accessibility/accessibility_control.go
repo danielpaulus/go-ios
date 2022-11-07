@@ -1,15 +1,13 @@
 package accessibility
 
 import (
-	"fmt"
-
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
-//ControlInterface provides a simple interface to controlling the AX service on the device
-//It only needs the global dtx channel as all AX methods are invoked on it.
+// ControlInterface provides a simple interface to controlling the AX service on the device
+// It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
 	channel *dtx.Channel
 }
@@ -19,10 +17,10 @@ func (a ControlInterface) readhostAppStateChanged() {
 		msg := a.channel.ReceiveMethodCall("hostAppStateChanged:")
 		stateChange, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 		if err != nil {
-			panic(err)
+			logrus.WithError(err).Error("Failed unarchiving NSKeyedArchiver plists")
 		}
 		value := stateChange[0]
-		log.Infof("hostAppStateChanged:%s", value)
+		logrus.Infof("hostAppStateChanged:%s", value)
 	}
 }
 
@@ -31,14 +29,14 @@ func (a ControlInterface) readhostInspectorNotificationReceived() {
 		msg := a.channel.ReceiveMethodCall("hostInspectorNotificationReceived:")
 		notification, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 		if err != nil {
-			panic(err)
+			logrus.WithError(err).Error("Failed unarchiving NSKeyedArchiver plists")
 		}
 		value := notification[0].(map[string]interface{})["Value"]
-		log.Infof("hostInspectorNotificationReceived:%s", value)
+		logrus.Infof("hostInspectorNotificationReceived:%s", value)
 	}
 }
 
-//Init wires up event receivers and gets Info from the device
+// Init wires up event receivers and gets Info from the device
 func (a ControlInterface) init() error {
 	a.channel.RegisterMethodForRemote("hostInspectorCurrentElementChanged:")
 	a.channel.RegisterMethodForRemote("hostInspectorMonitoredEventTypeChanged:")
@@ -57,30 +55,30 @@ func (a ControlInterface) init() error {
 		return err
 	}
 
-	log.Info("Device Capabilities:", deviceCapabilities)
+	logrus.Info("Device Capabilities:", deviceCapabilities)
 	apiVersion, err := a.deviceAPIVersion()
 	if err != nil {
 		return err
 	}
-	log.Info("Api version:", apiVersion)
+	logrus.Info("Api version:", apiVersion)
 
 	auditCaseIds, err := a.deviceAllAuditCaseIDs()
 	if err != nil {
 		return err
 	}
-	log.Info("AuditCaseIDs", auditCaseIds)
+	logrus.Info("AuditCaseIDs", auditCaseIds)
 
 	deviceInspectorSupportedEventTypes, err := a.deviceInspectorSupportedEventTypes()
 	if err != nil {
 		return err
 	}
-	log.Info("deviceInspectorSupportedEventTypes:", deviceInspectorSupportedEventTypes)
+	logrus.Info("deviceInspectorSupportedEventTypes:", deviceInspectorSupportedEventTypes)
 
 	canNav, err := a.deviceInspectorCanNavWhileMonitoringEvents()
 	if err != nil {
 		return err
 	}
-	log.Info("deviceInspectorCanNavWhileMonitoringEvents:", canNav)
+	logrus.Info("deviceInspectorCanNavWhileMonitoringEvents:", canNav)
 
 	err = a.deviceSetAppMonitoringEnabled(true)
 	if err != nil {
@@ -92,25 +90,25 @@ func (a ControlInterface) init() error {
 		if err != nil {
 			return err
 		}
-		log.Infof("%s -- %s", v, name)
+		logrus.Infof("%s -- %s", v, name)
 	}
 	return nil
 }
 
-//EnableSelectionMode enables the UI element selection mode on the device,
-//it is the same as clicking the little crosshair in AX Inspector
+// EnableSelectionMode enables the UI element selection mode on the device,
+// it is the same as clicking the little crosshair in AX Inspector
 func (a ControlInterface) EnableSelectionMode() {
 	a.deviceInspectorSetMonitoredEventType(2)
 	a.deviceInspectorShowVisuals(true)
 	a.awaitHostInspectorMonitoredEventTypeChanged()
 }
 
-//SwitchToDevice is the same as switching to the Device in AX inspector.
-//After running this, notifications and events should be received.
+// SwitchToDevice is the same as switching to the Device in AX inspector.
+// After running this, notifications and events should be received.
 func (a ControlInterface) SwitchToDevice() {
 	a.TurnOff()
 	resp, _ := a.deviceAccessibilitySettings()
-	log.Info("AX Settings received:", resp)
+	logrus.Info("AX Settings received:", resp)
 	a.deviceInspectorShowIgnoredElements(false)
 	a.deviceSetAuditTargetPid(0)
 	a.deviceInspectorFocusOnElement()
@@ -120,7 +118,7 @@ func (a ControlInterface) SwitchToDevice() {
 
 }
 
-//TurnOff disable AX
+// TurnOff disable AX
 func (a ControlInterface) TurnOff() {
 	a.deviceInspectorSetMonitoredEventType(0)
 	a.awaitHostInspectorMonitoredEventTypeChanged()
@@ -131,22 +129,22 @@ func (a ControlInterface) TurnOff() {
 	a.deviceInspectorShowVisuals(false)
 }
 
-//GetElement moves the green selection rectangle one element further
+// GetElement moves the green selection rectangle one element further
 func (a ControlInterface) GetElement() {
-	log.Info("changing")
+	logrus.Info("changing")
 	a.deviceInspectorMoveWithOptions()
 	//a.deviceInspectorMoveWithOptions()
 
 	resp := a.awaitHostInspectorCurrentElementChanged()
-	log.Info("item changed", resp)
+	logrus.Info("item changed", resp)
 }
 
 func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
 	msg := a.channel.ReceiveMethodCall("hostInspectorCurrentElementChanged:")
-	log.Info("received hostInspectorCurrentElementChanged")
+	logrus.Info("received hostInspectorCurrentElementChanged")
 	result, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 	if err != nil {
-		panic(fmt.Sprintf("Failed unarchiving: %s this is a bug and should not happen", err))
+		logrus.WithError(err).Error("Failed unarchiving NSKeyedArchiver plists")
 	}
 	return result[0].(map[string]interface{})
 }
@@ -154,7 +152,7 @@ func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]i
 func (a ControlInterface) awaitHostInspectorMonitoredEventTypeChanged() {
 	msg := a.channel.ReceiveMethodCall("hostInspectorMonitoredEventTypeChanged:")
 	n, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
-	log.Infof("hostInspectorMonitoredEventTypeChanged: was set to %d by the device", n[0])
+	logrus.Infof("hostInspectorMonitoredEventTypeChanged: was set to %d by the device", n[0])
 }
 
 func (a ControlInterface) deviceInspectorMoveWithOptions() {

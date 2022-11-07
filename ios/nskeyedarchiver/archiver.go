@@ -2,6 +2,7 @@ package nskeyedarchiver
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"reflect"
 
 	"howett.net/plist"
@@ -79,7 +80,8 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 		return encoderFunc(object, objects)
 	}
 
-	panic(fmt.Errorf("NSKeyedArchiver Unsupported object: '%s' of type:%s", object, typeOf))
+	logrus.Info(fmt.Errorf("NSKeyedArchiver Unsupported object: '%s' of type:%s", object, typeOf))
+	return nil, 0
 }
 
 func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, plist.UID) {

@@ -2,6 +2,7 @@ package dtx_test
 
 import (
 	"encoding/binary"
+	"github.com/sirupsen/logrus"
 	"testing"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -13,7 +14,7 @@ func payload() []byte {
 	return []byte("payload")
 }
 
-func createHeader(fragmentIndex uint16, fragmentLength uint16, identifier uint32, length uint32, payload []byte) dtx.Message {
+func createHeader(fragmentIndex uint16, fragmentLength uint16, identifier uint32, length uint32, payload []byte) (dtx.Message, error) {
 	payloadLength := len(payload)
 	messageBytes := make([]byte, 32+payloadLength)
 	binary.BigEndian.PutUint32(messageBytes, dtx.DtxMessageMagic)
@@ -29,18 +30,18 @@ func createHeader(fragmentIndex uint16, fragmentLength uint16, identifier uint32
 	}
 	msg, _, err := dtx.DecodeNonBlocking(messageBytes)
 	if err != nil {
-		panic(err)
-
+		logrus.WithError(err).Error("Failed decoding")
+		return msg, err
 	}
-	return msg
+	return msg, err
 }
 
 func createFragmentedMessage(identifier uint32) (dtx.Message, dtx.Message, dtx.Message, string) {
 
 	payload := []byte("payload")
-	firstFrag := createHeader(0, 3, identifier, uint32(len(payload)), make([]byte, 0))
-	secondFrag := createHeader(1, 3, identifier, 4, payload[:4])
-	thirdFrag := createHeader(2, 3, identifier, 3, payload[4:])
+	firstFrag, _ := createHeader(0, 3, identifier, uint32(len(payload)), make([]byte, 0))
+	secondFrag, _ := createHeader(1, 3, identifier, 4, payload[:4])
+	thirdFrag, _ := createHeader(2, 3, identifier, 3, payload[4:])
 	return firstFrag, secondFrag, thirdFrag, string(payload)
 }
 

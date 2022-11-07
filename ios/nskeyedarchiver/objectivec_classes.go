@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
@@ -172,7 +172,7 @@ func DecodeXCActivityRecord(object map[string]interface{}, objects []interface{}
 	activityType_ref := object["activityType"].(plist.UID)
 	activityType := objects[activityType_ref].(string)
 
-	log.Info(objects[9])
+	logrus.Info(objects[9])
 
 	return XCActivityRecord{Finish: finish, Start: start, UUID: uuid, Title: title, Attachments: attachments, ActivityType: activityType}
 }
@@ -185,7 +185,7 @@ func NewNSUUIDFromBytes(object map[string]interface{}, objects []interface{}) in
 func NewNSUUID(id uuid.UUID) NSUUID {
 	bytes, err := id.MarshalBinary()
 	if err != nil {
-		panic(fmt.Sprintf("Unexpected Error: %v", err))
+		logrus.Info(fmt.Sprintf("Unexpected Error: %v", err))
 	}
 	return NSUUID{bytes}
 }
@@ -303,7 +303,7 @@ func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) 
 	}
 }
 
-//TODO: make this nice, partially extracting objects is not really cool
+// TODO: make this nice, partially extracting objects is not really cool
 type PartiallyExtractedXcTestConfig struct {
 	values map[string]interface{}
 }
@@ -339,7 +339,7 @@ func NewNSError(object map[string]interface{}, objects []interface{}) interface{
 	return NSError{ErrorCode: errorCode, Domain: domain, UserInfo: userinfo}
 }
 
-//Apples Reference Date is Jan 1st 2001 00:00
+// Apples Reference Date is Jan 1st 2001 00:00
 const nsReferenceDate = 978307200000
 
 type NSDate struct {

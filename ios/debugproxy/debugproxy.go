@@ -18,7 +18,7 @@ import (
 
 const connectionJSONFileName = "connections.json"
 
-//DebugProxy can be used to dump and modify communication between mac and host
+// DebugProxy can be used to dump and modify communication between mac and host
 type DebugProxy struct {
 	mux               sync.Mutex
 	serviceList       []PhoneServiceInformation
@@ -26,14 +26,14 @@ type DebugProxy struct {
 	WorkingDir        string
 }
 
-//PhoneServiceInformation contains info about a service started on the phone via lockdown.
+// PhoneServiceInformation contains info about a service started on the phone via lockdown.
 type PhoneServiceInformation struct {
 	ServicePort uint16
 	ServiceName string
 	UseSSL      bool
 }
 
-//ProxyConnection keeps track of the pairRecord and uses an ID to identify connections.
+// ProxyConnection keeps track of the pairRecord and uses an ID to identify connections.
 type ProxyConnection struct {
 	id         string
 	pairRecord ios.PairRecord
@@ -77,12 +77,12 @@ func (d *DebugProxy) retrieveServiceInfoByPort(port uint16) (PhoneServiceInforma
 	return PhoneServiceInformation{}, fmt.Errorf("No Service found for port %d", port)
 }
 
-//NewDebugProxy creates a new Default proxy
+// NewDebugProxy creates a new Default proxy
 func NewDebugProxy() *DebugProxy {
 	return &DebugProxy{mux: sync.Mutex{}, serviceList: []PhoneServiceInformation{}}
 }
 
-//Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
+// Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
 func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 	if binaryMode {
 		log.Info("Lauching proxy in full binary mode")
@@ -161,7 +161,7 @@ func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.P
 
 }
 
-//Close moves /var/run/usbmuxd.real back to /var/run/usbmuxd and disconnects all active proxy connections
+// Close moves /var/run/usbmuxd.real back to /var/run/usbmuxd and disconnects all active proxy connections
 func (d *DebugProxy) Close() {
 	log.Info("Moving back original socket")
 	err := MoveBack(ios.DefaultUsbmuxdSocket)
@@ -206,7 +206,7 @@ func writeJSON(filePath string, JSON interface{}) {
 	file, err := os.OpenFile(filePath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		panic(fmt.Sprintf("Could not write to file err: %v filepath:'%s'", err, filePath))
+		logrus.Info(fmt.Sprintf("Could not write to file err: %v filepath:'%s'", err, filePath))
 	}
 	jsonmsg, err := json.Marshal(JSON)
 	if err != nil {

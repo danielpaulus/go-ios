@@ -1,6 +1,9 @@
 package diagnostics
 
-import ios "github.com/danielpaulus/go-ios/ios"
+import (
+	ios "github.com/danielpaulus/go-ios/ios"
+	"github.com/sirupsen/logrus"
+)
 
 func gestaltRequest(keys []string) []byte {
 	goodbyeMap := map[string]interface{}{
@@ -9,7 +12,7 @@ func gestaltRequest(keys []string) []byte {
 	}
 	bt, err := ios.PlistCodec{}.Encode(goodbyeMap)
 	if err != nil {
-		panic("gestalt request encoding should never fail")
+		logrus.WithError(err).Error("Encoding error")
 	}
 	return bt
 }

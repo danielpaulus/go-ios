@@ -10,7 +10,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	archiver "github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // PrimitiveDictionary contains a custom dictionary type
@@ -45,18 +45,20 @@ func (d PrimitiveDictionary) GetArguments() []interface{} {
 	return d.values
 }
 
-//AddNsKeyedArchivedObject wraps the object in a NSKeyedArchiver envelope before saving it to the dictionary as a []byte.
-//This will panic on error because NSKeyedArchiver has to support everything that is put in here during runtime.
-//If not, it is a non-recoverable bug and needs to be fixed anyway.
-func (d *PrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) {
+// AddNsKeyedArchivedObject wraps the object in a NSKeyedArchiver envelope before saving it to the dictionary as a []byte.
+// This will throw error because NSKeyedArchiver has to support everything that is put in here during runtime.
+// If not, it is a non-recoverable bug and needs to be fixed anyway.
+func (d *PrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) (err error) {
 	archivedObject, err := nskeyedarchiver.ArchiveBin(object)
 	if err != nil {
-		panic(err)
+		logrus.WithError(err).Error("query request encoding should never fail")
+		return err
 	}
 	d.AddBytes(archivedObject)
+	return nil
 }
 
-//ToBytes serializes this PrimitiveDictionary to a byte slice
+// ToBytes serializes this PrimitiveDictionary to a byte slice
 func (d PrimitiveDictionary) ToBytes() ([]byte, error) {
 	size := d.keyValuePairs.Len()
 	if size == 0 {
@@ -120,13 +122,13 @@ func (d PrimitiveDictionary) String() string {
 				jsonBytes, _ := json.Marshal(msg[0])
 				prettyString = string(jsonBytes)
 			} else {
-				log.Warnf("failed decoding with %+v", err)
+				logrus.Warnf("failed decoding with %+v", err)
 
 			}
 			result += fmt.Sprintf("{t:%s, v:%s},", toString(v), prettyString)
 			continue
 		}
-		if v == t_string{
+		if v == t_string {
 			result += d.values[i].(string)
 		}
 		if v == t_uint32 {
@@ -191,12 +193,13 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 	if hasLength(readType) {
 		length := binary.LittleEndian.Uint32(auxBytes[4:])
 		data := auxBytes[8 : 8+length]
-		if readType==t_string{
+		if readType == t_string {
 			return readType, string(data), auxBytes[8+length:]
 		}
 		return readType, data, auxBytes[8+length:]
 	}
-	panic(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d  rawbytes:%x", readType, auxBytes))
+	logrus.Info(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d  rawbytes:%x", readType, auxBytes))
+	return readType, nil, nil
 }
 
 const (
@@ -232,13 +235,15 @@ type AuxiliaryEncoder struct {
 	buf bytes.Buffer
 }
 
-func (a *AuxiliaryEncoder) AddNsKeyedArchivedObject(object interface{}) {
+func (a *AuxiliaryEncoder) AddNsKeyedArchivedObject(object interface{}) (err error) {
 	a.writeEntry(t_null, nil)
 	bytes, err := archiver.ArchiveBin(object)
 	if err != nil {
-		panic(err)
+		logrus.WithError(err).Error("Failed archiving object")
+		return err
 	}
 	a.writeEntry(t_bytearray, bytes)
+	return nil
 }
 
 func (a *AuxiliaryEncoder) writeEntry(entryType uint32, object interface{}) {
@@ -260,8 +265,8 @@ func (a *AuxiliaryEncoder) writeEntry(entryType uint32, object interface{}) {
 		a.buf.Write([]byte(object.(string)))
 
 	}
-	panic(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d", entryType))
 
+	logrus.Info(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d", entryType))
 }
 
 func (a *AuxiliaryEncoder) GetBytes() []byte {
