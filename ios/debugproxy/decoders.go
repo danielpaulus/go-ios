@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 
 	"os"
 	"time"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type decoder interface {
@@ -24,7 +23,7 @@ type dtxDecoder struct {
 	binFilePath  string
 	buffer       bytes.Buffer
 	isBroken     bool
-	log          *logrus.Entry
+	log          *log.Entry
 }
 
 type MessageWithMetaInfo struct {
@@ -35,7 +34,7 @@ type MessageWithMetaInfo struct {
 	Length       int
 }
 
-func NewDtxDecoder(jsonFilePath string, binFilePath string, log *logrus.Entry) decoder {
+func NewDtxDecoder(jsonFilePath string, binFilePath string, log *log.Entry) decoder {
 	return &dtxDecoder{jsonFilePath: jsonFilePath, binFilePath: binFilePath, buffer: bytes.Buffer{}, isBroken: false, log: log}
 }
 
@@ -105,10 +104,10 @@ func (f *dtxDecoder) decode(data []byte) {
 
 		mylog := f.log
 		if strings.Contains(f.binFilePath, "from-device") {
-			mylog = f.log.WithFields(logrus.Fields{"d": "in"})
+			mylog = f.log.WithFields(log.Fields{"d": "in"})
 		}
 		if strings.Contains(f.binFilePath, "to-device") {
-			mylog = f.log.WithFields(logrus.Fields{"d": "out"})
+			mylog = f.log.WithFields(log.Fields{"d": "out"})
 		}
 		logDtxMessageNice(mylog, msg)
 		jsonmsg, err := json.Marshal(jsonMetaInfo)
@@ -120,36 +119,36 @@ func (f *dtxDecoder) decode(data []byte) {
 	}
 }
 
-func logDtxMessageNice(log *logrus.Entry, msg dtx.Message) {
+func logDtxMessageNice(log *log.Entry, msg dtx.Message) {
 	if msg.PayloadHeader.MessageType == dtx.Methodinvocation {
 		expectsReply := ""
 		if msg.ExpectsReply {
 			expectsReply = "e"
 		}
-		logrus.Infof("%d.%d%s c%d %s %s", msg.Identifier, msg.ConversationIndex, expectsReply, msg.ChannelCode, msg.Payload[0], msg.Auxiliary)
+		log.Infof("%d.%d%s c%d %s %s", msg.Identifier, msg.ConversationIndex, expectsReply, msg.ChannelCode, msg.Payload[0], msg.Auxiliary)
 		return
 	}
 	if msg.PayloadHeader.MessageType == dtx.Ack {
-		logrus.Infof("%d.%d c%d Ack", msg.Identifier, msg.ConversationIndex, msg.ChannelCode)
+		log.Infof("%d.%d c%d Ack", msg.Identifier, msg.ConversationIndex, msg.ChannelCode)
 		return
 	}
 	if msg.PayloadHeader.MessageType == dtx.UnknownTypeOne {
 		if len(msg.Payload) > 0 {
-			logrus.Infof("type1 with payload: %x", msg.Payload[0])
+			log.Infof("type1 with payload: %x", msg.Payload[0])
 			return
 		}
-		logrus.Infof("type1 without payload: %+v", msg)
+		log.Infof("type1 without payload: %+v", msg)
 		return
 	}
 	if msg.PayloadHeader.MessageType == dtx.ResponseWithReturnValueInPayload {
-		logrus.Infof("%d.%d c%d response: %s", msg.Identifier, msg.ConversationIndex, msg.ChannelCode, msg.Payload[0])
+		log.Infof("%d.%d c%d response: %s", msg.Identifier, msg.ConversationIndex, msg.ChannelCode, msg.Payload[0])
 		return
 	}
 	if msg.PayloadHeader.MessageType == dtx.DtxTypeError {
-		logrus.Infof("%d.%d c%d error: %s", msg.Identifier, msg.ConversationIndex, msg.ChannelCode, msg.Payload[0])
+		log.Infof("%d.%d c%d error: %s", msg.Identifier, msg.ConversationIndex, msg.ChannelCode, msg.Payload[0])
 		return
 	}
-	logrus.Infof("%+v", msg)
+	log.Infof("%+v", msg)
 
 }
 
@@ -158,7 +157,7 @@ type binaryOnlyDumper struct {
 }
 
 // NewNoOpDecoder does nothing
-func NewBinDumpOnly(jsonFilePath string, dumpFilePath string, log *logrus.Entry) decoder {
+func NewBinDumpOnly(jsonFilePath string, dumpFilePath string, log *log.Entry) decoder {
 	return binaryOnlyDumper{dumpFilePath}
 }
 func (n binaryOnlyDumper) decode(bytes []byte) {
@@ -169,7 +168,7 @@ func writeBytes(filePath string, data []byte) {
 	file, err := os.OpenFile(filePath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		logrus.Info(fmt.Sprintf("Could not write to file error: %v path:'%s'", err, filePath))
+		log.Info(fmt.Sprintf("Could not write to file error: %v path:'%s'", err, filePath))
 	}
 
 	file.Write(data)

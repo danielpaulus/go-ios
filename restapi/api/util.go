@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type GenericResponse struct {
@@ -31,7 +31,7 @@ func GetVersion() string {
 func MustMarshal(v interface{}) string {
 	b, err := json.Marshal(v)
 	if err != nil {
-		logrus.WithError(err).Error("Failed marshalling object")
+		log.WithError(err).Error("Failed marshalling object")
 	}
 	return string(b)
 }
@@ -39,7 +39,7 @@ func MustMarshal(v interface{}) string {
 var timeFormat = "02/Jan/2006:15:04:05 -0700"
 
 // taken from https://github.com/toorop/gin-logrus/blob/master/logger.go
-func MyLogger(logger logrus.FieldLogger, notLogged ...string) gin.HandlerFunc {
+func MyLogger(logger log.FieldLogger, notLogged ...string) gin.HandlerFunc {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "unknow"
@@ -75,7 +75,7 @@ func MyLogger(logger logrus.FieldLogger, notLogged ...string) gin.HandlerFunc {
 			return
 		}
 
-		entry := logger.WithFields(logrus.Fields{
+		entry := logger.WithFields(log.Fields{
 			"hostname":   hostname,
 			"statusCode": statusCode,
 			"latency":    latency, // time to process

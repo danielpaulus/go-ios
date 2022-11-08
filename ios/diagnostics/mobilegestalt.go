@@ -2,7 +2,7 @@ package diagnostics
 
 import (
 	ios "github.com/danielpaulus/go-ios/ios"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func gestaltRequest(keys []string) []byte {
@@ -12,7 +12,7 @@ func gestaltRequest(keys []string) []byte {
 	}
 	bt, err := ios.PlistCodec{}.Encode(goodbyeMap)
 	if err != nil {
-		logrus.WithError(err).Error("Encoding error")
+		log.WithError(err).Error("Encoding error")
 	}
 	return bt
 }

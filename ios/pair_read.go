@@ -3,7 +3,7 @@ package ios
 import (
 	"bytes"
 	"fmt"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	plist "howett.net/plist"
 )
@@ -75,7 +75,7 @@ func PairRecordfromBytes(plistBytes []byte) PairRecord {
 	err := decoder.Decode(&data)
 	if err != nil {
 		//this is unrecoverable and should not happen
-		logrus.Info(fmt.Sprintf("Failed decoding pair record plist %x", plistBytes))
+		log.Info(fmt.Sprintf("Failed decoding pair record plist %x", plistBytes))
 	}
 	return data
 }

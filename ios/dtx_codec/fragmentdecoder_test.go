@@ -2,7 +2,7 @@ package dtx_test
 
 import (
 	"encoding/binary"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"testing"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -30,7 +30,7 @@ func createHeader(fragmentIndex uint16, fragmentLength uint16, identifier uint32
 	}
 	msg, _, err := dtx.DecodeNonBlocking(messageBytes)
 	if err != nil {
-		logrus.WithError(err).Error("Failed decoding")
+		log.WithError(err).Error("Failed decoding")
 		return msg, err
 	}
 	return msg, err

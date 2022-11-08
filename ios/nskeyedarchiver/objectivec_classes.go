@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
@@ -172,7 +172,7 @@ func DecodeXCActivityRecord(object map[string]interface{}, objects []interface{}
 	activityType_ref := object["activityType"].(plist.UID)
 	activityType := objects[activityType_ref].(string)
 
-	logrus.Info(objects[9])
+	log.Info(objects[9])
 
 	return XCActivityRecord{Finish: finish, Start: start, UUID: uuid, Title: title, Attachments: attachments, ActivityType: activityType}
 }
@@ -185,7 +185,7 @@ func NewNSUUIDFromBytes(object map[string]interface{}, objects []interface{}) in
 func NewNSUUID(id uuid.UUID) NSUUID {
 	bytes, err := id.MarshalBinary()
 	if err != nil {
-		logrus.Info(fmt.Sprintf("Unexpected Error: %v", err))
+		log.Info(fmt.Sprintf("Unexpected Error: %v", err))
 	}
 	return NSUUID{bytes}
 }

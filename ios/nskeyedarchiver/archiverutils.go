@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	plist "howett.net/plist"
 )
@@ -60,7 +60,7 @@ func toBinaryPlist(data interface{}) ([]byte, error) {
 func printAsJSON(obj interface{}) {
 	b, err := json.MarshalIndent(obj, "", "  ")
 	if err != nil {
-		logrus.WithError(err).Error("Error while marshalling JSON")
+		log.WithError(err).Error("Error while marshalling JSON")
 	}
 	fmt.Print(string(b))
 }

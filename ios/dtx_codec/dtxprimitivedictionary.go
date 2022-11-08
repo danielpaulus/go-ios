@@ -10,7 +10,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	archiver "github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // PrimitiveDictionary contains a custom dictionary type
@@ -51,7 +51,7 @@ func (d PrimitiveDictionary) GetArguments() []interface{} {
 func (d *PrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) (err error) {
 	archivedObject, err := nskeyedarchiver.ArchiveBin(object)
 	if err != nil {
-		logrus.WithError(err).Error("query request encoding should never fail")
+		log.WithError(err).Error("query request encoding should never fail")
 		return err
 	}
 	d.AddBytes(archivedObject)
@@ -122,7 +122,7 @@ func (d PrimitiveDictionary) String() string {
 				jsonBytes, _ := json.Marshal(msg[0])
 				prettyString = string(jsonBytes)
 			} else {
-				logrus.Warnf("failed decoding with %+v", err)
+				log.Warnf("failed decoding with %+v", err)
 
 			}
 			result += fmt.Sprintf("{t:%s, v:%s},", toString(v), prettyString)
@@ -198,7 +198,7 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 		}
 		return readType, data, auxBytes[8+length:]
 	}
-	logrus.Info(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d  rawbytes:%x", readType, auxBytes))
+	log.Info(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d  rawbytes:%x", readType, auxBytes))
 	return readType, nil, nil
 }
 
@@ -239,7 +239,7 @@ func (a *AuxiliaryEncoder) AddNsKeyedArchivedObject(object interface{}) (err err
 	a.writeEntry(t_null, nil)
 	bytes, err := archiver.ArchiveBin(object)
 	if err != nil {
-		logrus.WithError(err).Error("Failed archiving object")
+		log.WithError(err).Error("Failed archiving object")
 		return err
 	}
 	a.writeEntry(t_bytearray, bytes)
@@ -266,7 +266,7 @@ func (a *AuxiliaryEncoder) writeEntry(entryType uint32, object interface{}) {
 
 	}
 
-	logrus.Info(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d", entryType))
+	log.Info(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d", entryType))
 }
 
 func (a *AuxiliaryEncoder) GetBytes() []byte {

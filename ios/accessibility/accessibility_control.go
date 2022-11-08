@@ -3,7 +3,7 @@ package accessibility
 import (
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // ControlInterface provides a simple interface to controlling the AX service on the device
@@ -17,10 +17,10 @@ func (a ControlInterface) readhostAppStateChanged() {
 		msg := a.channel.ReceiveMethodCall("hostAppStateChanged:")
 		stateChange, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 		if err != nil {
-			logrus.WithError(err).Error("Failed unarchiving NSKeyedArchiver plists")
+			log.WithError(err).Error("Failed unarchiving NSKeyedArchiver plists")
 		}
 		value := stateChange[0]
-		logrus.Infof("hostAppStateChanged:%s", value)
+		log.Infof("hostAppStateChanged:%s", value)
 	}
 }
 
@@ -29,10 +29,10 @@ func (a ControlInterface) readhostInspectorNotificationReceived() {
 		msg := a.channel.ReceiveMethodCall("hostInspectorNotificationReceived:")
 		notification, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 		if err != nil {
-			logrus.WithError(err).Error("Failed unarchiving NSKeyedArchiver plists")
+			log.WithError(err).Error("Failed unarchiving NSKeyedArchiver plists")
 		}
 		value := notification[0].(map[string]interface{})["Value"]
-		logrus.Infof("hostInspectorNotificationReceived:%s", value)
+		log.Infof("hostInspectorNotificationReceived:%s", value)
 	}
 }
 
@@ -55,30 +55,30 @@ func (a ControlInterface) init() error {
 		return err
 	}
 
-	logrus.Info("Device Capabilities:", deviceCapabilities)
+	log.Info("Device Capabilities:", deviceCapabilities)
 	apiVersion, err := a.deviceAPIVersion()
 	if err != nil {
 		return err
 	}
-	logrus.Info("Api version:", apiVersion)
+	log.Info("Api version:", apiVersion)
 
 	auditCaseIds, err := a.deviceAllAuditCaseIDs()
 	if err != nil {
 		return err
 	}
-	logrus.Info("AuditCaseIDs", auditCaseIds)
+	log.Info("AuditCaseIDs", auditCaseIds)
 
 	deviceInspectorSupportedEventTypes, err := a.deviceInspectorSupportedEventTypes()
 	if err != nil {
 		return err
 	}
-	logrus.Info("deviceInspectorSupportedEventTypes:", deviceInspectorSupportedEventTypes)
+	log.Info("deviceInspectorSupportedEventTypes:", deviceInspectorSupportedEventTypes)
 
 	canNav, err := a.deviceInspectorCanNavWhileMonitoringEvents()
 	if err != nil {
 		return err
 	}
-	logrus.Info("deviceInspectorCanNavWhileMonitoringEvents:", canNav)
+	log.Info("deviceInspectorCanNavWhileMonitoringEvents:", canNav)
 
 	err = a.deviceSetAppMonitoringEnabled(true)
 	if err != nil {
@@ -90,7 +90,7 @@ func (a ControlInterface) init() error {
 		if err != nil {
 			return err
 		}
-		logrus.Infof("%s -- %s", v, name)
+		log.Infof("%s -- %s", v, name)
 	}
 	return nil
 }
@@ -108,7 +108,7 @@ func (a ControlInterface) EnableSelectionMode() {
 func (a ControlInterface) SwitchToDevice() {
 	a.TurnOff()
 	resp, _ := a.deviceAccessibilitySettings()
-	logrus.Info("AX Settings received:", resp)
+	log.Info("AX Settings received:", resp)
 	a.deviceInspectorShowIgnoredElements(false)
 	a.deviceSetAuditTargetPid(0)
 	a.deviceInspectorFocusOnElement()
@@ -131,20 +131,20 @@ func (a ControlInterface) TurnOff() {
 
 // GetElement moves the green selection rectangle one element further
 func (a ControlInterface) GetElement() {
-	logrus.Info("changing")
+	log.Info("changing")
 	a.deviceInspectorMoveWithOptions()
 	//a.deviceInspectorMoveWithOptions()
 
 	resp := a.awaitHostInspectorCurrentElementChanged()
-	logrus.Info("item changed", resp)
+	log.Info("item changed", resp)
 }
 
 func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
 	msg := a.channel.ReceiveMethodCall("hostInspectorCurrentElementChanged:")
-	logrus.Info("received hostInspectorCurrentElementChanged")
+	log.Info("received hostInspectorCurrentElementChanged")
 	result, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 	if err != nil {
-		logrus.WithError(err).Error("Failed unarchiving NSKeyedArchiver plists")
+		log.WithError(err).Error("Failed unarchiving NSKeyedArchiver plists")
 	}
 	return result[0].(map[string]interface{})
 }
@@ -152,7 +152,7 @@ func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]i
 func (a ControlInterface) awaitHostInspectorMonitoredEventTypeChanged() {
 	msg := a.channel.ReceiveMethodCall("hostInspectorMonitoredEventTypeChanged:")
 	n, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
-	logrus.Infof("hostInspectorMonitoredEventTypeChanged: was set to %d by the device", n[0])
+	log.Infof("hostInspectorMonitoredEventTypeChanged: was set to %d by the device", n[0])
 }
 
 func (a ControlInterface) deviceInspectorMoveWithOptions() {

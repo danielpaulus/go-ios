@@ -2,7 +2,7 @@ package dtx
 
 import (
 	"encoding/binary"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // FragmentDecoder collects DtxMessage fragments and merges them into a single DtxMessage when they are complete.
@@ -25,7 +25,7 @@ type FragmentDecoder struct {
 // NewFragmentDecoder creates a new decoder with the first fragment
 func NewFragmentDecoder(firstFragment Message) *FragmentDecoder {
 	if !firstFragment.IsFirstFragment() {
-		logrus.Warn("Illegal state, need to pass in a firstFragment")
+		log.Warn("Illegal state, need to pass in a firstFragment")
 	}
 	return &FragmentDecoder{firstFragment, make([]Message, firstFragment.Fragments-1), false}
 }
@@ -51,7 +51,7 @@ func (f FragmentDecoder) HasFinished() bool {
 // Extract can be used to get an assembled DtxMessage from all the fragments. Never call this befor HasFinished is true.
 func (f FragmentDecoder) Extract() []byte {
 	if !f.finished {
-		logrus.Warn("Illegal state")
+		log.Warn("Illegal state")
 		return nil
 	}
 	assembledMessage := make([]byte, f.firstFragment.MessageLength+32)

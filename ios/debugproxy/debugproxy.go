@@ -11,8 +11,6 @@ import (
 	"time"
 
 	ios "github.com/danielpaulus/go-ios/ios"
-
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,7 +37,7 @@ type ProxyConnection struct {
 	pairRecord ios.PairRecord
 	debugProxy *DebugProxy
 	info       ConnectionInfo
-	log        *logrus.Entry
+	log        *log.Entry
 	mux        sync.Mutex
 	closed     bool
 }
@@ -206,7 +204,7 @@ func writeJSON(filePath string, JSON interface{}) {
 	file, err := os.OpenFile(filePath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		logrus.Info(fmt.Sprintf("Could not write to file err: %v filepath:'%s'", err, filePath))
+		log.Info(fmt.Sprintf("Could not write to file err: %v filepath:'%s'", err, filePath))
 	}
 	jsonmsg, err := json.Marshal(JSON)
 	if err != nil {

@@ -6,11 +6,11 @@ import (
 	"path"
 
 	ios "github.com/danielpaulus/go-ios/ios"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type serviceConfig struct {
-	codec            func(string, string, *logrus.Entry) decoder
+	codec            func(string, string, *log.Entry) decoder
 	handshakeOnlySSL bool
 }
 
@@ -64,7 +64,7 @@ func handleConnectToService(connectRequest ios.UsbMuxMessage,
 	serviceInfo PhoneServiceInformation) {
 	err := muxToDevice.SendMuxMessage(connectRequest)
 	if err != nil {
-		logrus.WithError(err).Error("Failed sending muxmessage to device")
+		log.WithError(err).Error("Failed sending muxmessage to device")
 	}
 	connectResponse, err := muxToDevice.ReadMessage()
 	muxOnUnixSocket.SendMuxMessage(connectResponse)
@@ -128,7 +128,7 @@ func proxyBinFromDeviceToHost(p *ProxyConnection, binOnUnixSocket BinaryForwardi
 			p.log.Debug("Failed reading bytes", err)
 			return
 		}
-		p.log.WithFields(logrus.Fields{"direction": "device2host"}).Trace(hex.Dump(bytes))
+		p.log.WithFields(log.Fields{"direction": "device2host"}).Trace(hex.Dump(bytes))
 		binOnUnixSocket.Send(bytes)
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
 
@@ -34,7 +34,7 @@ func ToPlistBytes(data interface{}) []byte {
 	bytes, err := plist.Marshal(data, plist.XMLFormat)
 	if err != nil {
 		//this should not happen
-		logrus.Info(fmt.Sprintf("Failed converting to plist %v error:%v", data, err))
+		log.Info(fmt.Sprintf("Failed converting to plist %v error:%v", data, err))
 	}
 	return bytes
 }
@@ -57,10 +57,10 @@ func GetDevice(udid string) (DeviceEntry, error) {
 	if udid == "" {
 		udid = os.Getenv("udid")
 		if udid != "" {
-			logrus.Info("using udid from env.udid variable")
+			log.Info("using udid from env.udid variable")
 		}
 	}
-	logrus.Debugf("Looking for device '%s'", udid)
+	log.Debugf("Looking for device '%s'", udid)
 	deviceList, err := ListDevices()
 	if err != nil {
 		return DeviceEntry{}, err
@@ -69,7 +69,7 @@ func GetDevice(udid string) (DeviceEntry, error) {
 		if len(deviceList.DeviceList) == 0 {
 			return DeviceEntry{}, errors.New("no iOS devices are attached to this host")
 		}
-		logrus.WithFields(logrus.Fields{"udid": deviceList.DeviceList[0].Properties.SerialNumber}).
+		log.WithFields(log.Fields{"udid": deviceList.DeviceList[0].Properties.SerialNumber}).
 			Info("no udid specified using first device in list")
 		return deviceList.DeviceList[0], nil
 	}

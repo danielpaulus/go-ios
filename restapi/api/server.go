@@ -5,14 +5,14 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func Main() {
 	router := gin.Default()
-	log := logrus.New()
+	log := log.New()
 	myfile, _ := os.Create("go-ios.log")
 	gin.DefaultWriter = io.MultiWriter(myfile, os.Stdout)
 	router.Use(MyLogger(log), gin.Recovery())
