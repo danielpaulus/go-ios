@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
 
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
@@ -156,6 +157,7 @@ func DecodeNonBlocking(messageBytes []byte) (Message, []byte, error) {
 		return Message{}, make([]byte, 0), NewIncomplete("Payload missing")
 	}
 	result.RawBytes = messageBytes[:totalMessageLength]
+
 	if result.HasPayload() {
 		payload, err := result.parsePayloadBytes(result.RawBytes)
 		if err != nil {
@@ -210,6 +212,15 @@ func (d Message) parsePayloadBytes(messageBytes []byte) ([]interface{}, error) {
 		offset = 48
 	}
 	if d.PayloadHeader.MessageType == UnknownTypeOne {
+		return []interface{}{messageBytes[offset:]}, nil
+	}
+	if d.PayloadHeader.MessageType == LZ4CompressedMessage {
+		uncompressed, err := Decompress(messageBytes[offset:])
+		if err == nil {
+			log.Infof("lz4 compressed %d bytes/ %d uncompressed ", len(messageBytes[offset:]), len(uncompressed))
+		} else {
+			log.Infof("skipping lz4 compressed msg with %d bytes, decompression error %v", len(messageBytes[offset:]), err)
+		}
 		return []interface{}{messageBytes[offset:]}, nil
 	}
 	return nskeyedarchiver.Unarchive(messageBytes[offset:])

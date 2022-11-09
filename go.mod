@@ -9,6 +9,7 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.1.2
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
+	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/crypto v0.0.0-20210812204632-0ba0e8f03122

@@ -68,14 +68,15 @@ type AuxiliaryHeader struct {
 const (
 	//Ack is the messagetype for a 16 byte long acknowleding DtxMessage.
 	Ack = 0x0
-	//Uknown
+	//Unknown
 	UnknownTypeOne = 0x1
 	//Methodinvocation is the messagetype for a remote procedure call style DtxMessage.
 	Methodinvocation = 0x2
 	//ResponseWithReturnValueInPayload is the response for a method call that has a return value
 	ResponseWithReturnValueInPayload = 0x3
 	//DtxTypeError is the messagetype for a DtxMessage containing an error
-	DtxTypeError = 0x4
+	DtxTypeError         = 0x4
+	LZ4CompressedMessage = 0x0707
 )
 
 //This is only used for creating nice String() output
@@ -83,6 +84,9 @@ var messageTypeLookup = map[int]string{
 	ResponseWithReturnValueInPayload: `ResponseWithReturnValueInPayload`,
 	Methodinvocation:                 `Methodinvocation`,
 	Ack:                              `Ack`,
+	LZ4CompressedMessage:             `LZ4Compressed`,
+	UnknownTypeOne:                   `UnknownType1`,
+	DtxTypeError:                     `Error`,
 }
 
 func (d Message) String() string {
