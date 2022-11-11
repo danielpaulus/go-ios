@@ -6,6 +6,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/instruments"
+	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	"github.com/danielpaulus/go-ios/ios/simlocation"
 	"github.com/gin-gonic/gin"
@@ -119,6 +120,35 @@ func ResetLocation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, GenericResponse{Message: "Device location reset"})
+}
+
+// Get the list of installed profiles
+// @Summary      get the list of profiles
+// @Description  get the list of installed profiles from the ios device
+// @Tags         general_device_specific
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      500  {object}  GenericResponse
+// @Failure      404  {object}  GenericResponse
+// @Router       /device/{udid}/profiles [get]
+func GetProfiles(c *gin.Context) {
+
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+
+	mcinstallconn, err := mcinstall.New(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: "mcInstall Connection not established" + err.Error()})
+	}
+
+	defer mcinstallconn.Close()
+
+	profileInfo, err := mcinstallconn.HandleList()
+	if err != nil {
+		c.JSON(http.StatusNotFound, GenericResponse{Error: "Couldn't get the list of profiles" + err.Error()})
+	}
+
+	c.JSON(http.StatusOK, profileInfo)
+
 }
 
 //========================================
