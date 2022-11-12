@@ -137,14 +137,16 @@ func GetProfiles(c *gin.Context) {
 
 	mcinstallconn, err := mcinstall.New(device)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, GenericResponse{Error: "mcInstall Connection not established" + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed getting device list with error", "error": err.Error()})
+		return
 	}
 
 	defer mcinstallconn.Close()
 
 	profileInfo, err := mcinstallconn.HandleList()
 	if err != nil {
-		c.JSON(http.StatusNotFound, GenericResponse{Error: "Couldn't get the list of profiles" + err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"message": "Failed getting profile list with error", "error": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, profileInfo)
