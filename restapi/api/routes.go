@@ -20,6 +20,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	device.POST("/disable-condition", DisableDeviceCondition)
 
 	device.POST("/reservations", ReserveDevice)
+	device.GET("/profiles", GetProfiles)
 
 	initAppRoutes(device)
 	initStreamingResponseRoutes(device, router)
