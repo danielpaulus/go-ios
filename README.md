@@ -1,8 +1,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 [![](https://dcbadge.vercel.app/api/server/Zr8J3bCdkv)](https://discord.gg/Zr8J3bCdkv)
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/daniel1paulus.svg?style=social&label=Follow%20%40daniel1paulus)](https://twitter.com/daniel1paulus)
-
 [![NPM](https://nodei.co/npm/go-ios.png?mini=true)](https://npmjs.org/package/go-ios)
 [![NPM](https://img.shields.io/npm/dw/go-ios?style=flat-square)](https://npmjs.org/package/go-ios)
 
