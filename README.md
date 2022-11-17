@@ -8,7 +8,7 @@
 
 
 
-# Go-iOS
+# ![go-ios logo, a cute squid holding many phones](logo.png)
 Welcome 👋
 
 `npm install -g go-ios` can be used to get going. Run `ios --help` after the installation for details. 
