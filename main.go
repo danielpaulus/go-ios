@@ -525,7 +525,6 @@ The commands work as following:
 
 		pid, err := pControl.LaunchApp(bundleID)
 		exitIfError("launch app command failed", err)
-		time.Sleep(time.Second * 5)
 		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
 		if wait {
 			c := make(chan os.Signal, 1)

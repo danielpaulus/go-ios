@@ -74,7 +74,6 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 		//TODO: use the dispatchFunctions map
 		if "outputReceived:fromProcess:atTime:" == msg.Payload[0] {
 			logmsg, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
-
 			if err == nil {
 				log.WithFields(log.Fields{
 					"msg":  logmsg[0],

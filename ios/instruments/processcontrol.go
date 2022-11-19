@@ -24,7 +24,6 @@ func (p *ProcessControl) LaunchApp(bundleID string) (uint64, error) {
 	// NSUnbufferedIO seems to make the app send its logs via instruments using the outputReceived:fromProcess:atTime: selector
 	// We'll supply per default to get logs
 	env := map[string]interface{}{"NSUnbufferedIO": "YES"}
-	// map[string]interface{}{}
 	return p.StartProcess(bundleID, env, []interface{}{}, opts)
 }
 
@@ -37,7 +36,6 @@ func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	processControlChannel := dtxConn.RequestChannelIdentifier(procControlChannel, loggingDispatcher{dtxConn})
 	return &ProcessControl{processControlChannel: processControlChannel, conn: dtxConn}, nil
 }
@@ -73,7 +71,6 @@ func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interfa
 		log.WithFields(log.Fields{"channel_id": procControlChannel, "pid": pid}).Info("Process started successfully")
 		return pid, nil
 	}
-
 	return 0, fmt.Errorf("pid returned in payload was not of type uint64 for processcontroll.startprocess, instead: %s", msg.Payload)
 
 }
