@@ -1,13 +1,13 @@
 package dtx
 
 import (
+	"github.com/danielpaulus/go-ios/ios"
 	"io"
 	"math"
 	"strings"
 	"sync"
 	"time"
 
-	ios "github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
 )
