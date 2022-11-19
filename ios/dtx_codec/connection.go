@@ -73,10 +73,14 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 		}
 		//TODO: use the dispatchFunctions map
 		if "outputReceived:fromProcess:atTime:" == msg.Payload[0] {
-			log.Info("HAAA")
-			msg, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
+			logmsg, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
+
 			if err == nil {
-				log.Info(msg[0])
+				log.WithFields(log.Fields{
+					"msg":  logmsg[0],
+					"pid":  msg.Auxiliary.GetArguments()[1],
+					"time": msg.Auxiliary.GetArguments()[2],
+				}).Info("outputReceived:fromProcess:atTime:")
 			}
 			return
 		}
