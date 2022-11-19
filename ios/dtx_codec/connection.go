@@ -2,10 +2,10 @@ package dtx
 
 import (
 	"io"
+	"math"
 	"strings"
 	"sync"
 	"time"
-	"math"
 
 	ios "github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
@@ -73,6 +73,7 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 		}
 		//TODO: use the dispatchFunctions map
 		if "outputReceived:fromProcess:atTime:" == msg.Payload[0] {
+			log.Info("HAAA")
 			msg, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 			if err == nil {
 				log.Info(msg[0])

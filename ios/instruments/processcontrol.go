@@ -2,10 +2,10 @@ package instruments
 
 import (
 	"fmt"
-
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	log "github.com/sirupsen/logrus"
+	"time"
 )
 
 type ProcessControl struct {
@@ -16,9 +16,15 @@ type ProcessControl struct {
 //LaunchApp launches the app with the given bundleID on the given device.LaunchApp
 //Use LaunchAppWithArgs for passing arguments and envVars. It returns the PID of the created app process.
 func (p *ProcessControl) LaunchApp(bundleID string) (uint64, error) {
-	options := map[string]interface{}{}
-	options["StartSuspendedKey"] = uint64(0)
-	return p.StartProcess(bundleID, map[string]interface{}{}, []interface{}{}, options)
+	opts := map[string]interface{}{
+		"StartSuspendedKey": uint64(0),
+	}
+	env := map[string]interface{}{"CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0", "CA_DEBUG_TRANSACTIONS": "0", "LLVM_PROFILE_FILE": "/dev/null", "METAL_DEBUG_ERROR_MODE": "0", "METAL_DEVICE_WRAPPER_TYPE": "1", "NSUnbufferedIO": "YES", "OS_ACTIVITY_DT_MODE": "YES", "SQLITE_ENABLE_THREAD_ASSERTIONS": "1", "__XPC_LLVM_PROFILE_FILE": "/dev/null"}
+	// map[string]interface{}{}
+	p.StartProcess(bundleID, env, []interface{}{}, opts)
+	time.Sleep(5 * time.Second)
+	time.Sleep(5 * time.Second)
+	return 2, nil
 }
 
 func (p *ProcessControl) Close() {
@@ -30,6 +36,7 @@ func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	processControlChannel := dtxConn.RequestChannelIdentifier(procControlChannel, loggingDispatcher{dtxConn})
 	return &ProcessControl{processControlChannel: processControlChannel, conn: dtxConn}, nil
 }
@@ -65,6 +72,7 @@ func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interfa
 		log.WithFields(log.Fields{"channel_id": procControlChannel, "pid": pid}).Info("Process started successfully")
 		return pid, nil
 	}
+
 	return 0, fmt.Errorf("pid returned in payload was not of type uint64 for processcontroll.startprocess, instead: %s", msg.Payload)
 
 }
