@@ -11,6 +11,17 @@ import (
 )
 
 func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnection, muxToDevice *ios.UsbMuxConnection) {
+	defer func() {
+		log.Println("done") // Println executes normally even if there is a panic
+		if x := recover(); x != nil {
+			log.Printf("run time panic, moving back socket %v", x)
+			err := MoveBack(ios.DefaultUsbmuxdSocket)
+			if err != nil {
+				log.WithFields(log.Fields{"error": err}).Error("Failed moving back socket")
+			}
+			panic(x)
+		}
+	}()
 	for {
 		request, err := muxOnUnixSocket.ReadMessage()
 		if err != nil {
