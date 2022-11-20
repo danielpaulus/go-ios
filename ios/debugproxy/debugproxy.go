@@ -84,6 +84,10 @@ func NewDebugProxy() *DebugProxy {
 
 //Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
 func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
+	list, _ := ios.ListDevices()
+	if len(list.DeviceList) > 1 {
+		return fmt.Errorf("dproxy currently does not work when more than one device is connected to the host. please disconnect all but one device.")
+	}
 	if binaryMode {
 		log.Info("Lauching proxy in full binary mode")
 	}
