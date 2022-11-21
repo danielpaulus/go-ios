@@ -2,7 +2,6 @@ package instruments
 
 import (
 	"fmt"
-
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	log "github.com/sirupsen/logrus"
@@ -16,13 +15,20 @@ type ProcessControl struct {
 //LaunchApp launches the app with the given bundleID on the given device.LaunchApp
 //Use LaunchAppWithArgs for passing arguments and envVars. It returns the PID of the created app process.
 func (p *ProcessControl) LaunchApp(bundleID string) (uint64, error) {
-	options := map[string]interface{}{}
-	options["StartSuspendedKey"] = uint64(0)
-	return p.StartProcess(bundleID, map[string]interface{}{}, []interface{}{}, options)
+	opts := map[string]interface{}{
+		"StartSuspendedKey": uint64(0),
+	}
+	// Xcode sends all these, no idea if we need them for sth. later.
+	//"CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0", "CA_DEBUG_TRANSACTIONS": "0", "LLVM_PROFILE_FILE": "/dev/null", "METAL_DEBUG_ERROR_MODE": "0", "METAL_DEVICE_WRAPPER_TYPE": "1",
+	//"OS_ACTIVITY_DT_MODE": "YES", "SQLITE_ENABLE_THREAD_ASSERTIONS": "1", "__XPC_LLVM_PROFILE_FILE": "/dev/null"
+	// NSUnbufferedIO seems to make the app send its logs via instruments using the outputReceived:fromProcess:atTime: selector
+	// We'll supply per default to get logs
+	env := map[string]interface{}{"NSUnbufferedIO": "YES"}
+	return p.StartProcess(bundleID, env, []interface{}{}, opts)
 }
 
-func (p *ProcessControl) Close() {
-	p.conn.Close()
+func (p *ProcessControl) Close() error {
+	return p.conn.Close()
 }
 
 func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {

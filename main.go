@@ -93,7 +93,7 @@ Usage:
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
   ios apps [--system] [--all] [--list] [options]
-  ios launch <bundleID> [options]
+  ios launch <bundleID> [--wait] [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest <bundleID> [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
@@ -177,7 +177,7 @@ The commands work as following:
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system] [--all] [--list]                               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number.
-   ios launch <bundleID>                                              Launch app with the bundleID on the device. Get your bundle ID from the apps command.
+   ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios runtest <bundleID>                                             Run a XCUITest. 
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
@@ -515,6 +515,7 @@ The commands work as following:
 
 	b, _ = arguments.Bool("launch")
 	if b {
+		wait, _ := arguments.Bool("--wait")
 		bundleID, _ := arguments.String("<bundleID>")
 		if bundleID == "" {
 			log.Fatal("please provide a bundleID")
@@ -524,8 +525,13 @@ The commands work as following:
 
 		pid, err := pControl.LaunchApp(bundleID)
 		exitIfError("launch app command failed", err)
-
 		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
+		if wait {
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+			<-c
+			log.WithFields(log.Fields{"pid": pid}).Info("stop listening to logs")
+		}
 	}
 
 	b, _ = arguments.Bool("kill")
