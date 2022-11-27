@@ -18,6 +18,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	device.GET("/conditions", GetSupportedConditions)
 	device.PUT("/enable-condition", EnableDeviceCondition)
 	device.POST("/disable-condition", DisableDeviceCondition)
+	device.POST("/pair", PairDevice)
 
 	device.POST("/reservations", ReserveDevice)
 	device.GET("/profiles", GetProfiles)

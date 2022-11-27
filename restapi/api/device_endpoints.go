@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"net/http"
 	"sync"
 
@@ -21,6 +22,7 @@ import (
 // @Produce      json
 // @Param        udid  path      string  true  "device udid"
 // @Success      200  {object}  map[string]interface{}
+// @Param        udid path string true "Device UDID"
 // @Router       /device/{udid}/info [get]
 func Info(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
@@ -58,6 +60,7 @@ func Info(c *gin.Context) {
 // @Produce      png
 // @Param        udid  path      string  true  "device udid"
 // @Success      200  {object}  []byte
+// @Param        udid path string true "Device UDID"
 // @Router       /device/{udid}/screenshot [get]
 func Screenshot(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
@@ -79,6 +82,7 @@ func Screenshot(c *gin.Context) {
 // @Success      200  {object}  GenericResponse
 // @Failure		 422  {object}  GenericResponse
 // @Failure		 500  {object}  GenericResponse
+// @Param        udid path string true "Device UDID"
 // @Router       /device/{udid}/setlocation [post]
 func SetLocation(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
@@ -110,6 +114,7 @@ func SetLocation(c *gin.Context) {
 // @Produce      json
 // @Success      200
 // @Failure      500  {object}  GenericResponse
+// @Param        udid path string true "Device UDID"
 // @Router       /device/{udid}/resetlocation [post]
 func ResetLocation(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
@@ -130,6 +135,7 @@ func ResetLocation(c *gin.Context) {
 // @Success      200  {object}  map[string]interface{}
 // @Failure      500  {object}  GenericResponse
 // @Failure      404  {object}  GenericResponse
+// @Param        udid path string true "Device UDID"
 // @Router       /device/{udid}/profiles [get]
 func GetProfiles(c *gin.Context) {
 
@@ -173,6 +179,7 @@ type deviceCondition struct {
 // @Produce      json
 // @Success      200  {object}  []instruments.ProfileType
 // @Failure      500  {object}  GenericResponse
+// @Param        udid path string true "Device UDID"
 // @Router       /device/{udid}/conditions [get]
 func GetSupportedConditions(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
@@ -197,6 +204,7 @@ func GetSupportedConditions(c *gin.Context) {
 // @Description  Enable condition on a device by provided profileTypeID and profileID
 // @Tags         general_device_specific
 // @Produce      json
+// @Param        udid path string true "Device UDID"
 // @Param        profileTypeID  query      string  true  "Identifier of the profile type, eg. SlowNetworkCondition"
 // @Param        profileID  query      string  true  "Identifier of the sub-profile, eg. SlowNetwork100PctLoss"
 // @Success      200  {object}  GenericResponse
@@ -268,6 +276,7 @@ func EnableDeviceCondition(c *gin.Context) {
 // @Produce      json
 // @Success      200  {object}  GenericResponse
 // @Failure      500  {object}  GenericResponse
+// @Param        udid path string true "Device UDID"
 // @Router       /device/{udid}/disable-condition [post]
 func DisableDeviceCondition(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
@@ -292,4 +301,58 @@ func DisableDeviceCondition(c *gin.Context) {
 	delete(deviceConditionsMap, udid)
 
 	c.JSON(http.StatusOK, GenericResponse{Message: "Device condition disabled"})
+}
+
+//========================================
+// DEVICE PAIRING
+//========================================
+// Pairs a device
+// @Summary      Pair a device with/without supervision
+// @Description  Pair a device with/without supervision
+// @Tags         general_device_specific
+// @Produce      json
+// @Success      200  {object}  GenericResponse
+// @Failure      500  {object}  GenericResponse
+// @Failure      422  {object}  GenericResponse
+// @Param        udid path string true "Device UDID"
+// @Param        supervised query string true "Set if device is supervised - true/false"
+// @Param 		 p12file formData file false "Supervision *.p12 file"
+// @Param 		 supervision_password formData string false "Supervision password"
+// @Router       /device/{udid}/pair [post]
+func PairDevice(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+
+	supervised := c.Query("supervised")
+	if supervised == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "supervised query param is missing (true/false)"})
+		return
+	}
+
+	if supervised == "false" {
+		err := ios.Pair(device)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, GenericResponse{Message: "Device paired"})
+		return
+	}
+
+	file, _, err := c.Request.FormFile("p12file")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: "Could not parse p12 file from form-data, err:" + err.Error()})
+		return
+	}
+	p12fileBuf := new(bytes.Buffer)
+	p12fileBuf.ReadFrom(file)
+
+	supervision_password := c.Request.FormValue("supervision_password")
+
+	err = ios.PairSupervised(device, p12fileBuf.Bytes(), supervision_password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, GenericResponse{Message: "Device paired"})
 }
