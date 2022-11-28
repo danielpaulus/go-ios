@@ -66,7 +66,7 @@ Usage:
   ios image mount [--path=<imagepath>] [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios syslog [options]
-  ios screenshot [options] [--output=<outfile>]
+  ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
   ios instruments notifications [options]
   ios crash ls [<pattern>] [options]
   ios crash cp <srcpattern> <target> [options]
@@ -132,7 +132,8 @@ The commands work as following:
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir. 
    ios syslog [options]                                               Prints a device's log output
-   ios screenshot [options] [--output=<outfile>]                      Takes a screenshot and writes it to the current dir or to <outfile>
+   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]  Takes a screenshot and writes it to the current dir or to <outfile>  If --stream is supplied it
+   >                                                                  starts an mjpeg server at 0.0.0.0:3333. Use --port to set another port.
    ios instruments notifications [options]                            Listen to application state notifications                                    
    ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list, 
    >                                                                  or use a pattern like 'ios crash ls "*ips*"' to filter
@@ -377,7 +378,17 @@ The commands work as following:
 
 	b, _ = arguments.Bool("screenshot")
 	if b {
+		stream, _ := arguments.Bool("--stream")
+		port, _ := arguments.String("--port")
 		path, _ := arguments.String("--output")
+		if stream {
+			if port == "" {
+				port = "3333"
+			}
+			err := screenshotr.StartStreamingServer(device, port)
+			exitIfError("failed starting mjpeg", err)
+			return
+		}
 		saveScreenshot(device, path)
 		return
 	}
@@ -1195,8 +1206,6 @@ func printDeviceName(device ios.DeviceEntry) {
 
 func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 	log.Debug("take screenshot")
-	screenshotr.StartStreamingServer(device)
-	return
 	screenshotrService, err := screenshotr.New(device)
 	exitIfError("Starting Screenshotr failed with", err)
 

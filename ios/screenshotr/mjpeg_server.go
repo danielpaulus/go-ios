@@ -17,7 +17,7 @@ import (
 var consumers sync.Map
 var conversionQueue = make(chan []byte, 20)
 
-func StartStreamingServer(device ios.DeviceEntry) error {
+func StartStreamingServer(device ios.DeviceEntry, port string) error {
 	conn, err := New(device)
 	if err != nil {
 		return err
@@ -25,7 +25,9 @@ func StartStreamingServer(device ios.DeviceEntry) error {
 	go startScreenshotting(conn)
 	go startConversionQueue()
 	http.HandleFunc("/", mjpegHandler)
-	return http.ListenAndServe(":3333", nil)
+	location := fmt.Sprintf("0.0.0.0:%s", port)
+	log.WithFields(log.Fields{"host": "0.0.0.0", "port": port}).Infof("starting server, open your browser here: http://%s/", location)
+	return http.ListenAndServe(location, nil)
 }
 func startConversionQueue() {
 	var opt jpeg.Options
