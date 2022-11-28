@@ -340,13 +340,17 @@ func PairDevice(c *gin.Context) {
 
 	file, _, err := c.Request.FormFile("p12file")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, GenericResponse{Error: "Could not parse p12 file from form-data, err:" + err.Error()})
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: "Could not parse p12 file from form-data or no file provided, err:" + err.Error()})
 		return
 	}
 	p12fileBuf := new(bytes.Buffer)
 	p12fileBuf.ReadFrom(file)
 
-	supervision_password := c.Request.FormValue("supervision_password")
+	supervision_password := c.Request.Header.Get("Supervision-Password")
+	if supervision_password == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "you must provide non-empty `Supervision-Password` header with the request"})
+		return
+	}
 
 	err = ios.PairSupervised(device, p12fileBuf.Bytes(), supervision_password)
 	if err != nil {
