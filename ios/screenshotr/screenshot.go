@@ -64,7 +64,7 @@ func (screenShotrConn *Connection) readExchangeResponse(reader io.Reader) error 
 	}
 	readyMessage, ok := response[0].(string)
 	if !ok || readyMessage != "DLMessageDeviceReady" {
-		return fmt.Errorf("wrong message received", response)
+		return fmt.Errorf("wrong message received: '%s'", readyMessage)
 	}
 	return nil
 }
