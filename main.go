@@ -1202,9 +1202,9 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 	exitIfError("screenshotr failed", err)
 
 	if outputPath == "" {
-		time := time.Now().Format("20060102150405")
-		path, _ := filepath.Abs("./screenshot" + time + ".png")
-		outputPath = path
+		timestamp := time.Now().Format("20060102150405")
+		outputPath, err = filepath.Abs("./screenshot" + timestamp + ".png")
+		exitIfError("getting filepath failed", err)
 	}
 	err = ioutil.WriteFile(outputPath, imageBytes, 0777)
 	exitIfError("write file failed", err)
