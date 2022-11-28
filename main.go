@@ -1195,6 +1195,8 @@ func printDeviceName(device ios.DeviceEntry) {
 
 func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 	log.Debug("take screenshot")
+	screenshotr.StartStreamingServer(device)
+	return
 	screenshotrService, err := screenshotr.New(device)
 	exitIfError("Starting Screenshotr failed with", err)
 
