@@ -574,7 +574,7 @@ The commands work as following:
 				}
 			}
 			if processName == "" {
-				log.Errorf(bundleID, " not installed")
+				log.Errorf("%s not installed", bundleID)
 				os.Exit(1)
 				return
 			}
