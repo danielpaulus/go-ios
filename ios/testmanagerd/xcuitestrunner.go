@@ -247,7 +247,7 @@ const testmanagerdiOS14 = "com.apple.testmanagerd.lockdown.secure"
 
 const testBundleSuffix = "UITests.xctrunner"
 
-func RunXCUITest(bundleID string, device ios.DeviceEntry) error {
+func RunXCUITest(bundleID string, device ios.DeviceEntry, env []string) error {
 	testRunnerBundleID := bundleID + testBundleSuffix
 	//FIXME: this is redundant code, getting the app list twice and creating the appinfos twice
 	//just to generate the xctestConfigFileName. Should be cleaned up at some point.
@@ -266,7 +266,7 @@ func RunXCUITest(bundleID string, device ios.DeviceEntry) error {
 		return err
 	}
 	xctestConfigFileName := info.targetAppBundleName + "UITests.xctest"
-	return RunXCUIWithBundleIdsCtx(nil, bundleID, testRunnerBundleID, xctestConfigFileName, device, nil, nil)
+	return RunXCUIWithBundleIdsCtx(nil, bundleID, testRunnerBundleID, xctestConfigFileName, device, nil, env)
 }
 
 var closeChan = make(chan interface{})
