@@ -28,11 +28,15 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	return &Connection{deviceConn: deviceConn, plistCodec: ios.NewPlistCodec()}, nil
 }
 func (conn *Connection) BrowseUserApps() ([]AppInfo, error) {
-	return conn.browseApps(browseUserApps())
+	return conn.browseApps(browseApps("User", true))
 }
 
 func (conn *Connection) BrowseSystemApps() ([]AppInfo, error) {
-	return conn.browseApps(browseSystemApps())
+	return conn.browseApps(browseApps("System", false))
+}
+
+func (conn *Connection) BrowseAllApps() ([]AppInfo, error) {
+	return conn.browseApps(browseApps("", true))
 }
 
 func (conn *Connection) browseApps(request interface{}) ([]AppInfo, error) {
@@ -123,7 +127,7 @@ func plistFromBytes(plistBytes []byte) (BrowseResponse, error) {
 	}
 	return browseResponse, nil
 }
-func browseSystemApps() map[string]interface{} {
+func browseApps(applicationType string, showLaunchProhibitedApps bool) map[string]interface{} {
 	returnAttributes := []string{
 		"ApplicationDSID",
 		"ApplicationType",
@@ -145,37 +149,13 @@ func browseSystemApps() map[string]interface{} {
 		"UIRequiredDeviceCapabilities",
 	}
 	clientOptions := map[string]interface{}{
-		"ApplicationType":  "System",
 		"ReturnAttributes": returnAttributes,
 	}
-	return map[string]interface{}{"ClientOptions": clientOptions, "Command": "Browse"}
-}
-
-func browseUserApps() map[string]interface{} {
-	returnAttributes := []string{
-		"ApplicationDSID",
-		"ApplicationType",
-		"CFBundleDisplayName",
-		"CFBundleExecutable",
-		"CFBundleIdentifier",
-		"CFBundleName",
-		"CFBundleShortVersionString",
-		"CFBundleVersion",
-		"Container",
-		"Entitlements",
-		"EnvironmentVariables",
-		"MinimumOSVersion",
-		"Path",
-		"ProfileValidated",
-		"SBAppTags",
-		"SignerIdentity",
-		"UIDeviceFamily",
-		"UIRequiredDeviceCapabilities",
+	if applicationType != "" {
+		clientOptions["ApplicationType"] = applicationType
 	}
-	clientOptions := map[string]interface{}{
-		"ApplicationType":          "User",
-		"ReturnAttributes":         returnAttributes,
-		"ShowLaunchProhibitedApps": true,
+	if showLaunchProhibitedApps {
+                clientOptions["ShowLaunchProhibitedApps"] = true
 	}
 	return map[string]interface{}{"ClientOptions": clientOptions, "Command": "Browse"}
 }

@@ -141,7 +141,7 @@ func writePacket(f *os.File, packet []byte) error {
 	now := time.Now()
 	phs := &PcaprecHdrS{
 		int(now.Unix()),
-		int(now.UnixNano()/1e3 - now.Unix() * 1e6),
+		int(now.UnixNano()/1e3 - now.Unix()*1e6),
 		len(packet),
 		len(packet),
 	}
@@ -182,7 +182,7 @@ func getPacket(buf []byte) ([]byte, error) {
 		}
 	}
 
-	log.Info("IOSPacketHeader: ", iph.ToString())
+	//log.Info("IOSPacketHeader: ", iph.ToString())
 	packet, err := ioutil.ReadAll(preader)
 	if err != nil {
 		return packet, err

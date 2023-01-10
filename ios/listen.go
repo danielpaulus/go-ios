@@ -3,7 +3,6 @@ package ios
 import (
 	"bytes"
 	"fmt"
-
 	"howett.net/plist"
 )
 
@@ -21,6 +20,10 @@ type AttachedMessage struct {
 	MessageType string
 	DeviceID    int
 	Properties  DeviceProperties
+}
+
+func (a AttachedMessage) DeviceEntry() DeviceEntry {
+	return DeviceEntry{DeviceID: a.DeviceID, MessageType: "Attached", Properties: a.Properties}
 }
 
 func attachedFromBytes(plistBytes []byte) (AttachedMessage, error) {
@@ -80,4 +83,15 @@ func (muxConn *UsbMuxConnection) Listen() (func() (AttachedMessage, error), erro
 		return attachedFromBytes(mux.Payload)
 	}, nil
 
+}
+
+func Listen() (func() (AttachedMessage, error), func() error, error) {
+	deviceConn, err := NewDeviceConnection(DefaultUsbmuxdSocket)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not connect to usbmuxd: %w", err)
+	}
+	muxConnection := NewUsbMuxConnection(deviceConn)
+
+	attachedReceiver, err := muxConnection.Listen()
+	return attachedReceiver, muxConnection.Close, err
 }

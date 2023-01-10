@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/Masterminds/semver"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -47,8 +49,17 @@ func Ntohs(port uint16) uint16 {
 	return binary.LittleEndian.Uint16(buf)
 }
 
-//GetDevice returns the device for udid. If udid equals emptystring, it returns the first device in the list.
+//GetDevice returns:
+// the device for the udid if a valid udid is provided.
+// if the env variable 'udid' is specified, the device with that udid
+// otherwise it returns the first device in the list.
 func GetDevice(udid string) (DeviceEntry, error) {
+	if udid == "" {
+		udid = os.Getenv("udid")
+		if udid != "" {
+			log.Info("using udid from env.udid variable")
+		}
+	}
 	log.Debugf("Looking for device '%s'", udid)
 	deviceList, err := ListDevices()
 	if err != nil {
@@ -58,7 +69,8 @@ func GetDevice(udid string) (DeviceEntry, error) {
 		if len(deviceList.DeviceList) == 0 {
 			return DeviceEntry{}, errors.New("no iOS devices are attached to this host")
 		}
-		log.WithFields(log.Fields{"udid": deviceList.DeviceList[0].Properties.SerialNumber}).Debug("no udid specified using default")
+		log.WithFields(log.Fields{"udid": deviceList.DeviceList[0].Properties.SerialNumber}).
+			Info("no udid specified using first device in list")
 		return deviceList.DeviceList[0], nil
 	}
 	for _, device := range deviceList.DeviceList {
@@ -69,7 +81,7 @@ func GetDevice(udid string) (DeviceEntry, error) {
 	return DeviceEntry{}, fmt.Errorf("Device '%s' not found. Is it attached to the machine?", udid)
 }
 
-//It is used to determine whether the path folder exists
+//PathExists is used to determine whether the path folder exists
 //True if it exists, false otherwise
 func PathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
@@ -80,4 +92,39 @@ func PathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func IOS14() *semver.Version {
+	return semver.MustParse("14.0")
+}
+
+func IOS12() *semver.Version {
+	return semver.MustParse("12.0")
+}
+
+func IOS11() *semver.Version {
+	return semver.MustParse("11.0")
+}
+
+//FixWindowsPaths replaces backslashes with forward slashes and removes the X: style
+//windows drive letters
+func FixWindowsPaths(path string) string {
+	path = strings.ReplaceAll(path, "\\", "/")
+	if strings.Contains(path, ":/") {
+		path = strings.Split(path, ":/")[1]
+	}
+	return path
+}
+
+func ByteCountDecimal(b int64) string {
+	const unit = 1000
+	if b < unit {
+		return fmt.Sprintf("%dB", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f%cB", float64(b)/float64(div), "kMGTPE"[exp])
 }

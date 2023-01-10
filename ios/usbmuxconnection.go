@@ -3,10 +3,9 @@ package ios
 import (
 	"encoding/binary"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"reflect"
-
-	log "github.com/sirupsen/logrus"
 )
 
 //DefaultUsbmuxdSocket this is the unix domain socket address to connect to.
@@ -43,8 +42,8 @@ func (muxConn *UsbMuxConnection) ReleaseDeviceConnection() DeviceConnectionInter
 }
 
 //Close calls close on the underlying DeviceConnection
-func (muxConn *UsbMuxConnection) Close() {
-	muxConn.deviceConn.Close()
+func (muxConn *UsbMuxConnection) Close() error {
+	return muxConn.deviceConn.Close()
 }
 
 //UsbMuxMessage contains header and payload for a message to usbmux
@@ -107,7 +106,7 @@ func (muxConn *UsbMuxConnection) ReadMessage() (UsbMuxMessage, error) {
 
 //encode serializes a MuxMessage struct to a Plist and writes it to the io.Writer.
 func (muxConn *UsbMuxConnection) encode(message interface{}, writer io.Writer) error {
-	log.Debug("UsbMux send", reflect.TypeOf(message), " on ", &muxConn.deviceConn)
+	log.Tracef("UsbMux send %v  on  %v", reflect.TypeOf(message), &muxConn.deviceConn)
 	mbytes := ToPlistBytes(message)
 	err := writeHeader(len(mbytes), muxConn.tag, writer)
 	if err != nil {
@@ -137,7 +136,7 @@ func (muxConn UsbMuxConnection) decode(r io.Reader) (UsbMuxMessage, error) {
 	if err != nil {
 		return UsbMuxMessage{}, fmt.Errorf("Error '%s' while reading usbmux package. Only %d bytes received instead of %d", err.Error(), n, muxHeader.Length-16)
 	}
-	log.Debug("UsbMux Receive on ", &muxConn.deviceConn)
+	log.Tracef("UsbMux Receive on %v", &muxConn.deviceConn)
 
 	return UsbMuxMessage{muxHeader, payloadBytes}, nil
 }

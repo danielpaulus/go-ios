@@ -16,6 +16,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestArchiveSlice(t *testing.T) {
+	var option = make(map[string]interface{})
+	option["name"] = "james"
+	option["age"] = 20
+	children := []string{"abc", "def", "ok"}
+	option["children"] = children
+	data, err := archiver.ArchiveXML(option)
+	if err != nil {
+		t.FailNow()
+	}
+	intf, err := archiver.Unarchive([]byte(data))
+	val := intf[0].(map[string]interface{})["children"].([]interface{})
+	assert.Equal(t, "abc", val[0])
+	assert.Equal(t, "def", val[1])
+	assert.Equal(t, "ok", val[2])
+	print(val)
+
+}
+
 //TODO currently only partially decoding XCTestConfig is supported, fix later
 func TestXCTestconfig(t *testing.T) {
 	uuid := uuid.New()
@@ -57,8 +76,82 @@ func TestXCTCaps(t *testing.T) {
 	log.Info(unarchivedObject)
 }
 
+func TestDTCPUClusterInfo(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/dtcpuclusterinfo.bin")
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestDTTapMessage(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/dttapmessage.bin")
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestDTSysmonTap(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/DTSysmonTapMessage.bin")
+
+	if err != nil {
+
+		log.Error(err)
+		t.Fatal()
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
 func TestNSUUID(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/nsuuid.bin")
+
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestXCTestIdentifier(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/xctestidentifier.bin")
+
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestNSValue(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/nsvalue.bin")
+
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestWTF(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/int64-value-in-nskeyedarchive.bin")
 
 	if err != nil {
 		log.Error(err)
@@ -85,6 +178,19 @@ func TestXCActivityRecord(t *testing.T) {
 
 func TestDTTapHeartbeatMessage(t *testing.T) {
 	nskeyedBytes, err := ioutil.ReadFile("fixtures/DTTapHeartbeatMessage.bin")
+
+	if err != nil {
+		log.Error(err)
+		t.Fatal()
+	}
+
+	unarchivedObject, err := archiver.Unarchive(nskeyedBytes)
+	assert.NoError(t, err)
+	log.Info(unarchivedObject)
+}
+
+func TestDTTapstatusmessage(t *testing.T) {
+	nskeyedBytes, err := ioutil.ReadFile("fixtures/dttapstatusmessage.bin")
 
 	if err != nil {
 		log.Error(err)

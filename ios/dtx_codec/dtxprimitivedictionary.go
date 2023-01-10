@@ -126,6 +126,9 @@ func (d PrimitiveDictionary) String() string {
 			result += fmt.Sprintf("{t:%s, v:%s},", toString(v), prettyString)
 			continue
 		}
+		if v == t_string{
+			result += d.values[i].(string)
+		}
 		if v == t_uint32 {
 			result += fmt.Sprintf("{t:%s, v:%d},", toString(v), d.values[i])
 			continue
@@ -184,9 +187,13 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 	if readType == t_int64 {
 		return t_int64, binary.LittleEndian.Uint64(auxBytes[4:12]), auxBytes[12:]
 	}
+
 	if hasLength(readType) {
 		length := binary.LittleEndian.Uint32(auxBytes[4:])
 		data := auxBytes[8 : 8+length]
+		if readType==t_string{
+			return readType, string(data), auxBytes[8+length:]
+		}
 		return readType, data, auxBytes[8+length:]
 	}
 	panic(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d  rawbytes:%x", readType, auxBytes))
@@ -206,6 +213,8 @@ func toString(t uint32) string {
 		return "null"
 	case t_bytearray:
 		return "binary"
+	case t_string:
+		return "string"
 	case t_uint32:
 		return "uint32"
 	case t_int64:
@@ -216,7 +225,7 @@ func toString(t uint32) string {
 }
 
 func hasLength(typeCode uint32) bool {
-	return typeCode == t_bytearray
+	return typeCode == t_bytearray || typeCode == t_string
 }
 
 type AuxiliaryEncoder struct {
@@ -244,6 +253,11 @@ func (a *AuxiliaryEncoder) writeEntry(entryType uint32, object interface{}) {
 	if entryType == t_bytearray {
 		binary.Write(&a.buf, binary.LittleEndian, int32(len(object.([]byte))))
 		a.buf.Write(object.([]byte))
+
+	}
+	if entryType == t_string {
+		binary.Write(&a.buf, binary.LittleEndian, int32(len(object.([]byte))))
+		a.buf.Write([]byte(object.(string)))
 
 	}
 	panic(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d", entryType))

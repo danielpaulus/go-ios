@@ -26,7 +26,11 @@ func Reboot(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	return service.Reboot()
+	err = service.Reboot()
+	if err != nil {
+		return err
+	}
+	return service.Close()
 }
 
 func (diagnosticsConn *Connection) Reboot() error {
@@ -36,7 +40,10 @@ func (diagnosticsConn *Connection) Reboot() error {
 	if err != nil {
 		return err
 	}
-	diagnosticsConn.deviceConn.Send(bytes)
+	err = diagnosticsConn.deviceConn.Send(bytes)
+	if err != nil {
+		return err
+	}
 	response, err := diagnosticsConn.plistCodec.Decode(reader)
 	if err != nil {
 		return err
@@ -47,31 +54,14 @@ func (diagnosticsConn *Connection) Reboot() error {
 	}
 	if val, ok := plist["Status"]; ok {
 		if statusString, yes := val.(string); yes {
-			if "Success" == statusString {
+			if statusString == "Success" {
 				return nil
 			}
 
 		}
 
 	}
-	return fmt.Errorf("Could not reboot, response: %+v", plist)
-}
-
-func (diagnosticsConn *Connection) MobileGestaltQuery(keys []string) (interface{}, error) {
-	err := diagnosticsConn.deviceConn.Send(gestaltRequest(keys))
-	if err != nil {
-		return "", err
-	}
-	respBytes, err := diagnosticsConn.plistCodec.Decode(diagnosticsConn.deviceConn.Reader())
-	if err != nil {
-		return "", err
-	}
-	err = diagnosticsConn.deviceConn.Send(goodBye())
-	if err != nil {
-		return "", err
-	}
-	plist, err := ios.ParsePlist(respBytes)
-	return plist, err
+	return fmt.Errorf("could not reboot, response: %+v", plist)
 }
 
 func (diagnosticsConn *Connection) AllValues() (allDiagnosticsResponse, error) {
@@ -96,8 +86,14 @@ func (diagnosticsConn *Connection) Close() error {
 	if err != nil {
 		return err
 	}
-	diagnosticsConn.deviceConn.Send(bytes)
+	err = diagnosticsConn.deviceConn.Send(bytes)
+	if err != nil {
+		return err
+	}
 	_, err = diagnosticsConn.plistCodec.Decode(reader)
+	if err != nil {
+		return err
+	}
 	diagnosticsConn.deviceConn.Close()
-	return err
+	return nil
 }

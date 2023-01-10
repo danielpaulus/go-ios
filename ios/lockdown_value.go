@@ -114,7 +114,7 @@ type valueRequest struct {
 	Key     string `plist:"Key,omitempty"`
 	Request string
 	Domain  string `plist:"Domain,omitempty"`
-	Value   string `plist:"Value,omitempty"`
+	Value   interface{} `plist:"Value,omitempty"`
 }
 
 func newGetValue(key string) valueRequest {
@@ -126,7 +126,7 @@ func newGetValue(key string) valueRequest {
 	return data
 }
 
-func newSetValue(key string, domain string, value string) valueRequest {
+func newSetValue(key string, domain string, value interface{}) valueRequest {
 	data := valueRequest{
 		Label:   "go.ios.control",
 		Key:     key,
@@ -166,6 +166,23 @@ func GetProductVersion(device DeviceEntry) (*semver.Version, error) {
 	return v, err
 }
 
+//GetWifiMac gets the static MAC address of the device WiFi.
+//note: this does not report the dynamic MAC if you enable the
+//"automatic WiFi address" feature.
+func GetWifiMac(device DeviceEntry) (string, error) {
+	lockdownConnection, err := ConnectLockdownWithSession(device)
+	if err != nil {
+		return "", err
+	}
+	defer lockdownConnection.Close()
+	wifiMac, err := lockdownConnection.GetValue("WiFiAddress")
+	if err != nil {
+		return "", err
+	}
+
+	return wifiMac.(string), err
+}
+
 //GetProductVersion returns the ProductVersion of the device f.ex. "10.3"
 func (lockDownConn *LockDownConnection) GetProductVersion() (string, error) {
 	msg, err := lockDownConn.GetValue("ProductVersion")
@@ -198,7 +215,7 @@ func (lockDownConn *LockDownConnection) GetValueForDomain(key string, domain str
 }
 
 //SetValueForDomain sets the string value for the lockdown key and domain. If the device returns an error it will be returned as a go error.
-func (lockDownConn *LockDownConnection) SetValueForDomain(key string, domain string, value string) error {
+func (lockDownConn *LockDownConnection) SetValueForDomain(key string, domain string, value interface{}) error {
 	gv := newSetValue(key, domain, value)
 	lockDownConn.Send(gv)
 	resp, err := lockDownConn.ReadMessage()

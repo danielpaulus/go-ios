@@ -1,12 +1,13 @@
 package dtx
 
 import (
+	"github.com/danielpaulus/go-ios/ios"
 	"io"
+	"math"
 	"strings"
 	"sync"
 	"time"
 
-	ios "github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
 )
@@ -18,7 +19,7 @@ type MethodWithResponse func(msg Message) (interface{}, error)
 type Connection struct {
 	deviceConnection       ios.DeviceConnectionInterface
 	channelCodeCounter     int
-	activeChannels         map[int]*Channel
+	activeChannels         sync.Map
 	globalChannel          *Channel
 	capabilities           map[string]interface{}
 	mutex                  sync.Mutex
@@ -40,8 +41,11 @@ type GlobalDispatcher struct {
 const requestChannel = "_requestChannelWithCode:identifier:"
 
 //Close closes the underlying deviceConnection
-func (dtxConn *Connection) Close() {
-	dtxConn.deviceConnection.Close()
+func (dtxConn *Connection) Close() error {
+	if dtxConn.deviceConnection != nil {
+		return dtxConn.deviceConnection.Close()
+	}
+	return nil
 }
 
 //GlobalChannel returns the connections automatically created global channel.
@@ -69,12 +73,18 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 		}
 		//TODO: use the dispatchFunctions map
 		if "outputReceived:fromProcess:atTime:" == msg.Payload[0] {
-			msg, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
-			log.Info(msg[0])
+			logmsg, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
+			if err == nil {
+				log.WithFields(log.Fields{
+					"msg":  logmsg[0],
+					"pid":  msg.Auxiliary.GetArguments()[1],
+					"time": msg.Auxiliary.GetArguments()[2],
+				}).Info("outputReceived:fromProcess:atTime:")
+			}
 			return
 		}
 	}
-	log.Debugf("Global Dispatcher Received: %s %s", msg.Payload, msg.Auxiliary)
+	log.Tracef("Global Dispatcher Received: %s %s", msg.Payload, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}
@@ -93,7 +103,7 @@ func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, err
 	requestChannelMessages := make(chan Message, 5)
 
 	//The global channel has channelCode 0, so we need to start with channelCodeCounter==1
-	dtxConnection := &Connection{deviceConnection: conn, channelCodeCounter: 1, activeChannels: map[int]*Channel{}, requestChannelMessages: requestChannelMessages}
+	dtxConnection := &Connection{deviceConnection: conn, channelCodeCounter: 1, requestChannelMessages: requestChannelMessages}
 
 	//The global channel is automatically present and used for requesting other channels and some other methods like notifyPublishedCapabilities
 	globalChannel := Channel{channelCode: 0,
@@ -128,8 +138,8 @@ func reader(dtxConn *Connection) {
 			log.Errorf("error reading dtx connection %+v", err)
 			return
 		}
-
-		if channel, ok := dtxConn.activeChannels[msg.ChannelCode]; ok {
+		if _channel, ok := dtxConn.activeChannels.Load(msg.ChannelCode); ok {
+			channel := _channel.(*Channel)
 			channel.Dispatch(msg)
 		} else {
 			dtxConn.globalChannel.Dispatch(msg)
@@ -139,7 +149,6 @@ func reader(dtxConn *Connection) {
 
 func SendAckIfNeeded(dtxConn *Connection, msg Message) {
 	if msg.ExpectsReply {
-		log.Debug("sending ack")
 		ack := BuildAckMessage(msg)
 		err := dtxConn.Send(ack)
 		if err != nil {
@@ -155,8 +164,19 @@ func (dtxConn *Connection) ForChannelRequest(messageDispatcher Dispatcher) *Chan
 	//code := msg.Auxiliary.GetArguments()[0].(uint32)
 	identifier, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
 	//TODO: Setting the channel code here manually to -1 for making testmanagerd work. For some reason it requests the TestDriver proxy channel with code 1 but sends messages on -1. Should probably be fixed somehow
+	//TODO: try to refactor testmanagerd/xcuitest code and use AddDefaultChannelReceiver instead of this function. The only code calling this is in testmanagerd right now.
 	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
-	dtxConn.activeChannels[-1] = channel
+	dtxConn.activeChannels.Store(-1, channel)
+	return channel
+}
+
+//AddDefaultChannelReceiver let's you set the Dispatcher for the Channel with code -1 ( or 4294967295 for uint32).
+// I am just calling it the "default" channel now, without actually figuring out what it is for exactly from disassembled code.
+// If someone wants to do that and bring some clarity, please go ahead :-)
+// This channel seems to always be there without explicitly requesting it and sometimes it is used.
+func (dtxConn *Connection) AddDefaultChannelReceiver(messageDispatcher Dispatcher) *Channel {
+	channel := &Channel{channelCode: -1, channelName: "c -1/ 4294967295 receiver channel ", messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
+	dtxConn.activeChannels.Store(uint32(math.MaxUint32), channel)
 	return channel
 }
 
@@ -182,7 +202,7 @@ func (dtxConn *Connection) RequestChannelIdentifier(identifier string, messageDi
 	}
 	log.WithFields(log.Fields{"channel_id": identifier}).Debug("Channel open")
 	channel := &Channel{channelCode: code, channelName: identifier, messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
-	dtxConn.activeChannels[code] = channel
+	dtxConn.activeChannels.Store(code, channel)
 	for _, opt := range opts {
 		opt(channel)
 	}
