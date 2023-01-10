@@ -17,6 +17,20 @@ func TestConnection_Remove(t *testing.T) {
 	}
 }
 
+func TestConnection_RemoveAll(t *testing.T) {
+	deviceEnrty, _ := ios.GetDevice(test_device_udid)
+
+	conn, err := New(deviceEnrty)
+	if err != nil {
+		log.Fatalf("connect service failed: %v", err)
+	}
+
+	err = conn.RemoveAll("/DCIM/TestDir")
+	if err != nil {
+		log.Fatalf("remove failed:%v", err)
+	}
+}
+
 func TestConnection_Mkdir(t *testing.T) {
 	deviceEnrty, _ := ios.GetDevice(test_device_udid)
 
