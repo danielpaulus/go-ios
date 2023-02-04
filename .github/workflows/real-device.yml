@@ -69,9 +69,10 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: signed-wda
-      - name: extract ipa #github auto zips artifacts after a workflow is complete so we need to unzip the ipa
-                          #as it is now double zipped
-        run:  Expand-Archive -Force wda-signed.ipa testdata/signed-wda.ipa
+      - name:
+          extract ipa #github auto zips artifacts after a workflow is complete so we need to unzip the ipa
+          #as it is now double zipped
+        run: Expand-Archive -Force wda-signed.ipa testdata/signed-wda.ipa
       - name: forward ngrok
         run: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=27015 connectaddress=$($env:NGROK_URL.Split(":")[0]) connectport=$($env:NGROK_URL.Split(":")[1])
         env:
@@ -119,9 +120,8 @@ jobs:
       - name: ngrok
         run: sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,mode=777 TCP-CONNECT:$NGROK_URL&
         env:
-         NGROK_URL: ${{ github.event.inputs.ngrok }}
+          NGROK_URL: ${{ github.event.inputs.ngrok }}
       - name: test list
         run: go run main.go list
       - name: install relative
         run: go run main.go install --path testdata/signed-wda.ipa --udid=$UDID
-

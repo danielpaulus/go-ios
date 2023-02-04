@@ -46,4 +46,3 @@ jobs:
         run: go build
       - name: run unit tests
         run: go test -v -tags=fast ./...
-

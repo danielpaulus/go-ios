@@ -20,7 +20,7 @@ jobs:
         id: deployment
         with:
           token: '${{ github.token }}'
-          environment-url:  ${{ env.NGROK_URL }}
+          environment-url: ${{ env.NGROK_URL }}
           environment: staging
       - name: Install Go
         uses: actions/setup-go@v2
