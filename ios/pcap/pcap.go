@@ -25,22 +25,23 @@ var (
 // IOSPacketHeader :)
 // ref: https://github.com/gofmt/iOSSniffer/blob/master/pkg/sniffer/sniffer.go#L44
 type IOSPacketHeader struct {
-	HdrSize        uint32  `struc:"uint32,big"`
-	Version        uint8   `struc:"uint8,big"`
-	PacketSize     uint32  `struc:"uint32,big"`
-	Type           uint8   `struc:"uint8,big"`
-	Unit           uint16  `struc:"uint16,big"`
-	IO             uint8   `struc:"uint8,big"`
-	ProtocolFamily uint32  `struc:"uint32,big"`
-	FramePreLength uint32  `struc:"uint32,big"`
-	FramePstLength uint32  `struc:"uint32,big"`
-	IFName         string  `struc:"[16]byte"`
-	Pid            int32   `struc:"int32,little"`
-	ProcName       string  `struc:"[17]byte"`
-	Unknown        uint32  `struc:"uint32,little"`
-	Pid2           int32   `struc:"int32,little"`
-	ProcName2      string  `struc:"[17]byte"`
-	Unknown2       [8]byte `struc:"[8]byte"`
+	HdrSize        uint32 `struc:"uint32,big"`
+	Version        uint8  `struc:"uint8,big"`
+	PacketSize     uint32 `struc:"uint32,big"`
+	Type           uint8  `struc:"uint8,big"`
+	Unit           uint16 `struc:"uint16,big"`
+	IO             uint8  `struc:"uint8,big"`
+	ProtocolFamily uint32 `struc:"uint32,big"`
+	FramePreLength uint32 `struc:"uint32,big"`
+	FramePstLength uint32 `struc:"uint32,big"`
+	IFName         string `struc:"[16]byte"`
+	Pid            int32  `struc:"int32,little"`
+	ProcName       string `struc:"[17]byte"`
+	Unknown        uint32 `struc:"uint32,little"`
+	Pid2           int32  `struc:"int32,little"`
+	ProcName2      string `struc:"[17]byte"`
+	TsSec          int    `struc:"int32,big"` /* timestamp seconds */
+	TsUsec         int    `struc:"int32,big"` /* timestamp microseconds */
 }
 
 func (iph *IOSPacketHeader) ToString() string {
@@ -80,12 +81,12 @@ func Start(device ios.DeviceEntry) error {
 		if err != nil {
 			return err
 		}
-		packet, err := getPacket(decodedBytes)
+		iph, packet, err := getPacket(decodedBytes)
 		if err != nil {
 			return err
 		}
 		if len(packet) > 0 {
-			err = writePacket(f, packet)
+			err = writePacket(f, iph, packet)
 			if err != nil {
 				return err
 			}
@@ -137,11 +138,10 @@ func createPcap(name string) (*os.File, error) {
 	return f, nil
 }
 
-func writePacket(f *os.File, packet []byte) error {
-	now := time.Now()
+func writePacket(f *os.File, iph IOSPacketHeader, packet []byte) error {
 	phs := &PcaprecHdrS{
-		int(now.Unix()),
-		int(now.UnixNano()/1e3 - now.Unix()*1e6),
+		iph.TsSec,
+		iph.TsUsec,
 		len(packet),
 		len(packet),
 	}
@@ -155,41 +155,41 @@ func writePacket(f *os.File, packet []byte) error {
 	return nil
 }
 
-func getPacket(buf []byte) ([]byte, error) {
-	iph := IOSPacketHeader{}
+func getPacket(buf []byte) (iph IOSPacketHeader, packet []byte, err error) {
+	iph = IOSPacketHeader{}
 	preader := bytes.NewReader(buf)
 	struc.Unpack(preader, &iph)
 
 	// support ios 15 beta4
 	if iph.HdrSize > PacketHeaderSize {
 		buf := make([]byte, iph.HdrSize-PacketHeaderSize)
-		_, err := io.ReadFull(preader, buf)
+		_, err = io.ReadFull(preader, buf)
 		if err != nil {
-			return []byte{}, err
+			return iph, []byte{}, err
 		}
 	}
 
 	// Only return specific packet
 	if Pid > 0 {
 		if iph.Pid != Pid && iph.Pid2 != Pid {
-			return []byte{}, nil
+			return iph, []byte{}, nil
 		}
 	}
 
 	if ProcName != "" {
 		if !strings.HasPrefix(iph.ProcName, ProcName) && !strings.HasPrefix(iph.ProcName2, ProcName) {
-			return []byte{}, nil
+			return iph, []byte{}, nil
 		}
 	}
 
 	//log.Info("IOSPacketHeader: ", iph.ToString())
-	packet, err := ioutil.ReadAll(preader)
+	packet, err = ioutil.ReadAll(preader)
 	if err != nil {
-		return packet, err
+		return iph, packet, err
 	}
 	if iph.FramePreLength == 0 {
 		ext := []byte{0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0xbe, 0xfe, 0x08, 0x00}
-		return append(ext, packet...), nil
+		return iph, append(ext, packet...), nil
 	}
-	return packet, nil
+	return iph, packet, nil
 }
