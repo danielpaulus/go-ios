@@ -29,7 +29,6 @@ func FindIp(device ios.DeviceEntry) (NetworkInfo, error) {
 
 }
 
-
 func findIp(device ios.DeviceEntry, mac string) (NetworkInfo, error) {
 	intf, err := ios.ConnectToService(device, "com.apple.pcapd")
 	if err != nil {
@@ -47,12 +46,12 @@ func findIp(device ios.DeviceEntry, mac string) (NetworkInfo, error) {
 		if err != nil {
 			return NetworkInfo{}, err
 		}
-		packet, err := getPacket(decodedBytes)
+		_, packet, err := getPacket(decodedBytes)
 		if err != nil {
 			return NetworkInfo{}, err
 		}
 		if len(packet) > 0 {
-			err:=findIP(packet, &info)
+			err := findIP(packet, &info)
 			if err != nil {
 				return NetworkInfo{}, err
 			}
