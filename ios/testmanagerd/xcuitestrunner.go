@@ -3,10 +3,11 @@ package testmanagerd
 import (
 	"context"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios/house_arrest"
 
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -247,8 +248,7 @@ const testmanagerdiOS14 = "com.apple.testmanagerd.lockdown.secure"
 
 const testBundleSuffix = "UITests.xctrunner"
 
-func RunXCUITest(bundleID string, device ios.DeviceEntry, env []string) error {
-	testRunnerBundleID := bundleID + testBundleSuffix
+func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName string, device ios.DeviceEntry, env []string) error {
 	//FIXME: this is redundant code, getting the app list twice and creating the appinfos twice
 	//just to generate the xctestConfigFileName. Should be cleaned up at some point.
 	installationProxy, err := installationproxy.New(device)
@@ -256,6 +256,10 @@ func RunXCUITest(bundleID string, device ios.DeviceEntry, env []string) error {
 		return err
 	}
 	defer installationProxy.Close()
+
+	if testRunnerBundleID == "" {
+		testRunnerBundleID = bundleID + testBundleSuffix
+	}
 
 	apps, err := installationProxy.BrowseUserApps()
 	if err != nil {
@@ -265,8 +269,12 @@ func RunXCUITest(bundleID string, device ios.DeviceEntry, env []string) error {
 	if err != nil {
 		return err
 	}
-	xctestConfigFileName := info.targetAppBundleName + "UITests.xctest"
-	return RunXCUIWithBundleIdsCtx(nil, bundleID, testRunnerBundleID, xctestConfigFileName, device, nil, env)
+
+	if xctestConfigName == "" {
+		xctestConfigName = info.targetAppBundleName + "UITests.xctest"
+	}
+
+	return RunXCUIWithBundleIdsCtx(nil, bundleID, testRunnerBundleID, xctestConfigName, device, nil, env)
 }
 
 var closeChan = make(chan interface{})
