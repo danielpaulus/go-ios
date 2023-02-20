@@ -95,7 +95,7 @@ Usage:
   ios apps [--system] [--all] [--list] [options]
   ios launch <bundleID> [--wait] [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
-  ios runtest <bundleID> [--env=<e>]... [options]
+  ios runtest <bundleID> <testRunnerBundleID> <xctestConfigName> [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [options]
   ios debug [options] [--stop-at-entry] <app_path>
@@ -180,7 +180,7 @@ The commands work as following:
    ios apps [--system] [--all] [--list]                               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number.
    ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
-   ios runtest <bundleID> [--env=<e>]... [options]                    Run a XCUITest. 
+   ios runtest <bundleID> <testRunnerBundleID> <xctestConfigName> [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundleID go-ios will try to dynamically create testRunnerBundleID and xctestConfig. Example: ios runtest com.example.App com.example.App.xctrunner App.xctest
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [options]                                                   Access accessibility inspector features. 
@@ -611,8 +611,11 @@ The commands work as following:
 	b, _ = arguments.Bool("runtest")
 	if b {
 		bundleID, _ := arguments.String("<bundleID>")
+		testRunnerBundleId, _ := arguments.String("<testRunnerBundleID>")
+		xctestConfig, _ := arguments.String("<xctestConfigName>")
+
 		env := arguments["--env"].([]string)
-		err := testmanagerd.RunXCUITest(bundleID, device, env)
+		err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env)
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 		}
