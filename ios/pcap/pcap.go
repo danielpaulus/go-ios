@@ -126,7 +126,7 @@ type PcaprecHdrS struct {
 }
 
 func createPcap(name string) (*os.File, error) {
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0755)
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o755)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,8 @@ func createPcap(name string) (*os.File, error) {
 	f.Write([]byte{
 		0xd4, 0xc3, 0xb2, 0xa1, 0x02, 0x00, 0x04, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0xff, 0xff, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00})
+		0xff, 0xff, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+	})
 	return f, nil
 }
 
@@ -182,7 +183,7 @@ func getPacket(buf []byte) (iph IOSPacketHeader, packet []byte, err error) {
 		}
 	}
 
-	//log.Info("IOSPacketHeader: ", iph.ToString())
+	// log.Info("IOSPacketHeader: ", iph.ToString())
 	packet, err = ioutil.ReadAll(preader)
 	if err != nil {
 		return iph, packet, err

@@ -12,8 +12,7 @@ import (
 )
 
 // PlistCodec is a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
-type PlistCodec struct {
-}
+type PlistCodec struct{}
 
 // NewPlistCodec create a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
 func NewPlistCodec() PlistCodec {

@@ -32,13 +32,12 @@ func stopSessionResponsefromBytes(plistBytes []byte) stopSessionResponse {
 	return data
 }
 
-//StopSession sends a Lockdown StopSessionRequest to the device
+// StopSession sends a Lockdown StopSessionRequest to the device
 func (lockDownConn *LockDownConnection) StopSession() {
 	if lockDownConn.sessionID == "" {
 		return
 	}
 	lockDownConn.Send(newStopSessionRequest(lockDownConn.sessionID))
-	//this returns a stopSessionResponse which we currently do not care about
+	// this returns a stopSessionResponse which we currently do not care about
 	lockDownConn.ReadMessage()
-
 }

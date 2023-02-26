@@ -11,9 +11,10 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/fullsailor/pkcs7"
 	"math/big"
 	"time"
+
+	"github.com/fullsailor/pkcs7"
 )
 
 const bitSize = 2048
@@ -231,7 +232,6 @@ type CaCertificate struct {
 // If you need p12 files, please save the PEMs to files and run this:
 // openssl pkcs12 -export -inkey supervision-private-key.pem -in supervision-cert.pem -out certificate.p12 -password pass:a
 func CreateDERFormattedSupervisionCert() (*CaCertificate, error) {
-
 	// step: generate a keypair
 	keys, err := rsa.GenerateKey(rand.Reader, bitSize)
 	if err != nil {
@@ -239,7 +239,7 @@ func CreateDERFormattedSupervisionCert() (*CaCertificate, error) {
 	}
 
 	// step: generate a csr template
-	var csrTemplate = x509.CertificateRequest{
+	csrTemplate := x509.CertificateRequest{
 		SignatureAlgorithm: x509.SHA512WithRSA,
 		ExtraExtensions: []pkix.Extension{
 			{
@@ -267,7 +267,7 @@ func CreateDERFormattedSupervisionCert() (*CaCertificate, error) {
 	// step: create the request template
 	template := x509.Certificate{
 		SerialNumber: serial,
-		//Subject:               names,
+		// Subject:               names,
 		NotBefore:             now.Add(-10 * time.Minute).UTC(),
 		NotAfter:              now.Add(time.Hour * 24 * 365 * 10).UTC(),
 		BasicConstraintsValid: true,

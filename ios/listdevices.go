@@ -8,15 +8,15 @@ import (
 	plist "howett.net/plist"
 )
 
-//ReadDevicesType contains all the data necessary to request a DeviceList from
-//usbmuxd. Can be created with newReadDevices
+// ReadDevicesType contains all the data necessary to request a DeviceList from
+// usbmuxd. Can be created with newReadDevices
 type ReadDevicesType struct {
 	MessageType         string
 	ProgName            string
 	ClientVersionString string
 }
 
-//DeviceListfromBytes parses a DeviceList from a byte array
+// DeviceListfromBytes parses a DeviceList from a byte array
 func DeviceListfromBytes(plistBytes []byte) DeviceList {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var deviceList DeviceList
@@ -24,7 +24,7 @@ func DeviceListfromBytes(plistBytes []byte) DeviceList {
 	return deviceList
 }
 
-//String returns a list of all udids in a formatted string
+// String returns a list of all udids in a formatted string
 func (deviceList DeviceList) String() string {
 	var sb strings.Builder
 	for _, element := range deviceList.DeviceList {
@@ -34,7 +34,7 @@ func (deviceList DeviceList) String() string {
 	return sb.String()
 }
 
-//CreateMapForJSONConverter creates a simple json ready map containing all UDIDs
+// CreateMapForJSONConverter creates a simple json ready map containing all UDIDs
 func (deviceList DeviceList) CreateMapForJSONConverter() map[string]interface{} {
 	devices := make([]string, len(deviceList.DeviceList))
 	for i, element := range deviceList.DeviceList {
@@ -43,14 +43,14 @@ func (deviceList DeviceList) CreateMapForJSONConverter() map[string]interface{} 
 	return map[string]interface{}{"deviceList": devices}
 }
 
-//DeviceList is a simple wrapper for a
-//array of  DeviceEntry
+// DeviceList is a simple wrapper for a
+// array of  DeviceEntry
 type DeviceList struct {
 	DeviceList []DeviceEntry
 }
 
-//DeviceEntry contains the DeviceID with is sometimes needed
-//f.ex. to enable LockdownSSL. More importantly it contains
+// DeviceEntry contains the DeviceID with is sometimes needed
+// f.ex. to enable LockdownSSL. More importantly it contains
 // DeviceProperties where the udid is stored.
 type DeviceEntry struct {
 	DeviceID    int
@@ -58,8 +58,8 @@ type DeviceEntry struct {
 	Properties  DeviceProperties
 }
 
-//DeviceProperties contains important device related info like the udid which is named SerialNumber
-//here
+// DeviceProperties contains important device related info like the udid which is named SerialNumber
+// here
 type DeviceProperties struct {
 	ConnectionSpeed int
 	ConnectionType  string
@@ -80,8 +80,8 @@ func NewReadDevices() ReadDevicesType {
 	return data
 }
 
-//ListDevices returns a DeviceList containing data about all
-//currently connected iOS devices
+// ListDevices returns a DeviceList containing data about all
+// currently connected iOS devices
 func (muxConn *UsbMuxConnection) ListDevices() (DeviceList, error) {
 	err := muxConn.Send(NewReadDevices())
 	if err != nil {
@@ -94,8 +94,8 @@ func (muxConn *UsbMuxConnection) ListDevices() (DeviceList, error) {
 	return DeviceListfromBytes(response.Payload), nil
 }
 
-//ListDevices returns a DeviceList containing data about all
-//currently connected iOS devices using a new UsbMuxConnection
+// ListDevices returns a DeviceList containing data about all
+// currently connected iOS devices using a new UsbMuxConnection
 func ListDevices() (DeviceList, error) {
 	muxConnection, err := NewUsbMuxConnectionSimple()
 	if err != nil {

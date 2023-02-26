@@ -140,7 +140,7 @@ func handleConnectToLockdown(connectRequest ios.UsbMuxMessage, decodedConnectReq
 
 func handleListen(p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnection, muxToDevice *ios.UsbMuxConnection) {
 	go func() {
-		//use this to detect when the conn is closed. There shouldn't be any messages received ever.
+		// use this to detect when the conn is closed. There shouldn't be any messages received ever.
 		_, err := muxOnUnixSocket.ReadMessage()
 		if err == io.EOF {
 			muxOnUnixSocket.ReleaseDeviceConnection().Close()
@@ -154,7 +154,7 @@ func handleListen(p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnection, mux
 	for {
 		response, err := muxToDevice.ReadMessage()
 		if err != nil {
-			//TODO: ugly, improve
+			// TODO: ugly, improve
 			d := muxOnUnixSocket.ReleaseDeviceConnection()
 			d1 := muxToDevice.ReleaseDeviceConnection()
 			if d != nil {
@@ -180,5 +180,4 @@ func handleListen(p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnection, mux
 			p.log.Info("Failed muxOnUnixSocket.SendMuxMessage(response)", decodedResponse, err)
 		}
 	}
-
 }

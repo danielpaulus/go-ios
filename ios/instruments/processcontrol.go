@@ -2,6 +2,7 @@ package instruments
 
 import (
 	"fmt"
+
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	log "github.com/sirupsen/logrus"
@@ -12,8 +13,8 @@ type ProcessControl struct {
 	conn                  *dtx.Connection
 }
 
-//LaunchApp launches the app with the given bundleID on the given device.LaunchApp
-//Use LaunchAppWithArgs for passing arguments and envVars. It returns the PID of the created app process.
+// LaunchApp launches the app with the given bundleID on the given device.LaunchApp
+// Use LaunchAppWithArgs for passing arguments and envVars. It returns the PID of the created app process.
 func (p *ProcessControl) LaunchApp(bundleID string) (uint64, error) {
 	opts := map[string]interface{}{
 		"StartSuspendedKey": uint64(0),
@@ -40,15 +41,15 @@ func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
 	return &ProcessControl{processControlChannel: processControlChannel, conn: dtxConn}, nil
 }
 
-//KillProcess kills the process on the device.
+// KillProcess kills the process on the device.
 func (p ProcessControl) KillProcess(pid uint64) error {
 	_, err := p.processControlChannel.MethodCall("killPid:", pid)
 	return err
 }
 
-//StartProcess launches an app on the device using the bundleID and optional envvars, arguments and options. It returns the PID.
+// StartProcess launches an app on the device using the bundleID and optional envvars, arguments and options. It returns the PID.
 func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (uint64, error) {
-	//seems like the path does not matter
+	// seems like the path does not matter
 	const path = "/private/"
 
 	log.WithFields(log.Fields{"channel_id": procControlChannel, "bundleID": bundleID}).Info("Launching process")
@@ -72,5 +73,4 @@ func (p ProcessControl) StartProcess(bundleID string, envVars map[string]interfa
 		return pid, nil
 	}
 	return 0, fmt.Errorf("pid returned in payload was not of type uint64 for processcontroll.startprocess, instead: %s", msg.Payload)
-
 }

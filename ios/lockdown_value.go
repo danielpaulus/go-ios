@@ -3,21 +3,22 @@ package ios
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/Masterminds/semver"
 
 	plist "howett.net/plist"
 )
 
-//BasebandKeyHashInformationType containing some baseband related
-//data directly from the ios device
+// BasebandKeyHashInformationType containing some baseband related
+// data directly from the ios device
 type BasebandKeyHashInformationType struct {
 	AKeyStatus int
 	SKeyHash   []byte
 	SKeyStatus int
 }
 
-//NonVolatileRAMType contains some internal device info
-//and can be retrieved by getting all values
+// NonVolatileRAMType contains some internal device info
+// and can be retrieved by getting all values
 type NonVolatileRAMType struct {
 	AutoBoot              []byte `plist:"auto-boot"`
 	BacklightLevel        []byte `plist:"backlight-level"`
@@ -28,14 +29,14 @@ type NonVolatileRAMType struct {
 	Obliteration          []byte `plist:"obliteration"`
 }
 
-//GetAllValuesResponse just the wrapper for AllValuesType
+// GetAllValuesResponse just the wrapper for AllValuesType
 type GetAllValuesResponse struct {
 	Request string
 	Value   AllValuesType
 }
 
-//AllValuesType contains all possible values that can be requested from
-//LockDown
+// AllValuesType contains all possible values that can be requested from
+// LockDown
 type AllValuesType struct {
 	ActivationState                             string
 	ActivationStateAcknowledged                 bool
@@ -113,7 +114,7 @@ type valueRequest struct {
 	Label   string
 	Key     string `plist:"Key,omitempty"`
 	Request string
-	Domain  string `plist:"Domain,omitempty"`
+	Domain  string      `plist:"Domain,omitempty"`
 	Value   interface{} `plist:"Value,omitempty"`
 }
 
@@ -137,7 +138,7 @@ func newSetValue(key string, domain string, value interface{}) valueRequest {
 	return data
 }
 
-//GetValues retrieves a GetAllValuesResponse containing all values lockdown returns
+// GetValues retrieves a GetAllValuesResponse containing all values lockdown returns
 func (lockDownConn *LockDownConnection) GetValues() (GetAllValuesResponse, error) {
 	err := lockDownConn.Send(newGetValue(""))
 	if err != nil {
@@ -151,7 +152,7 @@ func (lockDownConn *LockDownConnection) GetValues() (GetAllValuesResponse, error
 	return response, nil
 }
 
-//GetProductVersion gets the iOS version of a device
+// GetProductVersion gets the iOS version of a device
 func GetProductVersion(device DeviceEntry) (*semver.Version, error) {
 	lockdownConnection, err := ConnectLockdownWithSession(device)
 	if err != nil {
@@ -166,9 +167,9 @@ func GetProductVersion(device DeviceEntry) (*semver.Version, error) {
 	return v, err
 }
 
-//GetWifiMac gets the static MAC address of the device WiFi.
-//note: this does not report the dynamic MAC if you enable the
-//"automatic WiFi address" feature.
+// GetWifiMac gets the static MAC address of the device WiFi.
+// note: this does not report the dynamic MAC if you enable the
+// "automatic WiFi address" feature.
 func GetWifiMac(device DeviceEntry) (string, error) {
 	lockdownConnection, err := ConnectLockdownWithSession(device)
 	if err != nil {
@@ -183,7 +184,7 @@ func GetWifiMac(device DeviceEntry) (string, error) {
 	return wifiMac.(string), err
 }
 
-//GetProductVersion returns the ProductVersion of the device f.ex. "10.3"
+// GetProductVersion returns the ProductVersion of the device f.ex. "10.3"
 func (lockDownConn *LockDownConnection) GetProductVersion() (string, error) {
 	msg, err := lockDownConn.GetValue("ProductVersion")
 	if err != nil {
@@ -196,7 +197,7 @@ func (lockDownConn *LockDownConnection) GetProductVersion() (string, error) {
 	return result, nil
 }
 
-//GetValue gets and returns the string value for the lockdown key
+// GetValue gets and returns the string value for the lockdown key
 func (lockDownConn *LockDownConnection) GetValue(key string) (interface{}, error) {
 	lockDownConn.Send(newGetValue(key))
 	resp, err := lockDownConn.ReadMessage()
@@ -204,7 +205,7 @@ func (lockDownConn *LockDownConnection) GetValue(key string) (interface{}, error
 	return response.Value, err
 }
 
-//GetValueForDomain gets and returns the string value for the lockdown key and domain
+// GetValueForDomain gets and returns the string value for the lockdown key and domain
 func (lockDownConn *LockDownConnection) GetValueForDomain(key string, domain string) (interface{}, error) {
 	gv := newGetValue(key)
 	gv.Domain = domain
@@ -214,7 +215,7 @@ func (lockDownConn *LockDownConnection) GetValueForDomain(key string, domain str
 	return response.Value, err
 }
 
-//SetValueForDomain sets the string value for the lockdown key and domain. If the device returns an error it will be returned as a go error.
+// SetValueForDomain sets the string value for the lockdown key and domain. If the device returns an error it will be returned as a go error.
 func (lockDownConn *LockDownConnection) SetValueForDomain(key string, domain string, value interface{}) error {
 	gv := newSetValue(key, domain, value)
 	lockDownConn.Send(gv)
@@ -226,7 +227,7 @@ func (lockDownConn *LockDownConnection) SetValueForDomain(key string, domain str
 	return err
 }
 
-//ValueResponse contains the response for a GetValue or SetValue Request
+// ValueResponse contains the response for a GetValue or SetValue Request
 type ValueResponse struct {
 	Key     string
 	Request string
@@ -249,7 +250,7 @@ func getAllValuesResponseFromBytes(plistBytes []byte) GetAllValuesResponse {
 	return getAllValuesResponse
 }
 
-//GetValuesPlist returns the full lockdown values response as a map, so it can be converted to JSON easily.
+// GetValuesPlist returns the full lockdown values response as a map, so it can be converted to JSON easily.
 func GetValuesPlist(device DeviceEntry) (map[string]interface{}, error) {
 	lockdownConnection, err := ConnectLockdownWithSession(device)
 	if err != nil {
@@ -275,7 +276,7 @@ func GetValuesPlist(device DeviceEntry) (map[string]interface{}, error) {
 	return plist, err
 }
 
-//GetValues returns all values of deviceInformation from lockdown
+// GetValues returns all values of deviceInformation from lockdown
 func GetValues(device DeviceEntry) (GetAllValuesResponse, error) {
 	lockdownConnection, err := ConnectLockdownWithSession(device)
 	if err != nil {

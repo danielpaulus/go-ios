@@ -1,13 +1,15 @@
+//go:build !fast
 // +build !fast
 
 package screenshotr_test
 
 import (
 	"encoding/binary"
+	"testing"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const png uint32 = 0x89504E47

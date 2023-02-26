@@ -100,37 +100,46 @@ func (mock *DeviceConnectionMock) Close() error {
 	mock.Called()
 	return nil
 }
+
 func (mock *DeviceConnectionMock) Send(message []byte) error {
 	args := mock.Called(message)
 	return args.Error(0)
 }
+
 func (mock *DeviceConnectionMock) Reader() io.Reader {
 	args := mock.Called()
 	return args.Get(0).(io.Reader)
 }
+
 func (mock *DeviceConnectionMock) Writer() io.Writer {
 	args := mock.Called()
 	return args.Get(0).(io.Writer)
 }
+
 func (mock *DeviceConnectionMock) EnableSessionSsl(pairRecord ios.PairRecord) error {
 	args := mock.Called(pairRecord)
 	return args.Error(0)
 }
+
 func (mock *DeviceConnectionMock) EnableSessionSslServerMode(pairRecord ios.PairRecord) error {
 	args := mock.Called(pairRecord)
 	return args.Error(0)
 }
+
 func (mock *DeviceConnectionMock) EnableSessionSslHandshakeOnly(pairRecord ios.PairRecord) error {
 	args := mock.Called(pairRecord)
 	return args.Error(0)
 }
+
 func (mock *DeviceConnectionMock) EnableSessionSslServerModeHandshakeOnly(pairRecord ios.PairRecord) error {
 	args := mock.Called(pairRecord)
 	return args.Error(0)
 }
+
 func (mock *DeviceConnectionMock) DisableSessionSSL() {
 	mock.Called()
 }
+
 func (mock *DeviceConnectionMock) Conn() net.Conn {
 	return nil
 }

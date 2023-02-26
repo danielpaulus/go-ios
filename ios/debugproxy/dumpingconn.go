@@ -17,7 +17,7 @@ type DumpingConn struct {
 
 func NewDumpingConn(filePath string, conn net.Conn) *DumpingConn {
 	fileHandle, err := os.OpenFile(filePath,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		log.Println(err)
 	}

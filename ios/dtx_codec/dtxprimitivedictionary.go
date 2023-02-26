@@ -37,6 +37,7 @@ func NewPrimitiveDictionary() PrimitiveDictionary {
 func (d *PrimitiveDictionary) AddInt32(value int) {
 	d.keyValuePairs.PushBack(PrimitiveKeyValuePair{t_null, nil, t_uint32, uint32(value)})
 }
+
 func (d *PrimitiveDictionary) AddBytes(value []byte) {
 	d.keyValuePairs.PushBack(PrimitiveKeyValuePair{t_null, nil, t_bytearray, value})
 }
@@ -45,9 +46,9 @@ func (d PrimitiveDictionary) GetArguments() []interface{} {
 	return d.values
 }
 
-//AddNsKeyedArchivedObject wraps the object in a NSKeyedArchiver envelope before saving it to the dictionary as a []byte.
-//This will panic on error because NSKeyedArchiver has to support everything that is put in here during runtime.
-//If not, it is a non-recoverable bug and needs to be fixed anyway.
+// AddNsKeyedArchivedObject wraps the object in a NSKeyedArchiver envelope before saving it to the dictionary as a []byte.
+// This will panic on error because NSKeyedArchiver has to support everything that is put in here during runtime.
+// If not, it is a non-recoverable bug and needs to be fixed anyway.
 func (d *PrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) {
 	archivedObject, err := nskeyedarchiver.ArchiveBin(object)
 	if err != nil {
@@ -56,7 +57,7 @@ func (d *PrimitiveDictionary) AddNsKeyedArchivedObject(object interface{}) {
 	d.AddBytes(archivedObject)
 }
 
-//ToBytes serializes this PrimitiveDictionary to a byte slice
+// ToBytes serializes this PrimitiveDictionary to a byte slice
 func (d PrimitiveDictionary) ToBytes() ([]byte, error) {
 	size := d.keyValuePairs.Len()
 	if size == 0 {
@@ -121,7 +122,6 @@ func (d PrimitiveDictionary) String() string {
 				prettyString = string(jsonBytes)
 			} else {
 				log.Warnf("failed decoding with %+v", err)
-
 			}
 			result += fmt.Sprintf("{t:%s, v:%s},", toString(v), prettyString)
 			continue
@@ -168,14 +168,15 @@ func DecodeAuxiliary(auxBytes []byte) PrimitiveDictionary {
 
 	return result
 }
+
 func isNSKeyedArchiverEncoded(datatype uint32, obj interface{}) bool {
 	if datatype != t_bytearray {
 		return false
 	}
 	data := obj.([]byte)
 	return bytes.Index(data, []byte(nskeyedarchiver.NsKeyedArchiver)) != -1
-
 }
+
 func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 	readType := binary.LittleEndian.Uint32(auxBytes)
 	if readType == t_null {
@@ -242,7 +243,6 @@ func (a *AuxiliaryEncoder) AddNsKeyedArchivedObject(object interface{}) {
 }
 
 func (a *AuxiliaryEncoder) writeEntry(entryType uint32, object interface{}) {
-
 	binary.Write(&a.buf, binary.LittleEndian, entryType)
 	if entryType == t_null {
 		return
@@ -261,7 +261,6 @@ func (a *AuxiliaryEncoder) writeEntry(entryType uint32, object interface{}) {
 
 	}
 	panic(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d", entryType))
-
 }
 
 func (a *AuxiliaryEncoder) GetBytes() []byte {

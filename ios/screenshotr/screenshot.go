@@ -2,23 +2,24 @@ package screenshotr
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
+
+	log "github.com/sirupsen/logrus"
 
 	ios "github.com/danielpaulus/go-ios/ios"
 )
 
 const serviceName string = "com.apple.mobile.screenshotr"
 
-//Connection exposes the LogReader channel which send the LogMessages as strings.
+// Connection exposes the LogReader channel which send the LogMessages as strings.
 type Connection struct {
 	deviceConn ios.DeviceConnectionInterface
 	plistCodec ios.PlistCodec
 	version    versionInfo
 }
 
-//New returns a new SysLog Connection for the given DeviceID and Udid
-//It will create LogReader as a buffered Channel because Syslog is very verbose.
+// New returns a new SysLog Connection for the given DeviceID and Udid
+// It will create LogReader as a buffered Channel because Syslog is very verbose.
 func New(device ios.DeviceEntry) (*Connection, error) {
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
@@ -79,7 +80,7 @@ func (screenShotrConn *Connection) readVersion(reader io.Reader) error {
 	return err
 }
 
-//TakeScreenshot uses Screenshotr to get a screenshot as a byteslice
+// TakeScreenshot uses Screenshotr to get a screenshot as a byteslice
 func (screenShotrConn *Connection) TakeScreenshot() ([]uint8, error) {
 	reader := screenShotrConn.deviceConn.Reader()
 	bytes, err := screenShotrConn.plistCodec.Encode(newScreenShotRequest())
@@ -121,7 +122,7 @@ func (screenShotrConn *Connection) TakeScreenshot() ([]uint8, error) {
 	return screenshotBytes, nil
 }
 
-//Close closes the underlying DeviceConnection
+// Close closes the underlying DeviceConnection
 func (screenShotrConn *Connection) Close() error {
 	return screenShotrConn.deviceConn.Close()
 }

@@ -21,6 +21,7 @@ func ArchiveXML(object interface{}) (string, error) {
 	}
 	return toPlist(plist)
 }
+
 func ArchiveBin(object interface{}) ([]byte, error) {
 	plist, err := archiveObject(object)
 	if err != nil {
@@ -54,7 +55,6 @@ func createSkeleton(withRoot bool) map[string]interface{} {
 }
 
 func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
-
 	if object, ok := isPrimitiveObject(object); ok {
 		index := len(objects)
 		objects = append(objects, object)
@@ -70,7 +70,7 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 	}
 	typeOf := reflect.TypeOf(object)
 	name := typeOf.Name()
-	//seems like Name() can be empty for pointer types
+	// seems like Name() can be empty for pointer types
 	if name == "" {
 		name = typeOf.String()
 	}

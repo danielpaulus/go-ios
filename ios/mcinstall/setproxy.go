@@ -2,12 +2,13 @@ package mcinstall
 
 import (
 	"fmt"
+
 	"github.com/danielpaulus/go-ios/ios"
 )
 
-//RemoveProxy unsets the global HTTP proxy config again by deleting the global config profile
-//installed by go-ios using the identifier
-//I hardcoded 'Go-iOS.CD15976B-E205-4213-9B8E-FDAA5FAB1C22'
+// RemoveProxy unsets the global HTTP proxy config again by deleting the global config profile
+// installed by go-ios using the identifier
+// I hardcoded 'Go-iOS.CD15976B-E205-4213-9B8E-FDAA5FAB1C22'
 func RemoveProxy(device ios.DeviceEntry) error {
 	profileService, err := New(device)
 	if err != nil {
@@ -17,8 +18,8 @@ func RemoveProxy(device ios.DeviceEntry) error {
 	return profileService.RemoveProfile("Go-iOS.CD15976B-E205-4213-9B8E-FDAA5FAB1C22")
 }
 
-//SetHttpProxy generates the config profile "Go-iOS.CD15976B-E205-4213-9B8E-FDAA5FAB1C22" that will set a global
-//http proxy on supervised devices.
+// SetHttpProxy generates the config profile "Go-iOS.CD15976B-E205-4213-9B8E-FDAA5FAB1C22" that will set a global
+// http proxy on supervised devices.
 func SetHttpProxy(device ios.DeviceEntry, host string, port string, user string, pass string, p12file []byte, p12password string) error {
 	profileBytes, err := setUpProfile(host, port, user, pass)
 	if err != nil {
@@ -39,7 +40,7 @@ func setUpProfile(host string, port string, user string, pass string) ([]byte, e
 	return []byte(profile), nil
 }
 
-//InstallProfileSilent install a configuration profile silently.
+// InstallProfileSilent install a configuration profile silently.
 func InstallProfileSilent(device ios.DeviceEntry, p12file []byte, p12password string, profileBytes []byte) error {
 	profileService, err := New(device)
 	if err != nil {

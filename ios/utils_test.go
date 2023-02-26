@@ -13,8 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var update = flag.Bool("update", false, "update golden files")
-var integration = flag.Bool("integration", false, "run integration tests")
+var (
+	update      = flag.Bool("update", false, "update golden files")
+	integration = flag.Bool("integration", false, "run integration tests")
+)
 
 type SampleData struct {
 	StringValue string
@@ -23,7 +25,6 @@ type SampleData struct {
 }
 
 func TestNtohs(t *testing.T) {
-
 	assert.Equal(t, uint16(62078), ios.Ntohs(ios.Lockdownport))
 }
 
@@ -42,7 +43,7 @@ func TestPlistConversion(t *testing.T) {
 
 		golden := filepath.Join("test-fixture", tc.fileName+".plist")
 		if *update {
-			err := ioutil.WriteFile(golden, []byte(actual), 0644)
+			err := ioutil.WriteFile(golden, []byte(actual), 0o644)
 			if err != nil {
 				log.Error(err)
 				t.FailNow()
@@ -51,10 +52,10 @@ func TestPlistConversion(t *testing.T) {
 		expected, _ := ioutil.ReadFile(golden)
 		assert.Equal(t, removeLineBreaks(string(expected)), removeLineBreaks(actual))
 	}
-
 }
-//needed for windows support. Without i, we would have different linebreaks with n and with rn
-//and the test would fail.
+
+// needed for windows support. Without i, we would have different linebreaks with n and with rn
+// and the test would fail.
 func removeLineBreaks(s string) string {
 	s = strings.Replace(s, "\n", "", -1)
 	s = strings.Replace(s, "\r", "", -1)

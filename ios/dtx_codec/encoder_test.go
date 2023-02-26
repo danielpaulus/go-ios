@@ -30,7 +30,6 @@ func auxOnly() dtx.Message {
 }
 
 func TestEncoder(t *testing.T) {
-
 	type test struct {
 		msg         dtx.Message
 		description string
@@ -58,5 +57,4 @@ func TestEncoder(t *testing.T) {
 		assert.Equal(t, msg.PayloadHeader.MessageType, decodedMessage.PayloadHeader.MessageType)
 
 	}
-
 }

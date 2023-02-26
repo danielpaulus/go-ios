@@ -4,17 +4,17 @@
 package ios_test
 
 import (
+	"os"
+	"testing"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/diagnostics"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
 )
 
-//TODO: add image mounting
+// TODO: add image mounting
 func TestRebootListenAndImage(t *testing.T) {
-
 	muxConnection, err := ios.NewUsbMuxConnectionSimple()
 	if err != nil {
 		t.Error("Failed connecting usbmux", err)
@@ -68,5 +68,4 @@ func TestRebootListenAndImage(t *testing.T) {
 			break
 		}
 	}
-
 }

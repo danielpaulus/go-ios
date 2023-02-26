@@ -2,7 +2,6 @@ package nskeyedarchiver
 
 import (
 	"fmt"
-
 	"time"
 
 	"github.com/google/uuid"
@@ -10,8 +9,10 @@ import (
 	"howett.net/plist"
 )
 
-var decodableClasses map[string]func(map[string]interface{}, []interface{}) interface{}
-var encodableClasses map[string]func(object interface{}, objects []interface{}) ([]interface{}, plist.UID)
+var (
+	decodableClasses map[string]func(map[string]interface{}, []interface{}) interface{}
+	encodableClasses map[string]func(object interface{}, objects []interface{}) ([]interface{}, plist.UID)
+)
 
 func SetupDecoders() {
 	if decodableClasses == nil {
@@ -70,7 +71,7 @@ func NewXCTestConfiguration(
 	contents["defaultTestExecutionTimeAllowance"] = plist.UID(0)
 	contents["disablePerformanceMetrics"] = false
 	contents["emitOSLogs"] = false
-	//contents["formatVersion"]= 2
+	// contents["formatVersion"]= 2
 	contents["gatherLocalizableStringsData"] = false
 	contents["initializeForUITesting"] = true
 	contents["maximumTestExecutionTimeAllowance"] = plist.UID(0)
@@ -80,11 +81,11 @@ func NewXCTestConfiguration(
 	contents["reportResultsToIDE"] = true
 	contents["sessionIdentifier"] = NewNSUUID(sessionIdentifier)
 	contents["systemAttachmentLifetime"] = 2
-	//contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
+	// contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
 	contents["targetApplicationBundleID"] = targetApplicationBundleID
-	//contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
+	// contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
 	contents["targetApplicationPath"] = targetApplicationPath
-	//testApplicationDependencies
+	// testApplicationDependencies
 	contents["testApplicationUserOverrides"] = plist.UID(0)
 	contents["testBundleRelativePath"] = plist.UID(0)
 	contents["testBundleURL"] = NewNSURL(testBundleURL)
@@ -108,8 +109,10 @@ func archiveXcTestConfiguration(xctestconfigInterface interface{}, objects []int
 
 	xctestconfig.contents["$class"] = classRef
 
-	for _, key := range []string{"aggregateStatisticsBeforeCrash", "automationFrameworkPath", "productModuleName", "sessionIdentifier",
-		"targetApplicationBundleID", "targetApplicationPath", "testBundleURL"} {
+	for _, key := range []string{
+		"aggregateStatisticsBeforeCrash", "automationFrameworkPath", "productModuleName", "sessionIdentifier",
+		"targetApplicationBundleID", "targetApplicationPath", "testBundleURL",
+	} {
 		var ref plist.UID
 		objects, ref = archive(xctestconfig.contents[key], objects)
 		xctestconfig.contents[key] = ref
@@ -189,6 +192,7 @@ func NewNSUUID(id uuid.UUID) NSUUID {
 	}
 	return NSUUID{bytes}
 }
+
 func archiveXCTCapabilities(capsIface interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	caps := capsIface.(XCTCapabilities)
 	object := map[string]interface{}{}
@@ -204,6 +208,7 @@ func archiveXCTCapabilities(capsIface interface{}, objects []interface{}) ([]int
 	objects = append(objects, buildClassDict("XCTCapabilities", "NSObject"))
 	return objects, plist.UID(capsReference)
 }
+
 func archiveNSUUID(uid interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	nsuuid := uid.(NSUUID)
 	object := map[string]interface{}{}
@@ -287,9 +292,10 @@ type XCTTestIdentifier struct {
 func (x XCTTestIdentifier) String() string {
 	return fmt.Sprintf("XCTTestIdentifier{o:%d , c:%v}", x.O, x.C)
 }
+
 func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["c"].(plist.UID)
-	//plist, _ := extractObjects(objects[ref].(map[string]interface{}), objects)
+	// plist, _ := extractObjects(objects[ref].(map[string]interface{}), objects)
 	fd := objects[ref].(map[string]interface{})
 	extractObjects, _ := extractObjects(toUidList(fd[nsObjects].([]interface{})), objects)
 	stringarray := make([]string, len(extractObjects))
@@ -303,13 +309,12 @@ func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) 
 	}
 }
 
-//TODO: make this nice, partially extracting objects is not really cool
+// TODO: make this nice, partially extracting objects is not really cool
 type PartiallyExtractedXcTestConfig struct {
 	values map[string]interface{}
 }
 
 func NewXCTestConfigurationFromBytes(object map[string]interface{}, objects []interface{}) interface{} {
-
 	config := make(map[string]interface{}, len(object))
 	for k, v := range object {
 		value := v
@@ -339,7 +344,7 @@ func NewNSError(object map[string]interface{}, objects []interface{}) interface{
 	return NSError{ErrorCode: errorCode, Domain: domain, UserInfo: userinfo}
 }
 
-//Apples Reference Date is Jan 1st 2001 00:00
+// Apples Reference Date is Jan 1st 2001 00:00
 const nsReferenceDate = 978307200000
 
 type NSDate struct {
@@ -393,6 +398,7 @@ func NewNSDate(object map[string]interface{}, objects []interface{}) interface{}
 	time := time.Unix(0, millies*int64(time.Millisecond))
 	return NSDate{time}
 }
+
 func (n NSDate) String() string {
 	return fmt.Sprintf("%s", n.Timestamp)
 }
@@ -413,6 +419,7 @@ type NSNull struct {
 func NewNSNullFromArchived(object map[string]interface{}, objects []interface{}) interface{} {
 	return NewNSNull()
 }
+
 func NewNSNull() interface{} {
 	return NSNull{"NSNull"}
 }
@@ -433,10 +440,12 @@ type NSMutableDictionary struct {
 func NewNSMutableDictionary(internalDict map[string]interface{}) interface{} {
 	return NSMutableDictionary{internalDict}
 }
+
 func archiveStringSlice(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	sl := object.([]string)
 	return serializeArray(toInterfaceSlice(sl), objects)
 }
+
 func archiveNSMutableDictionary(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	mut := object.(NSMutableDictionary)
 	return serializeMap(mut.internalDict, objects, buildClassDict("NSMutableDictionary", "NSDictionary", "NSObject"))

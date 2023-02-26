@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/google/uuid"
 	"golang.org/x/crypto/pkcs12"
 	plist "howett.net/plist"
-	"strings"
 )
 
-//PairSupervised uses an organization id from apple configurator so you can pair
-//a supervised device without the need for user interaction (the trust popup)
-//Arguments are the device, the p12 files raw contents and the password used for the p12
-//file.
+// PairSupervised uses an organization id from apple configurator so you can pair
+// a supervised device without the need for user interaction (the trust popup)
+// Arguments are the device, the p12 files raw contents and the password used for the p12
+// file.
 // I basically got this from cfgutil:
 // https://configautomation.com/cfgutil-man-page.html
 // here is how to turn a p12 into crt and key:
@@ -142,11 +143,10 @@ func extractPairingChallenge(resp []byte) ([]byte, error) {
 		return []byte{}, fmt.Errorf("PairingChallenge should have been a byte array: %+v", respPlist)
 	}
 	return challenge, nil
-
 }
 
-//Pair tries to pair with a device. The first time usually
-//fails because the user has to accept a trust pop up on the iOS device.
+// Pair tries to pair with a device. The first time usually
+// fails because the user has to accept a trust pop up on the iOS device.
 // What you have to do to pair is:
 // 1. run the Pair() function
 // 2. accept the trust pop up on the device

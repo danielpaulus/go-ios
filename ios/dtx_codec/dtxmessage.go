@@ -6,29 +6,31 @@ import (
 )
 
 const (
-	//DtxMessageMagic 4byte signature of every Message
+	// DtxMessageMagic 4byte signature of every Message
 	DtxMessageMagic uint32 = 0x795B3D1F
-	//DtxMessageHeaderLength alwys 32 byte
+	// DtxMessageHeaderLength alwys 32 byte
 	DtxMessageHeaderLength uint32 = 32
-	//DtxMessagePayloadHeaderLength always 16 bytes
+	// DtxMessagePayloadHeaderLength always 16 bytes
 	DtxMessagePayloadHeaderLength uint32 = 16
-	//DtxReservedBits are always 0x0
+	// DtxReservedBits are always 0x0
 	DtxReservedBits uint32 = 0x0
 )
 
-/*Message contains a decoded DtxMessage aka the most overcomplicated RPC protocol this planet has ever seen :-D
+/*
+Message contains a decoded DtxMessage aka the most overcomplicated RPC protocol this planet has ever seen :-D
 
 DTXMessages consist of a 32byte header that always starts with the DtxMessageMagic
 It is followed by the 16 bytes PayloadHeader.
 If there is an Auxiliary:
- Next is the 16 byte AuxiliaryHeader followed by the DtxPrimitiveDictionary containing auxiliary data
- Directly after the Auxiliary, the payload bytes are following.
 
- If there is no Auxiliary:
- The payload bytes follow directly after the PayloadHeader
+	Next is the 16 byte AuxiliaryHeader followed by the DtxPrimitiveDictionary containing auxiliary data
+	Directly after the Auxiliary, the payload bytes are following.
 
- There is also support for fragmenting DTX messages into multiple messages, see fragmentdecoder.go for details
- how that works
+	If there is no Auxiliary:
+	The payload bytes follow directly after the PayloadHeader
+
+	There is also support for fragmenting DTX messages into multiple messages, see fragmentdecoder.go for details
+	how that works
 */
 type Message struct {
 	Fragments         uint16
@@ -46,7 +48,7 @@ type Message struct {
 	fragmentBytes     []byte
 }
 
-//PayloadHeader contains the message type and Payload length
+// PayloadHeader contains the message type and Payload length
 type PayloadHeader struct {
 	MessageType        int
 	AuxiliaryLength    int
@@ -54,9 +56,9 @@ type PayloadHeader struct {
 	Flags              int
 }
 
-//The AuxiliaryHeader can actually be completely ignored. We do not need to care about the buffer size
-//And we already know the AuxiliarySize. The other two ints seem to be always 0 anyway. Could
-//also be that Buffer and Aux Size are Uint64
+// The AuxiliaryHeader can actually be completely ignored. We do not need to care about the buffer size
+// And we already know the AuxiliarySize. The other two ints seem to be always 0 anyway. Could
+// also be that Buffer and Aux Size are Uint64
 type AuxiliaryHeader struct {
 	BufferSize    uint32
 	Unknown       uint32
@@ -64,22 +66,22 @@ type AuxiliaryHeader struct {
 	Unknown2      uint32
 }
 
-//All the known MessageTypes
+// All the known MessageTypes
 const (
-	//Ack is the messagetype for a 16 byte long acknowleding DtxMessage.
+	// Ack is the messagetype for a 16 byte long acknowleding DtxMessage.
 	Ack = 0x0
-	//Unknown
+	// Unknown
 	UnknownTypeOne = 0x1
-	//Methodinvocation is the messagetype for a remote procedure call style DtxMessage.
+	// Methodinvocation is the messagetype for a remote procedure call style DtxMessage.
 	Methodinvocation = 0x2
-	//ResponseWithReturnValueInPayload is the response for a method call that has a return value
+	// ResponseWithReturnValueInPayload is the response for a method call that has a return value
 	ResponseWithReturnValueInPayload = 0x3
-	//DtxTypeError is the messagetype for a DtxMessage containing an error
+	// DtxTypeError is the messagetype for a DtxMessage containing an error
 	DtxTypeError         = 0x4
 	LZ4CompressedMessage = 0x0707
 )
 
-//This is only used for creating nice String() output
+// This is only used for creating nice String() output
 var messageTypeLookup = map[int]string{
 	ResponseWithReturnValueInPayload: `ResponseWithReturnValueInPayload`,
 	Methodinvocation:                 `Methodinvocation`,
@@ -90,7 +92,7 @@ var messageTypeLookup = map[int]string{
 }
 
 func (d Message) String() string {
-	var e = ""
+	e := ""
 	if d.ExpectsReply {
 		e = "e"
 	}
@@ -103,7 +105,7 @@ func (d Message) String() string {
 		d.MessageLength, d.PayloadHeader.AuxiliaryLength, d.PayloadLength())
 }
 
-//StringDebug prints the Message and its Payload/Auxiliary
+// StringDebug prints the Message and its Payload/Auxiliary
 func (d Message) StringDebug() string {
 	if Ack == d.PayloadHeader.MessageType {
 		return d.String()
@@ -119,7 +121,7 @@ func (d Message) StringDebug() string {
 	return fmt.Sprintf("no aux,payload: %s \nrawbytes:%x", payload, d.RawBytes)
 }
 
-//HasError returns true when the MessageType in this message's PayloadHeader equals 0x4 and false otherwise.
+// HasError returns true when the MessageType in this message's PayloadHeader equals 0x4 and false otherwise.
 func (d Message) HasError() bool {
 	return d.PayloadHeader.MessageType == DtxTypeError
 }

@@ -6,7 +6,7 @@ import (
 	plist "howett.net/plist"
 )
 
-//MuxResponse is a generic response message sent by usbmuxd
+// MuxResponse is a generic response message sent by usbmuxd
 // it contains a Number response code
 type MuxResponse struct {
 	MessageType string
@@ -21,7 +21,7 @@ func MuxResponsefromBytes(plistBytes []byte) MuxResponse {
 	return usbMuxResponse
 }
 
-//IsSuccessFull returns UsbMuxResponse.Number==0
+// IsSuccessFull returns UsbMuxResponse.Number==0
 func (u MuxResponse) IsSuccessFull() bool {
 	return u.Number == 0
 }

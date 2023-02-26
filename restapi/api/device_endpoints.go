@@ -138,7 +138,6 @@ func ResetLocation(c *gin.Context) {
 // @Param        udid path string true "Device UDID"
 // @Router       /device/{udid}/profiles [get]
 func GetProfiles(c *gin.Context) {
-
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 
 	mcinstallconn, err := mcinstall.New(device)
@@ -156,15 +155,16 @@ func GetProfiles(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, profileInfo)
-
 }
 
 //========================================
 // DEVICE STATE CONDITIONS
 //========================================
 
-var deviceConditionsMap = make(map[string]deviceCondition)
-var deviceConditionsMutex sync.Mutex
+var (
+	deviceConditionsMap   = make(map[string]deviceCondition)
+	deviceConditionsMutex sync.Mutex
+)
 
 type deviceCondition struct {
 	ProfileType  instruments.ProfileType
@@ -303,9 +303,9 @@ func DisableDeviceCondition(c *gin.Context) {
 	c.JSON(http.StatusOK, GenericResponse{Message: "Device condition disabled"})
 }
 
-//========================================
+// ========================================
 // DEVICE PAIRING
-//========================================
+// ========================================
 // Pairs a device
 // @Summary      Pair a device with/without supervision
 // @Description  Pair a device with/without supervision

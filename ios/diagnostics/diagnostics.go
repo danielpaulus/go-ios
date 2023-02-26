@@ -57,9 +57,7 @@ func (diagnosticsConn *Connection) Reboot() error {
 			if statusString == "Success" {
 				return nil
 			}
-
 		}
-
 	}
 	return fmt.Errorf("could not reboot, response: %+v", plist)
 }

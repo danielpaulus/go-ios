@@ -6,6 +6,11 @@ package testmanagerd_test
 import (
 	"context"
 	"fmt"
+	"os/exec"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
@@ -13,19 +18,19 @@ import (
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
-	"os/exec"
-	"strings"
-	"testing"
-	"time"
 )
 
-const wdapath = "../../testdata/wda.ipa"
-const wdaSignedPath = "../../testdata/wda-signed.ipa"
+const (
+	wdapath       = "../../testdata/wda.ipa"
+	wdaSignedPath = "../../testdata/wda-signed.ipa"
+)
 
 const signerPath = "../../testdata/app-signer-mac"
 
-const wdaSuccessLogMessage = "ServerURLHere"
-const bundleId = "com.facebook.WebDriverAgentRunner.xctrunner"
+const (
+	wdaSuccessLogMessage = "ServerURLHere"
+	bundleId             = "com.facebook.WebDriverAgentRunner.xctrunner"
+)
 
 func TestXcuiTest(t *testing.T) {
 	hook := test.NewGlobal()
@@ -35,14 +40,14 @@ func TestXcuiTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	//mounts&downloads developer image if needed
+	// mounts&downloads developer image if needed
 	err = imagemounter.FixDevImage(device, ".")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	//get wda to the device if not installed already
+	// get wda to the device if not installed already
 	err = signAndInstall(device)
 	if err != nil {
 		t.Error(err)
@@ -54,7 +59,6 @@ func TestXcuiTest(t *testing.T) {
 	var wdaenv []string
 	go func() {
 		err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
-
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 		}

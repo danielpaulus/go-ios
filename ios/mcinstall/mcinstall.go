@@ -3,9 +3,10 @@ package mcinstall
 import (
 	"crypto/x509"
 	"fmt"
+	"io"
+
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/pkcs12"
-	"io"
 
 	ios "github.com/danielpaulus/go-ios/ios"
 )
@@ -159,8 +160,10 @@ func parseProfile(idString string, dict map[string]interface{}) (ProfileInfo, er
 }
 
 func (mcInstallConn *Connection) EscalateUnsupervised() error {
-	request := map[string]interface{}{"RequestType": "Escalate",
-		"SupervisorCertificate": []byte{0}}
+	request := map[string]interface{}{
+		"RequestType":           "Escalate",
+		"SupervisorCertificate": []byte{0},
+	}
 	dict, err := mcInstallConn.sendAndReceive(request)
 	if err != nil {
 		return err
@@ -208,6 +211,7 @@ func (mcInstallConn *Connection) EscalateWithCertAndKey(supervisedPrivateKey int
 	}
 	return nil
 }
+
 func (mcInstallConn *Connection) Escalate(p12bytes []byte, p12Password string) error {
 	supervisedPrivateKey, supervisionCert, err := pkcs12.Decode(p12bytes, p12Password)
 	if err != nil {
@@ -251,8 +255,8 @@ func (mcInstallConn *Connection) sendAndReceive(request map[string]interface{}) 
 	}
 
 	return ios.ParsePlist(responseBytes)
-
 }
+
 func (mcInstallConn *Connection) HandleList() ([]ProfileInfo, error) {
 	reader := mcInstallConn.deviceConn.Reader()
 	request := map[string]interface{}{"RequestType": "GetProfileList"}
@@ -271,9 +275,11 @@ func (mcInstallConn *Connection) HandleList() ([]ProfileInfo, error) {
 func (mcInstallConn *Connection) Close() error {
 	return mcInstallConn.deviceConn.Close()
 }
+
 func (mcInstallConn *Connection) AddProfile(profilePlist []byte) error {
 	return mcInstallConn.addProfile(profilePlist, "InstallProfile")
 }
+
 func (mcInstallConn *Connection) addProfile(profilePlist []byte, installcmd string) error {
 	request := map[string]interface{}{"RequestType": installcmd, "Payload": profilePlist}
 	requestBytes, err := mcInstallConn.plistCodec.Encode(request)

@@ -9,7 +9,7 @@ import (
 )
 
 func payload() []byte {
-	//bytes, _ := nskeyedarchiver.ArchiveBin("test")
+	// bytes, _ := nskeyedarchiver.ArchiveBin("test")
 	return []byte("payload")
 }
 
@@ -30,13 +30,11 @@ func createHeader(fragmentIndex uint16, fragmentLength uint16, identifier uint32
 	msg, _, err := dtx.DecodeNonBlocking(messageBytes)
 	if err != nil {
 		panic(err)
-
 	}
 	return msg
 }
 
 func createFragmentedMessage(identifier uint32) (dtx.Message, dtx.Message, dtx.Message, string) {
-
 	payload := []byte("payload")
 	firstFrag := createHeader(0, 3, identifier, uint32(len(payload)), make([]byte, 0))
 	secondFrag := createHeader(1, 3, identifier, 4, payload[:4])
@@ -61,11 +59,11 @@ func TestDefragmentation(t *testing.T) {
 	assert.True(t, decoder.AddFragment(thirdFrag))
 	assert.True(t, decoder.HasFinished())
 	defragmentedMsg := decoder.Extract()
-	//we cannot use regular message decoding here because the payload is kind of fake
-	//usually it would start with a payloadheader. All these methods are private though
-	//and I only want to test defragmenting properly anyway with this test
-	//The defragmenter should correctly merge the payloads of all fragments and prepend
-	//the header of the first message to it. Then it needs to set fragment index to 0 and length to
+	// we cannot use regular message decoding here because the payload is kind of fake
+	// usually it would start with a payloadheader. All these methods are private though
+	// and I only want to test defragmenting properly anyway with this test
+	// The defragmenter should correctly merge the payloads of all fragments and prepend
+	// the header of the first message to it. Then it needs to set fragment index to 0 and length to
 	// 1 so we get a de-fragmented message.
 	defragmentedFragIndex := binary.LittleEndian.Uint16(defragmentedMsg[8:])
 	defragmentedFragLength := binary.LittleEndian.Uint16(defragmentedMsg[10:])
@@ -78,7 +76,6 @@ func TestDefragmentation(t *testing.T) {
 
 	assert.Equal(t, uint32(len(payload)), defragmentedLength)
 	assert.Equal(t, uint32(identifier), defragmentedIdentifier)
-
 }
 
 func TestFragmentPanic(t *testing.T) {

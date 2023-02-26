@@ -24,7 +24,7 @@ func newStartSessionRequest(hostID string, systemBuid string) startSessionReques
 	}
 }
 
-//StartSessionResponse contains the information sent by the device as a response to a StartSessionRequest.
+// StartSessionResponse contains the information sent by the device as a response to a StartSessionRequest.
 type StartSessionResponse struct {
 	EnableSessionSSL bool
 	Request          string
@@ -38,10 +38,10 @@ func startSessionResponsefromBytes(plistBytes []byte) StartSessionResponse {
 	return data
 }
 
-//StartSession will send a StartSession Request to Lockdown, wait for the response and enable
-//SSL on the underlying connection if necessary. The devices usually always requests to enable
-//SSL.
-//It returns a StartSessionResponse
+// StartSession will send a StartSession Request to Lockdown, wait for the response and enable
+// SSL on the underlying connection if necessary. The devices usually always requests to enable
+// SSL.
+// It returns a StartSessionResponse
 func (lockDownConn *LockDownConnection) StartSession(pairRecord PairRecord) (StartSessionResponse, error) {
 	err := lockDownConn.Send(newStartSessionRequest(pairRecord.HostID, pairRecord.SystemBUID))
 	if err != nil {

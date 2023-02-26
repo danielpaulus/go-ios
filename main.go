@@ -6,14 +6,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 	"io/ioutil"
+	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime/debug"
 	"sort"
 	"strings"
 	"syscall"
+	"time"
+
+	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
 	"github.com/danielpaulus/go-ios/ios/afc"
 
@@ -23,10 +27,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/debugserver"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
-
-	"os"
-	"os/signal"
-	"time"
 
 	"github.com/danielpaulus/go-ios/ios/simlocation"
 
@@ -47,8 +47,10 @@ import (
 )
 
 // JSONdisabled enables or disables output in JSON format
-var JSONdisabled = false
-var prettyJSON = false
+var (
+	JSONdisabled = false
+	prettyJSON   = false
+)
 
 func main() {
 	Main()
@@ -242,7 +244,7 @@ The commands work as following:
 			log.SetLevel(log.DebugLevel)
 		}
 	}
-	//log.SetReportCaller(true)
+	// log.SetReportCaller(true)
 	log.Debug(arguments)
 
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
@@ -315,19 +317,19 @@ The commands work as following:
 		if b {
 			cert, err := ios.CreateDERFormattedSupervisionCert()
 			exitIfError("failed creating cert", err)
-			err = os.WriteFile("supervision-cert.der", cert.CertDER, 0777)
+			err = os.WriteFile("supervision-cert.der", cert.CertDER, 0o777)
 			log.Info("supervision-cert.der")
 			exitIfError("failed writing cert", err)
-			err = os.WriteFile("supervision-cert.pem", cert.CertPEM, 0777)
+			err = os.WriteFile("supervision-cert.pem", cert.CertPEM, 0o777)
 			log.Info("supervision-cert.pem")
 			exitIfError("failed writing cert", err)
-			err = os.WriteFile("supervision-private-key.key", cert.PrivateKeyDER, 0777)
+			err = os.WriteFile("supervision-private-key.key", cert.PrivateKeyDER, 0o777)
 			log.Info("supervision-private-key.key")
 			exitIfError("failed writing cert", err)
-			err = os.WriteFile("supervision-private-key.pem", cert.PrivateKeyPEM, 0777)
+			err = os.WriteFile("supervision-private-key.pem", cert.PrivateKeyPEM, 0o777)
 			log.Info("supervision-private-key.pem")
 			exitIfError("failed writing key", err)
-			err = os.WriteFile("supervision-csr.csr", []byte(cert.Csr), 0777)
+			err = os.WriteFile("supervision-csr.csr", []byte(cert.Csr), 0o777)
 			log.Info("supervision-csr.csr")
 			exitIfError("failed writing cert", err)
 			log.Info("Golang does not have good PKCS12 format sadly. If you need a p12 file run this: " +
@@ -454,7 +456,7 @@ The commands work as following:
 	b, _ = arguments.Bool("dproxy")
 	if b {
 		log.SetFormatter(&log.TextFormatter{})
-		//log.SetLevel(log.DebugLevel)
+		// log.SetLevel(log.DebugLevel)
 		binaryMode, _ := arguments.Bool("--binary")
 		startDebugProxy(device, binaryMode)
 		return
@@ -826,8 +828,8 @@ The commands work as following:
 
 	b, _ = arguments.Bool("batterycheck")
 	if b {
-	    printBatteryDiagnostics(device)
-	    return
+		printBatteryDiagnostics(device)
+		return
 	}
 }
 
@@ -905,7 +907,6 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 		go func() {
 			err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
-
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 			}
@@ -1105,7 +1106,6 @@ func assistiveTouch(device ios.DeviceEntry, operation string, force bool) {
 	}
 
 	wasEnabled, err := ios.GetAssistiveTouch(device)
-
 	if err != nil {
 		if force && (operation == "enable" || operation == "disable") {
 			log.WithFields(log.Fields{"error": err}).Warn("Failed getting current AssistiveTouch status. Continuing anyway.")
@@ -1191,7 +1191,6 @@ func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
 				os.Exit(1)
 				return
 			}
-
 		}()
 		err := proxy.Launch(device, binaryMode)
 		log.WithFields(log.Fields{"error": err}).Infof("DebugProxy Terminated abnormally")
@@ -1278,8 +1277,8 @@ func printDeviceDate(device ios.DeviceEntry) {
 	} else {
 		fmt.Println(convertToJSONString(map[string]interface{}{"formatedDate": formatedDate, "TimeIntervalSince1970": allValues.Value.TimeIntervalSince1970}))
 	}
-
 }
+
 func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool) {
 	svc, _ := installationproxy.New(device)
 	var err error
@@ -1335,7 +1334,7 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 		outputPath, err = filepath.Abs("./screenshot" + timestamp + ".png")
 		exitIfError("getting filepath failed", err)
 	}
-	err = ioutil.WriteFile(outputPath, imageBytes, 0777)
+	err = ioutil.WriteFile(outputPath, imageBytes, 0o777)
 	exitIfError("write file failed", err)
 
 	if JSONdisabled {

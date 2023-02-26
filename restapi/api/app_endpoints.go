@@ -73,7 +73,7 @@ func LaunchApp(c *gin.Context) {
 // @Router       /device/{udid}/apps/kill [post]
 func KillApp(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	var processName = ""
+	processName := ""
 
 	bundleID := c.Query("bundleID")
 	if bundleID == "" {

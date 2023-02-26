@@ -99,16 +99,16 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 		This is not really supported by any library afaik so I added this hack to make it work.
 	*/
 
-	//First send a close write
+	// First send a close write
 	err := conn.c.(*tls.Conn).CloseWrite()
 	if err != nil {
 		log.Errorf("failed closewrite %v", err)
 	}
-	//Use the underlying conn again to receive unencrypted bytes
+	// Use the underlying conn again to receive unencrypted bytes
 	conn.c = conn.unencryptedConn
-	//tls.Conn.CloseWrite() sets the writeDeadline to now, which will cause
-	//all writes to timeout immediately, for this hacky workaround
-	//we need to undo that
+	// tls.Conn.CloseWrite() sets the writeDeadline to now, which will cause
+	// all writes to timeout immediately, for this hacky workaround
+	// we need to undo that
 	err = conn.c.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	if err != nil {
 		log.Errorf("failed setting writedeadline after TLS disable:%v", err)
@@ -182,8 +182,8 @@ func (conn *DeviceConnection) createClientTLSConn(pairRecord PairRecord) (*tls.C
 		return nil, err
 	}
 	conf := &tls.Config{
-		//We always trust whatever the phone sends, I do not see an issue here as probably
-		//nobody would build a fake iphone to hack this library.
+		// We always trust whatever the phone sends, I do not see an issue here as probably
+		// nobody would build a fake iphone to hack this library.
 		InsecureSkipVerify: true,
 		Certificates:       []tls.Certificate{cert5},
 		ClientAuth:         tls.NoClientCert,
@@ -201,17 +201,17 @@ func (conn *DeviceConnection) createClientTLSConn(pairRecord PairRecord) (*tls.C
 }
 
 func (conn *DeviceConnection) createServerTLSConn(pairRecord PairRecord) (*tls.Conn, error) {
-	//we can just use the hostcert and key here, normally the device has its own pair of cert and key
-	//but we do not know the device private key. funny enough, host has been signed by the same root cert
-	//so it will be accepted by clients
+	// we can just use the hostcert and key here, normally the device has its own pair of cert and key
+	// but we do not know the device private key. funny enough, host has been signed by the same root cert
+	// so it will be accepted by clients
 	cert5, err := tls.X509KeyPair(pairRecord.HostCertificate, pairRecord.HostPrivateKey)
 	if err != nil {
 		log.Error("Error SSL:" + err.Error())
 		return nil, err
 	}
 	conf := &tls.Config{
-		//We always trust whatever the phone sends, I do not see an issue here as probably
-		//nobody would build a fake iphone to hack this library.
+		// We always trust whatever the phone sends, I do not see an issue here as probably
+		// nobody would build a fake iphone to hack this library.
 		InsecureSkipVerify: true,
 		Certificates:       []tls.Certificate{cert5},
 		ClientAuth:         tls.NoClientCert,

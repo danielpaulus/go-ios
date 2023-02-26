@@ -4,11 +4,12 @@
 package syslog_test
 
 import (
+	"testing"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/syslog"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestSyslog(t *testing.T) {
