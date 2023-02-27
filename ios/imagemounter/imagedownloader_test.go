@@ -14,6 +14,5 @@ func TestVersionMatching(t *testing.T) {
 	assert.Equal(t, "15.3.1", imagemounter.MatchAvailable("15.3.1"))
 	assert.Equal(t, "15.4", imagemounter.MatchAvailable("15.4.1"))
 	assert.Equal(t, "15.7", imagemounter.MatchAvailable("15.7.2"))
-	assert.Equal(t, "16.3", imagemounter.MatchAvailable("19.4.1"))
 	assert.Equal(t, "16.4", imagemounter.MatchAvailable("19.4.1"))
 }
