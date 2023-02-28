@@ -99,7 +99,7 @@ Usage:
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [options]
   ios debug [options] [--stop-at-entry] <app_path>
-  ios fsync (rm | tree | mkdir) --path=<targetPath>
+  ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>
   ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath> 
   ios reboot [options]
   ios -h | --help
@@ -185,7 +185,7 @@ The commands work as following:
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [options]                                                   Access accessibility inspector features. 
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
-   ios fsync (rm | tree | mkdir) --path=<targetPath>                  Remove | treeview | mkdir in target path.
+   ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
    ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
@@ -663,7 +663,12 @@ The commands work as following:
 		b, _ = arguments.Bool("rm")
 		if b {
 			path, _ := arguments.String("--path")
-			err = afcService.Remove(path)
+			isRecursive, _ := arguments.Bool("--r")
+			if isRecursive {
+				err = afcService.RemoveAll(path)
+			} else {
+				err = afcService.Remove(path)
+			}
 			exitIfError("fsync: remove failed", err)
 		}
 
