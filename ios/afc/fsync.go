@@ -88,6 +88,27 @@ func (conn *Connection) Remove(path string) error {
 	return nil
 }
 
+func (conn *Connection) RemoveAll(srcPath string) error {
+	fileInfo, err := conn.Stat(srcPath)
+	if err != nil {
+		return err
+	}
+	if fileInfo.IsDir() {
+		fileList, err := conn.listDir(srcPath)
+		if err != nil {
+			return err
+		}
+		for _, v := range fileList {
+			sp := path.Join(srcPath, v)
+			err = conn.RemoveAll(sp)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return conn.Remove(srcPath)
+}
+
 func (conn *Connection) MkDir(path string) error {
 	headerPayload := []byte(path)
 	headerLength := uint64(len(headerPayload))
