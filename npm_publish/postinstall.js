@@ -27,39 +27,40 @@ async function getInstallationPath() {
 
     // `npm bin` will output the path where binary files should be installed
 
-    const value = await execShellCommand("npm bin -g");
+    const value = null //await execShellCommand("npm bin -g");
 
 
-        var dir = null;
-        if (!value || value.length === 0) {
+    var dir = null;
+    if (!value || value.length === 0) {
 
-            // We couldn't infer path from `npm bin`. Let's try to get it from
-            // Environment variables set by NPM when it runs.
-            // npm_config_prefix points to NPM's installation directory where `bin` folder is available
-            // Ex: /Users/foo/.nvm/versions/node/v4.3.0
-            var env = process.env;
-            if (env && env.npm_config_prefix) {
-                dir = path.join(env.npm_config_prefix, "bin");
-            }
-        } else {
-            dir = value.trim();
+        // We couldn't infer path from `npm bin`. Let's try to get it from
+        // Environment variables set by NPM when it runs.
+        // npm_config_prefix points to NPM's installation directory where `bin` folder is available
+        // Ex: /Users/foo/.nvm/versions/node/v4.3.0
+        var env = process.env;
+        if (env && env.npm_config_prefix) {
+            dir = path.join(env.npm_config_prefix, "bin");
         }
-
-        await mkdirp(dir);
-        return dir;
+    } else {
+        dir = value.trim();
+    }
+    //throw (dir)
+    ///Users/danielpaulus/.nvm/versions/node/v19.7.0/lib/node_modules/go-ios/node_modules/.bin
+    await mkdirp(dir);
+    return dir;
 }
 
 async function verifyAndPlaceBinary(binName, binPath, callback) {
     if (!fs.existsSync(path.join(binPath, binName))) return callback('Downloaded binary does not contain the binary specified in configuration - ' + binName);
 
     // Get installation path for executables under node
-    const installationPath=  await getInstallationPath();
+    const installationPath = await getInstallationPath();
     // Copy the executable to the path
-    fs.rename(path.join(binPath, binName), path.join(installationPath, binName),(err)=>{
-        if(!err){
+    fs.rename(path.join(binPath, binName), path.join(installationPath, binName), (err) => {
+        if (!err) {
             console.info("Installed cli successfully");
             callback(null);
-        }else{
+        } else {
             callback(err);
         }
     });
@@ -85,12 +86,12 @@ function validateConfiguration(packageJson) {
 }
 
 function parsePackageJson() {
-    if (process.arch !=="arm64" && process.platform !== "darwin"){
-    if (!(process.arch in ARCH_MAPPING)) {
-        console.error("Installation is not supported for this architecture: " + process.arch);
-        return;
+    if (process.arch !== "arm64" && process.platform !== "darwin") {
+        if (!(process.arch in ARCH_MAPPING)) {
+            console.error("Installation is not supported for this architecture: " + process.arch);
+            return;
+        }
     }
-}
 
     if (!(process.platform in PLATFORM_MAPPING)) {
         console.error("Installation is not supported for this platform: " + process.platform);
@@ -144,41 +145,40 @@ async function install(callback) {
     if (!opts) return callback(INVALID_INPUT);
     mkdirp.sync(opts.binPath);
     console.info(`Copying the relevant binary for your platform ${process.platform}`);
-    let src= `./dist/go-ios-${PLATFORM_MAPPING[process.platform]}-${ARCH_MAPPING[process.arch]}_${PLATFORM_MAPPING[process.platform]}_${ARCH_MAPPING[process.arch]}/${opts.binName}`;
-    if (process.arch ==="arm64" && process.platform === "darwin"){
+    let src = `./dist/go-ios-${PLATFORM_MAPPING[process.platform]}-${ARCH_MAPPING[process.arch]}_${PLATFORM_MAPPING[process.platform]}_${ARCH_MAPPING[process.arch]}/${opts.binName}`;
+    if (process.arch === "arm64" && process.platform === "darwin") {
         console.log("using amd64 build on M1 mac")
-        src= `./dist/go-ios-${process.platform}-amd64_${process.platform}_amd64/${opts.binName}`;
+        src = `./dist/go-ios-${process.platform}-amd64_${process.platform}_amd64/${opts.binName}`;
     }
 
-    if (process.arch ==="ia32" && process.platform === "w32")
-    {
-        src= `./dist/go-ios-${PLATFORM_MAPPING[process.platform]}-amd64_${PLATFORM_MAPPING[process.platform]}_amd64/${opts.binName}`;
+    if (process.arch === "ia32" && process.platform === "w32") {
+        src = `./dist/go-ios-${PLATFORM_MAPPING[process.platform]}-amd64_${PLATFORM_MAPPING[process.platform]}_amd64/${opts.binName}`;
     }
 
-    if (PLATFORM_MAPPING[process.platform]==="windows"){
+    if (PLATFORM_MAPPING[process.platform] === "windows") {
         let cmd = `copy ${src} ${opts.binPath}/${opts.binName}`
         cmd = cmd.replace(/\//g, "\\")
         await execShellCommand(cmd);
-    }else {
+    } else {
         await execShellCommand(`cp ${src} ${opts.binPath}/${opts.binName}`);
     }
 
     await verifyAndPlaceBinary(opts.binName, opts.binPath, callback);
-    console.log("\x1b[32m","go-ios installed, run 'ios --help' for details\n\n")
+    console.log("\x1b[32m", "go-ios installed, run 'ios --help' for details\n\n")
 }
 
 async function uninstall(callback) {
     var opts = parsePackageJson();
-        try {
-            const installationPath = await getInstallationPath();
-            fs.unlink(path.join(installationPath, opts.binName),(err)=>{
-                if(err){
-                    return callback(err);
-                }
-            });
-        } catch (ex) {
-            // Ignore errors when deleting the file.
-        }
+    try {
+        const installationPath = await getInstallationPath();
+        fs.unlink(path.join(installationPath, opts.binName), (err) => {
+            if (err) {
+                return callback(err);
+            }
+        });
+    } catch (ex) {
+        // Ignore errors when deleting the file.
+    }
     console.info("Uninstalled cli successfully");
     return callback(null);
 }
@@ -200,7 +200,7 @@ function execShellCommand(cmd) {
             if (error) {
                 console.warn(error);
             }
-            resolve(stdout? stdout : stderr);
+            resolve(stdout ? stdout : stderr);
         });
     });
 }
