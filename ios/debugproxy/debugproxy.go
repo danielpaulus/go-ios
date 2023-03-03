@@ -100,18 +100,18 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 		}
 		log.Infof("Successfully retrieved pairrecord: %s for device %s", pairRecord.HostID, device.Properties.SerialNumber)
 	}
-	originalSocket, err := MoveSock(ios.DefaultUsbmuxdSocket)
+	originalSocket, err := MoveSock(ios.ToUnixSocketPath(ios.GetUsbmuxdSocket()))
 	if err != nil {
-		log.WithFields(log.Fields{"error": err, "socket": ios.DefaultUsbmuxdSocket}).Error("Unable to move, lacking permissions?")
+		log.WithFields(log.Fields{"error": err, "socket": ios.GetUsbmuxdSocket()}).Error("Unable to move, lacking permissions?")
 		return err
 	}
 	d.setupDirectory()
-	listener, err := net.Listen("unix", ios.DefaultUsbmuxdSocket)
+	listener, err := net.Listen("unix", ios.ToUnixSocketPath(ios.GetUsbmuxdSocket()))
 	if err != nil {
 		log.Error("Could not listen on usbmuxd socket, do I have access permissions?", err)
 		return err
 	}
-	if err := os.Chmod(ios.DefaultUsbmuxdSocket, 0777); err != nil {
+	if err := os.Chmod(ios.ToUnixSocketPath(ios.GetUsbmuxdSocket()), 0777); err != nil {
 		log.Error("Could not change permission on usbmuxd socket", err)
 		return err
 	}
@@ -168,7 +168,7 @@ func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.P
 //Close moves /var/run/usbmuxd.real back to /var/run/usbmuxd and disconnects all active proxy connections
 func (d *DebugProxy) Close() {
 	log.Info("Moving back original socket")
-	err := MoveBack(ios.DefaultUsbmuxdSocket)
+	err := MoveBack(ios.ToUnixSocketPath(ios.GetUsbmuxdSocket()))
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Error("Failed moving back socket")
 	}

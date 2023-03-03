@@ -15,7 +15,7 @@ func proxyUsbMuxConnection(p *ProxyConnection, muxOnUnixSocket *ios.UsbMuxConnec
 		log.Println("done") // Println executes normally even if there is a panic
 		if x := recover(); x != nil {
 			log.Printf("run time panic, moving back socket %v", x)
-			err := MoveBack(ios.DefaultUsbmuxdSocket)
+			err := MoveBack(ios.ToUnixSocketPath(ios.GetUsbmuxdSocket()))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Error("Failed moving back socket")
 			}

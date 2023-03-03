@@ -1368,10 +1368,10 @@ func outputProcessListNoJSON(device ios.DeviceEntry, processes []instruments.Pro
 func startListening() {
 	go func() {
 		for {
-			deviceConn, err := ios.NewDeviceConnection(ios.DefaultUsbmuxdSocket)
+			deviceConn, err := ios.NewDeviceConnection(ios.GetUsbmuxdSocket())
 			defer deviceConn.Close()
 			if err != nil {
-				log.Errorf("could not connect to %s with err %+v, will retry in 3 seconds...", ios.DefaultUsbmuxdSocket, err)
+				log.Errorf("could not connect to %s with err %+v, will retry in 3 seconds...", ios.GetUsbmuxdSocket(), err)
 				time.Sleep(time.Second * 3)
 				continue
 			}
