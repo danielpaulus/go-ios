@@ -3,6 +3,7 @@ package ios
 import (
 	"bytes"
 	"fmt"
+
 	"howett.net/plist"
 )
 
@@ -86,7 +87,7 @@ func (muxConn *UsbMuxConnection) Listen() (func() (AttachedMessage, error), erro
 }
 
 func Listen() (func() (AttachedMessage, error), func() error, error) {
-	deviceConn, err := NewDeviceConnection(DefaultUsbmuxdSocket)
+	deviceConn, err := NewDeviceConnection(GetUsbmuxdSocket())
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not connect to usbmuxd: %w", err)
 	}

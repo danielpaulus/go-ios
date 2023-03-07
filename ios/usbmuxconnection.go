@@ -3,13 +3,47 @@ package ios
 import (
 	"encoding/binary"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
+	"os"
 	"reflect"
-)
+	"runtime"
+	"strings"
 
-//DefaultUsbmuxdSocket this is the unix domain socket address to connect to.
-const DefaultUsbmuxdSocket = "/var/run/usbmuxd"
+	log "github.com/sirupsen/logrus"
+)
+func GetSocketTypeAndAddress(socketAddress string) (string, string) {
+	chunks := strings.Split(socketAddress, "://")
+	if (len(chunks) != 2) {
+		panic("Needs scheme://address")
+	}
+	return chunks[0], chunks[1]
+}
+
+func ToUnixSocketPath(socketAddress string) string {
+	scheme, name := GetSocketTypeAndAddress(socketAddress);
+	if scheme != "unix" {
+		panic("Needs a unix socket");
+	}
+	return name;
+}
+
+//GetUsbmuxdSocket this is the default socket address for the platform to connect to.
+func GetUsbmuxdSocket() string {
+	socket_override := os.Getenv("USBMUXD_SOCKET_ADDRESS");
+	if socket_override != "" {
+		if strings.Contains(socket_override, ":") {
+			return "tcp://" + socket_override;
+		} else {
+			return "unix://" + socket_override;;
+		}
+	}
+	switch runtime.GOOS {
+	case "windows":
+		return "tcp://127.0.0.1:27015";
+	default:
+		return "unix:///var/run/usbmuxd";
+	}
+}
 
 //UsbMuxConnection can send and read messages to the usbmuxd process to manage pairrecors, listen for device changes
 //and connect to services on the phone. Usually messages follow a  request-response pattern. there is a tag integer
@@ -28,7 +62,7 @@ func NewUsbMuxConnection(deviceConn DeviceConnectionInterface) *UsbMuxConnection
 
 // NewUsbMuxConnectionSimple creates a new UsbMuxConnection with a connection to /var/run/usbmuxd
 func NewUsbMuxConnectionSimple() (*UsbMuxConnection, error) {
-	deviceConn, err := NewDeviceConnection(DefaultUsbmuxdSocket)
+	deviceConn, err := NewDeviceConnection(GetUsbmuxdSocket())
 	muxConn := &UsbMuxConnection{tag: 0, deviceConn: deviceConn}
 	return muxConn, err
 }
