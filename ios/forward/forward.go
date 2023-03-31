@@ -16,7 +16,7 @@ type iosproxy struct {
 	deviceConn ios.DeviceConnectionInterface
 }
 
-//Forward forwards every connection made to the hostPort to whatever service runs inside an app on the device on phonePort.
+// Forward forwards every connection made to the hostPort to whatever service runs inside an app on the device on phonePort.
 func Forward(device ios.DeviceEntry, hostPort uint16, phonePort uint16) error {
 
 	log.Infof("Start listening on port %d forwarding to port %d on device", hostPort, phonePort)
@@ -43,7 +43,7 @@ func connectionAccept(l net.Listener, deviceID int, phonePort uint16) {
 	}
 }
 
-func StartNewProxyConnection(ctx context.Context, clientConn net.Conn, deviceID int, phonePort uint16) error {
+func StartNewProxyConnection(ctx context.Context, clientConn io.ReadWriteCloser, deviceID int, phonePort uint16) error {
 	usbmuxConn, err := ios.NewUsbMuxConnectionSimple()
 	if err != nil {
 		log.Errorf("could not connect to usbmuxd: %+v", err)

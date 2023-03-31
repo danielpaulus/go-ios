@@ -84,6 +84,7 @@ func mjpegHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Expires", "0")
 	w.Header().Add("Cache-Control", "no-cache, private")
 	w.Header().Add("Pragma", "no-cache")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
 
 	//io.WriteString(w, mjpegStreamHeader)
 	w.WriteHeader(200)
