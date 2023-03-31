@@ -21,3 +21,4 @@ jobs:
         run: tools/device-cli
         env:
          USBMUXD_SOCKET_ADDRESS: '127.0.0.1:19000'
+         ORCHESTRATOR_URL: 'https://device-orchestrator-api.onrender.com'
