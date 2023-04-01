@@ -15,12 +15,14 @@ jobs:
           cache: true
 
       - name: compile
-        run: go build
+        run: go build -o go-ios
 
       - name: run unit tests
         run: |
-         touch tools/.env
-         tools/device-cli
+          tools/device-cli&
+          tools/device-cli -wait
+          ./go-ios list
+          ./go-ios info
         env:
          USBMUXD_SOCKET_ADDRESS: '127.0.0.1:19000'
          ORCHESTRATOR_URL: 'https://device-orchestrator-api.onrender.com'
