@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -59,6 +60,7 @@ func Main() {
 	usage := fmt.Sprintf(`go-ios %s
 
 Usage:
+  ios activate [options]
   ios listen [options]
   ios list [options] [--details]
   ios info [options]
@@ -124,6 +126,7 @@ The commands work as following:
 	By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
 	Specify -v for debug logging and -t for dumping every message.
 
+   ios activate [options]                                             Activate a device
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios info [options]                                                 Prints a dump of Lockdown getValues.
@@ -276,6 +279,13 @@ The commands work as following:
 	b, _ = arguments.Bool("erase")
 	if b {
 		exitIfError("failed erasing", mcinstall.Erase(device))
+		print(convertToJSONString("ok"))
+		return
+	}
+
+	b, _ = arguments.Bool("activate")
+	if b {
+		exitIfError("failed activation", mobileactivation.Activate(device))
 		print(convertToJSONString("ok"))
 		return
 	}

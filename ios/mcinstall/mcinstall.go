@@ -157,6 +157,18 @@ func parseProfile(idString string, dict map[string]interface{}) (ProfileInfo, er
 	return result, nil
 }
 
+func (mcInstallConn *Connection) EscalateUnsupervised() error {
+	request := map[string]interface{}{"RequestType": "Escalate",
+		"SupervisorCertificate": []byte{0}}
+	dict, err := mcInstallConn.sendAndReceive(request)
+	if err != nil {
+		return err
+	}
+	if !checkStatus(dict) {
+		return fmt.Errorf("escalate response had error %+v", dict)
+	}
+	return nil
+}
 func (mcInstallConn *Connection) Escalate(p12bytes []byte, p12Password string) error {
 	supervisedPrivateKey, supervisionCert, err := pkcs12.Decode(p12bytes, p12Password)
 	if err != nil {
@@ -214,6 +226,10 @@ func checkStatus(response map[string]interface{}) bool {
 	return true
 }
 
+func request(requestType string) map[string]interface{} {
+	return map[string]interface{}{"RequestType": requestType}
+}
+
 func (mcInstallConn *Connection) sendAndReceive(request map[string]interface{}) (map[string]interface{}, error) {
 	reader := mcInstallConn.deviceConn.Reader()
 	requestBytes, err := mcInstallConn.plistCodec.Encode(request)
@@ -246,7 +262,7 @@ func (mcInstallConn *Connection) HandleList() ([]ProfileInfo, error) {
 	return mcInstallConn.readExchangeResponse(reader)
 }
 
-//Close closes the underlying DeviceConnection
+// Close closes the underlying DeviceConnection
 func (mcInstallConn *Connection) Close() error {
 	return mcInstallConn.deviceConn.Close()
 }
