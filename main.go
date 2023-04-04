@@ -44,7 +44,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//JSONdisabled enables or disables output in JSON format
+// JSONdisabled enables or disables output in JSON format
 var JSONdisabled = false
 var prettyJSON = false
 
@@ -75,6 +75,7 @@ Usage:
   ios date [options]
   ios devicestate list [options]
   ios devicestate enable <profileTypeId> <profileId> [options]
+  ios erase [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
@@ -144,6 +145,7 @@ The commands work as following:
    ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
    ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
+   ios erase [options]                                                Erase the device 
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
    >                                                                  it in plist format by adding the --plist param. 
@@ -270,6 +272,12 @@ The commands work as following:
 		profileTypeId, _ := arguments.String("<profileTypeId>")
 		profileId, _ := arguments.String("<profileId>")
 		deviceState(device, false, enable, profileTypeId, profileId)
+	}
+	b, _ = arguments.Bool("erase")
+	if b {
+		exitIfError("failed erasing", mcinstall.Erase(device))
+		print(convertToJSONString("ok"))
+		return
 	}
 
 	b, _ = arguments.Bool("ip")
