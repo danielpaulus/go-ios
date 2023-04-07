@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -24,27 +25,30 @@ type DeviceConnectionInterface interface {
 	Conn() net.Conn
 }
 
-//DeviceConnection wraps the net.Conn to the ios Device and has support for
-//switching Codecs and enabling SSL
+// DeviceConnection wraps the net.Conn to the ios Device and has support for
+// switching Codecs and enabling SSL
 type DeviceConnection struct {
 	c               net.Conn
 	unencryptedConn net.Conn
 }
 
-//NewDeviceConnection creates a new DeviceConnection pointing to the given socket waiting for a call to Connect()
+// NewDeviceConnection creates a new DeviceConnection pointing to the given socket waiting for a call to Connect()
 func NewDeviceConnection(socketToConnectTo string) (*DeviceConnection, error) {
 	conn := &DeviceConnection{}
 	return conn, conn.connectToSocketAddress(socketToConnectTo)
 }
 
-//NewDeviceConnectionWithConn create a DeviceConnection with a already connected network conn.
+// NewDeviceConnectionWithConn create a DeviceConnection with a already connected network conn.
 func NewDeviceConnectionWithConn(conn net.Conn) *DeviceConnection {
 	return &DeviceConnection{c: conn}
 }
 
-//ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
+// ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
 func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error {
-	network, address := GetSocketTypeAndAddress(socketAddress);
+	if strings.HasPrefix(socketAddress, "/var") {
+		socketAddress = "unix://" + socketAddress
+	}
+	network, address := GetSocketTypeAndAddress(socketAddress)
 	c, err := net.Dial(network, address)
 	if err != nil {
 		return err
@@ -54,13 +58,13 @@ func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error
 	return nil
 }
 
-//Close closes the network connection
-func (conn *DeviceConnection) Close() error{
+// Close closes the network connection
+func (conn *DeviceConnection) Close() error {
 	log.Tracef("Closing connection: %v", &conn.c)
 	return conn.c.Close()
 }
 
-//Send sends a message
+// Send sends a message
 func (conn *DeviceConnection) Send(bytes []byte) error {
 	n, err := conn.c.Write(bytes)
 	if n < len(bytes) {
@@ -74,19 +78,19 @@ func (conn *DeviceConnection) Send(bytes []byte) error {
 	return nil
 }
 
-//Reader exposes the underlying net.Conn as io.Reader
+// Reader exposes the underlying net.Conn as io.Reader
 func (conn *DeviceConnection) Reader() io.Reader {
 	return conn.c
 }
 
-//Writer exposes the underlying net.Conn as io.Writer
+// Writer exposes the underlying net.Conn as io.Writer
 func (conn *DeviceConnection) Writer() io.Writer {
 	return conn.c
 }
 
-//DisableSessionSSL is a hack to go back from SSL to an unencrypted conn without closing the connection.
-//It is only used for the debug proxy because certain MAC applications actually disable SSL, use the connection
-//to send unencrypted messages just to then enable SSL again without closing the connection
+// DisableSessionSSL is a hack to go back from SSL to an unencrypted conn without closing the connection.
+// It is only used for the debug proxy because certain MAC applications actually disable SSL, use the connection
+// to send unencrypted messages just to then enable SSL again without closing the connection
 func (conn *DeviceConnection) DisableSessionSSL() {
 	/*
 		Sometimes, apple tools will remove SSL from a lockdown connection after StopSession was received.
@@ -131,20 +135,20 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 	log.Tracef("rcv tls payload: %x", payload)
 }
 
-//EnableSessionSslServerMode wraps the underlying net.Conn in a server tls.Conn using the pairRecord.
+// EnableSessionSslServerMode wraps the underlying net.Conn in a server tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
 	tlsConn, _ := conn.createServerTLSConn(pairRecord)
 	conn.unencryptedConn = conn.c
 	conn.c = net.Conn(tlsConn)
 }
 
-//EnableSessionSslServerModeHandshakeOnly enables SSL only for the Handshake and then falls back to plaintext
-//DTX based services do that currently. Server mode is needed only in the debugproxy.
+// EnableSessionSslServerModeHandshakeOnly enables SSL only for the Handshake and then falls back to plaintext
+// DTX based services do that currently. Server mode is needed only in the debugproxy.
 func (conn *DeviceConnection) EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord) {
 	conn.createServerTLSConn(pairRecord)
 }
 
-//EnableSessionSsl wraps the underlying net.Conn in a client tls.Conn using the pairRecord.
+// EnableSessionSsl wraps the underlying net.Conn in a client tls.Conn using the pairRecord.
 func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	tlsConn, err := conn.createClientTLSConn(pairRecord)
 	if err != nil {
@@ -155,8 +159,8 @@ func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	return nil
 }
 
-//EnableSessionSslHandshakeOnly enables SSL only for the Handshake and then falls back to plaintext
-//DTX based services do that currently
+// EnableSessionSslHandshakeOnly enables SSL only for the Handshake and then falls back to plaintext
+// DTX based services do that currently
 func (conn *DeviceConnection) EnableSessionSslHandshakeOnly(pairRecord PairRecord) error {
 	_, err := conn.createClientTLSConn(pairRecord)
 	if err != nil {
@@ -186,7 +190,7 @@ func (conn *DeviceConnection) createClientTLSConn(pairRecord PairRecord) (*tls.C
 		return nil, err
 	}
 
-	log.Tracef("enable session ssl on %v and wrap with tlsConn: %v",&conn.c, &tlsConn)
+	log.Tracef("enable session ssl on %v and wrap with tlsConn: %v", &conn.c, &tlsConn)
 	return tlsConn, nil
 }
 
@@ -212,7 +216,7 @@ func (conn *DeviceConnection) createServerTLSConn(pairRecord PairRecord) (*tls.C
 		log.Info("Handshake error", err)
 		return nil, err
 	}
-	log.Tracef("enable session ssl on %v and wrap with tlsConn: %v",&conn.c, &tlsConn)
+	log.Tracef("enable session ssl on %v and wrap with tlsConn: %v", &conn.c, &tlsConn)
 	return tlsConn, nil
 }
 
