@@ -47,7 +47,7 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	return &Connection{deviceConn: deviceConn}, nil
 }
 
-//NewFromConn allows to use AFC on a DeviceConnectionInterface, see crashreport for an example
+// NewFromConn allows to use AFC on a DeviceConnectionInterface, see crashreport for an example
 func NewFromConn(deviceConn ios.DeviceConnectionInterface) *Connection {
 	return &Connection{deviceConn: deviceConn}
 }
@@ -88,6 +88,25 @@ func (conn *Connection) Remove(path string) error {
 	return nil
 }
 
+func (conn *Connection) RemovePathAndContents(path string) error {
+	headerPayload := []byte(path)
+	headerPayload = append(headerPayload, 0)
+	headerLength := uint64(len(headerPayload))
+	thisLength := Afc_header_size + headerLength
+
+	header := AfcPacketHeader{Magic: Afc_magic, Packet_num: conn.packageNumber, Operation: Afc_operation_remove_path_and_contents, This_length: thisLength, Entire_length: thisLength}
+	conn.packageNumber++
+	packet := AfcPacket{Header: header, HeaderPayload: headerPayload, Payload: make([]byte, 0)}
+	response, err := conn.sendAfcPacketAndAwaitResponse(packet)
+	if err != nil {
+		return err
+	}
+	if err = conn.checkOperationStatus(response); err != nil {
+		return fmt.Errorf("remove: unexpected afc status: %v", err)
+	}
+	return nil
+}
+
 func (conn *Connection) RemoveAll(srcPath string) error {
 	fileInfo, err := conn.Stat(srcPath)
 	if err != nil {
@@ -111,6 +130,7 @@ func (conn *Connection) RemoveAll(srcPath string) error {
 
 func (conn *Connection) MkDir(path string) error {
 	headerPayload := []byte(path)
+	headerPayload = append(headerPayload, 0)
 	headerLength := uint64(len(headerPayload))
 	thisLength := Afc_header_size + headerLength
 
@@ -236,8 +256,8 @@ func (conn *Connection) GetSpaceInfo() (*AFCDeviceInfo, error) {
 	}, nil
 }
 
-//ListFiles returns all files in the given directory, matching the pattern.
-//Example: ListFiles(".", "*") returns all files and dirs in the current path the afc connection is in
+// ListFiles returns all files in the given directory, matching the pattern.
+// Example: ListFiles(".", "*") returns all files and dirs in the current path the afc connection is in
 func (conn *Connection) ListFiles(cwd string, matchPattern string) ([]string, error) {
 	headerPayload := []byte(cwd)
 	headerLength := uint64(len(headerPayload))
@@ -308,6 +328,7 @@ func (conn *Connection) TreeView(dpath string, prefix string, treePoint bool) er
 
 func (conn *Connection) openFile(path string, mode uint64) (byte, error) {
 	pathBytes := []byte(path)
+	pathBytes = append(pathBytes, 0)
 	headerLength := 8 + uint64(len(pathBytes))
 	headerPayload := make([]byte, headerLength)
 	binary.LittleEndian.PutUint64(headerPayload, mode)
@@ -436,6 +457,17 @@ func (conn *Connection) Push(srcPath, dstPath string) error {
 		}
 	}
 
+	return conn.WriteToFile(f, dstPath)
+}
+
+func (conn *Connection) WriteToFile(reader io.Reader, dstPath string) error {
+
+	if fileInfo, _ := conn.Stat(dstPath); fileInfo != nil {
+		if fileInfo.IsDir() {
+			return fmt.Errorf("%s is a directory, cannot write to it as file", dstPath)
+		}
+	}
+
 	fd, err := conn.openFile(dstPath, Afc_Mode_WR)
 	if err != nil {
 		return err
@@ -445,20 +477,21 @@ func (conn *Connection) Push(srcPath, dstPath string) error {
 	maxWriteSize := 64 * 1024
 	chunk := make([]byte, maxWriteSize)
 	for {
-		n, err := f.Read(chunk)
+		n, err := reader.Read(chunk)
 		if err != nil && err != io.EOF {
 			return err
 		}
 		if n == 0 {
 			break
 		}
+		bytesRead := chunk[:n]
 
 		headerPayload := make([]byte, 8)
 		headerPayload[0] = fd
 		thisLength := Afc_header_size + 8
 		header := AfcPacketHeader{Magic: Afc_magic, Packet_num: conn.packageNumber, Operation: Afc_operation_file_write, This_length: thisLength, Entire_length: thisLength + uint64(n)}
 		conn.packageNumber++
-		packet := AfcPacket{Header: header, HeaderPayload: headerPayload, Payload: chunk}
+		packet := AfcPacket{Header: header, HeaderPayload: headerPayload, Payload: bytesRead}
 		response, err := conn.sendAfcPacketAndAwaitResponse(packet)
 		if err != nil {
 			return err
@@ -466,6 +499,7 @@ func (conn *Connection) Push(srcPath, dstPath string) error {
 		if err = conn.checkOperationStatus(response); err != nil {
 			return fmt.Errorf("write file: unexpected afc status: %v", err)
 		}
+
 	}
 	return nil
 }

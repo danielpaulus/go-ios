@@ -32,7 +32,30 @@ func (activationdConn *Connection) Close() error {
 	return activationdConn.deviceConn.Close()
 }
 
+const activationStateKey = "ActivationState"
+const unactivated = "Unactivated"
+
+func IsActivated(device ios.DeviceEntry) (bool, error) {
+	values, err := ios.GetValuesPlist(device)
+	if err != nil {
+		return false, err
+	}
+	val, ok := values[activationStateKey]
+	if ok {
+		return val != unactivated, nil
+	}
+	return false, nil
+}
+
 func Activate(device ios.DeviceEntry) error {
+	isActivated, err := IsActivated(device)
+	if err != nil {
+		return err
+	}
+	if isActivated {
+		log.WithField("udid", device.Properties.SerialNumber).Info("the device is already activated")
+		return nil
+	}
 	conn, err := New(device)
 	if err != nil {
 		return err

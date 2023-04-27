@@ -82,6 +82,7 @@ Usage:
   ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
   ios profile list [options]
+  ios prepare [options]
   ios profile remove <profileName> [options]
   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
@@ -160,6 +161,7 @@ The commands work as following:
    ios profile list                                                   List the profiles on the device
    ios profile remove <profileName>                                   Remove the profileName from the device
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
+   ios prepare [options]                                              prepare
    ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
    >                                                                  Specify proxy password either as argument or using the environment var: PROXY_PASSWORD
    >                                                                  Use p12 file and password for silent installation on supervised devices.
@@ -276,6 +278,14 @@ The commands work as following:
 		profileId, _ := arguments.String("<profileId>")
 		deviceState(device, false, enable, profileTypeId, profileId)
 	}
+
+	b, _ = arguments.Bool("prepare")
+	if b {
+		exitIfError("failed erasing", mcinstall.Prepare(device))
+		print(convertToJSONString("ok"))
+		return
+	}
+
 	b, _ = arguments.Bool("erase")
 	if b {
 		exitIfError("failed erasing", mcinstall.Erase(device))
