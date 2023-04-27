@@ -121,7 +121,7 @@ func Activate(device ios.DeviceEntry) error {
 	var activationHttpResponse = []byte{}
 
 	if body != nil {
-		activationHttpResponse, err := io.ReadAll(body)
+		activationHttpResponse, err = io.ReadAll(body)
 		if err != nil {
 			return err
 		}

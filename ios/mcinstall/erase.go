@@ -12,38 +12,20 @@ func Erase(device ios.DeviceEntry) error {
 		return err
 	}
 	defer conn.Close()
-	log.Info("send flush request")
+	log.Info("start erasing")
+	log.Debug("send flush request")
 	_, err = check(conn.sendAndReceive(request("Flush")))
 	if err != nil {
 		return err
 	}
-	log.Info("get cloud config")
+	log.Debug("get cloud config")
 	config, err := check(conn.sendAndReceive(request("GetCloudConfiguration")))
 	if err != nil {
 		return err
 	}
-	log.Infof("config: %v", config)
-	/*
-		log.Info("get host identifier")
-		hostId, err := check(conn.sendAndReceive(request("HelloHostIdentifier")))
-		if err != nil {
-			return err
-		}
-		log.Infof("identifier: %v", hostId)
+	log.Debugf("config: %v", config)
 
-		err = conn.EscalateUnsupervised()
-		if err != nil {
-			return err
-		}
-
-		log.Info("get host identifier")
-		hostId, err = check(conn.sendAndReceive(request("HelloHostIdentifier")))
-		if err != nil {
-			return err
-		}
-		log.Infof("identifier: %v", hostId)
-	*/
-	log.Info("erase")
+	log.Debug("send erase request")
 	eraseRequest := map[string]interface{}{
 		"RequestType":      "EraseDevice",
 		"PreserveDataPlan": 1,
@@ -52,7 +34,7 @@ func Erase(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("erase: %v", eraseResp)
+	log.Infof("erase resp: %v", eraseResp)
 
 	return nil
 }
