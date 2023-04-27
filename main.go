@@ -301,7 +301,6 @@ The commands work as following:
 	b, _ = arguments.Bool("activate")
 	if b {
 		exitIfError("failed activation", mobileactivation.Activate(device))
-		print(convertToJSONString("ok"))
 		return
 	}
 

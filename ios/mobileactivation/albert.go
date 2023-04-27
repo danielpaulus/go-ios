@@ -16,8 +16,7 @@ var netClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
-func request(body io.Reader) (http.Header, io.ReadCloser, error) {
-
+func sendHandshakeRequest(body io.Reader) (http.Header, io.ReadCloser, error) {
 	requestURL := drmHandshakeURL
 	req, err := http.NewRequest("POST", requestURL, body)
 	if err != nil {
@@ -36,8 +35,7 @@ func request(body io.Reader) (http.Header, io.ReadCloser, error) {
 	return response.Header, response.Body, nil
 }
 
-func request2(body io.Reader) (http.Header, io.ReadCloser, error) {
-
+func sendActivationRequest(body io.Reader) (http.Header, io.ReadCloser, error) {
 	requestURL := activationServerURL
 	req, err := http.NewRequest("POST", requestURL, body)
 	if err != nil {

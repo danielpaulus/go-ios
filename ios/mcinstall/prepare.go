@@ -7,7 +7,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/afc"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 //removepath iTunes_Control/iTunes/SkipSetup, mkdir iTunes_Control/iTunes
@@ -82,7 +81,7 @@ func Prepare(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	time.Sleep(time.Second * 5)
+
 	if err != nil {
 		return err
 	}
