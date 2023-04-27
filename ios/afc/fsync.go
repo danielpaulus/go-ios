@@ -485,7 +485,6 @@ func (conn *Connection) WriteToFile(reader io.Reader, dstPath string) error {
 			break
 		}
 		bytesRead := chunk[:n]
-
 		headerPayload := make([]byte, 8)
 		headerPayload[0] = fd
 		thisLength := Afc_header_size + 8

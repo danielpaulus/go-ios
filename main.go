@@ -261,6 +261,18 @@ The commands work as following:
 	}
 
 	udid, _ := arguments.String("--udid")
+	b, _ = arguments.Bool("erase")
+	if b {
+		if udid == "" {
+			exitIfError("erase requires a udid, --udid=... is mandatory", fmt.Errorf("no udid was provided, --udid=... is mandatory for erase"))
+		}
+		device, err := ios.GetDevice(udid)
+		exitIfError("error getting devicelist", err)
+		exitIfError("failed erasing", mcinstall.Erase(device))
+		print(convertToJSONString("ok"))
+		return
+	}
+
 	device, err := ios.GetDevice(udid)
 	exitIfError("error getting devicelist", err)
 
@@ -282,13 +294,6 @@ The commands work as following:
 	b, _ = arguments.Bool("prepare")
 	if b {
 		exitIfError("failed erasing", mcinstall.Prepare(device))
-		print(convertToJSONString("ok"))
-		return
-	}
-
-	b, _ = arguments.Bool("erase")
-	if b {
-		exitIfError("failed erasing", mcinstall.Erase(device))
 		print(convertToJSONString("ok"))
 		return
 	}
