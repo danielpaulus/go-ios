@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -77,7 +78,7 @@ Usage:
   ios date [options]
   ios devicestate list [options]
   ios devicestate enable <profileTypeId> <profileId> [options]
-  ios erase [options]
+  ios erase [--force] [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
@@ -149,7 +150,7 @@ The commands work as following:
    ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
    ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
-   ios erase [options]                                                Erase the device 
+   ios erase [--force] [options]                                      Erase the device. It will prompt you to input y+Enter unless --force is specified. 
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
    >                                                                  it in plist format by adding the --plist param. 
@@ -261,20 +262,28 @@ The commands work as following:
 	}
 
 	udid, _ := arguments.String("--udid")
+	device, err := ios.GetDevice(udid)
+	exitIfError("error getting devicelist", err)
+
 	b, _ = arguments.Bool("erase")
 	if b {
-		if udid == "" {
-			exitIfError("erase requires a udid, --udid=... is mandatory", fmt.Errorf("no udid was provided, --udid=... is mandatory for erase"))
+		force, _ := arguments.Bool("--force")
+		if !force {
+			log.Warnf("are you sure you want to erase device %s? (y/n)", device.Properties.SerialNumber)
+			reader := bufio.NewReader(os.Stdin)
+			// ReadString will block until the delimiter is entered
+			input, err := reader.ReadString('\n')
+			exitIfError("An error occured while reading input", err)
+			if !strings.HasPrefix(input, "y") {
+				log.Errorf("abort")
+				return
+			}
 		}
-		device, err := ios.GetDevice(udid)
-		exitIfError("error getting devicelist", err)
+
 		exitIfError("failed erasing", mcinstall.Erase(device))
 		print(convertToJSONString("ok"))
 		return
 	}
-
-	device, err := ios.GetDevice(udid)
-	exitIfError("error getting devicelist", err)
 
 	if mobileGestaltCommand(device, arguments) {
 		return

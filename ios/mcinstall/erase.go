@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
 	log "github.com/sirupsen/logrus"
+	"io"
 )
 
+// Erase tells a device to remove all apps and settings. You need to activate it afterwards.
+// Be careful with this if you do not have a backup!
 func Erase(device ios.DeviceEntry) error {
 	conn, err := New(device)
 	if err != nil {
@@ -30,12 +33,11 @@ func Erase(device ios.DeviceEntry) error {
 		"RequestType":      "EraseDevice",
 		"PreserveDataPlan": 1,
 	}
-	eraseResp, err := check(conn.sendAndReceive(eraseRequest))
-	if err != nil {
+	_, err = check(conn.sendAndReceive(eraseRequest))
+	if err != nil && err != io.EOF {
 		return err
 	}
-	log.Infof("erase resp: %v", eraseResp)
-
+	log.Info("device should be rebooting now")
 	return nil
 }
 
