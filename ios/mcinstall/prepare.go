@@ -22,11 +22,16 @@ var skipAllSetup = []string{"Location", "Restore", "SIMSetup", "Android", "Apple
 	"TVProviderSignIn", "TVHomeScreenSync", "Privacy", "TVRoom", "iMessageAndFaceTime", "AppStore",
 	"Safety", "TermsOfAddress", "Welcome", "Appearance", "RestoreCompleted", "UpdateCompleted"}
 
+// GetAllSetupSkipOptions returns a list of all possible values you can skip during device preparation
+func GetAllSetupSkipOptions() []string {
+	return skipAllSetup
+}
+
 // get locales and check if the specified locale works
 // set locale, set lang
 // set timezone
 // TimeIntervalSince1970
-func Prepare(device ios.DeviceEntry) error {
+func Prepare(device ios.DeviceEntry, skip []string, certBytes []byte, orgname string) error {
 	locale := "de_DE"
 	lang := "de"
 	//tz := "Europe/Berlin"

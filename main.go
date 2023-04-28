@@ -83,7 +83,9 @@ Usage:
   ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
   ios profile list [options]
-  ios prepare [options]
+  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [options]
+  ios prepare create-cert
+  ios prepare printskip
   ios profile remove <profileName> [options]
   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
@@ -162,7 +164,9 @@ The commands work as following:
    ios profile list                                                   List the profiles on the device
    ios profile remove <profileName>                                   Remove the profileName from the device
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
-   ios prepare [options]                                              prepare
+   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [options] prepare a device and skip options you don't care about. use prepare options to see which ones there are.
+   ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
+   ios prepare printskip                                              Print all options you can skip. 
    ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
    >                                                                  Specify proxy password either as argument or using the environment var: PROXY_PASSWORD
    >                                                                  Use p12 file and password for silent installation on supervised devices.
@@ -302,7 +306,51 @@ The commands work as following:
 
 	b, _ = arguments.Bool("prepare")
 	if b {
-		exitIfError("failed erasing", mcinstall.Prepare(device))
+		b, _ = arguments.Bool("create-cert")
+		if b {
+			cert, err := ios.CreateDERFormattedSupervisionCert()
+			exitIfError("failed creating cert", err)
+			err = os.WriteFile("supervision-cert.der", cert.CertDER, 0777)
+			log.Info("supervision-cert.der")
+			exitIfError("failed writing cert", err)
+			err = os.WriteFile("supervision-cert.pem", cert.CertPEM, 0777)
+			log.Info("supervision-cert.pem")
+			exitIfError("failed writing cert", err)
+			err = os.WriteFile("supervision-private-key.key", cert.PrivateKeyDER, 0777)
+			log.Info("supervision-private-key.key")
+			exitIfError("failed writing cert", err)
+			err = os.WriteFile("supervision-private-key.pem", cert.PrivateKeyPEM, 0777)
+			log.Info("supervision-private-key.pem")
+			exitIfError("failed writing key", err)
+			err = os.WriteFile("supervision-csr.csr", []byte(cert.Csr), 0777)
+			log.Info("supervision-csr.csr")
+			exitIfError("failed writing cert", err)
+			log.Info("Golang does not have good PKCS12 format sadly. If you need a p12 file run this: " +
+				"'openssl pkcs12 -export -inkey supervision-private-key.pem -in supervision-cert.pem -out certificate.p12 -password pass:a'")
+			return
+		}
+		b, _ = arguments.Bool("printskip")
+		if b {
+			println(convertToJSONString(mcinstall.GetAllSetupSkipOptions()))
+			return
+		}
+		skip := mcinstall.GetAllSetupSkipOptions()
+		skip1 := arguments["--skip"].([]string)
+		if len(skip1) > 0 {
+			skip = skip1
+		}
+
+		certfile, _ := arguments.String("--certfile")
+		orgname, _ := arguments.String("--orgname")
+		var certBytes []byte
+		if certfile != "" {
+			certBytes, err = os.ReadFile(certfile)
+			exitIfError("failed opening cert file", err)
+			if orgname == "" {
+				log.Fatal("--orgname must be specified if certfile for supervision is provided")
+			}
+		}
+		exitIfError("failed erasing", mcinstall.Prepare(device, skip, certBytes, orgname))
 		print(convertToJSONString("ok"))
 		return
 	}

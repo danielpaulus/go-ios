@@ -10,6 +10,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"github.com/fullsailor/pkcs7"
 	"math/big"
 	"time"
@@ -205,4 +206,78 @@ func Sign(challengeBytes []byte, cert *x509.Certificate, supervisedPrivateKey in
 	}
 
 	return sd.Finish()
+}
+
+type CaCertificate struct {
+	CertDER       []byte
+	PrivateKeyDER []byte
+	Csr           string
+	CertPEM       []byte
+	PrivateKeyPEM []byte
+}
+
+func CreateDERFormattedSupervisionCert() (*CaCertificate, error) {
+	//  openssl genrsa -des3 -out domain.key 2048
+	//  openssl req -key domain.key -new -out domain.csr
+	//  openssl x509 -signkey domain.key -in domain.csr -req -days 365 -out domain.crt
+	//  openssl x509 -in domain.crt -outform der -out domain.der
+	//openssl pkcs12 -export -inkey supervision-private-key.der -in supervision-cert.der -out certificate.p12 -password pass:a
+
+	// step: generate a keypair
+	keys, err := rsa.GenerateKey(rand.Reader, bitSize)
+	if err != nil {
+		return nil, fmt.Errorf("unable to genarate private keys, error: %s", err)
+	}
+
+	// step: generate a csr template
+	var csrTemplate = x509.CertificateRequest{
+		SignatureAlgorithm: x509.SHA512WithRSA,
+		ExtraExtensions: []pkix.Extension{
+			{
+				Id:       asn1.ObjectIdentifier{2, 5, 29, 19},
+				Critical: true,
+			},
+		},
+	}
+	// step: generate the csr request
+	csrCertificate, err := x509.CreateCertificateRequest(rand.Reader, &csrTemplate, keys)
+	if err != nil {
+		return nil, err
+	}
+	csr := pem.EncodeToMemory(&pem.Block{
+		Type: "CERTIFICATE REQUEST", Bytes: csrCertificate,
+	})
+
+	// step: generate a serial number
+	serial, err := rand.Int(rand.Reader, (&big.Int{}).Exp(big.NewInt(2), big.NewInt(159), nil))
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	// step: create the request template
+	template := x509.Certificate{
+		SerialNumber: serial,
+		//Subject:               names,
+		NotBefore:             now.Add(-10 * time.Minute).UTC(),
+		NotAfter:              now.Add(time.Hour * 24 * 365 * 10).UTC(),
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+	}
+
+	// step: sign the certificate authority
+	certificate, err := x509.CreateCertificate(rand.Reader, &template, &template, &keys.PublicKey, keys)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate certificate, error: %s", err)
+	}
+
+	return &CaCertificate{
+		CertDER:       certificate,
+		PrivateKeyDER: x509.MarshalPKCS1PrivateKey(keys),
+		CertPEM:       certBytesToPEM(certificate),
+		PrivateKeyPEM: savePEMKey(keys),
+		Csr:           string(csr),
+	}, nil
 }
