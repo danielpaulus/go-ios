@@ -1,6 +1,7 @@
 package mcinstall
 
 import (
+	"crypto/x509"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/pkcs12"
@@ -169,11 +170,8 @@ func (mcInstallConn *Connection) EscalateUnsupervised() error {
 	}
 	return nil
 }
-func (mcInstallConn *Connection) Escalate(p12bytes []byte, p12Password string) error {
-	supervisedPrivateKey, supervisionCert, err := pkcs12.Decode(p12bytes, p12Password)
-	if err != nil {
-		return err
-	}
+
+func (mcInstallConn *Connection) EscalateWithCertAndKey(supervisedPrivateKey interface{}, supervisionCert *x509.Certificate) error {
 	request := map[string]interface{}{"RequestType": "Escalate", "SupervisorCertificate": supervisionCert.Raw}
 	dict, err := mcInstallConn.sendAndReceive(request)
 	if err != nil {
@@ -209,6 +207,13 @@ func (mcInstallConn *Connection) Escalate(p12bytes []byte, p12Password string) e
 		return fmt.Errorf("proceedWithKeybagMigration response had error %+v", dict)
 	}
 	return nil
+}
+func (mcInstallConn *Connection) Escalate(p12bytes []byte, p12Password string) error {
+	supervisedPrivateKey, supervisionCert, err := pkcs12.Decode(p12bytes, p12Password)
+	if err != nil {
+		return err
+	}
+	return mcInstallConn.EscalateWithCertAndKey(supervisedPrivateKey, supervisionCert)
 }
 
 func checkStatus(response map[string]interface{}) bool {
@@ -287,8 +292,8 @@ func (mcInstallConn *Connection) addProfile(profilePlist []byte, installcmd stri
 	if checkStatus(plist) {
 		return nil
 	}
-	log.Errorf("received remove response %+v", plist)
-	return fmt.Errorf("remove failed")
+	log.Errorf("received add response %+v", plist)
+	return fmt.Errorf("add failed")
 }
 
 func (mcInstallConn *Connection) RemoveProfile(identifier string) error {

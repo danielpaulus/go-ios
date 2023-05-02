@@ -137,3 +137,17 @@ func ByteCountDecimal(b int64) string {
 	}
 	return fmt.Sprintf("%.1f%cB", float64(b)/float64(div), "kMGTPE"[exp])
 }
+
+// InterfaceToStringSlice casts an interface{} to []interface{} and then converts each entry to a string.
+// It returns an empty slice in case of an error.
+func InterfaceToStringSlice(intfSlice interface{}) []string {
+	slice, ok := intfSlice.([]interface{})
+	if !ok {
+		return []string{}
+	}
+	result := make([]string, len(slice))
+	for i, v := range slice {
+		result[i] = v.(string)
+	}
+	return result
+}

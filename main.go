@@ -83,7 +83,7 @@ Usage:
   ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
   ios profile list [options]
-  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [options]
+  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options]
   ios prepare create-cert
   ios prepare printskip
   ios profile remove <profileName> [options]
@@ -153,7 +153,7 @@ The commands work as following:
    ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios erase [--force] [options]                                      Erase the device. It will prompt you to input y+Enter unless --force is specified. 
-   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
+   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language. ios lang will print the current language and locale, as well as a list of all supported langs and locales.
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
    >                                                                  it in plist format by adding the --plist param. 
    >                                                                  Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
@@ -164,7 +164,10 @@ The commands work as following:
    ios profile list                                                   List the profiles on the device
    ios profile remove <profileName>                                   Remove the profileName from the device
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
-   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [options] prepare a device and skip options you don't care about. use prepare options to see which ones there are.
+   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options] prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
+   >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device. If you need certificates
+   >                                                                  to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use. locale and lang are optional, the default is en_US and en. 
+   >                                                                  Run 'ios lang' to see a list of all supported locales and languages.
    ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
    ios prepare printskip                                              Print all options you can skip. 
    ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
@@ -342,6 +345,8 @@ The commands work as following:
 
 		certfile, _ := arguments.String("--certfile")
 		orgname, _ := arguments.String("--orgname")
+		locale, _ := arguments.String("--locale")
+		lang, _ := arguments.String("--lang")
 		var certBytes []byte
 		if certfile != "" {
 			certBytes, err = os.ReadFile(certfile)
@@ -350,7 +355,7 @@ The commands work as following:
 				log.Fatal("--orgname must be specified if certfile for supervision is provided")
 			}
 		}
-		exitIfError("failed erasing", mcinstall.Prepare(device, skip, certBytes, orgname))
+		exitIfError("failed erasing", mcinstall.Prepare(device, skip, certBytes, orgname, locale, lang))
 		print(convertToJSONString("ok"))
 		return
 	}
