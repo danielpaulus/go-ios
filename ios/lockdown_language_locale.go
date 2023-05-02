@@ -2,19 +2,21 @@ package ios
 
 import log "github.com/sirupsen/logrus"
 
-//LanguageConfiguration is a simple struct encapsulating a language and locale string
+// LanguageConfiguration is a simple struct encapsulating a language and locale string
 type LanguageConfiguration struct {
-	Language string
-	Locale   string
+	Language           string
+	Locale             string
+	SupportedLocales   []string
+	SupportedLanguages []string
 }
 
 const languageDomain = "com.apple.international"
 
-//SetLanguage creates a new lockdown session for the device and sets a new language and locale.
-//Changes will only be made when the value is not an empty string. To change only the locale, set language to ""
-//and vice versa. If both are empty, nothing is changed.
-//NOTE: Changing a language is an async operation that takes a long time. Springboard will be restarted automatically by the device.
-//If you need to wait for this happen use notificationproxy.WaitUntilSpringboardStarted().
+// SetLanguage creates a new lockdown session for the device and sets a new language and locale.
+// Changes will only be made when the value is not an empty string. To change only the locale, set language to ""
+// and vice versa. If both are empty, nothing is changed.
+// NOTE: Changing a language is an async operation that takes a long time. Springboard will be restarted automatically by the device.
+// If you need to wait for this happen use notificationproxy.WaitUntilSpringboardStarted().
 func SetLanguage(device DeviceEntry, config LanguageConfiguration) error {
 	if config.Locale == "" && config.Language == "" {
 		log.Debug("SetLanguage called with empty config, no changes made")
@@ -39,7 +41,9 @@ func SetLanguage(device DeviceEntry, config LanguageConfiguration) error {
 	return nil
 }
 
-//GetLanguage creates a new lockdown session for the device and retrieves language and locale. It returns a LanguageConfiguration or an error.
+// GetLanguage creates a new lockdown session for the device and retrieves the current language and locale as well as
+// a list of all supported locales and languages.
+// It returns a LanguageConfiguration or an error.
 func GetLanguage(device DeviceEntry) (LanguageConfiguration, error) {
 	lockDownConn, err := ConnectLockdownWithSession(device)
 	if err != nil {
@@ -55,5 +59,16 @@ func GetLanguage(device DeviceEntry) (LanguageConfiguration, error) {
 		return LanguageConfiguration{}, err
 	}
 
-	return LanguageConfiguration{Language: languageResp.(string), Locale: localeResp.(string)}, nil
+	supportedLocalesResp, err := lockDownConn.GetValueForDomain("SupportedLocales", languageDomain)
+	if err != nil {
+		return LanguageConfiguration{}, err
+	}
+
+	supportedLanguagesResp, err := lockDownConn.GetValueForDomain("SupportedLanguages", languageDomain)
+	if err != nil {
+		return LanguageConfiguration{}, err
+	}
+	supportedLocales := InterfaceToStringSlice(supportedLocalesResp)
+	supportedLanguages := InterfaceToStringSlice(supportedLanguagesResp)
+	return LanguageConfiguration{Language: languageResp.(string), Locale: localeResp.(string), SupportedLocales: supportedLocales, SupportedLanguages: supportedLanguages}, nil
 }

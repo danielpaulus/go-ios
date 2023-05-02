@@ -12,24 +12,24 @@ import (
 	plist "howett.net/plist"
 )
 
-//ToPlist converts a given struct to a Plist using the
-//github.com/DHowett/go-plist library. Make sure your struct is exported.
-//It returns a string containing the plist.
+// ToPlist converts a given struct to a Plist using the
+// github.com/DHowett/go-plist library. Make sure your struct is exported.
+// It returns a string containing the plist.
 func ToPlist(data interface{}) string {
 	return string(ToPlistBytes(data))
 }
 
-//ParsePlist tries to parse the given bytes, which should be a Plist, into a map[string]interface.
-//It returns the map or an error if the decoding step fails.
+// ParsePlist tries to parse the given bytes, which should be a Plist, into a map[string]interface.
+// It returns the map or an error if the decoding step fails.
 func ParsePlist(data []byte) (map[string]interface{}, error) {
 	var result map[string]interface{}
 	_, err := plist.Unmarshal(data, &result)
 	return result, err
 }
 
-//ToPlistBytes converts a given struct to a Plist using the
-//github.com/DHowett/go-plist library. Make sure your struct is exported.
-//It returns a byte slice containing the plist.
+// ToPlistBytes converts a given struct to a Plist using the
+// github.com/DHowett/go-plist library. Make sure your struct is exported.
+// It returns a byte slice containing the plist.
 func ToPlistBytes(data interface{}) []byte {
 	bytes, err := plist.Marshal(data, plist.XMLFormat)
 	if err != nil {
@@ -39,17 +39,26 @@ func ToPlistBytes(data interface{}) []byte {
 	return bytes
 }
 
-//Ntohs is a re-implementation of the C function Ntohs.
-//it means networkorder to host oder and basically swaps
-//the endianness of the given int.
-//It returns port converted to little endian.
+func ToBinPlistBytes(data interface{}) []byte {
+	bytes, err := plist.Marshal(data, plist.BinaryFormat)
+	if err != nil {
+		//this should not happen
+		panic(fmt.Sprintf("Failed converting to plist %v error:%v", data, err))
+	}
+	return bytes
+}
+
+// Ntohs is a re-implementation of the C function Ntohs.
+// it means networkorder to host oder and basically swaps
+// the endianness of the given int.
+// It returns port converted to little endian.
 func Ntohs(port uint16) uint16 {
 	buf := make([]byte, 2)
 	binary.BigEndian.PutUint16(buf, port)
 	return binary.LittleEndian.Uint16(buf)
 }
 
-//GetDevice returns:
+// GetDevice returns:
 // the device for the udid if a valid udid is provided.
 // if the env variable 'udid' is specified, the device with that udid
 // otherwise it returns the first device in the list.
@@ -81,8 +90,8 @@ func GetDevice(udid string) (DeviceEntry, error) {
 	return DeviceEntry{}, fmt.Errorf("Device '%s' not found. Is it attached to the machine?", udid)
 }
 
-//PathExists is used to determine whether the path folder exists
-//True if it exists, false otherwise
+// PathExists is used to determine whether the path folder exists
+// True if it exists, false otherwise
 func PathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -106,8 +115,8 @@ func IOS11() *semver.Version {
 	return semver.MustParse("11.0")
 }
 
-//FixWindowsPaths replaces backslashes with forward slashes and removes the X: style
-//windows drive letters
+// FixWindowsPaths replaces backslashes with forward slashes and removes the X: style
+// windows drive letters
 func FixWindowsPaths(path string) string {
 	path = strings.ReplaceAll(path, "\\", "/")
 	if strings.Contains(path, ":/") {
@@ -127,4 +136,18 @@ func ByteCountDecimal(b int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f%cB", float64(b)/float64(div), "kMGTPE"[exp])
+}
+
+// InterfaceToStringSlice casts an interface{} to []interface{} and then converts each entry to a string.
+// It returns an empty slice in case of an error.
+func InterfaceToStringSlice(intfSlice interface{}) []string {
+	slice, ok := intfSlice.([]interface{})
+	if !ok {
+		return []string{}
+	}
+	result := make([]string, len(slice))
+	for i, v := range slice {
+		result[i] = v.(string)
+	}
+	return result
 }

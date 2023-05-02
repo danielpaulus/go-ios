@@ -11,18 +11,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//PlistCodec is a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
+// PlistCodec is a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
 type PlistCodec struct {
 }
 
-//NewPlistCodec create a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
+// NewPlistCodec create a codec for PLIST based services with [4 byte big endian length][plist-payload] based messages
 func NewPlistCodec() PlistCodec {
 	return PlistCodec{}
 }
 
-//Encode encodes a LockDown Struct to a byte[] with the lockdown plist format.
-//It returns a byte array that contains a 4 byte length unsigned big endian integer
-//followed by the plist as a string
+// Encode encodes a LockDown Struct to a byte[] with the lockdown plist format.
+// It returns a byte array that contains a 4 byte length unsigned big endian integer
+// followed by the plist as a string
 func (plistCodec PlistCodec) Encode(message interface{}) ([]byte, error) {
 	stringContent := ToPlist(message)
 	log.Tracef("Lockdown send %v", reflect.TypeOf(message))
@@ -38,8 +38,8 @@ func (plistCodec PlistCodec) Encode(message interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-//Decode reads a Lockdown Message from the provided reader and
-//sends it to the ResponseChannel
+// Decode reads a Lockdown Message from the provided reader and
+// sends it to the ResponseChannel
 func (plistCodec PlistCodec) Decode(r io.Reader) ([]byte, error) {
 	if r == nil {
 		return nil, errors.New("Reader was nil")
@@ -53,7 +53,7 @@ func (plistCodec PlistCodec) Decode(r io.Reader) ([]byte, error) {
 	payloadBytes := make([]byte, length)
 	n, err := io.ReadFull(r, payloadBytes)
 	if err != nil {
-		return nil, fmt.Errorf("lockdown Payload had incorrect size: %d original error: %s", n, err)
+		return nil, fmt.Errorf("lockdown Payload had incorrect size: %d expected: %d original error: %s", n, length, err)
 	}
 	return payloadBytes, nil
 }

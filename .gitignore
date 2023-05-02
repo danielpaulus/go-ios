@@ -1,6 +1,10 @@
 node_modules
 *.mobileprovision
 *.p12
+*.key
+*.der
+*.pem
+*.csr
 testdata/wda-signed.ipa
 devimages
 # Binaries for programs and plugins

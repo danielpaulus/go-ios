@@ -1,6 +1,7 @@
 package mcinstall
 
 import (
+	"crypto/x509"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/pkcs12"
@@ -157,11 +158,20 @@ func parseProfile(idString string, dict map[string]interface{}) (ProfileInfo, er
 	return result, nil
 }
 
-func (mcInstallConn *Connection) Escalate(p12bytes []byte, p12Password string) error {
-	supervisedPrivateKey, supervisionCert, err := pkcs12.Decode(p12bytes, p12Password)
+func (mcInstallConn *Connection) EscalateUnsupervised() error {
+	request := map[string]interface{}{"RequestType": "Escalate",
+		"SupervisorCertificate": []byte{0}}
+	dict, err := mcInstallConn.sendAndReceive(request)
 	if err != nil {
 		return err
 	}
+	if !checkStatus(dict) {
+		return fmt.Errorf("escalate response had error %+v", dict)
+	}
+	return nil
+}
+
+func (mcInstallConn *Connection) EscalateWithCertAndKey(supervisedPrivateKey interface{}, supervisionCert *x509.Certificate) error {
 	request := map[string]interface{}{"RequestType": "Escalate", "SupervisorCertificate": supervisionCert.Raw}
 	dict, err := mcInstallConn.sendAndReceive(request)
 	if err != nil {
@@ -198,6 +208,13 @@ func (mcInstallConn *Connection) Escalate(p12bytes []byte, p12Password string) e
 	}
 	return nil
 }
+func (mcInstallConn *Connection) Escalate(p12bytes []byte, p12Password string) error {
+	supervisedPrivateKey, supervisionCert, err := pkcs12.Decode(p12bytes, p12Password)
+	if err != nil {
+		return err
+	}
+	return mcInstallConn.EscalateWithCertAndKey(supervisedPrivateKey, supervisionCert)
+}
 
 func checkStatus(response map[string]interface{}) bool {
 	statusIntf, ok := response["Status"]
@@ -212,6 +229,10 @@ func checkStatus(response map[string]interface{}) bool {
 		return false
 	}
 	return true
+}
+
+func request(requestType string) map[string]interface{} {
+	return map[string]interface{}{"RequestType": requestType}
 }
 
 func (mcInstallConn *Connection) sendAndReceive(request map[string]interface{}) (map[string]interface{}, error) {
@@ -246,7 +267,7 @@ func (mcInstallConn *Connection) HandleList() ([]ProfileInfo, error) {
 	return mcInstallConn.readExchangeResponse(reader)
 }
 
-//Close closes the underlying DeviceConnection
+// Close closes the underlying DeviceConnection
 func (mcInstallConn *Connection) Close() error {
 	return mcInstallConn.deviceConn.Close()
 }
@@ -271,8 +292,8 @@ func (mcInstallConn *Connection) addProfile(profilePlist []byte, installcmd stri
 	if checkStatus(plist) {
 		return nil
 	}
-	log.Errorf("received remove response %+v", plist)
-	return fmt.Errorf("remove failed")
+	log.Errorf("received add response %+v", plist)
+	return fmt.Errorf("add failed")
 }
 
 func (mcInstallConn *Connection) RemoveProfile(identifier string) error {
