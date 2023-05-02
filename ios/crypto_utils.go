@@ -208,6 +208,8 @@ func Sign(challengeBytes []byte, cert *x509.Certificate, supervisedPrivateKey in
 	return sd.Finish()
 }
 
+// CaCertificate is a simple struct to hold a x509 cert and privateKey in DER and PEM formats
+// as well as the CER should you need it.
 type CaCertificate struct {
 	CertDER       []byte
 	PrivateKeyDER []byte
@@ -216,12 +218,19 @@ type CaCertificate struct {
 	PrivateKeyPEM []byte
 }
 
+// CreateDERFormattedSupervisionCert is a convenience function to generate DER and PEM formatted private key and cert to be used
+// for device supervision.
+// It basically does the same as these openSSL commands:
+//
+//	openssl genrsa -des3 -out domain.key 2048
+//	openssl req -key domain.key -new -out domain.csr
+//	openssl x509 -signkey domain.key -in domain.csr -req -days 365 -out domain.crt
+//	openssl x509 -in domain.crt -outform der -out domain.der
+//	and returns the resulting certs in a CaCertificate struct.
+//
+// If you need p12 files, please save the PEMs to files and run this:
+// openssl pkcs12 -export -inkey supervision-private-key.pem -in supervision-cert.pem -out certificate.p12 -password pass:a
 func CreateDERFormattedSupervisionCert() (*CaCertificate, error) {
-	//  openssl genrsa -des3 -out domain.key 2048
-	//  openssl req -key domain.key -new -out domain.csr
-	//  openssl x509 -signkey domain.key -in domain.csr -req -days 365 -out domain.crt
-	//  openssl x509 -in domain.crt -outform der -out domain.der
-	//openssl pkcs12 -export -inkey supervision-private-key.der -in supervision-cert.der -out certificate.p12 -password pass:a
 
 	// step: generate a keypair
 	keys, err := rsa.GenerateKey(rand.Reader, bitSize)
