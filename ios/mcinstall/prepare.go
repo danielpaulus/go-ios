@@ -147,7 +147,7 @@ func setupSkipSetup(device ios.DeviceEntry) error {
 	}
 	err = afcConn.RemovePathAndContents(skipSetupFilePath)
 	if err != nil {
-		log.Warn("nothing to remove")
+		log.Debug("skip setup: nothing to remove")
 	}
 	err = afcConn.MkDir(skipSetupDirPath)
 	if err != nil {
