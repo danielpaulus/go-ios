@@ -74,7 +74,7 @@ Usage:
   ios crash ls [<pattern>] [options]
   ios crash cp <srcpattern> <target> [options]
   ios crash rm <cwd> <pattern> [options]
-  ios devicename [options] 
+  ios devicename [options]
   ios date [options]
   ios devicestate list [options]
   ios devicestate enable <profileTypeId> <profileId> [options]
@@ -107,7 +107,7 @@ Usage:
   ios ax [options]
   ios debug [options] [--stop-at-entry] <app_path>
   ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>
-  ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath> 
+  ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
@@ -116,6 +116,7 @@ Usage:
   ios resetlocation [options]
   ios assistivetouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
+  ios batterycheck [options]
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -126,7 +127,7 @@ Options:
   --udid=<udid>  UDID of the device.
 
 The commands work as following:
-	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command. 
+	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
 	By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
 	Specify -v for debug logging and -t for dumping every message.
 
@@ -138,12 +139,12 @@ The commands work as following:
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
-   >                                                                  The default is the current dir. 
+   >                                                                  The default is the current dir.
    ios syslog [options]                                               Prints a device's log output
    ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]  Takes a screenshot and writes it to the current dir or to <outfile>  If --stream is supplied it
    >                                                                  starts an mjpeg server at 0.0.0.0:3333. Use --port to set another port.
-   ios instruments notifications [options]                            Listen to application state notifications                                    
-   ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list, 
+   ios instruments notifications [options]                            Listen to application state notifications
+   ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list,
    >                                                                  or use a pattern like 'ios crash ls "*ips*"' to filter
    ios crash cp <srcpattern> <target> [options]                       copy "file pattern" to the target dir. Ex.: 'ios crash cp "*" "./crashes"'
    ios crash rm <cwd> <pattern> [options]                             remove file pattern from dir. Ex.: 'ios crash rm "." "*"' to delete everything
@@ -155,10 +156,10 @@ The commands work as following:
    ios erase [--force] [options]                                      Erase the device. It will prompt you to input y+Enter unless --force is specified. 
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language. ios lang will print the current language and locale, as well as a list of all supported langs and locales.
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
-   >                                                                  it in plist format by adding the --plist param. 
+   >                                                                  it in plist format by adding the --plist param.
    >                                                                  Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
    ios diagnostics list [options]                                     List diagnostic infos
-   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file 
+   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
    ios profile list                                                   List the profiles on the device
@@ -179,18 +180,18 @@ The commands work as following:
    >                                                                  --apps limits output to processes flagged by iOS as "isApplication". This greatly-filtered list
    >                                                                  should at least include user-installed software.  Additional packages will also be displayed depending on the version of iOS.
    ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
-   >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP. 
+   >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP.
    >                                                                  You have to disable the "automatic wifi address"-privacy feature of the device for this to work.
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
    >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [--binary]                                              Starts the reverse engineering proxy server. 
-   >                                                                  It dumps every communication in plain text so it can be implemented easily. 
+   ios dproxy [--binary]                                              Starts the reverse engineering proxy server.
+   >                                                                  It dumps every communication in plain text so it can be implemented easily.
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
-   >                                                                  The --binary flag will dump everything in raw binary without any decoding. 
+   >                                                                  The --binary flag will dump everything in raw binary without any decoding.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
-   ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.  
+   ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system] [--all] [--list]                               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number.
    ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
@@ -198,7 +199,7 @@ The commands work as following:
    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
-   ios ax [options]                                                   Access accessibility inspector features. 
+   ios ax [options]                                                   Access accessibility inspector features.
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
    ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
@@ -210,6 +211,7 @@ The commands work as following:
    ios resetlocation [options]                                        Resets the location of the device to the actual one
    ios assistivetouch (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "AssistiveTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
+   ios batterycheck [options]                                         Prints battery info.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -821,6 +823,12 @@ The commands work as following:
 		fmt.Printf(" TotalSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes)))
 		return
 	}
+
+	b, _ = arguments.Bool("batterycheck")
+	if b {
+	    printBatteryDiagnostics(device)
+	    return
+	}
 }
 
 func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
@@ -1251,6 +1259,13 @@ func printDiagnostics(device ios.DeviceEntry) {
 	exitIfError("getting valued failed", err)
 
 	fmt.Println(convertToJSONString(values))
+}
+
+func printBatteryDiagnostics(device ios.DeviceEntry) {
+	battery, err := ios.GetBatteryDiagnostics(device)
+	exitIfError("failed getting battery diagnostics", err)
+
+	fmt.Println(convertToJSONString(battery))
 }
 
 func printDeviceDate(device ios.DeviceEntry) {
