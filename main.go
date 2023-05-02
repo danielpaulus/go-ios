@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -44,7 +46,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//JSONdisabled enables or disables output in JSON format
+// JSONdisabled enables or disables output in JSON format
 var JSONdisabled = false
 var prettyJSON = false
 
@@ -59,6 +61,7 @@ func Main() {
 	usage := fmt.Sprintf(`go-ios %s
 
 Usage:
+  ios activate [options]
   ios listen [options]
   ios list [options] [--details]
   ios info [options]
@@ -75,10 +78,14 @@ Usage:
   ios date [options]
   ios devicestate list [options]
   ios devicestate enable <profileTypeId> <profileId> [options]
+  ios erase [--force] [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios diagnostics list [options]
   ios profile list [options]
+  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options]
+  ios prepare create-cert
+  ios prepare printskip
   ios profile remove <profileName> [options]
   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
@@ -123,6 +130,7 @@ The commands work as following:
 	By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
 	Specify -v for debug logging and -t for dumping every message.
 
+   ios activate [options]                                             Activate a device
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios info [options]                                                 Prints a dump of Lockdown getValues.
@@ -144,7 +152,8 @@ The commands work as following:
    ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
    ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
-   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language
+   ios erase [--force] [options]                                      Erase the device. It will prompt you to input y+Enter unless --force is specified. 
+   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language. ios lang will print the current language and locale, as well as a list of all supported langs and locales.
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
    >                                                                  it in plist format by adding the --plist param. 
    >                                                                  Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
@@ -155,6 +164,12 @@ The commands work as following:
    ios profile list                                                   List the profiles on the device
    ios profile remove <profileName>                                   Remove the profileName from the device
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
+   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options] prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
+   >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device. If you need certificates
+   >                                                                  to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use. locale and lang are optional, the default is en_US and en. 
+   >                                                                  Run 'ios lang' to see a list of all supported locales and languages.
+   ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
+   ios prepare printskip                                              Print all options you can skip. 
    ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
    >                                                                  Specify proxy password either as argument or using the environment var: PROXY_PASSWORD
    >                                                                  Use p12 file and password for silent installation on supervised devices.
@@ -257,6 +272,26 @@ The commands work as following:
 	device, err := ios.GetDevice(udid)
 	exitIfError("error getting devicelist", err)
 
+	b, _ = arguments.Bool("erase")
+	if b {
+		force, _ := arguments.Bool("--force")
+		if !force {
+			log.Warnf("are you sure you want to erase device %s? (y/n)", device.Properties.SerialNumber)
+			reader := bufio.NewReader(os.Stdin)
+			// ReadString will block until the delimiter is entered
+			input, err := reader.ReadString('\n')
+			exitIfError("An error occured while reading input", err)
+			if !strings.HasPrefix(input, "y") {
+				log.Errorf("abort")
+				return
+			}
+		}
+
+		exitIfError("failed erasing", mcinstall.Erase(device))
+		print(convertToJSONString("ok"))
+		return
+	}
+
 	if mobileGestaltCommand(device, arguments) {
 		return
 	}
@@ -270,6 +305,65 @@ The commands work as following:
 		profileTypeId, _ := arguments.String("<profileTypeId>")
 		profileId, _ := arguments.String("<profileId>")
 		deviceState(device, false, enable, profileTypeId, profileId)
+	}
+
+	b, _ = arguments.Bool("prepare")
+	if b {
+		b, _ = arguments.Bool("create-cert")
+		if b {
+			cert, err := ios.CreateDERFormattedSupervisionCert()
+			exitIfError("failed creating cert", err)
+			err = os.WriteFile("supervision-cert.der", cert.CertDER, 0777)
+			log.Info("supervision-cert.der")
+			exitIfError("failed writing cert", err)
+			err = os.WriteFile("supervision-cert.pem", cert.CertPEM, 0777)
+			log.Info("supervision-cert.pem")
+			exitIfError("failed writing cert", err)
+			err = os.WriteFile("supervision-private-key.key", cert.PrivateKeyDER, 0777)
+			log.Info("supervision-private-key.key")
+			exitIfError("failed writing cert", err)
+			err = os.WriteFile("supervision-private-key.pem", cert.PrivateKeyPEM, 0777)
+			log.Info("supervision-private-key.pem")
+			exitIfError("failed writing key", err)
+			err = os.WriteFile("supervision-csr.csr", []byte(cert.Csr), 0777)
+			log.Info("supervision-csr.csr")
+			exitIfError("failed writing cert", err)
+			log.Info("Golang does not have good PKCS12 format sadly. If you need a p12 file run this: " +
+				"'openssl pkcs12 -export -inkey supervision-private-key.pem -in supervision-cert.pem -out certificate.p12 -password pass:a'")
+			return
+		}
+		b, _ = arguments.Bool("printskip")
+		if b {
+			println(convertToJSONString(mcinstall.GetAllSetupSkipOptions()))
+			return
+		}
+		skip := mcinstall.GetAllSetupSkipOptions()
+		skip1 := arguments["--skip"].([]string)
+		if len(skip1) > 0 {
+			skip = skip1
+		}
+
+		certfile, _ := arguments.String("--certfile")
+		orgname, _ := arguments.String("--orgname")
+		locale, _ := arguments.String("--locale")
+		lang, _ := arguments.String("--lang")
+		var certBytes []byte
+		if certfile != "" {
+			certBytes, err = os.ReadFile(certfile)
+			exitIfError("failed opening cert file", err)
+			if orgname == "" {
+				log.Fatal("--orgname must be specified if certfile for supervision is provided")
+			}
+		}
+		exitIfError("failed erasing", mcinstall.Prepare(device, skip, certBytes, orgname, locale, lang))
+		print(convertToJSONString("ok"))
+		return
+	}
+
+	b, _ = arguments.Bool("activate")
+	if b {
+		exitIfError("failed activation", mobileactivation.Activate(device))
+		return
 	}
 
 	b, _ = arguments.Bool("ip")

@@ -1,7 +1,15 @@
 package afc
 
 /*
-const test_device_udid = "your device udid"
+import (
+	"fmt"
+	"github.com/danielpaulus/go-ios/ios"
+	log "github.com/sirupsen/logrus"
+	"path"
+	"testing"
+)
+
+const test_device_udid = "udid_here"
 
 func TestConnection_Remove(t *testing.T) {
 	deviceEnrty, _ := ios.GetDevice(test_device_udid)
@@ -11,7 +19,7 @@ func TestConnection_Remove(t *testing.T) {
 		log.Fatalf("connect service failed: %v", err)
 	}
 
-	err = conn.Remove("/DCIM/goios")
+	err = conn.Remove("/DCIM/fsync.go")
 	if err != nil {
 		log.Fatalf("remove failed:%v", err)
 	}
@@ -128,8 +136,8 @@ func TestConnection_Push(t *testing.T) {
 		log.Fatalf("connect service failed: %v", err)
 	}
 
-	srcPath := "your src path"
-	dstpath := "your dst path"
+	srcPath := "fsync.go"
+	dstpath := "/DCIM/"
 
 	err = conn.Push(srcPath, dstpath)
 	if err != nil {

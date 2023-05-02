@@ -18,7 +18,7 @@ import (
 
 const connectionJSONFileName = "connections.json"
 
-//DebugProxy can be used to dump and modify communication between mac and host
+// DebugProxy can be used to dump and modify communication between mac and host
 type DebugProxy struct {
 	mux               sync.Mutex
 	serviceList       []PhoneServiceInformation
@@ -26,14 +26,14 @@ type DebugProxy struct {
 	WorkingDir        string
 }
 
-//PhoneServiceInformation contains info about a service started on the phone via lockdown.
+// PhoneServiceInformation contains info about a service started on the phone via lockdown.
 type PhoneServiceInformation struct {
 	ServicePort uint16
 	ServiceName string
 	UseSSL      bool
 }
 
-//ProxyConnection keeps track of the pairRecord and uses an ID to identify connections.
+// ProxyConnection keeps track of the pairRecord and uses an ID to identify connections.
 type ProxyConnection struct {
 	id         string
 	pairRecord ios.PairRecord
@@ -77,12 +77,12 @@ func (d *DebugProxy) retrieveServiceInfoByPort(port uint16) (PhoneServiceInforma
 	return PhoneServiceInformation{}, fmt.Errorf("No Service found for port %d", port)
 }
 
-//NewDebugProxy creates a new Default proxy
+// NewDebugProxy creates a new Default proxy
 func NewDebugProxy() *DebugProxy {
 	return &DebugProxy{mux: sync.Mutex{}, serviceList: []PhoneServiceInformation{}}
 }
 
-//Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
+// Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
 func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 	list, _ := ios.ListDevices()
 	if len(list.DeviceList) > 1 {
@@ -121,11 +121,15 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 		if err != nil {
 			log.Errorf("error with connection: %e", err)
 		}
+		log.Info("connected")
 		d.connectionCounter++
 		id := fmt.Sprintf("#%d", d.connectionCounter)
 		connectionPath := filepath.Join(".", d.WorkingDir, "connection-"+id+"-"+time.Now().UTC().Format("2006.01.02-15.04.05.000"))
 
-		os.MkdirAll(connectionPath, os.ModePerm)
+		err = os.MkdirAll(connectionPath, os.ModePerm)
+		if err != nil {
+			log.Errorf("failed mkdirall in connected")
+		}
 
 		info := ConnectionInfo{ConnectionPath: connectionPath, CreatedAt: time.Now(), ID: id}
 		d.addConnectionInfoToJsonFile(info)
@@ -143,7 +147,7 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 }
 
 func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.PairRecord, debugProxy *DebugProxy, info ConnectionInfo, binaryMode bool) {
-
+	log.Infof("starting tunnel")
 	devConn, err := ios.NewDeviceConnection(originalSocket)
 	if err != nil {
 		log.Error(err)
@@ -165,7 +169,7 @@ func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.P
 
 }
 
-//Close moves /var/run/usbmuxd.real back to /var/run/usbmuxd and disconnects all active proxy connections
+// Close moves /var/run/usbmuxd.real back to /var/run/usbmuxd and disconnects all active proxy connections
 func (d *DebugProxy) Close() {
 	log.Info("Moving back original socket")
 	err := MoveBack(ios.ToUnixSocketPath(ios.GetUsbmuxdSocket()))
