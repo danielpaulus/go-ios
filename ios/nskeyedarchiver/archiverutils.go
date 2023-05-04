@@ -4,9 +4,29 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-
 	plist "howett.net/plist"
+	"regexp"
 )
+
+func areNumeric(keys []string) bool {
+	for _, key := range keys {
+		match, _ := regexp.MatchString("\\$[0-9]+", key)
+		if !match {
+			return false
+		}
+	}
+	return true
+}
+
+func getKeysOfMap(themap map[string]interface{}) []string {
+	result := make([]string, len(themap))
+	i := 0
+	for key, _ := range themap {
+		result[i] = key
+		i++
+	}
+	return result
+}
 
 func toInterfaceSlice(stringSlice []string) []interface{} {
 	result := make([]interface{}, len(stringSlice))
