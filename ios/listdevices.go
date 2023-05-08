@@ -101,6 +101,6 @@ func ListDevices() (DeviceList, error) {
 	if err != nil {
 		return DeviceList{}, err
 	}
-	defer muxConnection.ReleaseDeviceConnection()
+	defer muxConnection.Close()
 	return muxConnection.ListDevices()
 }

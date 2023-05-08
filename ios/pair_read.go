@@ -97,6 +97,6 @@ func ReadPairRecord(udid string) (PairRecord, error) {
 	if err != nil {
 		return PairRecord{}, fmt.Errorf("Could not create usbmuxConnection with error %v", err)
 	}
-	defer muxConnection.ReleaseDeviceConnection()
+	defer muxConnection.Close()
 	return muxConnection.ReadPair(udid)
 }
