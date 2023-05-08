@@ -18,9 +18,9 @@ type DeviceConnectionInterface interface {
 	Reader() io.Reader
 	Writer() io.Writer
 	EnableSessionSsl(pairRecord PairRecord) error
-	EnableSessionSslServerMode(pairRecord PairRecord)
+	EnableSessionSslServerMode(pairRecord PairRecord) error
 	EnableSessionSslHandshakeOnly(pairRecord PairRecord) error
-	EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord)
+	EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord) error
 	DisableSessionSSL()
 	Conn() net.Conn
 }
@@ -136,16 +136,22 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 }
 
 // EnableSessionSslServerMode wraps the underlying net.Conn in a server tls.Conn using the pairRecord.
-func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
-	tlsConn, _ := conn.createServerTLSConn(pairRecord)
+func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) error {
+	tlsConn, err := conn.createServerTLSConn(pairRecord)
+	if err != nil {
+		return err
+	}
+
 	conn.unencryptedConn = conn.c
 	conn.c = net.Conn(tlsConn)
+	return nil
 }
 
 // EnableSessionSslServerModeHandshakeOnly enables SSL only for the Handshake and then falls back to plaintext
 // DTX based services do that currently. Server mode is needed only in the debugproxy.
-func (conn *DeviceConnection) EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord) {
-	conn.createServerTLSConn(pairRecord)
+func (conn *DeviceConnection) EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord) error {
+	_, err := conn.createServerTLSConn(pairRecord)
+	return err
 }
 
 // EnableSessionSsl wraps the underlying net.Conn in a client tls.Conn using the pairRecord.

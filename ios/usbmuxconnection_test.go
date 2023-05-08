@@ -96,7 +96,7 @@ type DeviceConnectionMock struct {
 	mock.Mock
 }
 
-func (mock *DeviceConnectionMock) Close() error{
+func (mock *DeviceConnectionMock) Close() error {
 	mock.Called()
 	return nil
 }
@@ -116,15 +116,17 @@ func (mock *DeviceConnectionMock) EnableSessionSsl(pairRecord ios.PairRecord) er
 	args := mock.Called(pairRecord)
 	return args.Error(0)
 }
-func (mock *DeviceConnectionMock) EnableSessionSslServerMode(pairRecord ios.PairRecord) {
-	mock.Called(pairRecord)
+func (mock *DeviceConnectionMock) EnableSessionSslServerMode(pairRecord ios.PairRecord) error {
+	args := mock.Called(pairRecord)
+	return args.Error(0)
 }
 func (mock *DeviceConnectionMock) EnableSessionSslHandshakeOnly(pairRecord ios.PairRecord) error {
 	args := mock.Called(pairRecord)
 	return args.Error(0)
 }
-func (mock *DeviceConnectionMock) EnableSessionSslServerModeHandshakeOnly(pairRecord ios.PairRecord) {
-	mock.Called(pairRecord)
+func (mock *DeviceConnectionMock) EnableSessionSslServerModeHandshakeOnly(pairRecord ios.PairRecord) error {
+	args := mock.Called(pairRecord)
+	return args.Error(0)
 }
 func (mock *DeviceConnectionMock) DisableSessionSSL() {
 	mock.Called()

@@ -126,7 +126,7 @@ func (d PrimitiveDictionary) String() string {
 			result += fmt.Sprintf("{t:%s, v:%s},", toString(v), prettyString)
 			continue
 		}
-		if v == t_string{
+		if v == t_string {
 			result += d.values[i].(string)
 		}
 		if v == t_uint32 {
@@ -139,7 +139,7 @@ func (d PrimitiveDictionary) String() string {
 	return result
 }
 
-func decodeAuxiliary(auxBytes []byte) PrimitiveDictionary {
+func DecodeAuxiliary(auxBytes []byte) PrimitiveDictionary {
 	result := PrimitiveDictionary{}
 	result.keyValuePairs = list.New()
 	for {
@@ -191,7 +191,7 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 	if hasLength(readType) {
 		length := binary.LittleEndian.Uint32(auxBytes[4:])
 		data := auxBytes[8 : 8+length]
-		if readType==t_string{
+		if readType == t_string {
 			return readType, string(data), auxBytes[8+length:]
 		}
 		return readType, data, auxBytes[8+length:]

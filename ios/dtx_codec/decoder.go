@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 )
@@ -70,7 +71,7 @@ func ReadMessage(reader io.Reader) (Message, error) {
 		if err != nil {
 			return Message{}, err
 		}
-		result.Auxiliary = decodeAuxiliary(auxBytes)
+		result.Auxiliary = DecodeAuxiliary(auxBytes)
 	}
 
 	result.RawBytes = make([]byte, 0)
@@ -149,7 +150,7 @@ func DecodeNonBlocking(messageBytes []byte) (Message, []byte, error) {
 			return Message{}, make([]byte, 0), NewIncomplete("Aux Payload missing")
 		}
 		auxBytes := messageBytes[64 : 48+result.PayloadHeader.AuxiliaryLength]
-		result.Auxiliary = decodeAuxiliary(auxBytes)
+		result.Auxiliary = DecodeAuxiliary(auxBytes)
 	}
 
 	totalMessageLength := result.MessageLength + int(DtxMessageHeaderLength)

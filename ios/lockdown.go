@@ -1,49 +1,49 @@
 package ios
 
 import (
-	log "github.com/sirupsen/logrus"
 	"net"
+
+	log "github.com/sirupsen/logrus"
 )
 
-//Lockdownport is the port of the always running lockdownd on the iOS device.
+// Lockdownport is the port of the always running lockdownd on the iOS device.
 const Lockdownport uint16 = 32498
 
-//LockDownConnection allows you to interact with the Lockdown service on the phone.
-//You can use this to grab basic info from the device and start other services on the phone.
+// LockDownConnection allows you to interact with the Lockdown service on the phone.
+// You can use this to grab basic info from the device and start other services on the phone.
 type LockDownConnection struct {
 	deviceConnection DeviceConnectionInterface
 	sessionID        string
 	plistCodec       PlistCodec
 }
 
-//NewLockDownConnection creates a new LockDownConnection with empty sessionId and a PlistCodec.
+// NewLockDownConnection creates a new LockDownConnection with empty sessionId and a PlistCodec.
 func NewLockDownConnection(dev DeviceConnectionInterface) *LockDownConnection {
 	return &LockDownConnection{deviceConnection: dev, plistCodec: NewPlistCodec()}
 }
 
-//Close closes the underlying DeviceConnection
+// Close closes the underlying DeviceConnection
 func (lockDownConn *LockDownConnection) Close() {
 	lockDownConn.StopSession()
 	lockDownConn.deviceConnection.Close()
 }
 
-//DisableSessionSSL see documentation in DeviceConnection
+// DisableSessionSSL see documentation in DeviceConnection
 func (lockDownConn LockDownConnection) DisableSessionSSL() {
 	lockDownConn.deviceConnection.DisableSessionSSL()
 }
 
-//EnableSessionSsl see documentation in DeviceConnection
+// EnableSessionSsl see documentation in DeviceConnection
 func (lockDownConn LockDownConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	return lockDownConn.deviceConnection.EnableSessionSsl(pairRecord)
 }
 
-//EnableSessionSslServerMode see documentation in DeviceConnection
-func (lockDownConn LockDownConnection) EnableSessionSslServerMode(pairRecord PairRecord) {
-	lockDownConn.deviceConnection.EnableSessionSslServerMode(pairRecord)
-
+// EnableSessionSslServerMode see documentation in DeviceConnection
+func (lockDownConn LockDownConnection) EnableSessionSslServerMode(pairRecord PairRecord) error {
+	return lockDownConn.deviceConnection.EnableSessionSslServerMode(pairRecord)
 }
 
-//Send takes a go struct, converts it to a PLIST and sends it with a 4 byte length field.
+// Send takes a go struct, converts it to a PLIST and sends it with a 4 byte length field.
 func (lockDownConn LockDownConnection) Send(msg interface{}) error {
 	bytes, err := lockDownConn.plistCodec.Encode(msg)
 	if err != nil {
@@ -53,8 +53,8 @@ func (lockDownConn LockDownConnection) Send(msg interface{}) error {
 	return lockDownConn.deviceConnection.Send(bytes)
 }
 
-//ReadMessage grabs the next LockDown Message using the PlistDecoder from the underlying
-//DeviceConnection and returns the Plist as a byte slice.
+// ReadMessage grabs the next LockDown Message using the PlistDecoder from the underlying
+// DeviceConnection and returns the Plist as a byte slice.
 func (lockDownConn *LockDownConnection) ReadMessage() ([]byte, error) {
 	reader := lockDownConn.deviceConnection.Reader()
 	resp, err := lockDownConn.plistCodec.Decode(reader)
