@@ -3,21 +3,26 @@ package mcinstall
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/afc"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 	log "github.com/sirupsen/logrus"
 )
 
-const skipSetupDirPath = "iTunes_Control/iTunes"
-const skipSetupFilePath = "iTunes_Control/iTunes/SkipSetup"
+const (
+	skipSetupDirPath  = "iTunes_Control/iTunes"
+	skipSetupFilePath = "iTunes_Control/iTunes/SkipSetup"
+)
 
-var skipAllSetup = []string{"Location", "Restore", "SIMSetup", "Android", "AppleID", "Siri", "ScreenTime",
+var skipAllSetup = []string{
+	"Location", "Restore", "SIMSetup", "Android", "AppleID", "Siri", "ScreenTime",
 	"Diagnostics", "SoftwareUpdate", "Passcode", "Biometric", "Payment", "Zoom", "DisplayTone",
 	"MessagingActivationUsingPhoneNumber", "HomeButtonSensitivity", "CloudStorage", "ScreenSaver",
 	"TapToSetup", "Keyboard", "PreferredLanguage", "SpokenLanguage", "WatchMigration", "OnBoarding",
 	"TVProviderSignIn", "TVHomeScreenSync", "Privacy", "TVRoom", "iMessageAndFaceTime", "AppStore",
-	"Safety", "TermsOfAddress", "Welcome", "Appearance", "RestoreCompleted", "UpdateCompleted"}
+	"Safety", "TermsOfAddress", "Welcome", "Appearance", "RestoreCompleted", "UpdateCompleted",
+}
 
 // GetAllSetupSkipOptions returns a list of all possible values you can skip during device preparation
 func GetAllSetupSkipOptions() []string {
@@ -108,7 +113,7 @@ func Prepare(device ios.DeviceEntry, skip []string, certBytes []byte, orgname st
 	}
 	err = conn.EscalateUnsupervised()
 	if err != nil {
-		//the device always throws a CertificateRejected error here, but it works just fine
+		// the device always throws a CertificateRejected error here, but it works just fine
 		log.Debug(err)
 	}
 	hello, err = check(conn.sendAndReceive(request("HelloHostIdentifier")))

@@ -27,6 +27,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	initStreamingResponseRoutes(device, router)
 	go cleanReservationsCRON()
 }
+
 func initAppRoutes(group *gin.RouterGroup) {
 	router := group.Group("/apps")
 	router.Use(LimitNumClientsUDID())

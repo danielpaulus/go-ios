@@ -13,7 +13,6 @@ import (
 )
 
 func TestPlistCodec(t *testing.T) {
-
 	codec := ios.NewPlistCodec()
 	testCases := map[string]struct {
 		data     interface{}
@@ -27,7 +26,7 @@ func TestPlistCodec(t *testing.T) {
 		actual, err := codec.Encode(tc.data)
 		if assert.NoError(t, err) {
 			if *update {
-				err := ioutil.WriteFile(golden, []byte(actual), 0644)
+				err := ioutil.WriteFile(golden, []byte(actual), 0o644)
 				if err != nil {
 					log.Error(err)
 					t.Fail()
@@ -36,7 +35,7 @@ func TestPlistCodec(t *testing.T) {
 			expected, _ := ioutil.ReadFile(golden)
 			assert.Equal(t, expected, actual)
 
-			//simple test to check that decode(encode(x))==x
+			// simple test to check that decode(encode(x))==x
 
 			result, err := codec.Decode(bytes.NewReader(actual))
 			assert.NoError(t, err)
@@ -44,5 +43,4 @@ func TestPlistCodec(t *testing.T) {
 
 		}
 	}
-
 }

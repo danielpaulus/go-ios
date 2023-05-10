@@ -18,10 +18,8 @@ type iosproxy struct {
 
 // Forward forwards every connection made to the hostPort to whatever service runs inside an app on the device on phonePort.
 func Forward(device ios.DeviceEntry, hostPort uint16, phonePort uint16) error {
-
 	log.Infof("Start listening on port %d forwarding to port %d on device", hostPort, phonePort)
 	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", hostPort))
-
 	if err != nil {
 		return err
 	}
@@ -59,7 +57,7 @@ func StartNewProxyConnection(ctx context.Context, clientConn io.ReadWriteCloser,
 	log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn), "phonePort": phonePort}).Infof("Connected to port")
 	deviceConn := usbmuxConn.ReleaseDeviceConnection()
 
-	//proxyConn := iosproxy{clientConn, deviceConn}
+	// proxyConn := iosproxy{clientConn, deviceConn}
 	ctx2, cancel := context.WithCancel(ctx)
 	var wg sync.WaitGroup
 	wg.Add(1)

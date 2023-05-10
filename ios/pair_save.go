@@ -33,7 +33,6 @@ func newSavePair(udid string, savePairRecordData []byte) SavePair {
 		PairRecordData:      savePairRecordData,
 	}
 	return data
-
 }
 
 func newSavePairRecordData(DeviceCertificate []byte,
@@ -44,7 +43,8 @@ func newSavePairRecordData(DeviceCertificate []byte,
 	EscrowBag []byte,
 	WiFiMACAddress string,
 	HostID string,
-	SystemBUID string) []byte {
+	SystemBUID string,
+) []byte {
 	result := savePairRecordData{DeviceCertificate, HostPrivateKey, HostCertificate, RootPrivateKey, RootCertificate, EscrowBag, WiFiMACAddress, HostID, SystemBUID}
 	bytes := []byte(ToPlist(result))
 	return bytes
@@ -58,7 +58,8 @@ func (muxConn *UsbMuxConnection) savePair(udid string, DeviceCertificate []byte,
 	EscrowBag []byte,
 	WiFiMACAddress string,
 	HostID string,
-	SystemBUID string) (bool, error) {
+	SystemBUID string,
+) (bool, error) {
 	bytes := newSavePairRecordData(DeviceCertificate, HostPrivateKey, HostCertificate, RootPrivateKey, RootCertificate, EscrowBag, WiFiMACAddress, HostID, SystemBUID)
 	err := muxConn.Send(newSavePair(udid, bytes))
 	if err != nil {

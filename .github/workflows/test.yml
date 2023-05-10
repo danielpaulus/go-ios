@@ -11,13 +11,13 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17.x
+          go-version-file: go.mod
           cache: true
 
-      - name: compile
+      - name: Build executable
         run: go build
 
-      - name: run unit tests
+      - name: Run fast tests
         run: go test -v -tags=fast ./...
 
   test_on_linux:
@@ -28,11 +28,14 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17.x
+          go-version-file: go.mod
           cache: true
 
-      - name: compile
+      - name: Build executable
         run: go build
 
-      - name: run unit tests
+      - name: Run fast tests
         run: go test -v -tags=fast ./...
+
+      - name: Verify code formatting
+        run: test -z "$(gofmt -l .)"

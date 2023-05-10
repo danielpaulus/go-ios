@@ -22,7 +22,7 @@ type Connection struct {
 	mux                 sync.Mutex
 }
 
-//Close sends a Shutdown command to notification proxy and closes the DeviceConnectionInterface
+// Close sends a Shutdown command to notification proxy and closes the DeviceConnectionInterface
 func (c *Connection) Close() {
 	log.Debugf("shutting down %s", serviceName)
 	request := notificationProxyRequest{Command: "Shutdown"}
@@ -42,14 +42,15 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	if err != nil {
 		return &Connection{}, err
 	}
-	c := &Connection{deviceConn: deviceConn, plistCodec: ios.NewPlistCodec(), alreadyObserving: make(map[string]interface{}),
+	c := &Connection{
+		deviceConn: deviceConn, plistCodec: ios.NewPlistCodec(), alreadyObserving: make(map[string]interface{}),
 		notificationChannel: make(chan string), proxyDeathChannel: make(chan interface{}),
 	}
 	go read(c)
 	return c, nil
 }
 
-//WaitUntilSpringboardStarted waits up to 5 minutes for springboard to restart
+// WaitUntilSpringboardStarted waits up to 5 minutes for springboard to restart
 func WaitUntilSpringboardStarted(device ios.DeviceEntry) error {
 	c, err := New(device)
 	if err != nil {
@@ -96,7 +97,7 @@ func plistFromBytes(plistBytes []byte) (map[string]interface{}, error) {
 	return message, err
 }
 
-//Observe waits for a notification up to a timeout. Currently supports only one listener per notification
+// Observe waits for a notification up to a timeout. Currently supports only one listener per notification
 func (c *Connection) Observe(notification string, timeout time.Duration) error {
 	if yes := c.newNotification(notification); yes {
 		err := c.startObserving(notification)
@@ -116,7 +117,6 @@ func (c *Connection) Observe(notification string, timeout time.Duration) error {
 			return errors.New("Timeout")
 		}
 	}
-
 }
 
 func (c *Connection) startObserving(notification string) error {

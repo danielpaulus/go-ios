@@ -7,9 +7,9 @@ import (
 	plist "howett.net/plist"
 )
 
-//ReadPair contains all the Infos necessary
-//to request a PairRecord from usbmuxd.
-//use newReadPair(udid string) to create one.
+// ReadPair contains all the Infos necessary
+// to request a PairRecord from usbmuxd.
+// use newReadPair(udid string) to create one.
 type ReadPair struct {
 	BundleID            string
 	ClientVersionString string
@@ -31,16 +31,16 @@ func newReadPair(udid string) ReadPair {
 	return data
 }
 
-//PairRecordData only holds a []byte containing the PairRecord data as
-//a serialized Plist.
+// PairRecordData only holds a []byte containing the PairRecord data as
+// a serialized Plist.
 type PairRecordData struct {
 	PairRecordData []byte
 }
 
-//PairRecord contains the HostID string,
-//the SystemBUID string, the HostCertificate []byte
-//and the HostPrivateKey []byte.
-//It is needed for enabling SSL Connections over Lockdown
+// PairRecord contains the HostID string,
+// the SystemBUID string, the HostCertificate []byte
+// and the HostPrivateKey []byte.
+// It is needed for enabling SSL Connections over Lockdown
 type PairRecord struct {
 	HostID            string
 	SystemBUID        string
@@ -67,20 +67,20 @@ func pairRecordDatafromBytes(plistBytes []byte) (PairRecordData, error) {
 	return data, nil
 }
 
-//PairRecordfromBytes parsed a plist into a PairRecord
+// PairRecordfromBytes parsed a plist into a PairRecord
 func PairRecordfromBytes(plistBytes []byte) PairRecord {
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
 	var data PairRecord
 	err := decoder.Decode(&data)
 	if err != nil {
-		//this is unrecoverable and should not happen
+		// this is unrecoverable and should not happen
 		panic(fmt.Sprintf("Failed decoding pair record plist %x", plistBytes))
 	}
 	return data
 }
 
-//ReadPair reads the PairRecord from the usbmux socket for the given udid.
-//It returns the deserialized PairRecord.
+// ReadPair reads the PairRecord from the usbmux socket for the given udid.
+// It returns the deserialized PairRecord.
 func (muxConn *UsbMuxConnection) ReadPair(udid string) (PairRecord, error) {
 	muxConn.Send(newReadPair(udid))
 	resp, err := muxConn.ReadMessage()
@@ -91,7 +91,7 @@ func (muxConn *UsbMuxConnection) ReadPair(udid string) (PairRecord, error) {
 	return PairRecordfromBytes(pairRecordData.PairRecordData), err
 }
 
-//ReadPairRecord creates a new USBMuxConnection just to read the pair record and closes it right after than.
+// ReadPairRecord creates a new USBMuxConnection just to read the pair record and closes it right after than.
 func ReadPairRecord(udid string) (PairRecord, error) {
 	muxConnection, err := NewUsbMuxConnectionSimple()
 	if err != nil {

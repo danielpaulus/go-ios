@@ -1,9 +1,10 @@
 package imagemounter_test
 
 import (
+	"testing"
+
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestVersionMatching(t *testing.T) {

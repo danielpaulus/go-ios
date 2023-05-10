@@ -4,9 +4,10 @@
 package ios_test
 
 import (
-	"github.com/danielpaulus/go-ios/ios"
 	"os"
 	"testing"
+
+	"github.com/danielpaulus/go-ios/ios"
 )
 
 func TestListDevices(t *testing.T) {

@@ -10,8 +10,8 @@ import (
 
 const deviceInfoServiceName = "com.apple.instruments.server.services.deviceinfo"
 
-//ProcessInfo contains all the properties for a process
-//running on an iOS devices that we get back from instruments
+// ProcessInfo contains all the properties for a process
+// running on an iOS devices that we get back from instruments
 type ProcessInfo struct {
 	IsApplication bool
 	Name          string
@@ -20,14 +20,14 @@ type ProcessInfo struct {
 	StartDate     time.Time
 }
 
-//ProcessList returns a []ProcessInfo, one for each process running on the iOS device
+// ProcessList returns a []ProcessInfo, one for each process running on the iOS device
 func (d DeviceInfoService) ProcessList() ([]ProcessInfo, error) {
 	resp, err := d.channel.MethodCall("runningProcesses")
 	result := mapToProcInfo(resp.Payload[0].([]interface{}))
 	return result, err
 }
 
-//NameForPid resolves a process name for a given pid
+// NameForPid resolves a process name for a given pid
 func (d DeviceInfoService) NameForPid(pid uint64) error {
 	_, err := d.channel.MethodCall("execnameForPid:", pid)
 	return err
@@ -72,13 +72,13 @@ func mapToProcInfo(procList []interface{}) []ProcessInfo {
 	return result
 }
 
-//DeviceInfoService gives us access to retrieving process lists and resolving names for PIDs
+// DeviceInfoService gives us access to retrieving process lists and resolving names for PIDs
 type DeviceInfoService struct {
 	channel *dtx.Channel
 	conn    *dtx.Connection
 }
 
-//NewDeviceInfoService creates a new DeviceInfoService for a given device
+// NewDeviceInfoService creates a new DeviceInfoService for a given device
 func NewDeviceInfoService(device ios.DeviceEntry) (*DeviceInfoService, error) {
 	dtxConn, err := connectInstruments(device)
 	if err != nil {
@@ -88,7 +88,7 @@ func NewDeviceInfoService(device ios.DeviceEntry) (*DeviceInfoService, error) {
 	return &DeviceInfoService{channel: processControlChannel, conn: dtxConn}, nil
 }
 
-//Close closes up the DTX connection
+// Close closes up the DTX connection
 func (d *DeviceInfoService) Close() {
 	d.conn.Close()
 }

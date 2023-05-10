@@ -56,12 +56,14 @@ func (b *BinaryForwardingProxy) ReadMessage() ([]byte, error) {
 	}
 	return buffer[0:n], nil
 }
+
 func handleConnectToService(connectRequest ios.UsbMuxMessage,
 	decodedConnectRequest map[string]interface{},
 	p *ProxyConnection,
 	muxOnUnixSocket *ios.UsbMuxConnection,
 	muxToDevice *ios.UsbMuxConnection,
-	serviceInfo PhoneServiceInformation) {
+	serviceInfo PhoneServiceInformation,
+) {
 	err := muxToDevice.SendMuxMessage(connectRequest)
 	if err != nil {
 		panic("Failed sending muxmessage to device")
@@ -158,7 +160,6 @@ func proxyBinFromDeviceToHost(p *ProxyConnection, binOnUnixSocket BinaryForwardi
 		bytes, err := binToDevice.ReadMessage()
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Errorf("Failed binToDevice.ReadMessage b: %d", len(bytes))
-
 		}
 		binToDevice.decoder.decode(bytes)
 

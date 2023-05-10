@@ -25,5 +25,4 @@ func TestStringConversion(t *testing.T) {
 		actual := tc.devices.String()
 		assert.Equal(t, tc.expectedOutput, actual)
 	}
-
 }

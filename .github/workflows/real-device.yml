@@ -58,7 +58,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17.x
+          go-version-file: go.mod
           cache: true
 
       - name: compile
@@ -100,7 +100,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17.x
+          go-version-file: go.mod
           cache: true
 
       - name: Download mac release from previous job

@@ -7,7 +7,7 @@ import (
 
 const serviceName string = "com.apple.accessibility.axAuditDaemon.remoteserver"
 
-//New creates and connects to the given device, a new ControlInterface instance
+// New creates and connects to the given device, a new ControlInterface instance
 func New(device ios.DeviceEntry) (ControlInterface, error) {
 	conn, err := dtx.NewConnection(device, serviceName)
 	if err != nil {

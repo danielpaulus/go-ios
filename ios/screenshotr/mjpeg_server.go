@@ -4,18 +4,21 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
-	log "github.com/sirupsen/logrus"
 	"image/jpeg"
 	"image/png"
 	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios"
+	log "github.com/sirupsen/logrus"
 )
 
-var consumers sync.Map
-var conversionQueue = make(chan []byte, 20)
+var (
+	consumers       sync.Map
+	conversionQueue = make(chan []byte, 20)
+)
 
 func StartStreamingServer(device ios.DeviceEntry, port string) error {
 	conn, err := New(device)
@@ -29,6 +32,7 @@ func StartStreamingServer(device ios.DeviceEntry, port string) error {
 	log.WithFields(log.Fields{"host": "0.0.0.0", "port": port}).Infof("starting server, open your browser here: http://%s/", location)
 	return http.ListenAndServe(location, nil)
 }
+
 func startConversionQueue() {
 	var opt jpeg.Options
 	opt.Quality = 80
@@ -57,6 +61,7 @@ func startConversionQueue() {
 		})
 	}
 }
+
 func startScreenshotting(conn *Connection) {
 	for {
 		start := time.Now()
@@ -70,8 +75,10 @@ func startScreenshotting(conn *Connection) {
 	}
 }
 
-const mjpegFrameFooter = "\r\n\r\n"
-const mjpegFrameHeader = "--BoundaryString\r\nContent-type: image/jpg\r\nContent-Length: %d\r\n\r\n"
+const (
+	mjpegFrameFooter = "\r\n\r\n"
+	mjpegFrameHeader = "--BoundaryString\r\nContent-type: image/jpg\r\nContent-Length: %d\r\n\r\n"
+)
 
 func mjpegHandler(w http.ResponseWriter, r *http.Request) {
 	log.Infof("starting mjpeg stream for new client")
@@ -86,7 +93,7 @@ func mjpegHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Pragma", "no-cache")
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 
-	//io.WriteString(w, mjpegStreamHeader)
+	// io.WriteString(w, mjpegStreamHeader)
 	w.WriteHeader(200)
 	for {
 		jpg := <-c

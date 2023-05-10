@@ -22,11 +22,11 @@ type Channel struct {
 	timeout           time.Duration
 }
 
-//ChannelOption for configuring settings on dtx.Channels
+// ChannelOption for configuring settings on dtx.Channels
 type ChannelOption func(*Channel)
 
-//WithTimeout adds a custom timeout in seconds to the channel.
-//Some longer running synchronous operations need that.
+// WithTimeout adds a custom timeout in seconds to the channel.
+// Some longer running synchronous operations need that.
 func WithTimeout(seconds uint32) ChannelOption {
 	return func(h *Channel) {
 		h.timeout = time.Duration(seconds) * time.Second
@@ -46,8 +46,8 @@ func (d *Channel) ReceiveMethodCall(selector string) Message {
 	return <-channel
 }
 
-//MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
-//DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
+// MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
+// DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
 func (d *Channel) MethodCall(selector string, args ...interface{}) (Message, error) {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
 	auxiliary := NewPrimitiveDictionary()
@@ -121,7 +121,6 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType int, payloadB
 	case <-time.After(d.timeout):
 		return Message{}, fmt.Errorf("Timed out waiting for response for message:%d channel:%d", identifier, d.channelCode)
 	}
-
 }
 
 func (d *Channel) Dispatch(msg Message) {

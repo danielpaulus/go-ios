@@ -1,12 +1,13 @@
 package api
 
 import (
+	"io"
+	"net/http"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"io"
-	"net/http"
 )
 
 // Syslog
@@ -32,7 +33,6 @@ func Syslog(c *gin.Context) {
 		w.Write([]byte(MustMarshal(m)))
 		return true
 	})
-
 }
 
 // Listen send server side events when devices are plugged in or removed
@@ -53,5 +53,4 @@ func Listen(c *gin.Context) {
 		w.Write([]byte(MustMarshal(l)))
 		return true
 	})
-
 }

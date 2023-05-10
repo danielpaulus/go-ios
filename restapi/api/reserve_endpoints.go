@@ -10,10 +10,12 @@ import (
 	"github.com/google/uuid"
 )
 
-var reservedDevicesMap = make(map[string]*reservedDevice)
-var reserveMutex sync.Mutex
-var reservedDevicesTimeout time.Duration = 5
-var reserveAdminUUID = "go-admin"
+var (
+	reservedDevicesMap     = make(map[string]*reservedDevice)
+	reserveMutex           sync.Mutex
+	reservedDevicesTimeout time.Duration = 5
+	reserveAdminUUID                     = "go-admin"
+)
 
 type reservedDevice struct {
 	Message           string `json:"message,omitempty"`
@@ -90,7 +92,7 @@ func GetReservedDevices(c *gin.Context) {
 	reserveMutex.Lock()
 	defer reserveMutex.Unlock()
 
-	var reserved_devices = []reservedDevice{}
+	reserved_devices := []reservedDevice{}
 
 	if len(reservedDevicesMap) == 0 {
 		c.IndentedJSON(http.StatusOK, reserved_devices)

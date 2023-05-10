@@ -12,7 +12,6 @@ import (
 
 	ios "github.com/danielpaulus/go-ios/ios"
 
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,7 +38,7 @@ type ProxyConnection struct {
 	pairRecord ios.PairRecord
 	debugProxy *DebugProxy
 	info       ConnectionInfo
-	log        *logrus.Entry
+	log        *log.Entry
 	mux        sync.Mutex
 	closed     bool
 }
@@ -111,7 +110,7 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 		log.Error("Could not listen on usbmuxd socket, do I have access permissions?", err)
 		return err
 	}
-	if err := os.Chmod(ios.ToUnixSocketPath(ios.GetUsbmuxdSocket()), 0777); err != nil {
+	if err := os.Chmod(ios.ToUnixSocketPath(ios.GetUsbmuxdSocket()), 0o777); err != nil {
 		log.Error("Could not change permission on usbmuxd socket", err)
 		return err
 	}
@@ -137,7 +136,7 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 		bindumpHostProxyFile := filepath.Join(connectionPath, "bindump-hostservice-to-proxy.txt")
 
 		if !binaryMode {
-			//if the proxy is in full binary mode, there is no point in creating another binary dump
+			// if the proxy is in full binary mode, there is no point in creating another binary dump
 			log.Infof("Creating binary dump of all communication between MAC OS and debugproxy at: %s", bindumpHostProxyFile)
 			conn = NewDumpingConn(bindumpHostProxyFile, conn)
 		}
@@ -166,7 +165,6 @@ func startProxyConnection(conn net.Conn, originalSocket string, pairRecord ios.P
 	connListeningOnUnixSocket := ios.NewUsbMuxConnection(ios.NewDeviceConnectionWithConn(conn))
 	connectionToDevice := ios.NewUsbMuxConnection(devConn)
 	go proxyUsbMuxConnection(&p, connListeningOnUnixSocket, connectionToDevice)
-
 }
 
 // Close moves /var/run/usbmuxd.real back to /var/run/usbmuxd and disconnects all active proxy connections
@@ -186,7 +184,7 @@ func (d *DebugProxy) setupDirectory() {
 
 func (d DebugProxy) addConnectionInfoToJsonFile(connInfo ConnectionInfo) {
 	file, err := os.OpenFile(filepath.Join(d.WorkingDir, connectionJSONFileName),
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		log.Println(err)
 	}
@@ -204,6 +202,7 @@ func (p ProxyConnection) logJSONMessageFromDevice(msg map[string]interface{}) {
 	msg["direction"] = "device->host"
 	writeJSON(filepath.Join(p.info.ConnectionPath, outPath), msg)
 }
+
 func (p ProxyConnection) logJSONMessageToDevice(msg map[string]interface{}) {
 	const outPath = "jsondump.json"
 	msg["direction"] = "host->device"
@@ -212,7 +211,7 @@ func (p ProxyConnection) logJSONMessageToDevice(msg map[string]interface{}) {
 
 func writeJSON(filePath string, JSON interface{}) {
 	file, err := os.OpenFile(filePath,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		panic(fmt.Sprintf("Could not write to file err: %v filepath:'%s'", err, filePath))
 	}

@@ -16,7 +16,7 @@ func toInterfaceSlice(stringSlice []string) []interface{} {
 	return result
 }
 
-//toUidList type asserts a []interface{} to a []plist.UID by iterating through the list.
+// toUidList type asserts a []interface{} to a []plist.UID by iterating through the list.
 func toUidList(list []interface{}) []plist.UID {
 	l := len(list)
 	result := make([]plist.UID, l)
@@ -26,7 +26,7 @@ func toUidList(list []interface{}) []plist.UID {
 	return result
 }
 
-//plistFromBytes decodes a binary or XML based PLIST using the amazing github.com/DHowett/go-plist library and returns an interface{} or propagates the error raised by the library.
+// plistFromBytes decodes a binary or XML based PLIST using the amazing github.com/DHowett/go-plist library and returns an interface{} or propagates the error raised by the library.
 func plistFromBytes(plistBytes []byte) (interface{}, error) {
 	var test interface{}
 	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
@@ -38,9 +38,9 @@ func plistFromBytes(plistBytes []byte) (interface{}, error) {
 	return test, nil
 }
 
-//ToPlist converts a given struct to a Plist using the
-//github.com/DHowett/go-plist library. Make sure your struct is exported.
-//It returns a string containing the plist.
+// ToPlist converts a given struct to a Plist using the
+// github.com/DHowett/go-plist library. Make sure your struct is exported.
+// It returns a string containing the plist.
 func toPlist(data interface{}) (string, error) {
 	buf := &bytes.Buffer{}
 	encoder := plist.NewEncoder(buf)
@@ -55,7 +55,7 @@ func toBinaryPlist(data interface{}) ([]byte, error) {
 	return buf.Bytes(), err
 }
 
-//Print an object as JSON for debugging purposes, careful panics on error
+// Print an object as JSON for debugging purposes, careful panics on error
 func printAsJSON(obj interface{}) {
 	b, err := json.MarshalIndent(obj, "", "  ")
 	if err != nil {
@@ -68,7 +68,7 @@ func buildClassDict(classes ...interface{}) map[string]interface{} {
 	return map[string]interface{}{"$classes": classes, "$classname": classes[0]}
 }
 
-//verifyCorrectArchiver makes sure the nsKeyedArchived plist has all the right keys and values and returns an error otherwise
+// verifyCorrectArchiver makes sure the nsKeyedArchived plist has all the right keys and values and returns an error otherwise
 func verifyCorrectArchiver(nsKeyedArchiverData map[string]interface{}) error {
 	if val, ok := nsKeyedArchiverData[archiverKey]; !ok {
 		return fmt.Errorf("Invalid NSKeyedAchiverObject, missing key '%s'", archiverKey)

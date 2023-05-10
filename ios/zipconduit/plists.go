@@ -5,7 +5,7 @@ import (
 	"path"
 )
 
-//metadata is used to write to a plist file that we have to add to what we send
+// metadata is used to write to a plist file that we have to add to what we send
 type metadata struct {
 	StandardDirectoryPerms int
 	StandardFilePerms      int
@@ -14,7 +14,7 @@ type metadata struct {
 	Version                int
 }
 
-//initTransfer is the request you have to send initially to start the transfer
+// initTransfer is the request you have to send initially to start the transfer
 type initTransfer struct {
 	InstallOptionsDictionary    installoptions
 	InstallTransferredDirectory int
@@ -22,7 +22,7 @@ type initTransfer struct {
 	UserInitiatedTransfer       int
 }
 
-//installOptions contains some settings, we just use what XCode uses
+// installOptions contains some settings, we just use what XCode uses
 type installoptions struct {
 	DisableDeltaTransfer int
 	InstallDeltaTypeKey  string
@@ -34,7 +34,7 @@ type installoptions struct {
 const signingError = "ApplicationVerificationFailed"
 
 func evaluateProgress(progressUpdate map[string]interface{}) (bool, int, string, error) {
-	//done, percent, status
+	// done, percent, status
 	statusIntf, ok := progressUpdate["Status"]
 	if ok {
 		status := statusIntf.(string)

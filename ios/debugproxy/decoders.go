@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
-
 	"os"
+	"strings"
 	"time"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -39,9 +38,8 @@ func NewDtxDecoder(jsonFilePath string, binFilePath string, log *log.Entry) deco
 }
 
 func (f *dtxDecoder) decode(data []byte) {
-
 	file, err := os.OpenFile(f.binFilePath+".raw",
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		log.Println(err)
 	}
@@ -50,8 +48,8 @@ func (f *dtxDecoder) decode(data []byte) {
 	file.Close()
 
 	if f.isBroken {
-		//when an error happens while decoding, this flag prevents from flooding the logs with errors
-		//while still dumping binary to debug later
+		// when an error happens while decoding, this flag prevents from flooding the logs with errors
+		// while still dumping binary to debug later
 		return
 	}
 	f.buffer.Write(data)
@@ -72,7 +70,7 @@ func (f *dtxDecoder) decode(data []byte) {
 		slice = remainingbytes
 
 		file, err := os.OpenFile(f.binFilePath,
-			os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			log.Println(err)
 		}
@@ -82,7 +80,7 @@ func (f *dtxDecoder) decode(data []byte) {
 		file.Close()
 
 		file, err = os.OpenFile(f.jsonFilePath,
-			os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			log.Println(err)
 		}
@@ -149,24 +147,24 @@ func logDtxMessageNice(log *log.Entry, msg dtx.Message) {
 		return
 	}
 	log.Infof("%+v", msg)
-
 }
 
 type binaryOnlyDumper struct {
 	path string
 }
 
-//NewNoOpDecoder does nothing
+// NewNoOpDecoder does nothing
 func NewBinDumpOnly(jsonFilePath string, dumpFilePath string, log *log.Entry) decoder {
 	return binaryOnlyDumper{dumpFilePath}
 }
+
 func (n binaryOnlyDumper) decode(bytes []byte) {
 	writeBytes(n.path, bytes)
 }
 
 func writeBytes(filePath string, data []byte) {
 	file, err := os.OpenFile(filePath,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		panic(fmt.Sprintf("Could not write to file error: %v path:'%s'", err, filePath))
 	}

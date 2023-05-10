@@ -22,5 +22,4 @@ func TestMuxResponse(t *testing.T) {
 		assert.Equal(t, tc.muxResponse, actual)
 		assert.Equal(t, tc.successful, actual.IsSuccessFull())
 	}
-
 }

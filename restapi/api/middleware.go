@@ -37,10 +37,10 @@ func DeviceMiddleware() gin.HandlerFunc {
 
 const IOS_KEY = "go_ios_device"
 
-//LimitNumClientsUDID limits clients to one concurrent connection per device UDID at a time
+// LimitNumClientsUDID limits clients to one concurrent connection per device UDID at a time
 func LimitNumClientsUDID() gin.HandlerFunc {
 	maxClients := 1
-	var semaMap = sync.Map{}
+	semaMap := sync.Map{}
 	return func(c *gin.Context) {
 		device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 		udid := device.Properties.SerialNumber

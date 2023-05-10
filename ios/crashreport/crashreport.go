@@ -2,18 +2,21 @@ package crashreport
 
 import (
 	"fmt"
+	"os"
+	"path"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/afc"
 	log "github.com/sirupsen/logrus"
-	"os"
-	"path"
 )
 
-const crashReportMoverService = "com.apple.crashreportmover"
-const crashReportCopyMobileService = "com.apple.crashreportcopymobile"
+const (
+	crashReportMoverService      = "com.apple.crashreportmover"
+	crashReportCopyMobileService = "com.apple.crashreportcopymobile"
+)
 
-//DownloadReports gets all crashreports based on the provided file pattern and writes them to targetdir.
-//Directories will be recursively added without applying the pattern recursively.
+// DownloadReports gets all crashreports based on the provided file pattern and writes them to targetdir.
+// Directories will be recursively added without applying the pattern recursively.
 // pattern can be typical filepattern, if you want all files use "*"
 func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) error {
 	if pattern == "" {
@@ -57,7 +60,7 @@ func copyReports(afc *afc.Connection, cwd string, pattern string, targetDir stri
 		}
 		log.Debugf("%+v", info)
 
-		if info.IsDir(){
+		if info.IsDir() {
 			err := os.Mkdir(targetFilePath, targetDirInfo.Mode().Perm())
 			if err != nil {
 				return err
@@ -147,7 +150,7 @@ type moverConnection struct {
 	plistCodec ios.PlistCodec
 }
 
-//NewWithHouseArrest returns a new ZipConduit Connection for the given DeviceID and Udid
+// NewWithHouseArrest returns a new ZipConduit Connection for the given DeviceID and Udid
 func newMover(device ios.DeviceEntry) (*moverConnection, error) {
 	deviceConn, err := ios.ConnectToService(device, crashReportMoverService)
 	if err != nil {

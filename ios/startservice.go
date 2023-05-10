@@ -14,8 +14,8 @@ type startServiceRequest struct {
 	Service string
 }
 
-//StartServiceResponse is sent by the phone after starting a service, it contains servicename, port and tells us
-//whether we should enable SSL or not.
+// StartServiceResponse is sent by the phone after starting a service, it contains servicename, port and tells us
+// whether we should enable SSL or not.
 type StartServiceResponse struct {
 	Port             uint16
 	Request          string
@@ -31,9 +31,9 @@ func getStartServiceResponsefromBytes(plistBytes []byte) StartServiceResponse {
 	return data
 }
 
-//StartService sends a StartServiceRequest using the provided serviceName
-//and returns the Port of the services in a BigEndian Integer.
-//This port cann be used with a new UsbMuxClient and the Connect call.
+// StartService sends a StartServiceRequest using the provided serviceName
+// and returns the Port of the services in a BigEndian Integer.
+// This port cann be used with a new UsbMuxClient and the Connect call.
 func (lockDownConn *LockDownConnection) StartService(serviceName string) (StartServiceResponse, error) {
 	err := lockDownConn.Send(startServiceRequest{Label: "go.ios.control", Request: "StartService", Service: serviceName})
 	if err != nil {
@@ -51,8 +51,8 @@ func (lockDownConn *LockDownConnection) StartService(serviceName string) (StartS
 	return response, nil
 }
 
-//StartService conveniently starts a service on a device and cleans up the used UsbMuxconnection.
-//It returns the service port as a uint16 in BigEndian byte order.
+// StartService conveniently starts a service on a device and cleans up the used UsbMuxconnection.
+// It returns the service port as a uint16 in BigEndian byte order.
 func StartService(device DeviceEntry, serviceName string) (StartServiceResponse, error) {
 	lockdown, err := ConnectLockdownWithSession(device)
 	if err != nil {

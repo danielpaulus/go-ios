@@ -8,8 +8,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//ControlInterface provides a simple interface to controlling the AX service on the device
-//It only needs the global dtx channel as all AX methods are invoked on it.
+// ControlInterface provides a simple interface to controlling the AX service on the device
+// It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
 	channel *dtx.Channel
 }
@@ -38,7 +38,7 @@ func (a ControlInterface) readhostInspectorNotificationReceived() {
 	}
 }
 
-//Init wires up event receivers and gets Info from the device
+// Init wires up event receivers and gets Info from the device
 func (a ControlInterface) init() error {
 	a.channel.RegisterMethodForRemote("hostInspectorCurrentElementChanged:")
 	a.channel.RegisterMethodForRemote("hostInspectorMonitoredEventTypeChanged:")
@@ -51,7 +51,7 @@ func (a ControlInterface) init() error {
 	if err != nil {
 		return err
 	}
-	//a list of methods we are allowed to call on the device
+	// a list of methods we are allowed to call on the device
 	deviceCapabilities, err := a.deviceCapabilities()
 	if err != nil {
 		return err
@@ -97,16 +97,16 @@ func (a ControlInterface) init() error {
 	return nil
 }
 
-//EnableSelectionMode enables the UI element selection mode on the device,
-//it is the same as clicking the little crosshair in AX Inspector
+// EnableSelectionMode enables the UI element selection mode on the device,
+// it is the same as clicking the little crosshair in AX Inspector
 func (a ControlInterface) EnableSelectionMode() {
 	a.deviceInspectorSetMonitoredEventType(2)
 	a.deviceInspectorShowVisuals(true)
 	a.awaitHostInspectorMonitoredEventTypeChanged()
 }
 
-//SwitchToDevice is the same as switching to the Device in AX inspector.
-//After running this, notifications and events should be received.
+// SwitchToDevice is the same as switching to the Device in AX inspector.
+// After running this, notifications and events should be received.
 func (a ControlInterface) SwitchToDevice() {
 	a.TurnOff()
 	resp, _ := a.deviceAccessibilitySettings()
@@ -117,10 +117,9 @@ func (a ControlInterface) SwitchToDevice() {
 	a.awaitHostInspectorCurrentElementChanged()
 	a.deviceInspectorPreviewOnElement()
 	a.deviceHighlightIssue()
-
 }
 
-//TurnOff disable AX
+// TurnOff disable AX
 func (a ControlInterface) TurnOff() {
 	a.deviceInspectorSetMonitoredEventType(0)
 	a.awaitHostInspectorMonitoredEventTypeChanged()
@@ -131,11 +130,11 @@ func (a ControlInterface) TurnOff() {
 	a.deviceInspectorShowVisuals(false)
 }
 
-//GetElement moves the green selection rectangle one element further
+// GetElement moves the green selection rectangle one element further
 func (a ControlInterface) GetElement() {
 	log.Info("changing")
 	a.deviceInspectorMoveWithOptions()
-	//a.deviceInspectorMoveWithOptions()
+	// a.deviceInspectorMoveWithOptions()
 
 	resp := a.awaitHostInspectorCurrentElementChanged()
 	log.Info("item changed", resp)
@@ -167,10 +166,9 @@ func (a ControlInterface) deviceInspectorMoveWithOptions() {
 			"includeContainers": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": true}),
 		}),
 	})
-	//str, _ := nskeyedarchiver.ArchiveXML(options)
-	//println(str)
+	// str, _ := nskeyedarchiver.ArchiveXML(options)
+	// println(str)
 	a.channel.MethodCallAsync(method, options)
-
 }
 
 func (a ControlInterface) notifyPublishedCapabilities() error {
@@ -179,7 +177,6 @@ func (a ControlInterface) notifyPublishedCapabilities() error {
 		"com.apple.private.DTXConnection":       uint64(1),
 	}
 	return a.channel.MethodCallAsync("_notifyOfPublishedCapabilities:", capabs)
-
 }
 
 func (a ControlInterface) deviceCapabilities() ([]string, error) {
@@ -221,6 +218,7 @@ func (a ControlInterface) deviceAPIVersion() (uint64, error) {
 	}
 	return response.Payload[0].(uint64), nil
 }
+
 func (a ControlInterface) deviceInspectorCanNavWhileMonitoringEvents() (bool, error) {
 	response, err := a.channel.MethodCall("deviceInspectorCanNavWhileMonitoringEvents")
 	if err != nil {
@@ -248,21 +246,27 @@ func (a ControlInterface) deviceHumanReadableDescriptionForAuditCaseID(auditCase
 func (a ControlInterface) deviceInspectorShowIgnoredElements(val bool) error {
 	return a.channel.MethodCallAsync("deviceInspectorShowIgnoredElements:", val)
 }
+
 func (a ControlInterface) deviceSetAuditTargetPid(pid uint64) error {
 	return a.channel.MethodCallAsync("deviceSetAuditTargetPid:", pid)
 }
+
 func (a ControlInterface) deviceInspectorFocusOnElement() error {
 	return a.channel.MethodCallAsync("deviceInspectorFocusOnElement:", nskeyedarchiver.NewNSNull())
 }
+
 func (a ControlInterface) deviceInspectorPreviewOnElement() error {
 	return a.channel.MethodCallAsync("deviceInspectorPreviewOnElement:", nskeyedarchiver.NewNSNull())
 }
+
 func (a ControlInterface) deviceHighlightIssue() error {
 	return a.channel.MethodCallAsync("deviceHighlightIssue:", map[string]interface{}{})
 }
+
 func (a ControlInterface) deviceInspectorSetMonitoredEventType(eventtype uint64) error {
 	return a.channel.MethodCallAsync("deviceInspectorSetMonitoredEventType:", eventtype)
 }
+
 func (a ControlInterface) deviceInspectorShowVisuals(val bool) error {
 	return a.channel.MethodCallAsync("deviceInspectorShowVisuals:", val)
 }

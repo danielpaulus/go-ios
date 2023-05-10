@@ -57,7 +57,7 @@ func startLLDB(appPath, container string, port int, stopAtEntry bool) error {
 		optionStopAtEntry = STOP_AT_ENTRY
 	}
 
-	py, err := os.OpenFile(PY_PATH, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
+	py, err := os.OpenFile(PY_PATH, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func startLLDB(appPath, container string, port int, stopAtEntry bool) error {
 		return err
 	}
 
-	script, err := os.OpenFile(SCRIPT_PATH, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
+	script, err := os.OpenFile(SCRIPT_PATH, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}

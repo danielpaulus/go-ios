@@ -8,9 +8,7 @@ import (
 	"io"
 )
 
-var (
-	ErrInvalidGDBServerPayload = errors.New("invalid payload")
-)
+var ErrInvalidGDBServerPayload = errors.New("invalid payload")
 
 type GDBServer struct {
 	rw      io.ReadWriter

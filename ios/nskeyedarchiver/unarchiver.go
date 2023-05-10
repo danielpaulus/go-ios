@@ -7,7 +7,7 @@ import (
 	plist "howett.net/plist"
 )
 
-//Unarchive extracts NSKeyedArchiver Plists, either in XML or Binary format, and returns an array of the archived objects converted to usable Go Types.
+// Unarchive extracts NSKeyedArchiver Plists, either in XML or Binary format, and returns an array of the archived objects converted to usable Go Types.
 // Primitives will be extracted just like regular Plist primitives (string, float64, int64, []uint8 etc.).
 // NSArray, NSMutableArray, NSSet and NSMutableSet will transformed into []interface{}
 // NSDictionary and NSMutableDictionary will be transformed into map[string] interface{}. I might add non string keys later.
@@ -24,7 +24,6 @@ func Unarchive(xml []byte) ([]interface{}, error) {
 		return nil, err
 	}
 	return extractObjectsFromTop(nsKeyedArchiverData[topKey].(map[string]interface{}), nsKeyedArchiverData[objectsKey].([]interface{}))
-
 }
 
 func extractObjectsFromTop(top map[string]interface{}, objects []interface{}) ([]interface{}, error) {
@@ -33,7 +32,7 @@ func extractObjectsFromTop(top map[string]interface{}, objects []interface{}) ([
 		return extractObjects([]plist.UID{root.(plist.UID)}, objects)
 	}
 	objectRefs := make([]plist.UID, objectCount)
-	//convert the Dictionary with the objectReferences into a flat list of UIDs, so we can reuse the extractObjects function later
+	// convert the Dictionary with the objectReferences into a flat list of UIDs, so we can reuse the extractObjects function later
 	for i := 0; i < objectCount; i++ {
 		objectIndex := top[fmt.Sprintf("$%d", i)].(plist.UID)
 		objectRefs[i] = objectIndex
@@ -51,9 +50,9 @@ func extractObjects(objectRefs []plist.UID, objects []interface{}) ([]interface{
 			returnValue[i] = object
 			continue
 		}
-		//if this crashes, I forgot a primitive type
-		nonPrimitiveObjectRef,ok := objectRef.(map[string]interface{})
-		if !ok{
+		// if this crashes, I forgot a primitive type
+		nonPrimitiveObjectRef, ok := objectRef.(map[string]interface{})
+		if !ok {
 			return []interface{}{}, fmt.Errorf("object not a dictionary: %+v", objectRef)
 		}
 		if object, ok := isArrayObject(nonPrimitiveObjectRef, objects); ok {

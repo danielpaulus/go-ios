@@ -13,8 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var randomDeviceUDID string
-var r *gin.Engine
+var (
+	randomDeviceUDID string
+	r                *gin.Engine
+)
 
 func setupRouter() *gin.Engine {
 	randomDeviceUDID = uuid.New().String()
@@ -80,7 +82,7 @@ func TestReleasingDevice(t *testing.T) {
 		t.FailNow()
 	}
 
-	var reservationid_exists = false
+	reservationid_exists := false
 	for _, device := range devicesResponse {
 		if device.ReservationID == reservationID {
 			reservationid_exists = true

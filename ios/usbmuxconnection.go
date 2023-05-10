@@ -50,7 +50,7 @@ func GetUsbmuxdSocket() string {
 // and connect to services on the phone. Usually messages follow a  request-response pattern. there is a tag integer
 // in the message header, that is increased with every sent message.
 type UsbMuxConnection struct {
-	//tag will be incremented for every message, so responses can be correlated to requests
+	// tag will be incremented for every message, so responses can be correlated to requests
 	tag        uint32
 	deviceConn DeviceConnectionInterface
 }

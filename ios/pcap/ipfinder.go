@@ -17,16 +17,15 @@ func (n NetworkInfo) complete() bool {
 	return n.IPv6 != "" && n.Mac != "" && n.IPv4 != ""
 }
 
-//FindIp reads pcap packets until one is found that matches the given MAC
-//and contains an IP address. This won't work if the iOS device "automatic Wifi address" privacy
-//feature is enabled. The MAC needs to be static.
+// FindIp reads pcap packets until one is found that matches the given MAC
+// and contains an IP address. This won't work if the iOS device "automatic Wifi address" privacy
+// feature is enabled. The MAC needs to be static.
 func FindIp(device ios.DeviceEntry) (NetworkInfo, error) {
 	mac, err := ios.GetWifiMac(device)
 	if err != nil {
 		return NetworkInfo{}, err
 	}
 	return findIp(device, mac)
-
 }
 
 func findIp(device ios.DeviceEntry, mac string) (NetworkInfo, error) {

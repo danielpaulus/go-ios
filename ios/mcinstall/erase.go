@@ -2,9 +2,10 @@ package mcinstall
 
 import (
 	"fmt"
+	"io"
+
 	"github.com/danielpaulus/go-ios/ios"
 	log "github.com/sirupsen/logrus"
-	"io"
 )
 
 // Erase tells a device to remove all apps and settings. You need to activate it afterwards.

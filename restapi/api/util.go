@@ -18,8 +18,8 @@ type GenericResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
-//GetVersion reads the contents of the file version.txt and returns it.
-//If the file cannot be read, it returns "could not read version"
+// GetVersion reads the contents of the file version.txt and returns it.
+// If the file cannot be read, it returns "could not read version"
 func GetVersion() string {
 	version, err := ioutil.ReadFile("version.txt")
 	if err != nil {

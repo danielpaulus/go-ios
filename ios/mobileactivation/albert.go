@@ -9,8 +9,10 @@ import (
 
 const activationUserAgent = "iOS Device Activator (MobileActivation-592.103.2)"
 
-const activationServerURL = "https://albert.apple.com/deviceservices/deviceActivation"
-const drmHandshakeURL = "https://albert.apple.com/deviceservices/drmHandshake"
+const (
+	activationServerURL = "https://albert.apple.com/deviceservices/deviceActivation"
+	drmHandshakeURL     = "https://albert.apple.com/deviceservices/drmHandshake"
+)
 
 var netClient = &http.Client{
 	Timeout: time.Second * 5,

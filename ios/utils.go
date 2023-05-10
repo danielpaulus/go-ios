@@ -4,9 +4,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/Masterminds/semver"
 	"os"
 	"strings"
+
+	"github.com/Masterminds/semver"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -33,7 +34,7 @@ func ParsePlist(data []byte) (map[string]interface{}, error) {
 func ToPlistBytes(data interface{}) []byte {
 	bytes, err := plist.Marshal(data, plist.XMLFormat)
 	if err != nil {
-		//this should not happen
+		// this should not happen
 		panic(fmt.Sprintf("Failed converting to plist %v error:%v", data, err))
 	}
 	return bytes
@@ -42,7 +43,7 @@ func ToPlistBytes(data interface{}) []byte {
 func ToBinPlistBytes(data interface{}) []byte {
 	bytes, err := plist.Marshal(data, plist.BinaryFormat)
 	if err != nil {
-		//this should not happen
+		// this should not happen
 		panic(fmt.Sprintf("Failed converting to plist %v error:%v", data, err))
 	}
 	return bytes

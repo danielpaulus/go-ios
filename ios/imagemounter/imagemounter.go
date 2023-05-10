@@ -3,24 +3,25 @@ package imagemounter
 import (
 	"errors"
 	"fmt"
-	"github.com/Masterminds/semver"
-	"github.com/danielpaulus/go-ios/ios"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/Masterminds/semver"
+	"github.com/danielpaulus/go-ios/ios"
+	log "github.com/sirupsen/logrus"
 )
 
 const serviceName string = "com.apple.mobile.mobile_image_mounter"
 
-//Connection to mobile image mounter
+// Connection to mobile image mounter
 type Connection struct {
 	deviceConn ios.DeviceConnectionInterface
 	plistCodec ios.PlistCodec
 	version    *semver.Version
 }
 
-//New returns a new mobile image mounter Connection for the given DeviceID and Udid
+// New returns a new mobile image mounter Connection for the given DeviceID and Udid
 func New(device ios.DeviceEntry) (*Connection, error) {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
@@ -37,7 +38,7 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	}, nil
 }
 
-//ListImages returns a list with signatures of installed developer images
+// ListImages returns a list with signatures of installed developer images
 func (conn *Connection) ListImages() ([][]byte, error) {
 	req := map[string]interface{}{
 		"Command":   "LookupImage",
@@ -84,7 +85,7 @@ func (conn *Connection) ListImages() ([][]byte, error) {
 	return result, nil
 }
 
-//MountImage installs a .dmg image from imagePath after checking that it is present and valid.
+// MountImage installs a .dmg image from imagePath after checking that it is present and valid.
 func (conn *Connection) MountImage(imagePath string) error {
 	signatureBytes, imageSize, err := validatePathAndLoadSignature(imagePath)
 	if err != nil {
@@ -171,7 +172,7 @@ func validatePathAndLoadSignature(imagePath string) ([]byte, int64, error) {
 	return signatureBytes, info.Size(), nil
 }
 
-//Close closes the underlying UsbMuxConnection
+// Close closes the underlying UsbMuxConnection
 func (conn *Connection) Close() {
 	conn.deviceConn.Close()
 }
@@ -241,7 +242,7 @@ func (conn *Connection) hangUp() error {
 	return nil
 }
 
-//FixDevImage checks if a dev image is already installed and does nothing in that case. Otherwise it
+// FixDevImage checks if a dev image is already installed and does nothing in that case. Otherwise it
 // looks for the image for the device version in baseDir. If it is not present it will download it from
 // github and install.
 func FixDevImage(device ios.DeviceEntry, baseDir string) error {

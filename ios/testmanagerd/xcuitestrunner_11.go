@@ -2,11 +2,12 @@ package testmanagerd
 
 import (
 	"context"
+	"strings"
+
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	log "github.com/sirupsen/logrus"
-	"strings"
 )
 
 func RunXCUIWithBundleIds11Ctx(
@@ -16,7 +17,8 @@ func RunXCUIWithBundleIds11Ctx(
 	xctestConfigFileName string,
 	device ios.DeviceEntry,
 	args []string,
-	env []string) error {
+	env []string,
+) error {
 	log.Debugf("set up xcuitest")
 	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
@@ -38,7 +40,7 @@ func RunXCUIWithBundleIds11Ctx(
 	log.Debug("connections ready")
 	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig)
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
-	//TODO: fixme
+	// TODO: fixme
 	protocolVersion := uint64(25)
 	_, err = ideDaemonProxy.daemonConnection.initiateSessionWithIdentifier(testSessionId, protocolVersion)
 	if err != nil {
@@ -95,13 +97,13 @@ func RunXCUIWithBundleIds11Ctx(
 }
 
 func startTestRunner11(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
-	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv []string) (uint64, error) {
+	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv []string,
+) (uint64, error) {
 	args := []interface{}{}
 	for _, arg := range wdaargs {
 		args = append(args, arg)
 	}
 	env := map[string]interface{}{
-
 		"XCTestBundlePath":            testBundlePath,
 		"XCTestConfigurationFilePath": xctestConfigPath,
 		"XCTestSessionIdentifier":     sessionIdentifier,
@@ -121,5 +123,4 @@ func startTestRunner11(pControl *instruments.ProcessControl, xctestConfigPath st
 	}
 
 	return pControl.StartProcess(bundleID, env, args, opts)
-
 }

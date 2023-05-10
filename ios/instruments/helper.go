@@ -2,14 +2,17 @@ package instruments
 
 import (
 	"fmt"
+
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
 )
 
-const serviceName string = "com.apple.instruments.remoteserver"
-const serviceNameiOS14 string = "com.apple.instruments.remoteserver.DVTSecureSocketProxy"
+const (
+	serviceName      string = "com.apple.instruments.remoteserver"
+	serviceNameiOS14 string = "com.apple.instruments.remoteserver.DVTSecureSocketProxy"
+)
 
 type loggingDispatcher struct {
 	conn *dtx.Connection

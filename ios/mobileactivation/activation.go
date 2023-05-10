@@ -1,11 +1,12 @@
 package mobileactivation
 
 import (
-	"github.com/danielpaulus/go-ios/ios"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/url"
 	"strings"
+
+	"github.com/danielpaulus/go-ios/ios"
+	log "github.com/sirupsen/logrus"
 )
 
 const serviceName string = "com.apple.mobileactivationd"
@@ -34,8 +35,10 @@ func (activationdConn *Connection) Close() error {
 	return activationdConn.deviceConn.Close()
 }
 
-const activationStateKey = "ActivationState"
-const unactivated = "Unactivated"
+const (
+	activationStateKey = "ActivationState"
+	unactivated        = "Unactivated"
+)
 
 // IsActivated uses lockdown to get the ActivationState of the device. Returns ActivationState != 'Unactivated'
 func IsActivated(device ios.DeviceEntry) (bool, error) {
@@ -95,7 +98,7 @@ func Activate(device ios.DeviceEntry) error {
 	log.Debugf("handshare response headers: %v", header)
 	log.Debugf("rcv %d bytes handshake response", len(handshakeResponse))
 	log.Infof("ok")
-	//get activation info from device
+	// get activation info from device
 
 	conn1, err := New(device)
 	if err != nil {
@@ -103,8 +106,10 @@ func Activate(device ios.DeviceEntry) error {
 	}
 	defer conn1.Close()
 
-	activationInfoResponseResp, err := conn1.sendAndReceive(map[string]interface{}{"Command": "CreateActivationInfoRequest", "Value": handshakeResponse,
-		"Options": map[string]interface{}{"BasebandWaitCount": 90}})
+	activationInfoResponseResp, err := conn1.sendAndReceive(map[string]interface{}{
+		"Command": "CreateActivationInfoRequest", "Value": handshakeResponse,
+		"Options": map[string]interface{}{"BasebandWaitCount": 90},
+	})
 	if err != nil {
 		return err
 	}
@@ -118,7 +123,7 @@ func Activate(device ios.DeviceEntry) error {
 
 	headers, body, err := sendActivationRequest(strings.NewReader(payload))
 	log.Debugf("activation response headers:%v", headers)
-	var activationHttpResponse = []byte{}
+	activationHttpResponse := []byte{}
 
 	if body != nil {
 		activationHttpResponse, err = io.ReadAll(body)
@@ -158,8 +163,10 @@ func Activate(device ios.DeviceEntry) error {
 	}
 	log.Debugf("activation Response Plist: %v", activationResponseMap)
 	log.Info("storing activation response to device")
-	resp, err = conn2.sendAndReceive(map[string]interface{}{"Command": "HandleActivationInfoWithSessionRequest",
-		"Value": activationHttpResponse, "ActivationResponseHeaders": activationResponseHeaders})
+	resp, err = conn2.sendAndReceive(map[string]interface{}{
+		"Command": "HandleActivationInfoWithSessionRequest",
+		"Value":   activationHttpResponse, "ActivationResponseHeaders": activationResponseHeaders,
+	})
 	if err != nil {
 		return err
 	}
@@ -184,5 +191,4 @@ func (mcInstallConn *Connection) sendAndReceive(request map[string]interface{}) 
 	}
 
 	return ios.ParsePlist(responseBytes)
-
 }

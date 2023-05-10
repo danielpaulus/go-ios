@@ -3,19 +3,24 @@ package screenshotr
 import (
 	"bytes"
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 
 	"howett.net/plist"
 )
 
-type plistArray []interface{}
-type versionInfo struct {
-	major uint64
-	minor uint64
-}
+type (
+	plistArray  []interface{}
+	versionInfo struct {
+		major uint64
+		minor uint64
+	}
+)
 
-const dLMessageVersionExchange = "DLMessageVersionExchange"
-const dlMessageProcessMessage = "DLMessageProcessMessage"
+const (
+	dLMessageVersionExchange = "DLMessageVersionExchange"
+	dlMessageProcessMessage  = "DLMessageProcessMessage"
+)
 
 func newVersionExchangeRequest(versionMajor uint64) plistArray {
 	return []interface{}{dLMessageVersionExchange, "DLVersionsOk", versionMajor}

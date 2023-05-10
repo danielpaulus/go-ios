@@ -70,7 +70,8 @@ func proxyLockDownConnection(p *ProxyConnection, lockdownOnUnixSocket *ios.LockD
 			info := PhoneServiceInformation{
 				ServicePort: uint16(decodedResponse["Port"].(uint64)),
 				ServiceName: decodedResponse["Service"].(string),
-				UseSSL:      useSSL}
+				UseSSL:      useSSL,
+			}
 
 			p.log.Debugf("Detected Service Start:%+v", info)
 			p.debugProxy.storeServiceInformation(info)
