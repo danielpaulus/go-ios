@@ -1,8 +1,9 @@
 package ios
 
 import (
-	log "github.com/sirupsen/logrus"
 	"fmt"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (

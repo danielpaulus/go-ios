@@ -31,5 +31,4 @@ func TestIT(t *testing.T) {
 	conn.TurnOff()
 
 	// conn.EnableSelectionMode()
-
 }
