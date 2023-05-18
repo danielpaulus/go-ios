@@ -117,6 +117,8 @@ Usage:
   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
   ios resetlocation [options]
   ios assistivetouch (enable | disable | toggle | get) [--force] [options]
+  ios voiceover (enable | disable | toggle | get) [--force] [options]
+  ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
 
@@ -212,6 +214,8 @@ The commands work as following:
    ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]         Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
    ios resetlocation [options]                                        Resets the location of the device to the actual one
    ios assistivetouch (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "AssistiveTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
+   ios voiceover (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "VoiceOver" software home-screen button. iOS 11+ only (Use --force to try on older versions).
+   ios zoom (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "ZoomTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions). 
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
 
@@ -450,6 +454,48 @@ The commands work as following:
 		b, _ = arguments.Bool("get")
 		if b {
 			assistiveTouch(device, "get", force)
+		}
+	}
+
+	b, _ = arguments.Bool("voiceover")
+	if b {
+		force, _ := arguments.Bool("--force")
+		b, _ = arguments.Bool("enable")
+		if b {
+			voiceOver(device, "enable", force)
+		}
+		b, _ = arguments.Bool("disable")
+		if b {
+			voiceOver(device, "disable", force)
+		}
+		b, _ = arguments.Bool("toggle")
+		if b {
+			voiceOver(device, "toggle", force)
+		}
+		b, _ = arguments.Bool("get")
+		if b {
+			voiceOver(device, "get", force)
+		}
+	}
+
+	b, _ = arguments.Bool("zoom")
+	if b {
+		force, _ := arguments.Bool("--force")
+		b, _ = arguments.Bool("enable")
+		if b {
+			zoomTouch(device, "enable", force)
+		}
+		b, _ = arguments.Bool("disable")
+		if b {
+			zoomTouch(device, "disable", force)
+		}
+		b, _ = arguments.Bool("toggle")
+		if b {
+			zoomTouch(device, "toggle", force)
+		}
+		b, _ = arguments.Bool("get")
+		if b {
+			zoomTouch(device, "get", force)
 		}
 	}
 
@@ -1133,6 +1179,98 @@ func assistiveTouch(device ios.DeviceEntry, operation string, force bool) {
 			fmt.Printf("%t\n", enable)
 		} else {
 			fmt.Println(convertToJSONString(map[string]bool{"AssistiveTouchEnabled": enable}))
+		}
+	}
+}
+
+func voiceOver(device ios.DeviceEntry, operation string, force bool) {
+	var enable bool
+
+	if !force {
+		version, err := ios.GetProductVersion(device)
+		exitIfError("failed getting device product version", err)
+
+		if version.LessThan(ios.IOS11()) {
+			log.Errorf("iOS Version 11.0+ required to manipulate VoiceOver.  iOS version: %s detected. Use --force to override.", version)
+			os.Exit(1)
+		}
+	}
+
+	wasEnabled, err := ios.GetVoiceOver(device)
+
+	if err != nil {
+		if force && (operation == "enable" || operation == "disable") {
+			log.WithFields(log.Fields{"error": err}).Warn("Failed getting current VoiceOver status. Continuing anyway.")
+		} else {
+			exitIfError("failed getting current VoiceOver status", err)
+		}
+	}
+
+	switch {
+	case operation == "enable":
+		enable = true
+	case operation == "disable":
+		enable = false
+	case operation == "toggle":
+		enable = !wasEnabled
+	default: // get
+		enable = wasEnabled
+	}
+	if operation != "get" && (force || wasEnabled != enable) {
+		err = ios.SetVoiceOver(device, enable)
+		exitIfError("failed setting VoiceOver", err)
+	}
+	if operation == "get" {
+		if JSONdisabled {
+			fmt.Printf("%t\n", enable)
+		} else {
+			fmt.Println(convertToJSONString(map[string]bool{"VoiceOverTouchEnabled": enable}))
+		}
+	}
+}
+
+func zoomTouch(device ios.DeviceEntry, operation string, force bool) {
+	var enable bool
+
+	if !force {
+		version, err := ios.GetProductVersion(device)
+		exitIfError("failed getting device product version", err)
+
+		if version.LessThan(ios.IOS11()) {
+			log.Errorf("iOS Version 11.0+ required to manipulate VoiceOver.  iOS version: %s detected. Use --force to override.", version)
+			os.Exit(1)
+		}
+	}
+
+	wasEnabled, err := ios.GetZoomTouch(device)
+
+	if err != nil {
+		if force && (operation == "enable" || operation == "disable") {
+			log.WithFields(log.Fields{"error": err}).Warn("Failed getting current VoiceOver status. Continuing anyway.")
+		} else {
+			exitIfError("failed getting current VoiceOver status", err)
+		}
+	}
+
+	switch {
+	case operation == "enable":
+		enable = true
+	case operation == "disable":
+		enable = false
+	case operation == "toggle":
+		enable = !wasEnabled
+	default: // get
+		enable = wasEnabled
+	}
+	if operation != "get" && (force || wasEnabled != enable) {
+		err = ios.SetZoomTouch(device, enable)
+		exitIfError("failed setting VoiceOver", err)
+	}
+	if operation == "get" {
+		if JSONdisabled {
+			fmt.Printf("%t\n", enable)
+		} else {
+			fmt.Println(convertToJSONString(map[string]bool{"ZoomTouchEnabled": enable}))
 		}
 	}
 }
