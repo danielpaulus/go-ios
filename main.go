@@ -904,9 +904,28 @@ func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		if list {
 			listMountedImages(device)
 		}
+
+		path, _ := arguments.String("--path")
+
+		auto, _ := arguments.Bool("auto")
+		if auto {
+			basedir, _ := arguments.String("--basedir")
+			if basedir == "" {
+				basedir = "./devimages"
+			}
+
+			var err error
+			path, err = imagemounter.DownloadImageFor(device, basedir)
+			if err != nil {
+				log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber, "err": err}).
+					Error("failed downloading image")
+			}
+
+			log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber}).Info("success downloaded image")
+		}
+
 		mount, _ := arguments.Bool("mount")
-		if mount {
-			path, _ := arguments.String("--path")
+		if mount || auto {
 			err := imagemounter.MountImage(device, path)
 			if err != nil {
 				log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber, "err": err}).
@@ -914,20 +933,6 @@ func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
 				return true
 			}
 			log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
-		}
-		auto, _ := arguments.Bool("auto")
-		if auto {
-			basedir, _ := arguments.String("--basedir")
-			if basedir == "" {
-				basedir = "./devimages"
-			}
-			err := imagemounter.FixDevImage(device, basedir)
-			if err != nil {
-				log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber, "err": err}).
-					Error("error mounting image")
-				return true
-			}
-			log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber}).Info("success mounting image")
 		}
 	}
 	return b
