@@ -19,7 +19,7 @@ jobs:
 
       - name: run unit tests
         run: |
-          sudo tools/device-cli&
+          sudo -E tools/device-cli&
           tools/device-cli -wait
           curl -v -X POST  localhost:3000/api/v1/devices/1e1c1389b5514b1a12e767e8a390ff3a0ad3a3e6/connect
           ./go-ios list
