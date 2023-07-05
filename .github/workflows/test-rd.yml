@@ -1,5 +1,5 @@
 on:
-  pull_request:
+  push:
 
 name: Integration tests
 jobs:
