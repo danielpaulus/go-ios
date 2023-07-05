@@ -40,8 +40,16 @@ func TestXcuiTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// mounts&downloads developer image if needed
-	err = imagemounter.FixDevImage(device, ".")
+
+	// download the image, if needed
+	imagePath, err := imagemounter.DownloadImageFor(device, ".")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// mounts developer image if needed
+	err = imagemounter.MountImage(device, imagePath)
 	if err != nil {
 		t.Error(err)
 		return
