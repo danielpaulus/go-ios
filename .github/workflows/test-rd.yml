@@ -21,10 +21,11 @@ jobs:
         run: |
           tools/device-cli&
           tools/device-cli -wait
+          curl -v -X POST  localhost:3000/api/v1/devices/1e1c1389b5514b1a12e767e8a390ff3a0ad3a3e6/connect
           ./go-ios list
           ./go-ios info
           time ./go-ios screenshot
         env:
-         USBMUXD_SOCKET_ADDRESS: '127.0.0.1:19000'
+         DEVICE_DAEMON_PORT: '3000'
          ORCHESTRATOR_URL: 'https://device-orchestrator-api.onrender.com'
          API_KEY: ${{ secrets.API_KEY }}
