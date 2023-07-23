@@ -33,6 +33,7 @@ func SetupDecoders() {
 			"DTTapStatusMessage":        NewDTTapStatusMessage,
 			"DTTapMessage":              NewDTTapMessage,
 			"DTCPUClusterInfo":          NewDTCPUClusterInfo,
+			"XCTTestIdentifierSet":      NewXCTTestIdentifierSet,
 		}
 	}
 }
@@ -293,6 +294,13 @@ func (x XCTTestIdentifier) String() string {
 	return fmt.Sprintf("XCTTestIdentifier{o:%d , c:%v}", x.O, x.C)
 }
 
+func NewXCTTestIdentifierSet(object map[string]interface{}, objects []interface{}) interface{} {
+	identifiers := object["identifiers"]
+	obj, err := extractObjects([]plist.UID{identifiers.(plist.UID)}, objects)
+	print(err)
+	return obj
+}
+
 func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["c"].(plist.UID)
 	// plist, _ := extractObjects(objects[ref].(map[string]interface{}), objects)
@@ -317,6 +325,19 @@ type PartiallyExtractedXcTestConfig struct {
 func NewXCTestConfigurationFromBytes(object map[string]interface{}, objects []interface{}) interface{} {
 	config := make(map[string]interface{}, len(object))
 	for k, v := range object {
+		if k == "testIdentifiersToRun" {
+			value := v
+			uid, ok := v.(plist.UID)
+			if ok {
+				value = objects[uid]
+			}
+			array, err := extractObjects([]plist.UID{uid}, objects)
+			print(array)
+			print(err)
+			xc := NewXCTTestIdentifier(value.(map[string]interface{}), objects)
+			print(xc)
+		}
+
 		value := v
 		uid, ok := v.(plist.UID)
 		if ok {
