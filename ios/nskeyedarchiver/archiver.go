@@ -76,13 +76,17 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 	}
 
 	if encoderFunc, ok := encodableClasses[name]; ok {
+		// fmt.Println("Encode fucntion ", name, encoderFunc)
 		return encoderFunc(object, objects)
+	} else {
+		// fmt.Println("Encode fucntion not found ", name)
 	}
 
 	panic(fmt.Errorf("NSKeyedArchiver Unsupported object: '%s' of type:%s", object, typeOf))
 }
 
 func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	// fmt.Printf("\n serializeArray array %+v\n", array)
 	arrayDict := map[string]interface{}{}
 	arrayObjectIndex := len(objects)
 	objects = append(objects, arrayDict)
@@ -92,10 +96,12 @@ func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, 
 	arrayDict["$class"] = plist.UID(classDefinitionIndex)
 	itemRefs := make([]plist.UID, len(array))
 	for index, item := range array {
+		// fmt.Printf("\n serializeArray index %d item %+v\n", index, item)
 		var uid plist.UID
 		objects, uid = archive(item, objects)
 		itemRefs[index] = uid
 	}
+	// fmt.Printf("\nitemRefs %+v\n", itemRefs)
 	arrayDict["NS.objects"] = itemRefs
 	return objects, plist.UID(arrayObjectIndex)
 }

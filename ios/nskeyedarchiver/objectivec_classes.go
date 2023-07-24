@@ -2,6 +2,7 @@ package nskeyedarchiver
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,13 +41,14 @@ func SetupDecoders() {
 func SetupEncoders() {
 	if encodableClasses == nil {
 		encodableClasses = map[string]func(object interface{}, objects []interface{}) ([]interface{}, plist.UID){
-			"XCTestConfiguration": archiveXcTestConfiguration,
-			"NSUUID":              archiveNSUUID,
-			"NSURL":               archiveNSURL,
-			"NSNull":              archiveNSNull,
-			"NSMutableDictionary": archiveNSMutableDictionary,
-			"XCTCapabilities":     archiveXCTCapabilities,
-			"[]string":            archiveStringSlice,
+			"XCTestConfiguration":     archiveXcTestConfiguration,
+			"NSUUID":                  archiveNSUUID,
+			"NSURL":                   archiveNSURL,
+			"NSNull":                  archiveNSNull,
+			"NSMutableDictionary":     archiveNSMutableDictionary,
+			"XCTCapabilities":         archiveXCTCapabilities,
+			"XCTTestIdentifierEncode": archiveXCTTestIdentifier,
+			"[]string":                archiveStringSlice,
 		}
 	}
 }
@@ -61,7 +63,9 @@ func NewXCTestConfiguration(
 	targetApplicationBundleID string,
 	targetApplicationPath string,
 	testBundleURL string,
+	testTorun string,
 ) XCTestConfiguration {
+
 	contents := map[string]interface{}{}
 
 	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
@@ -93,11 +97,48 @@ func NewXCTestConfiguration(
 	contents["testsDrivenByIDE"] = false
 	contents["testsMustRunOnMainThread"] = true
 	contents["testsToRun"] = plist.UID(0)
-	contents["testsToSkip"] = plist.UID(0)
+	// contents["testsToRun"] = plist.UID(0)
+	contents["testIdentifiersToRun"] = testTorun
+	// contents["testsToSkip"] = plist.UID(0)
 	contents["testTimeoutsEnabled"] = false
 	contents["treatMissingBaselinesAsFailures"] = false
 	contents["userAttachmentLifetime"] = 1
 	return XCTestConfiguration{contents}
+}
+
+type XCTTestIdentifierSet struct {
+	contents map[string]interface{}
+}
+
+type XCTTestIdentifierEncode struct {
+	contents map[string]interface{}
+}
+
+type XCTTestIdentifier struct {
+	O uint64
+	C []string
+}
+
+func archiveXCTTestIdentifier(capsIface interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	fmt.Println("We are archiving archiveXCTTestIdentifier")
+	caps := capsIface.(XCTTestIdentifierEncode)
+	// caps.contents = make(map[string]interface{})
+	xctestIdentifierRef := plist.UID(len(objects))
+	objects = append(objects, caps.contents)
+	classRef := plist.UID(len(objects))
+	objects = append(objects, buildClassDict("XCTTestIdentifier", "NSObject"))
+
+	caps.contents["$class"] = classRef
+	// caps.contents["c"] = []string{"sffsdfsdf", "fsdffdf"}
+	// caps.contents["o"] = 6
+	for _, key := range []string{
+		"c", //"o",
+	} {
+		var ref plist.UID
+		objects, ref = archive(caps.contents[key], objects)
+		caps.contents[key] = ref
+	}
+	return objects, xctestIdentifierRef
 }
 
 func archiveXcTestConfiguration(xctestconfigInterface interface{}, objects []interface{}) ([]interface{}, plist.UID) {
@@ -108,17 +149,52 @@ func archiveXcTestConfiguration(xctestconfigInterface interface{}, objects []int
 	objects = append(objects, buildClassDict("XCTestConfiguration", "NSObject"))
 
 	xctestconfig.contents["$class"] = classRef
+	// objects = append(objects, buildClassDict("XCTTestIdentifier", "NSObject"))
 
 	for _, key := range []string{
 		"aggregateStatisticsBeforeCrash", "automationFrameworkPath", "productModuleName", "sessionIdentifier",
-		"targetApplicationBundleID", "targetApplicationPath", "testBundleURL",
+		"targetApplicationBundleID", "targetApplicationPath", "testBundleURL", //"testsToRun",
 	} {
 		var ref plist.UID
 		objects, ref = archive(xctestconfig.contents[key], objects)
 		xctestconfig.contents[key] = ref
 	}
 
+	temp := strings.Split(xctestconfig.contents["testIdentifiersToRun"].(string), "/")
+	if len(temp) == 2 {
+		testIdentifiersToRunRef := plist.UID(len(objects))
+		objects, testIdentifiersToRunRef = AddTestcase(objects, temp[0], temp[1])
+		xctestconfig.contents["testIdentifiersToRun"] = testIdentifiersToRunRef
+	} else {
+		xctestconfig.contents["testIdentifiersToRun"] = plist.UID(0)
+	}
+
 	return objects, xcconfigRef
+}
+
+func AddTestcase(objects []interface{}, className, methodName string) ([]interface{}, plist.UID) {
+
+	testIdentifiersToRunRef := plist.UID(len(objects))
+
+	testIdentifiersToRun := make(map[string]interface{})
+	testIdentifiersToRun["identifiers"] = plist.UID(0)
+	objects = append(objects, testIdentifiersToRun)
+	testIdentifiersToRunClassRef := plist.UID(len(objects))
+	testIdentifiersToRun["$class"] = testIdentifiersToRunClassRef
+	objects = append(objects, buildClassDict("XCTTestIdentifierSet", "NSObject"))
+	var identifiers []interface{}
+	contents := make(map[string]interface{})
+
+	contents["c"] = []string{className, methodName}
+	contents["o"] = uint64(6) // TODO this need to check, how apple calculate this value
+	identifiers = append(identifiers, XCTTestIdentifierEncode{
+		contents: contents,
+	})
+	var ref plist.UID
+
+	objects, ref = serializeArray(identifiers, objects)
+	testIdentifiersToRun["identifiers"] = ref
+	return objects, testIdentifiersToRunRef
 }
 
 type NSUUID struct {
@@ -284,16 +360,12 @@ func NewNSValue(object map[string]interface{}, objects []interface{}) interface{
 	return NSValue{NSRectval: rectval, NSSpecial: special}
 }
 
-type XCTTestIdentifier struct {
-	O uint64
-	C []string
-}
-
 func (x XCTTestIdentifier) String() string {
 	return fmt.Sprintf("XCTTestIdentifier{o:%d , c:%v}", x.O, x.C)
 }
 
 func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) interface{} {
+	fmt.Printf("\n NewXCTTestIdentifier  %+v\n", object)
 	ref := object["c"].(plist.UID)
 	// plist, _ := extractObjects(objects[ref].(map[string]interface{}), objects)
 	fd := objects[ref].(map[string]interface{})
