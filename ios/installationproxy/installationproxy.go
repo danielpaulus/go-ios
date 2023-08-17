@@ -192,5 +192,5 @@ type AppInfo struct {
 	SignerIdentity               string
 	UIDeviceFamily               []int
 	UIRequiredDeviceCapabilities []string
-	UIFileSharingEnabled		 bool
+	UIFileSharingEnabled         bool
 }
