@@ -37,6 +37,10 @@ func (conn *Connection) BrowseSystemApps() ([]AppInfo, error) {
 	return conn.browseApps(browseApps("System", false))
 }
 
+func (conn *Connection) BrowseFileSharingApps() ([]AppInfo, error) {
+	return conn.browseApps(browseApps("Filesharing", true))
+}
+
 func (conn *Connection) BrowseAllApps() ([]AppInfo, error) {
 	return conn.browseApps(browseApps("", true))
 }
@@ -149,11 +153,12 @@ func browseApps(applicationType string, showLaunchProhibitedApps bool) map[strin
 		"SignerIdentity",
 		"UIDeviceFamily",
 		"UIRequiredDeviceCapabilities",
+		"UIFileSharingEnabled",
 	}
 	clientOptions := map[string]interface{}{
 		"ReturnAttributes": returnAttributes,
 	}
-	if applicationType != "" {
+	if applicationType != "" && applicationType != "Filesharing" {
 		clientOptions["ApplicationType"] = applicationType
 	}
 	if showLaunchProhibitedApps {
@@ -187,4 +192,5 @@ type AppInfo struct {
 	SignerIdentity               string
 	UIDeviceFamily               []int
 	UIRequiredDeviceCapabilities []string
+	UIFileSharingEnabled		 bool
 }
