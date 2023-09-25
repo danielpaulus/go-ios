@@ -1346,7 +1346,7 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 			timeFormat = "12h"
 		}
 		if JSONdisabled {
-			fmt.Printf("%t\n", timeFormat)
+			fmt.Printf("%s\n", timeFormat)
 		} else {
 			fmt.Println(convertToJSONString(map[string]string{"TimeFormat": timeFormat}))
 		}
