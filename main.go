@@ -78,6 +78,7 @@ Usage:
   ios crash rm <cwd> <pattern> [options]
   ios devicename [options]
   ios date [options]
+  ios timeformat (24h | 12h | toggle | get) [--force] [options]
   ios devicestate list [options]
   ios devicestate enable <profileTypeId> <profileId> [options]
   ios erase [--force] [options]
@@ -119,7 +120,6 @@ Usage:
   ios assistivetouch (enable | disable | toggle | get) [--force] [options]
   ios voiceover (enable | disable | toggle | get) [--force] [options]
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
-  ios timeformat (24h | 12h | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
 
@@ -1341,7 +1341,6 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 		exitIfError("failed setting Time Format", err)
 	}
 	if operation == "get" {
-		fmt.Printf("Inside 1")
 		timeFormat := "24h"
 		if !enable {
 			timeFormat = "12h"
