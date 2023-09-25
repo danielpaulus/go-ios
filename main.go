@@ -119,6 +119,7 @@ Usage:
   ios assistivetouch (enable | disable | toggle | get) [--force] [options]
   ios voiceover (enable | disable | toggle | get) [--force] [options]
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
+  ios timeformat (24h | 12h | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
 
@@ -157,7 +158,7 @@ The commands work as following:
    ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
    ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
-   ios erase [--force] [options]                                      Erase the device. It will prompt you to input y+Enter unless --force is specified. 
+   ios erase [--force] [options]                                      Erase the device. It will prompt you to input y+Enter unless --force is specified.
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language. ios lang will print the current language and locale, as well as a list of all supported langs and locales.
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
    >                                                                  it in plist format by adding the --plist param.
@@ -171,10 +172,10 @@ The commands work as following:
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
    ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options] prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
    >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device. If you need certificates
-   >                                                                  to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use. locale and lang are optional, the default is en_US and en. 
+   >                                                                  to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use. locale and lang are optional, the default is en_US and en.
    >                                                                  Run 'ios lang' to see a list of all supported locales and languages.
    ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
-   ios prepare printskip                                              Print all options you can skip. 
+   ios prepare printskip                                              Print all options you can skip.
    ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
    >                                                                  Specify proxy password either as argument or using the environment var: PROXY_PASSWORD
    >                                                                  Use p12 file and password for silent installation on supervised devices.
@@ -215,7 +216,8 @@ The commands work as following:
    ios resetlocation [options]                                        Resets the location of the device to the actual one
    ios assistivetouch (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "AssistiveTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
    ios voiceover (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "VoiceOver" software home-screen button. iOS 11+ only (Use --force to try on older versions).
-   ios zoom (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "ZoomTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions). 
+   ios zoom (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "ZoomTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
+   ios timeformat (24h | 12h | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
 
@@ -583,6 +585,27 @@ The commands work as following:
 	if b {
 		printDiagnostics(device)
 		return
+	}
+
+	b, _ = arguments.Bool("timeformat")
+	if b {
+		force, _ := arguments.Bool("--force")
+		b, _ = arguments.Bool("24h")
+		if b {
+			timeFormat(device, "24h", force)
+		}
+		b, _ = arguments.Bool("12h")
+		if b {
+			timeFormat(device, "12h", force)
+		}
+		b, _ = arguments.Bool("toggle")
+		if b {
+			timeFormat(device, "toggle", force)
+		}
+		b, _ = arguments.Bool("get")
+		if b {
+			timeFormat(device, "get", force)
+		}
 	}
 
 	b, _ = arguments.Bool("pair")
@@ -1276,6 +1299,57 @@ func zoomTouch(device ios.DeviceEntry, operation string, force bool) {
 			fmt.Printf("%t\n", enable)
 		} else {
 			fmt.Println(convertToJSONString(map[string]bool{"ZoomTouchEnabled": enable}))
+		}
+	}
+}
+
+func timeFormat(device ios.DeviceEntry, operation string, force bool) {
+	var enable bool
+
+	if !force {
+		version, err := ios.GetProductVersion(device)
+		exitIfError("failed getting device product version", err)
+
+		if version.LessThan(ios.IOS11()) {
+			log.Errorf("iOS Version 11.0+ required to manipulate Time Format.  iOS version: %s detected. Use --force to override.", version)
+			os.Exit(1)
+		}
+	}
+
+	wasEnabled, err := ios.GetUses24HourClock(device)
+
+	if err != nil {
+		if force && (operation == "24h" || operation == "12h") {
+			log.WithFields(log.Fields{"error": err}).Warn("Failed getting current TimeFormat value. Continuing anyway.")
+		} else {
+			exitIfError("failed getting current TimeFormat value", err)
+		}
+	}
+
+	switch {
+	case operation == "24h":
+		enable = true
+	case operation == "12h":
+		enable = false
+	case operation == "toggle":
+		enable = !wasEnabled
+	default: // get
+		enable = wasEnabled
+	}
+	if operation != "get" && (force || wasEnabled != enable) {
+		err = ios.SetUses24HourClock(device, enable)
+		exitIfError("failed setting Time Format", err)
+	}
+	if operation == "get" {
+		fmt.Printf("Inside 1")
+		timeFormat := "24h"
+		if !enable {
+			timeFormat = "12h"
+		}
+		if JSONdisabled {
+			fmt.Printf("%t\n", timeFormat)
+		} else {
+			fmt.Println(convertToJSONString(map[string]string{"TimeFormat": timeFormat}))
 		}
 	}
 }
