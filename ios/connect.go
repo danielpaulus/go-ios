@@ -2,6 +2,7 @@ package ios
 
 import (
 	"fmt"
+	"net"
 )
 
 type connectMessage struct {
@@ -79,6 +80,30 @@ func (muxConn *UsbMuxConnection) ConnectLockdown(deviceID int) (*LockDownConnect
 
 // ConnectToService connects to a service on the phone and returns the ready to use DeviceConnectionInterface
 func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
+	v, err := GetProductVersion(device)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product version. %w", err)
+	}
+	if v.Major() < 17 {
+		return connectToServiceUsbmuxd(device, serviceName)
+	}
+	return connectToServiceTunnelIface(device, serviceName)
+}
+
+func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
+	port := device.Rsd.GetPort(serviceName)
+	conn, err := net.Dial("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to device. %w", err)
+	}
+	err = RsdCheckin(conn)
+	if err != nil {
+		return nil, err
+	}
+	return NewDeviceConnectionWithConn(conn), nil
+}
+
+func connectToServiceUsbmuxd(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
 	startServiceResponse, err := StartService(device, serviceName)
 	if err != nil {
 		return nil, err

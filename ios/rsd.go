@@ -43,3 +43,26 @@ func (r RsdPortProvider) GetPort(service string) int {
 	}
 	return int(port)
 }
+
+func RsdCheckin(rw io.ReadWriter) error {
+	req := map[string]interface{}{
+		"Label":           "go-ios",
+		"ProtocolVersion": "2",
+		"Request":         "RSDCheckin",
+	}
+	codec := NewPlistCodec()
+	b, err := codec.Encode(req)
+	if err != nil {
+		return err
+	}
+	_, err = rw.Write(b)
+	if err != nil {
+		return err
+	}
+	res, err := codec.Decode(rw)
+	if err != nil {
+		return err
+	}
+	log.Debugf("got rsd checkin response: %v", res)
+	return nil
+}
