@@ -279,7 +279,8 @@ The commands work as following:
 	}
 
 	udid, _ := arguments.String("--udid")
-	device, err := ios.GetDevice(udid)
+	address, _ := arguments.String("--address")
+	device, err := ios.GetDeviceWithAddress(udid, address)
 	exitIfError("error getting devicelist", err)
 
 	b, _ = arguments.Bool("erase")
