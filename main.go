@@ -124,12 +124,14 @@ Usage:
   ios batterycheck [options]
 
 Options:
-  -v --verbose   Enable Debug Logging.
-  -t --trace     Enable Trace Logging (dump every message).
-  --nojson       Disable JSON output
-  --pretty       Pretty-print JSON command output
-  -h --help      Show this screen.
-  --udid=<udid>  UDID of the device.
+  -v --verbose   		Enable Debug Logging.
+  -t --trace     		Enable Trace Logging (dump every message).
+  --nojson       		Disable JSON output
+  --pretty       		Pretty-print JSON command output
+  -h --help      		Show this screen.
+  --udid=<udid>  		UDID of the device.
+  --address=<ipv6addrr>	Address of the device interface
+  --rsd=<path}			Path to RSD info
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -283,6 +285,7 @@ The commands work as following:
 	if rsdFile != "" {
 		rsd, err := os.Open(rsdFile)
 		exitIfError("could not open rsd file", err)
+		defer rsd.Close()
 		rsdProvider, err = ios.NewRsdPortProvider(rsd)
 		exitIfError("could not parse rsd file", err)
 	}
