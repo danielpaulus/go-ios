@@ -57,6 +57,7 @@ type DeviceEntry struct {
 	MessageType string
 	Properties  DeviceProperties
 	Address     string
+	Rsd         RsdPortProvider
 }
 
 // DeviceProperties contains important device related info like the udid which is named SerialNumber

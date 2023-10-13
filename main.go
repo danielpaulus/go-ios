@@ -278,9 +278,18 @@ The commands work as following:
 		return
 	}
 
+	rsdProvider := ios.RsdPortProvider{}
+	rsdFile, _ := arguments.String("--rsd")
+	if rsdFile != "" {
+		rsd, err := os.Open(rsdFile)
+		exitIfError("could not open rsd file", err)
+		rsdProvider, err = ios.NewRsdPortProvider(rsd)
+		exitIfError("could not parse rsd file", err)
+	}
+
 	udid, _ := arguments.String("--udid")
 	address, _ := arguments.String("--address")
-	device, err := ios.GetDeviceWithAddress(udid, address)
+	device, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	exitIfError("error getting devicelist", err)
 
 	b, _ = arguments.Bool("erase")
