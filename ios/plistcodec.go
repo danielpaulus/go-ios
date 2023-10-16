@@ -52,6 +52,7 @@ func (plistCodec PlistCodec) Decode(r io.Reader) ([]byte, error) {
 	payloadBytes := make([]byte, length)
 	n, err := io.ReadFull(r, payloadBytes)
 	if err != nil {
+		log.Debugf("%s", string(payloadBytes[:n]))
 		return nil, fmt.Errorf("lockdown Payload had incorrect size: %d expected: %d original error: %s", n, length, err)
 	}
 	return payloadBytes, nil

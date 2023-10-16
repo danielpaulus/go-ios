@@ -3,6 +3,7 @@ package ios
 import (
 	"fmt"
 	"net"
+	"strings"
 )
 
 type connectMessage struct {
@@ -96,7 +97,9 @@ func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to device. %w", err)
 	}
-	err = RsdCheckin(conn)
+	if !strings.Contains(serviceName, "testmanager") {
+		err = RsdCheckin(conn)
+	}
 	if err != nil {
 		return nil, err
 	}

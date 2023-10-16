@@ -26,7 +26,10 @@ func New(device ios.DeviceEntry, bundleID string) (*Connection, error) {
 	if err != nil {
 		return &Connection{}, err
 	}
+	codec := ios.NewPlistCodec()
+	codec.Decode(deviceConn.Reader())
 	err = vendContainer(deviceConn, bundleID)
+	//err = vendContainer(deviceConn, bundleID)
 	if err != nil {
 		return &Connection{}, err
 	}
