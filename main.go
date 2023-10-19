@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/sniffer"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -122,6 +123,7 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
+  ios sniff --rsd=<rsd> --iface=<iface>
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -220,6 +222,7 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
+   ios sniff --rsd=<rsd> --iface=<iface> [options]                    Sniff packets on iface
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -278,6 +281,15 @@ The commands work as following:
 		return
 	}
 
+	rsdProvider := ios.RsdPortProvider{}
+	rsdFile, _ := arguments.String("--rsd")
+	if rsdFile != "" {
+		rsd, err := os.Open(rsdFile)
+		exitIfError("could not open rsd file", err)
+		defer rsd.Close()
+		rsdProvider, err = ios.NewRsdPortProvider(rsd)
+		exitIfError("could not parse rsd file", err)
+	}
 	udid, _ := arguments.String("--udid")
 	device, err := ios.GetDevice(udid)
 	exitIfError("error getting devicelist", err)
@@ -900,6 +912,12 @@ The commands work as following:
 	if b {
 		printBatteryDiagnostics(device)
 		return
+	}
+
+	if b, _ := arguments.Bool("sniff"); b {
+		iface, _ := arguments.String("--iface")
+		err := sniffer.Live(iface, rsdProvider)
+		exitIfError("Could not capture packets", err)
 	}
 }
 
