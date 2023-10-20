@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
@@ -21,7 +20,7 @@ type GenericResponse struct {
 // GetVersion reads the contents of the file version.txt and returns it.
 // If the file cannot be read, it returns "could not read version"
 func GetVersion() string {
-	version, err := ioutil.ReadFile("version.txt")
+	version, err := os.ReadFile("version.txt")
 	if err != nil {
 		return "could not read version"
 	}

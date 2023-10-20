@@ -6,8 +6,6 @@ import (
 
 func registerRoutes(router *gin.RouterGroup) {
 	router.GET("/list", List)
-	router.GET("/reservations", GetReservedDevices)
-	router.DELETE("/reservations/:reservationID", ReleaseDevice)
 
 	device := router.Group("/device/:udid")
 	device.Use(DeviceMiddleware())
@@ -20,12 +18,11 @@ func registerRoutes(router *gin.RouterGroup) {
 	device.POST("/disable-condition", DisableDeviceCondition)
 	device.POST("/pair", PairDevice)
 
-	device.POST("/reservations", ReserveDevice)
 	device.GET("/profiles", GetProfiles)
 
 	initAppRoutes(device)
 	initStreamingResponseRoutes(device, router)
-	go cleanReservationsCRON()
+
 }
 
 func initAppRoutes(group *gin.RouterGroup) {
