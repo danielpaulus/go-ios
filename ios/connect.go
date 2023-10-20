@@ -120,11 +120,23 @@ func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 	}
 
 	deviceInterface := NewDeviceConnectionWithConn(conn)
+	// TODO : everything after this line should go into its own method, i.e doHandshake()
+
+	// TODO : send HTTP MAGIC
 
 	framer := http2.NewFramer(deviceInterface.c, deviceInterface.c)
+
+	// TODO : test and then figure out if we should keep reading the frame and somehow act on it
+	firstReadFrame, err := framer.ReadFrame()
+	if err != nil {
+		return nil, err
+	} else {
+		print(firstReadFrame) // TODO : remove after debugging
+	}
+
 	err = framer.WriteSettings(
-		http2.Setting{ID: http2.SettingMaxConcurrentStreams, Val: 100},
-		http2.Setting{ID: http2.SettingInitialWindowSize, Val: 1048576},
+		http2.Setting{ID: http2.SettingMaxConcurrentStreams, Val: 100},  // TODO : Extract constant
+		http2.Setting{ID: http2.SettingInitialWindowSize, Val: 1048576}, // TODO : Extract constant
 	)
 	if err != nil {
 		return nil, err
@@ -148,6 +160,9 @@ func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO : send Data frame
+
 	deviceInterface.proceedToNextRootChannelMessage()
 
 	// TODO : send remaining frames (figure out what)
