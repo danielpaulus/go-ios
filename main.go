@@ -1522,9 +1522,9 @@ func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool
 		}
 		return
 	}
-	if filesharing{
+	if filesharing {
 		for _, v := range response {
-			if (v.UIFileSharingEnabled) {
+			if v.UIFileSharingEnabled {
 				fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString)
 			}
 		}
