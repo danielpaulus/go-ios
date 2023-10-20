@@ -64,7 +64,7 @@ func DecodeMessage(r io.Reader) (Message, error) {
 
 // EncodeData creates a RemoteXPC message with the data flag set, if data is present (an empty dictionary is considered
 // to be no data)
-func EncodeData(w io.Writer, body map[string]interface{}) error {
+func EncodeData(w io.Writer, body map[string]interface{}, messageId uint64, wantingReply bool) error {
 	buf := bytes.NewBuffer(nil)
 	err := encodeDictionary(buf, body)
 	if err != nil {
@@ -74,6 +74,8 @@ func EncodeData(w io.Writer, body map[string]interface{}) error {
 	var flags uint32
 	if len(body) == 0 {
 		flags = alwaysSetFlag
+	} else if wantingReply {
+		flags = alwaysSetFlag | dataFlag | heartbeatRequestFlag
 	} else {
 		flags = alwaysSetFlag | dataFlag
 	}
@@ -90,7 +92,7 @@ func EncodeData(w io.Writer, body map[string]interface{}) error {
 		h: wrapperHeader{
 			Flags:   flags,
 			BodyLen: uint64(buf.Len() + 8),
-			MsgId:   0,
+			MsgId:   messageId,
 		},
 		body: struct {
 			magic   uint32

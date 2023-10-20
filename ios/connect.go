@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net"
 	"strings"
+
+	"github.com/danielpaulus/go-ios/ios/xpc"
+	"golang.org/x/net/http2"
 )
 
 type connectMessage struct {
@@ -91,6 +94,18 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	return connectToServiceTunnelIface(device, serviceName)
 }
 
+type FramerDataWriter struct {
+	framer    http2.Framer
+	streamID  uint32
+	endStream bool
+}
+
+func (writer FramerDataWriter) Write(p []byte) (int, error) {
+	err := writer.framer.WriteData(writer.streamID, writer.endStream, p)
+
+	return len(p), err
+}
+
 func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
 	port := device.Rsd.GetPort(serviceName)
 	conn, err := net.Dial("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
@@ -103,7 +118,41 @@ func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 	if err != nil {
 		return nil, err
 	}
-	return NewDeviceConnectionWithConn(conn), nil
+
+	deviceInterface := NewDeviceConnectionWithConn(conn)
+
+	framer := http2.NewFramer(deviceInterface.c, deviceInterface.c)
+	err = framer.WriteSettings(
+		http2.Setting{ID: http2.SettingMaxConcurrentStreams, Val: 100},
+		http2.Setting{ID: http2.SettingInitialWindowSize, Val: 1048576},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	err = framer.WriteWindowUpdate(0, 983041)
+	if err != nil {
+		return nil, err
+	}
+
+	err = framer.WriteHeaders(http2.HeadersFrameParam{StreamID: rootChannel, EndHeaders: true})
+	if err != nil {
+		return nil, err
+	}
+
+	err = xpc.EncodeData(FramerDataWriter{
+		framer:    *framer,
+		streamID:  rootChannel,
+		endStream: false,
+	}, map[string]interface{}{}, deviceInterface.rootChannelMessageId, false)
+	if err != nil {
+		return nil, err
+	}
+	deviceInterface.proceedToNextRootChannelMessage()
+
+	// TODO : send remaining frames (figure out what)
+
+	return deviceInterface, nil
 }
 
 func connectToServiceUsbmuxd(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {

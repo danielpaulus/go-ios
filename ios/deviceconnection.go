@@ -25,11 +25,26 @@ type DeviceConnectionInterface interface {
 	Conn() net.Conn
 }
 
+const (
+	rootChannel  = uint32(1)
+	replyChannel = uint32(3)
+)
+
 // DeviceConnection wraps the net.Conn to the ios Device and has support for
 // switching Codecs and enabling SSL
 type DeviceConnection struct {
-	c               net.Conn
-	unencryptedConn net.Conn
+	c                     net.Conn
+	unencryptedConn       net.Conn
+	rootChannelMessageId  uint64
+	replyChannelMessageId uint64
+}
+
+func (conn *DeviceConnection) proceedToNextRootChannelMessage() {
+	conn.rootChannelMessageId += 1
+}
+
+func (conn *DeviceConnection) proceedToNextReplyChannelMessage() {
+	conn.replyChannelMessageId += 1
 }
 
 // NewDeviceConnection creates a new DeviceConnection pointing to the given socket waiting for a call to Connect()
@@ -40,7 +55,7 @@ func NewDeviceConnection(socketToConnectTo string) (*DeviceConnection, error) {
 
 // NewDeviceConnectionWithConn create a DeviceConnection with a already connected network conn.
 func NewDeviceConnectionWithConn(conn net.Conn) *DeviceConnection {
-	return &DeviceConnection{c: conn}
+	return &DeviceConnection{c: conn, rootChannelMessageId: 0, replyChannelMessageId: 0}
 }
 
 // ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
