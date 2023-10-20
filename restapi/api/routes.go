@@ -4,11 +4,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var streamingMiddleWare = StreamingHeaderMiddleware()
+
 func registerRoutes(router *gin.RouterGroup) {
 	router.GET("/list", List)
 
 	device := router.Group("/device/:udid")
 	device.Use(DeviceMiddleware())
+	simpleDeviceRoutes(device)
+	appRoutes(device)
+}
+
+func simpleDeviceRoutes(device *gin.RouterGroup) {
+	device.POST("/activate", Activate)
 	device.GET("/info", Info)
 	device.GET("/screenshot", Screenshot)
 	device.PUT("/setlocation", SetLocation)
@@ -20,24 +28,14 @@ func registerRoutes(router *gin.RouterGroup) {
 
 	device.GET("/profiles", GetProfiles)
 
-	initAppRoutes(device)
-	initStreamingResponseRoutes(device, router)
-
+	device.GET("/syslog", streamingMiddleWare, Syslog)
+	device.GET("/listen", streamingMiddleWare, Listen)
 }
 
-func initAppRoutes(group *gin.RouterGroup) {
+func appRoutes(group *gin.RouterGroup) {
 	router := group.Group("/apps")
 	router.Use(LimitNumClientsUDID())
 	router.GET("/", ListApps)
 	router.POST("/launch", LaunchApp)
 	router.POST("/kill", KillApp)
-}
-
-func initStreamingResponseRoutes(device *gin.RouterGroup, router *gin.RouterGroup) {
-	streamingDevice := device.Group("")
-	streamingDevice.Use(StreamingHeaderMiddleware())
-	streamingDevice.GET("/syslog", Syslog)
-	streamingGeneral := router.Group("")
-	streamingGeneral.Use(StreamingHeaderMiddleware())
-	streamingGeneral.GET("/listen", Listen)
 }

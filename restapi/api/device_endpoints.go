@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 	"net/http"
 	"sync"
 
@@ -13,6 +14,25 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
+
+// Activate activates the device. Devices need to be activated and contact Apple servers before they can be used.
+// Info                godoc
+// @Summary      Activate the device by udid
+// @Description  Returns and error if activation fails. Otherwise  {"message":"Activation successful"}
+// @Tags         general_device_specific, activation
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Param        udid path string true "Device UDID"
+// @Router       /device/{udid}/activate [post]
+func Activate(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	err := mobileactivation.Activate(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, GenericResponse{Message: "Activation successful"})
+}
 
 // Info gets device info
 // Info                godoc
