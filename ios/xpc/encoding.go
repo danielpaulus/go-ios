@@ -65,6 +65,9 @@ func DecodeMessage(r io.Reader) (Message, error) {
 // EncodeData creates a RemoteXPC message with the data flag set, if data is present (an empty dictionary is considered
 // to be no data)
 func EncodeData(w io.Writer, body map[string]interface{}) error {
+	if body == nil {
+		return encodeMessageWithoutBody(w)
+	}
 	buf := bytes.NewBuffer(nil)
 	err := encodeDictionary(buf, body)
 	if err != nil {
@@ -113,6 +116,11 @@ func decodeWrapper(r io.Reader) (Message, error) {
 	err := binary.Read(r, binary.LittleEndian, &h)
 	if err != nil {
 		return Message{}, err
+	}
+	if h.BodyLen == 0 {
+		return Message{
+			Flags: h.Flags,
+		}, nil
 	}
 	body, err := decodeBody(r, h)
 	return Message{
@@ -493,5 +501,21 @@ func encodeDictionaryKey(w io.Writer, k string) error {
 	}
 	pad := make([]byte, toPad)
 	_, err = w.Write(pad)
+	return err
+}
+
+func encodeMessageWithoutBody(w io.Writer) error {
+	wrapper := struct {
+		magic uint32
+		h     wrapperHeader
+	}{
+		magic: wrapperMagic,
+		h: wrapperHeader{
+			Flags:   alwaysSetFlag,
+			BodyLen: 0,
+			MsgId:   0,
+		},
+	}
+	err := binary.Write(w, binary.LittleEndian, wrapper)
 	return err
 }

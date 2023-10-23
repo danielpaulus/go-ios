@@ -85,6 +85,11 @@ func TestEncodeDecode(t *testing.T) {
 			expectedFlags: alwaysSetFlag,
 		},
 		{
+			name:          "no xpc body",
+			input:         nil,
+			expectedFlags: alwaysSetFlag,
+		},
+		{
 			name: "keys without padding",
 			input: map[string]interface{}{
 				"key":     "value",
