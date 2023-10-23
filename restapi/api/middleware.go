@@ -69,21 +69,3 @@ func StreamingHeaderMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
-
-func ReserveDevicesMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		udid := c.Param("udid")
-		reservationID := c.Request.Header.Get("X-GO-IOS-RESERVE")
-		if reservationID == "" {
-			c.AbortWithStatusJSON(http.StatusBadRequest, GenericResponse{Error: "Device reservation token empty or missing. This operation requires you to reserve the device using the /reservations endpoint and then pass the reservation token with the X-GO-IOS-RESERVE header"})
-			return
-		}
-
-		err := checkDeviceReserved(udid, reservationID)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, GenericResponse{Error: err.Error()})
-			return
-		}
-		c.Next()
-	}
-}
