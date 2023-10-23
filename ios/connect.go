@@ -122,17 +122,10 @@ func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 	deviceInterface := NewDeviceConnectionWithConn(conn)
 	// TODO : everything after this line should go into its own method, i.e doHandshake()
 
-	// TODO : send HTTP MAGIC
+	httpMagic := "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+	deviceInterface.c.Write([]byte(httpMagic))
 
 	framer := http2.NewFramer(deviceInterface.c, deviceInterface.c)
-
-	// TODO : test and then figure out if we should keep reading the frame and somehow act on it
-	firstReadFrame, err := framer.ReadFrame()
-	if err != nil {
-		return nil, err
-	} else {
-		print(firstReadFrame) // TODO : remove after debugging
-	}
 
 	err = framer.WriteSettings(
 		http2.Setting{ID: http2.SettingMaxConcurrentStreams, Val: 100},  // TODO : Extract constant
@@ -161,11 +154,46 @@ func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 		return nil, err
 	}
 
-	// TODO : send Data frame
+	xpc.EncodeEmpty(FramerDataWriter{
+		framer:    *framer,
+		streamID:  rootChannel,
+		endStream: false,
+	}, 0x201, false) // TODO : figure out why 0x201 (0x1 for always set, 0x200 for ?)
+	if err != nil {
+		return nil, err
+	}
 
 	deviceInterface.proceedToNextRootChannelMessage()
 
-	// TODO : send remaining frames (figure out what)
+	err = framer.WriteHeaders(http2.HeadersFrameParam{StreamID: replyChannel, EndHeaders: true})
+	if err != nil {
+		return nil, err
+	}
+
+	xpc.EncodeEmpty(FramerDataWriter{
+		framer:    *framer,
+		streamID:  replyChannel,
+		endStream: false,
+	}, 0, true)
+	if err != nil {
+		return nil, err
+	}
+
+	deviceInterface.proceedToNextReplyChannelMessage()
+
+	firstReadFrame, err := framer.ReadFrame()
+	if err != nil {
+		return nil, err
+	} else {
+		print(firstReadFrame) // TODO : remove after debugging
+		// TODO : assert that it is a settings frame
+		// TODO : do something with it
+	}
+
+	err = framer.WriteSettingsAck()
+	if err != nil {
+		return nil, err
+	}
 
 	return deviceInterface, nil
 }

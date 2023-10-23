@@ -36,12 +36,18 @@ const (
 	dataFlag             = uint32(0x00000100)
 	heartbeatRequestFlag = uint32(0x00010000)
 	heartbeatReplyFlag   = uint32(0x00020000)
+	initHandshakeFlag    = uint32(0x00400000)
 )
 
 type wrapperHeader struct {
 	Flags   uint32
 	BodyLen uint64
 	MsgId   uint64
+}
+
+type wrapperHeaderEmpty struct {
+	Flags   uint32
+	BodyLen uint64
 }
 
 type Message struct {
@@ -109,6 +115,26 @@ func EncodeData(w io.Writer, body map[string]interface{}, messageId uint64, want
 	}
 
 	_, err = io.Copy(w, buf)
+	return err
+}
+
+func EncodeEmpty(w io.Writer, xpcFlags uint32, initHandshake bool) error {
+	flags := uint32(0)
+	if initHandshake {
+		flags |= initHandshakeFlag
+	}
+	wrapper := struct {
+		magic uint32
+		h     wrapperHeaderEmpty
+	}{
+		magic: wrapperMagic,
+		h: wrapperHeaderEmpty{
+			Flags:   xpcFlags | alwaysSetFlag | flags,
+			BodyLen: 0,
+		},
+	}
+
+	err := binary.Write(w, binary.LittleEndian, wrapper)
 	return err
 }
 
