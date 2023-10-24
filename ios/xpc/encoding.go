@@ -47,6 +47,7 @@ type wrapperHeader struct {
 type Message struct {
 	Flags uint32
 	Body  map[string]interface{}
+	Id    uint64
 }
 
 // DecodeMessage expects a full RemoteXPC message and decodes the message body into a map
@@ -120,12 +121,14 @@ func decodeWrapper(r io.Reader) (Message, error) {
 	if h.BodyLen == 0 {
 		return Message{
 			Flags: h.Flags,
+			Id:    h.MsgId,
 		}, nil
 	}
 	body, err := decodeBody(r, h)
 	return Message{
 		Flags: h.Flags,
 		Body:  body,
+		Id:    h.MsgId,
 	}, err
 }
 
