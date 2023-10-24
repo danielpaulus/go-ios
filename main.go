@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/danielpaulus/go-ios/ios/appservice"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
 	"github.com/danielpaulus/go-ios/ios/afc"
@@ -122,6 +123,7 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
+  ios appservice [options]
 
 Options:
   -v --verbose   		Enable Debug Logging.
@@ -222,6 +224,7 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
+   ios appservice [options]											  Launches apps.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -912,6 +915,11 @@ The commands work as following:
 	if b {
 		printBatteryDiagnostics(device)
 		return
+	}
+
+	b, _ = arguments.Bool("appservice")
+	if b {
+		appservice.New(device)
 	}
 }
 

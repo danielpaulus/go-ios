@@ -94,25 +94,13 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	return connectToServiceTunnelIface(device, serviceName)
 }
 
-type FramerDataWriter struct {
-	framer    http2.Framer
-	streamID  uint32
-	endStream bool
-}
-
-func (writer FramerDataWriter) Write(p []byte) (int, error) {
-	err := writer.framer.WriteData(writer.streamID, writer.endStream, p)
-
-	return len(p), err
-}
-
 func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
 	port := device.Rsd.GetPort(serviceName)
 	conn, err := net.Dial("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to device. %w", err)
 	}
-	if !strings.Contains(serviceName, "testmanager") {
+	if !strings.Contains(serviceName, "testmanager") && !strings.Contains(serviceName, "appservice") {
 		err = RsdCheckin(conn)
 	}
 	if err != nil {
@@ -145,42 +133,6 @@ func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 		return nil, err
 	}
 
-	err = xpc.EncodeData(FramerDataWriter{
-		framer:    *framer,
-		streamID:  rootChannel,
-		endStream: false,
-	}, map[string]interface{}{}, deviceInterface.rootChannelMessageId, false)
-	if err != nil {
-		return nil, err
-	}
-
-	xpc.EncodeEmpty(FramerDataWriter{
-		framer:    *framer,
-		streamID:  rootChannel,
-		endStream: false,
-	}, 0x201, false) // TODO : figure out why 0x201 (0x1 for always set, 0x200 for ?)
-	if err != nil {
-		return nil, err
-	}
-
-	deviceInterface.proceedToNextRootChannelMessage()
-
-	err = framer.WriteHeaders(http2.HeadersFrameParam{StreamID: replyChannel, EndHeaders: true})
-	if err != nil {
-		return nil, err
-	}
-
-	xpc.EncodeEmpty(FramerDataWriter{
-		framer:    *framer,
-		streamID:  replyChannel,
-		endStream: false,
-	}, 0, true)
-	if err != nil {
-		return nil, err
-	}
-
-	deviceInterface.proceedToNextReplyChannelMessage()
-
 	firstReadFrame, err := framer.ReadFrame()
 	if err != nil {
 		return nil, err
@@ -194,6 +146,56 @@ func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 	if err != nil {
 		return nil, err
 	}
+
+	err = xpc.EncodeData(xpc.FramerDataWriter{
+		Framer:    *framer,
+		StreamID:  rootChannel,
+		EndStream: false,
+	}, map[string]interface{}{}, deviceInterface.rootChannelMessageId, false)
+	if err != nil {
+		return nil, err
+	}
+
+	xpc.EncodeEmpty(xpc.FramerDataWriter{
+		Framer:    *framer,
+		StreamID:  rootChannel,
+		EndStream: false,
+	}, 0x201, false) // TODO : figure out why 0x201 (0x1 for always set, 0x200 for ?)
+	if err != nil {
+		return nil, err
+	}
+
+	deviceInterface.proceedToNextRootChannelMessage()
+
+	err = framer.WriteHeaders(http2.HeadersFrameParam{StreamID: replyChannel, EndHeaders: true})
+	if err != nil {
+		return nil, err
+	}
+
+	xpc.EncodeEmpty(xpc.FramerDataWriter{
+		Framer:    *framer,
+		StreamID:  replyChannel,
+		EndStream: false,
+	}, 0, true)
+	if err != nil {
+		return nil, err
+	}
+
+	deviceInterface.proceedToNextReplyChannelMessage()
+
+	// firstReadFrame, err := framer.ReadFrame()
+	// if err != nil {
+	// 	return nil, err
+	// } else {
+	// 	print(firstReadFrame) // TODO : remove after debugging
+	// 	// TODO : assert that it is a settings frame
+	// 	// TODO : do something with it
+	// }
+
+	// err = framer.WriteSettingsAck()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return deviceInterface, nil
 }
