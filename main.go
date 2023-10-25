@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
 	"github.com/danielpaulus/go-ios/ios/sniffer"
 	"io/ioutil"
 	"os"
@@ -33,7 +34,6 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/accessibility"
-	"github.com/danielpaulus/go-ios/ios/debugproxy"
 	"github.com/danielpaulus/go-ios/ios/diagnostics"
 	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
@@ -1415,7 +1415,7 @@ func printVersion() {
 }
 
 func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
-	proxy := debugproxy.NewDebugProxy()
+	proxy := usbmuxd.NewDebugProxy()
 
 	go func() {
 		defer func() {
