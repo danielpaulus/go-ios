@@ -515,10 +515,14 @@ The commands work as following:
 
 	b, _ = arguments.Bool("dproxy")
 	if b {
+		dumpDir := filepath.Join(".", "dump-"+time.Now().UTC().Format("2006.01.02-15.04.05.000"))
+		os.MkdirAll(dumpDir, os.ModePerm)
+		usbmuxDir := filepath.Join(dumpDir, "usbmuxd")
+		os.MkdirAll(usbmuxDir, os.ModePerm)
 		log.SetFormatter(&log.TextFormatter{})
 		// log.SetLevel(log.DebugLevel)
 		binaryMode, _ := arguments.Bool("--binary")
-		startDebugProxy(device, binaryMode)
+		startDebugProxy(device, binaryMode, usbmuxDir)
 		return
 	}
 
@@ -1414,8 +1418,8 @@ func printVersion() {
 	}
 }
 
-func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
-	proxy := usbmuxd.NewDebugProxy()
+func startDebugProxy(device ios.DeviceEntry, binaryMode bool, dumpDir string) {
+	proxy := usbmuxd.NewDebugProxy(dumpDir)
 
 	go func() {
 		defer func() {
