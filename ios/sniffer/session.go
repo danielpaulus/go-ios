@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"sync/atomic"
-	"time"
 )
 
 type session struct {
@@ -22,13 +21,12 @@ type session struct {
 	rsdProvider       ios.RsdPortProvider
 }
 
-func newSession(packets chan gopacket.Packet, addr net.IP, provider ios.RsdPortProvider) session {
-	dirname := fmt.Sprintf("dump-%s", time.Now().Format("2006.01.02-15.04.05.000"))
+func newSession(packets chan gopacket.Packet, addr net.IP, provider ios.RsdPortProvider, dumpDir string) session {
 	return session{
 		localAddr:         addr,
 		packetSrc:         packets,
 		activeConnections: connections{},
-		dumpDir:           dirname,
+		dumpDir:           dumpDir,
 		rsdProvider:       provider,
 	}
 }
@@ -54,6 +52,10 @@ func (s *session) handlePacket(p gopacket.Packet) error {
 	id := s.connectionIdentifier(ip, tcp)
 	conn := s.getOrCreateConnection(id)
 	conn.handlePacket(p, ip, tcp)
+	if tcp.RST || tcp.FIN {
+		conn.Close()
+		delete(s.activeConnections, id)
+	}
 	return nil
 }
 
@@ -73,7 +75,7 @@ func (s *session) getOrCreateConnection(id connectionId) *connection {
 			panic(err)
 		}
 
-		conn := newConnection(id, p)
+		conn := newConnection(id, p, service)
 		s.activeConnections[id] = conn
 		return conn
 	}

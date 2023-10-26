@@ -25,7 +25,7 @@ type connectionId struct {
 	remotePort layers.TCPPort
 }
 
-func Live(iface string, provider ios.RsdPortProvider) error {
+func Live(iface string, provider ios.RsdPortProvider, dumpDir string) error {
 	addr, err := ifaceAddr(iface)
 	if err != nil {
 		return err
@@ -35,7 +35,7 @@ func Live(iface string, provider ios.RsdPortProvider) error {
 		return fmt.Errorf("failed to connect to iface %s. %w", iface, err)
 	} else {
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		s := newSession(packetSource.Packets(), addr, provider)
+		s := newSession(packetSource.Packets(), addr, provider, dumpDir)
 		s.readPackets()
 	}
 	return nil

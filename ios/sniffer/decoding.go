@@ -97,5 +97,9 @@ func decodeRemoteXpc(w io.Writer, r io.Reader) error {
 		if _, err := io.Copy(w, buf); err != nil {
 			return err
 		}
+		if m.IsFileOpen() {
+			log.Info("file transfer started, skipping remaining data ")
+			return nil
+		}
 	}
 }

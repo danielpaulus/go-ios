@@ -98,7 +98,7 @@ Usage:
   ios ps [--apps] [options]
   ios ip [options]
   ios forward [options] <hostPort> <targetPort>
-  ios dproxy [--binary]
+  ios dproxy [--binary][--mode=<all(default)|usbmuxd|utun> --iface=<iface>] [--rsd=<path-to-rsdifo>]
   ios readpair [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
@@ -192,7 +192,7 @@ The commands work as following:
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
    >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [--binary]                                              Starts the reverse engineering proxy server.
+   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun> --iface=<iface>] [--rsd=<path-to-rsdifo>] Starts the reverse engineering proxy server.
    >                                                                  It dumps every communication in plain text so it can be implemented easily.
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
@@ -519,10 +519,38 @@ The commands work as following:
 		os.MkdirAll(dumpDir, os.ModePerm)
 		usbmuxDir := filepath.Join(dumpDir, "usbmuxd")
 		os.MkdirAll(usbmuxDir, os.ModePerm)
+		tunDir := filepath.Join(dumpDir, "utun")
+		os.MkdirAll(tunDir, os.ModePerm)
 		log.SetFormatter(&log.TextFormatter{})
 		// log.SetLevel(log.DebugLevel)
 		binaryMode, _ := arguments.Bool("--binary")
-		startDebugProxy(device, binaryMode, usbmuxDir)
+		mode, _ := arguments.String("--mode")
+		iface, _ := arguments.String("--iface")
+		switch mode {
+		case "":
+			fallthrough
+		case "all":
+			fallthrough
+		case "utun":
+			if iface == "" {
+				log.Fatal("the '--iface' argument is required")
+			}
+		}
+		switch mode {
+		case "":
+			fallthrough
+		case "all":
+			go startDebugProxy(device, binaryMode, usbmuxDir)
+			go sniffer.Live(iface, rsdProvider, tunDir)
+			select {}
+		case "usbmuxd":
+			startDebugProxy(device, binaryMode, usbmuxDir)
+		case "utun":
+			sniffer.Live(iface, rsdProvider, tunDir)
+		default:
+			log.Fatal("Uknown mode '%s'", mode)
+
+		}
 		return
 	}
 
@@ -920,7 +948,7 @@ The commands work as following:
 
 	if b, _ := arguments.Bool("sniff"); b {
 		iface, _ := arguments.String("--iface")
-		err := sniffer.Live(iface, rsdProvider)
+		err := sniffer.Live(iface, rsdProvider, "")
 		exitIfError("Could not capture packets", err)
 	}
 }

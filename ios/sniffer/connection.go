@@ -1,6 +1,7 @@
 package sniffer
 
 import (
+	"errors"
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -15,9 +16,10 @@ type connection struct {
 	w       payloadWriter
 	outPath string
 	inPath  string
+	service string
 }
 
-func newConnection(id connectionId, p string) *connection {
+func newConnection(id connectionId, p string, service string) *connection {
 	inPath := path.Join(p, "incoming")
 	incoming, err := os.OpenFile(inPath, os.O_CREATE|os.O_WRONLY, os.ModePerm)
 	if err != nil {
@@ -37,6 +39,7 @@ func newConnection(id connectionId, p string) *connection {
 		w:       pw,
 		outPath: outPath,
 		inPath:  inPath,
+		service: service,
 	}
 }
 
@@ -46,9 +49,6 @@ func (c connection) handlePacket(p gopacket.Packet, ip *layers.IPv6, tcp *layers
 	}
 	if len(tcp.Payload) > 0 {
 		c.w.Write(c.direction(tcp), tcp.Payload)
-	}
-	if tcp.RST || tcp.FIN {
-		c.Close()
 	}
 }
 
@@ -62,8 +62,14 @@ func (c connection) direction(tcp *layers.TCP) direction {
 
 func (c connection) Close() error {
 	_ = c.w.Close()
-
-	parseConnectionData(c.outPath, c.inPath)
+	logrus.WithField("connection", c.id.String()).WithField("service", c.service).Info("closing connection")
+	err := parseConnectionData(c.outPath, c.inPath)
+	if err != nil {
+		logrus.WithField("connection", c.id.String()).
+			WithField("service", c.service).
+			WithError(err).
+			Warn("failed parsing data")
+	}
 	return nil
 }
 
@@ -90,15 +96,18 @@ func parseConnectionData(outgoing string, incoming string) error {
 	switch t {
 	case http2:
 		return createDecodingFiles(dir, "http.bin", func(outgoing, incoming pair) error {
-			_ = decodeHttp2(outgoing.w, outFile, true)
-			_ = decodeHttp2(incoming.w, inFile, false)
+			outErr := decodeHttp2(outgoing.w, outFile, true)
+			inErr := decodeHttp2(incoming.w, inFile, false)
+			if err := errors.Join(outErr, inErr); err != nil {
+				return err
+			}
 			return parseConnectionData(outgoing.p, incoming.p)
 		})
 	case remoteXpc:
 		return createDecodingFiles(dir, "xpc.jsonl", func(outgoing, incoming pair) error {
-			_ = decodeRemoteXpc(outgoing.w, outFile)
-			_ = decodeRemoteXpc(incoming.w, inFile)
-			return nil
+			outErr := decodeRemoteXpc(outgoing.w, outFile)
+			inErr := decodeRemoteXpc(incoming.w, inFile)
+			return errors.Join(outErr, inErr)
 		})
 	default:
 		return fmt.Errorf("unknown content type")
