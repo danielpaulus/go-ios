@@ -123,7 +123,6 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
-  ios sniff --rsd=<rsd> --iface=<iface>
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -222,7 +221,6 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
-   ios sniff --rsd=<rsd> --iface=<iface> [options]                    Sniff packets on iface
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -961,12 +959,6 @@ The commands work as following:
 	if b {
 		printBatteryDiagnostics(device)
 		return
-	}
-
-	if b, _ := arguments.Bool("sniff"); b {
-		iface, _ := arguments.String("--iface")
-		err := sniffer.Live(iface, rsdProvider, "")
-		exitIfError("Could not capture packets", err)
 	}
 }
 
