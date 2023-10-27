@@ -515,6 +515,23 @@ The commands work as following:
 
 	b, _ = arguments.Bool("dproxy")
 	if b {
+		ctx := context.Background()
+
+		// trap Ctrl+C and call cancel on the context
+		ctx, cancel := context.WithCancel(ctx)
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		defer func() {
+			signal.Stop(c)
+			cancel()
+		}()
+		go func() {
+			select {
+			case <-c:
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
 		dumpDir := filepath.Join(".", "dump-"+time.Now().UTC().Format("2006.01.02-15.04.05.000"))
 		os.MkdirAll(dumpDir, os.ModePerm)
 		usbmuxDir := filepath.Join(dumpDir, "usbmuxd")
@@ -541,12 +558,12 @@ The commands work as following:
 			fallthrough
 		case "all":
 			go startDebugProxy(device, binaryMode, usbmuxDir)
-			go sniffer.Live(iface, rsdProvider, tunDir)
+			go sniffer.Live(ctx, iface, rsdProvider, tunDir)
 			select {}
 		case "usbmuxd":
 			startDebugProxy(device, binaryMode, usbmuxDir)
 		case "utun":
-			sniffer.Live(iface, rsdProvider, tunDir)
+			sniffer.Live(ctx, iface, rsdProvider, tunDir)
 		default:
 			log.Fatal("Uknown mode '%s'", mode)
 

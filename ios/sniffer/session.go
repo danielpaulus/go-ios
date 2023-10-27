@@ -1,6 +1,7 @@
 package sniffer
 
 import (
+	"context"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/google/gopacket"
@@ -31,11 +32,20 @@ func newSession(packets chan gopacket.Packet, addr net.IP, provider ios.RsdPortP
 	}
 }
 
-func (s *session) readPackets() {
-	for packet := range s.packetSrc {
-		err := s.handlePacket(packet)
-		if err != nil {
-			log.Warnf("failed to handle packet: %s", packet.Dump())
+func (s *session) readPackets(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Infof("context cancelled. closing all connections")
+			for _, c := range s.activeConnections {
+				c.Close()
+			}
+			return
+		case packet := <-s.packetSrc:
+			err := s.handlePacket(packet)
+			if err != nil {
+				log.Warnf("failed to handle packet: %s", packet.Dump())
+			}
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package sniffer
 
 import (
+	"context"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/google/gopacket"
@@ -25,7 +26,7 @@ type connectionId struct {
 	remotePort layers.TCPPort
 }
 
-func Live(iface string, provider ios.RsdPortProvider, dumpDir string) error {
+func Live(ctx context.Context, iface string, provider ios.RsdPortProvider, dumpDir string) error {
 	addr, err := ifaceAddr(iface)
 	if err != nil {
 		return err
@@ -36,7 +37,7 @@ func Live(iface string, provider ios.RsdPortProvider, dumpDir string) error {
 	} else {
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 		s := newSession(packetSource.Packets(), addr, provider, dumpDir)
-		s.readPackets()
+		s.readPackets(ctx)
 	}
 	return nil
 }
