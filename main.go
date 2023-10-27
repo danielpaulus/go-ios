@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
-	"github.com/danielpaulus/go-ios/ios/sniffer"
+	"github.com/danielpaulus/go-ios/ios/debugproxy/utun"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -556,12 +556,12 @@ The commands work as following:
 			fallthrough
 		case "all":
 			go startDebugProxy(device, binaryMode, usbmuxDir)
-			go sniffer.Live(ctx, iface, rsdProvider, tunDir)
+			go utun.Live(ctx, iface, rsdProvider, tunDir)
 			select {}
 		case "usbmuxd":
 			startDebugProxy(device, binaryMode, usbmuxDir)
 		case "utun":
-			sniffer.Live(ctx, iface, rsdProvider, tunDir)
+			utun.Live(ctx, iface, rsdProvider, tunDir)
 		default:
 			log.Fatal("Uknown mode '%s'", mode)
 

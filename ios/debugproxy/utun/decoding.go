@@ -1,11 +1,10 @@
-package sniffer
+package utun
 
 import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/danielpaulus/go-ios/ios/xpc"
 	log "github.com/sirupsen/logrus"
 	http22 "golang.org/x/net/http2"
@@ -19,17 +18,6 @@ const (
 	remoteXpc
 	unknown
 )
-
-func parse(w io.Writer, r io.ReadSeeker) error {
-	t := detectType(r)
-	switch t {
-	case http2:
-		log.Infof("decoding http2 data")
-	default:
-		return fmt.Errorf("could not decode")
-	}
-	return nil
-}
 
 func detectType(r io.ReadSeeker) contentType {
 	offset, err := r.Seek(0, io.SeekCurrent)
