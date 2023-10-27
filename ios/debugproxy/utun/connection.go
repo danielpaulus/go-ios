@@ -95,11 +95,18 @@ func parseConnectionData(outgoing string, incoming string) error {
 
 	switch t {
 	case http2:
+		_ = createDecodingFiles(dir, "http.frames", func(outgoing, incoming pair) error {
+			outErr := decodeHttp2FrameHeaders(outgoing.w, outFile, true)
+			inErr := decodeHttp2FrameHeaders(incoming.w, inFile, false)
+			return errors.Join(outErr, inErr)
+		})
+		_, _ = outFile.Seek(0, io.SeekStart)
+		_, _ = inFile.Seek(0, io.SeekStart)
 		return createDecodingFiles(dir, "http.bin", func(outgoing, incoming pair) error {
 			outErr := decodeHttp2(outgoing.w, outFile, true)
 			inErr := decodeHttp2(incoming.w, inFile, false)
 			if err := errors.Join(outErr, inErr); err != nil {
-				return err
+				//return err
 			}
 			return parseConnectionData(outgoing.p, incoming.p)
 		})
@@ -110,9 +117,12 @@ func parseConnectionData(outgoing string, incoming string) error {
 			return errors.Join(outErr, inErr)
 		})
 	default:
-		return fmt.Errorf("unknown content type")
+		stat, _ := os.Stat(outgoing)
+		if stat.Size() == 0 {
+			return nil
+		}
+		return fmt.Errorf("unknown content type: %s/%s", outgoing, incoming)
 	}
-	return nil
 }
 
 func createDecodingFiles(dir, suffix string, consumer func(outgoing, incoming pair) error) error {

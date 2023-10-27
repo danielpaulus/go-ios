@@ -65,6 +65,26 @@ func decodeHttp2(w io.Writer, r io.Reader, needSkip bool) error {
 	}
 }
 
+func decodeHttp2FrameHeaders(w io.Writer, r io.Reader, needSkip bool) error {
+	if needSkip {
+		_, err := io.CopyN(io.Discard, r, 24)
+		if err != nil {
+			return err
+		}
+	}
+	framer := http22.NewFramer(io.Discard, r)
+	for {
+		f, err := framer.ReadFrame()
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(append([]byte(f.Header().String()), '\n'))
+		if err != nil {
+			return err
+		}
+	}
+}
+
 func decodeRemoteXpc(w io.Writer, r io.Reader) error {
 	for {
 		m, err := xpc.DecodeMessage(r)
