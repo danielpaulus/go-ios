@@ -66,7 +66,7 @@ func decodeHttp2(w io.Writer, r io.Reader, needSkip bool) error {
 	for {
 		f, err := framer.ReadFrame()
 		if err != nil {
-			break
+			return err
 		}
 		if f.Header().Type == http22.FrameData {
 			dataFrame := f.(*http22.DataFrame)
@@ -75,7 +75,6 @@ func decodeHttp2(w io.Writer, r io.Reader, needSkip bool) error {
 			}
 		}
 	}
-	return nil
 }
 
 func decodeRemoteXpc(w io.Writer, r io.Reader) error {
