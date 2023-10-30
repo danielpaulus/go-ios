@@ -3,10 +3,11 @@ package xpc
 import (
 	"bytes"
 	"encoding/base64"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEmptyDictionary(t *testing.T) {
@@ -129,7 +130,7 @@ func TestEncodeDecode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := bytes.NewBuffer(nil)
-			err := EncodeData(buf, tt.input)
+			err := EncodeData(buf, 0, tt.input)
 			assert.NoError(t, err)
 			res, err := DecodeMessage(buf)
 			assert.NoError(t, err)

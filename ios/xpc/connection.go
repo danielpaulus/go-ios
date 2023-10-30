@@ -77,7 +77,7 @@ func New(reader io.Reader, writer io.Writer) (*Connection, error) {
 	err = EncodeData(framerDataWriter{
 		Framer:   *framer,
 		StreamID: rootChannel,
-	}, map[string]interface{}{}, conn.msgId, false)
+	}, conn.msgId, map[string]interface{}{})
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (c *Connection) Send(data map[string]interface{}) error {
 	err := EncodeData(framerDataWriter{
 		Framer:   *c.framer,
 		StreamID: rootChannel,
-	}, data, c.msgId, false)
+	}, c.msgId, data)
 	if err != nil {
 		return err
 	}

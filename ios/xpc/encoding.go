@@ -65,7 +65,7 @@ func DecodeMessage(r io.Reader) (Message, error) {
 
 // EncodeData creates a RemoteXPC message with the data flag set, if data is present (an empty dictionary is considered
 // to be no data)
-func EncodeData(w io.Writer, body map[string]interface{}) error {
+func EncodeData(w io.Writer, messageId uint64, body map[string]interface{}) error {
 	if body == nil {
 		return encodeMessageWithoutBody(w)
 	}
@@ -92,7 +92,7 @@ func EncodeData(w io.Writer, body map[string]interface{}) error {
 		h: wrapperHeader{
 			Flags:   flags,
 			BodyLen: uint64(buf.Len() + 8),
-			MsgId:   0,
+			MsgId:   messageId,
 		},
 		body: struct {
 			magic   uint32
@@ -109,6 +109,28 @@ func EncodeData(w io.Writer, body map[string]interface{}) error {
 	}
 
 	_, err = io.Copy(w, buf)
+	return err
+}
+
+// TODO : remove this and figure out how to reuse EncodeData() to simulate what happens under this function
+func EncodeEmpty(w io.Writer, messageId uint64, additionalXpcFlags uint32, initHandshake bool) error {
+	flags := uint32(0)
+	if initHandshake {
+		flags |= initHandshakeFlag
+	}
+	wrapper := struct {
+		magic uint32
+		h     wrapperHeader
+	}{
+		magic: wrapperMagic,
+		h: wrapperHeader{
+			Flags:   additionalXpcFlags | alwaysSetFlag | flags,
+			BodyLen: 0,
+			MsgId:   messageId,
+		},
+	}
+
+	err := binary.Write(w, binary.LittleEndian, wrapper)
 	return err
 }
 
