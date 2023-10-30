@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/danielpaulus/go-ios/ios/xpc"
-	"golang.org/x/net/http2"
 )
 
 type connectMessage struct {
@@ -82,125 +81,7 @@ func (muxConn *UsbMuxConnection) ConnectLockdown(deviceID int) (*LockDownConnect
 	return nil, fmt.Errorf("Failed connecting to Lockdown with error code:%d", response.Number)
 }
 
-// ConnectToService connects to a service on the phone and returns the ready to use DeviceConnectionInterface
 func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
-	v, err := GetProductVersion(device)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get product version. %w", err)
-	}
-	if v.Major() < 17 {
-		return connectToServiceUsbmuxd(device, serviceName)
-	}
-	return connectToServiceTunnelIface(device, serviceName)
-}
-
-func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
-	port := device.Rsd.GetPort(serviceName)
-	conn, err := net.Dial("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to device. %w", err)
-	}
-	if !strings.Contains(serviceName, "testmanager") && !strings.Contains(serviceName, "appservice") {
-		err = RsdCheckin(conn)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	deviceInterface := NewDeviceConnectionWithConn(conn)
-	// TODO : everything after this line should go into its own method, i.e doHandshake()
-
-	httpMagic := "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-	deviceInterface.c.Write([]byte(httpMagic))
-
-	framer := http2.NewFramer(deviceInterface.c, deviceInterface.c)
-
-	err = framer.WriteSettings(
-		http2.Setting{ID: http2.SettingMaxConcurrentStreams, Val: 100},  // TODO : Extract constant
-		http2.Setting{ID: http2.SettingInitialWindowSize, Val: 1048576}, // TODO : Extract constant
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	err = framer.WriteWindowUpdate(0, 983041)
-	if err != nil {
-		return nil, err
-	}
-
-	err = framer.WriteHeaders(http2.HeadersFrameParam{StreamID: rootChannel, EndHeaders: true})
-	if err != nil {
-		return nil, err
-	}
-
-	firstReadFrame, err := framer.ReadFrame()
-	if err != nil {
-		return nil, err
-	} else {
-		print(firstReadFrame) // TODO : remove after debugging
-		// TODO : assert that it is a settings frame
-		// TODO : do something with it
-	}
-
-	err = framer.WriteSettingsAck()
-	if err != nil {
-		return nil, err
-	}
-
-	err = xpc.EncodeData(xpc.FramerDataWriter{
-		Framer:    *framer,
-		StreamID:  rootChannel,
-		EndStream: false,
-	}, map[string]interface{}{}, deviceInterface.rootChannelMessageId, false)
-	if err != nil {
-		return nil, err
-	}
-
-	xpc.EncodeEmpty(xpc.FramerDataWriter{
-		Framer:    *framer,
-		StreamID:  rootChannel,
-		EndStream: false,
-	}, 0x201, false) // TODO : figure out why 0x201 (0x1 for always set, 0x200 for ?)
-	if err != nil {
-		return nil, err
-	}
-
-	deviceInterface.proceedToNextRootChannelMessage()
-
-	err = framer.WriteHeaders(http2.HeadersFrameParam{StreamID: replyChannel, EndHeaders: true})
-	if err != nil {
-		return nil, err
-	}
-
-	xpc.EncodeEmpty(xpc.FramerDataWriter{
-		Framer:    *framer,
-		StreamID:  replyChannel,
-		EndStream: false,
-	}, 0, true)
-	if err != nil {
-		return nil, err
-	}
-
-	deviceInterface.proceedToNextReplyChannelMessage()
-
-	// firstReadFrame, err := framer.ReadFrame()
-	// if err != nil {
-	// 	return nil, err
-	// } else {
-	// 	print(firstReadFrame) // TODO : remove after debugging
-	// 	// TODO : assert that it is a settings frame
-	// 	// TODO : do something with it
-	// }
-
-	// err = framer.WriteSettingsAck()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return deviceInterface, nil
-}
-
-func connectToServiceUsbmuxd(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
 	startServiceResponse, err := StartService(device, serviceName)
 	if err != nil {
 		return nil, err
@@ -219,6 +100,35 @@ func connectToServiceUsbmuxd(device DeviceEntry, serviceName string) (DeviceConn
 		return nil, err
 	}
 	return muxConn.ReleaseDeviceConnection(), nil
+}
+
+func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
+	port := device.Rsd.GetPort(serviceName)
+	conn, err := net.Dial("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to device. %w", err)
+	}
+	if !strings.Contains(serviceName, "testmanager") && !strings.Contains(serviceName, "appservice") {
+		err = RsdCheckin(conn)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	deviceInterface := NewDeviceConnectionWithConn(conn)
+
+	httpMagic := "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+	_, err = deviceInterface.c.Write([]byte(httpMagic))
+	if err != nil {
+		return nil, err
+	}
+
+	xpcConn, err := xpc.New(deviceInterface.Conn(), deviceInterface.Conn())
+	if err != nil {
+		return nil, err
+	}
+
+	return xpcConn, nil
 }
 
 // connectWithStartServiceResponse issues a Connect Message to UsbMuxd for the given deviceID on the given port

@@ -118,19 +118,20 @@ func EncodeData(w io.Writer, body map[string]interface{}, messageId uint64, want
 	return err
 }
 
-func EncodeEmpty(w io.Writer, xpcFlags uint32, initHandshake bool) error {
+func EncodeEmpty(w io.Writer, messageId uint64, additionalXpcFlags uint32, initHandshake bool) error {
 	flags := uint32(0)
 	if initHandshake {
 		flags |= initHandshakeFlag
 	}
 	wrapper := struct {
 		magic uint32
-		h     wrapperHeaderEmpty
+		h     wrapperHeader
 	}{
 		magic: wrapperMagic,
-		h: wrapperHeaderEmpty{
-			Flags:   xpcFlags | alwaysSetFlag | flags,
+		h: wrapperHeader{
+			Flags:   additionalXpcFlags | alwaysSetFlag | flags,
 			BodyLen: 0,
+			MsgId:   messageId,
 		},
 	}
 

@@ -919,7 +919,34 @@ The commands work as following:
 
 	b, _ = arguments.Bool("appservice")
 	if b {
-		appservice.New(device)
+		conn, err := appservice.New(device)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// conn is reusable, you can launch app multiple times with it
+		appservice.LaunchApp(
+			conn,
+			"D8FB9E56-4394-40AC-81C1-9E50DD885AC2",
+			"com.apple.mobilesafari",
+			[]interface{}{
+				"-U",
+				"https://google.com",
+			}, map[string]interface{}{
+				"TERM": "xterm-256color",
+			})
+
+		appservice.LaunchApp(
+			conn,
+			"D8FB9E56-4394-40AC-81C1-9E50DD885AC2",
+			"com.apple.mobilesafari",
+			[]interface{}{
+				"-U",
+				"https://yahoo.com",
+			}, map[string]interface{}{
+				"TERM": "xterm-256color",
+			})
+		return
 	}
 }
 

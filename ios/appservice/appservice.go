@@ -5,18 +5,21 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/xpc"
-	"golang.org/x/net/http2"
 )
 
-func New(deviceEntry ios.DeviceEntry) {
-	device, err := ios.ConnectToService(deviceEntry, "com.apple.coredevice.appservice")
+func New(deviceEntry ios.DeviceEntry) (*xpc.Connection, error) {
+	xpcConn, err := ios.ConnectToServiceTunnelIface(deviceEntry, "com.apple.coredevice.appservice")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	print("We have a connection")
-	print(device)
+	print("We have a connection: ")
+	print(xpcConn)
 
+	return xpcConn, nil
+}
+
+func LaunchApp(conn *xpc.Connection, deviceId string, bundleId string, args []interface{}, env map[string]interface{}) {
 	msg := map[string]interface{}{
 		"CoreDevice.CoreDeviceDDIProtocolVersion": int64(0),
 		"CoreDevice.action":                       map[string]interface{}{},
@@ -25,19 +28,17 @@ func New(deviceEntry ios.DeviceEntry) {
 			"originalComponentsCount": int64(2),
 			"stringValue":             "348.1",
 		},
-		"CoreDevice.deviceIdentifier":  "D8FB9E56-4394-40AC-81C1-9E50DD885AC2",
+		"CoreDevice.deviceIdentifier":  deviceId,
 		"CoreDevice.featureIdentifier": "com.apple.coredevice.feature.launchapplication",
 		"CoreDevice.input": map[string]interface{}{
 			"applicationSpecifier": map[string]interface{}{
 				"bundleIdentifier": map[string]interface{}{
-					"_0": "com.saucelabs.SafariLauncher",
+					"_0": bundleId,
 				},
 			},
 			"options": map[string]interface{}{
-				"arguments": []interface{}{},
-				"environmentVariables": map[string]interface{}{
-					"TERM": "xterm-256color",
-				},
+				"arguments":                     args,
+				"environmentVariables":          env,
 				"platformSpecificOptions":       base64Decode("YnBsaXN0MDDQCAAAAAAAAAEBAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAJ"),
 				"standardIOUsesPseudoterminals": true,
 				"startStopped":                  false,
@@ -52,9 +53,7 @@ func New(deviceEntry ios.DeviceEntry) {
 		"CoreDevice.invocationIdentifier": "62419FC1-5ABF-4D96-BCA8-7A5F6F9A69EE",
 	}
 
-	framer := http2.NewFramer(device.Conn(), device.Conn())
-	xpcConn := xpc.New(framer)
-	xpcConn.Send(msg)
+	conn.Send(msg)
 }
 
 func base64Decode(s string) []byte {
