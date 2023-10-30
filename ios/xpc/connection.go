@@ -34,6 +34,12 @@ type Connection struct {
 }
 
 func New(reader io.Reader, writer io.Writer) (*Connection, error) {
+	httpMagic := "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+	_, err := writer.Write([]byte(httpMagic))
+	if err != nil {
+		return nil, err
+	}
+
 	framer := http2.NewFramer(writer, reader)
 
 	conn := &Connection{
@@ -41,7 +47,7 @@ func New(reader io.Reader, writer io.Writer) (*Connection, error) {
 		msgId:  1,
 	}
 
-	err := framer.WriteSettings(
+	err = framer.WriteSettings(
 		http2.Setting{ID: http2.SettingMaxConcurrentStreams, Val: xpcMaxConcurrentStreams},
 		http2.Setting{ID: http2.SettingInitialWindowSize, Val: xpcInitialWindowSize},
 	)

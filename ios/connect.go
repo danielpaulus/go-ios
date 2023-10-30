@@ -117,12 +117,6 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.C
 
 	deviceInterface := NewDeviceConnectionWithConn(conn)
 
-	httpMagic := "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-	_, err = deviceInterface.c.Write([]byte(httpMagic))
-	if err != nil {
-		return nil, err
-	}
-
 	xpcConn, err := xpc.New(deviceInterface.Conn(), deviceInterface.Conn())
 	if err != nil {
 		return nil, err
