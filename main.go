@@ -103,7 +103,7 @@ Usage:
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
-  ios apps [--system] [--all] [--list] [options]
+  ios apps [--system] [--all] [--list] [--filesharing] [options]
   ios launch <bundleID> [--wait] [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--env=<e>]... [options]
@@ -202,7 +202,7 @@ The commands work as following:
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
-   ios apps [--system] [--all] [--list]                               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number.
+   ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
    ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
@@ -588,7 +588,8 @@ The commands work as following:
 		list, _ := arguments.Bool("--list")
 		system, _ := arguments.Bool("--system")
 		all, _ := arguments.Bool("--all")
-		printInstalledApps(device, system, all, list)
+		filesharing, _ := arguments.Bool("--filesharing")
+		printInstalledApps(device, system, all, list, filesharing)
 		return
 	}
 
@@ -1543,7 +1544,7 @@ func printDeviceDate(device ios.DeviceEntry) {
 	}
 }
 
-func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool) {
+func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool, filesharing bool) {
 	svc, _ := installationproxy.New(device)
 	var err error
 	var response []installationproxy.AppInfo
@@ -1554,6 +1555,9 @@ func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool
 	} else if system {
 		response, err = svc.BrowseSystemApps()
 		appType = "system"
+	} else if filesharing {
+		response, err = svc.BrowseFileSharingApps()
+		appType = "filesharingapps"
 	} else {
 		response, err = svc.BrowseUserApps()
 		appType = "user"
@@ -1563,6 +1567,14 @@ func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool
 	if list {
 		for _, v := range response {
 			fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString)
+		}
+		return
+	}
+	if filesharing {
+		for _, v := range response {
+			if v.UIFileSharingEnabled {
+				fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString)
+			}
 		}
 		return
 	}

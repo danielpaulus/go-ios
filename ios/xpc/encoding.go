@@ -45,11 +45,6 @@ type wrapperHeader struct {
 	MsgId   uint64
 }
 
-type wrapperHeaderEmpty struct {
-	Flags   uint32
-	BodyLen uint64
-}
-
 type Message struct {
 	Flags uint32
 	Body  map[string]interface{}
@@ -70,20 +65,19 @@ func DecodeMessage(r io.Reader) (Message, error) {
 
 // EncodeData creates a RemoteXPC message with the data flag set, if data is present (an empty dictionary is considered
 // to be no data)
-func EncodeData(w io.Writer, body map[string]interface{}, messageId uint64, wantingReply bool) error {
+func EncodeData(w io.Writer, body map[string]interface{}) error {
+	if body == nil {
+		return encodeMessageWithoutBody(w)
+	}
 	buf := bytes.NewBuffer(nil)
 	err := encodeDictionary(buf, body)
 	if err != nil {
 		return err
 	}
 
-	var flags uint32
-	if len(body) == 0 {
-		flags = alwaysSetFlag
-	} else if wantingReply {
-		flags = alwaysSetFlag | dataFlag | heartbeatRequestFlag
-	} else {
-		flags = alwaysSetFlag | dataFlag
+	flags := alwaysSetFlag
+	if len(body) > 0 {
+		flags |= dataFlag
 	}
 
 	wrapper := struct {
@@ -98,7 +92,7 @@ func EncodeData(w io.Writer, body map[string]interface{}, messageId uint64, want
 		h: wrapperHeader{
 			Flags:   flags,
 			BodyLen: uint64(buf.Len() + 8),
-			MsgId:   messageId,
+			MsgId:   0,
 		},
 		body: struct {
 			magic   uint32
@@ -118,32 +112,16 @@ func EncodeData(w io.Writer, body map[string]interface{}, messageId uint64, want
 	return err
 }
 
-func EncodeEmpty(w io.Writer, messageId uint64, additionalXpcFlags uint32, initHandshake bool) error {
-	flags := uint32(0)
-	if initHandshake {
-		flags |= initHandshakeFlag
-	}
-	wrapper := struct {
-		magic uint32
-		h     wrapperHeader
-	}{
-		magic: wrapperMagic,
-		h: wrapperHeader{
-			Flags:   additionalXpcFlags | alwaysSetFlag | flags,
-			BodyLen: 0,
-			MsgId:   messageId,
-		},
-	}
-
-	err := binary.Write(w, binary.LittleEndian, wrapper)
-	return err
-}
-
 func decodeWrapper(r io.Reader) (Message, error) {
 	var h wrapperHeader
 	err := binary.Read(r, binary.LittleEndian, &h)
 	if err != nil {
 		return Message{}, err
+	}
+	if h.BodyLen == 0 {
+		return Message{
+			Flags: h.Flags,
+		}, nil
 	}
 	body, err := decodeBody(r, h)
 	return Message{
@@ -245,8 +223,8 @@ func readDictionaryKey(r io.Reader) (string, error) {
 		if buf[0] == 0 {
 			s := b.String()
 			toSkip := calcPadding(len(s) + 1)
-			io.CopyN(io.Discard, r, toSkip)
-			return s, nil
+			_, err := io.CopyN(io.Discard, r, toSkip)
+			return s, err
 		}
 		b.Write(buf)
 	}
@@ -308,10 +286,7 @@ func decodeData(r io.Reader) ([]byte, error) {
 func decodeUint64(r io.Reader) (uint64, error) {
 	var i uint64
 	err := binary.Read(r, binary.LittleEndian, &i)
-	if err != nil {
-		return 0, err
-	}
-	return i, nil
+	return i, err
 }
 
 func decodeInt64(r io.Reader) (int64, error) {
@@ -442,8 +417,11 @@ func encodeString(w io.Writer, s string) error {
 		t xpcType
 		l uint32
 	}{stringType, uint32(len(s) + 1)}
-	binary.Write(w, binary.LittleEndian, header)
-	_, err := w.Write([]byte(s))
+	err := binary.Write(w, binary.LittleEndian, header)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write([]byte(s))
 	if err != nil {
 		return err
 	}
@@ -524,5 +502,21 @@ func encodeDictionaryKey(w io.Writer, k string) error {
 	}
 	pad := make([]byte, toPad)
 	_, err = w.Write(pad)
+	return err
+}
+
+func encodeMessageWithoutBody(w io.Writer) error {
+	wrapper := struct {
+		magic uint32
+		h     wrapperHeader
+	}{
+		magic: wrapperMagic,
+		h: wrapperHeader{
+			Flags:   alwaysSetFlag,
+			BodyLen: 0,
+			MsgId:   0,
+		},
+	}
+	err := binary.Write(w, binary.LittleEndian, wrapper)
 	return err
 }
