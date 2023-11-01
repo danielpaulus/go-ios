@@ -247,7 +247,6 @@ func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarch
 const (
 	testmanagerd      = "com.apple.testmanagerd.lockdown"
 	testmanagerdiOS14 = "com.apple.testmanagerd.lockdown.secure"
-	testmanagerdiOS17 = "com.apple.dt.testmanagerd.remote"
 )
 
 const testBundleSuffix = "UITests.xctrunner"
@@ -296,7 +295,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
 
-	conn2, err := dtx.NewConnection(device, testmanagerdiOS17)
+	conn2, err := dtx.NewConnection(device, testmanagerdiOS14)
 	if err != nil {
 		return err
 	}
@@ -388,7 +387,7 @@ func RunXCUIWithBundleIdsCtx(
 		return RunXCUIWithBundleIds11Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
 	}
 
-	conn, err := dtx.NewConnection(device, testmanagerdiOS17)
+	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
 	if err != nil {
 		return err
 	}
