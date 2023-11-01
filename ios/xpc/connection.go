@@ -110,7 +110,10 @@ func exchangeData(conn *Connection, framer *http2.Framer) error {
 		return err
 	}
 
-	conn.Receive() // TODO : figure out if need to act on this frame
+	_, err = conn.Receive() // TODO : figure out if need to act on this frame
+	if err != nil {
+		return err
+	}
 
 	err = EncodeMessage(framerDataWriter{
 		Framer:   *framer,
@@ -124,7 +127,10 @@ func exchangeData(conn *Connection, framer *http2.Framer) error {
 		return err
 	}
 
-	conn.Receive() // TODO : figure out if need to act on this frame
+	_, err = conn.Receive() // TODO : figure out if need to act on this frame
+	if err != nil {
+		return err
+	}
 
 	err = framer.WriteHeaders(http2.HeadersFrameParam{StreamID: replyChannel, EndHeaders: true})
 	if err != nil {
@@ -143,7 +149,10 @@ func exchangeData(conn *Connection, framer *http2.Framer) error {
 		return err
 	}
 
-	conn.Receive() // TODO : figure out if need to act on this frame
+	_, err = conn.Receive() // TODO : figure out if need to act on this frame
+	if err != nil {
+		return err
+	}
 
 	conn.msgId += 1
 
