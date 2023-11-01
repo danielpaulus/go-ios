@@ -1,14 +1,50 @@
 package api
 
 import (
-	"io"
-	"net/http"
-
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	"io"
+	"net/http"
 )
+
+// Notifications uses instruments to get application state change events. It will stream the events as json objects separated by line breaks until it errors out.
+// Listen                godoc
+// @Summary      uses instruments to get application state change events
+// @Description uses instruments to get application state change events
+// @Tags         general
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Router       /notifications [get]
+func Notifications(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	listenerFunc, closeFunc, err := instruments.ListenAppStateNotifications(device)
+	if err != nil {
+		log.Fatal(err)
+	}
+	c.Stream(func(w io.Writer) bool {
+
+		notification, err := listenerFunc()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, err)
+			closeFunc()
+			return false
+		}
+
+		_, err = w.Write([]byte(MustMarshal(notification)))
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, err)
+			closeFunc()
+			return false
+		}
+		w.Write([]byte("\n"))
+		return true
+	})
+
+}
 
 // Syslog
 // Listen                godoc
