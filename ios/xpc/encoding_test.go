@@ -130,7 +130,11 @@ func TestEncodeDecode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := bytes.NewBuffer(nil)
-			err := EncodeData(buf, 0, tt.input)
+			err := EncodeMessage(buf, Message{
+				Flags: alwaysSetFlag | dataFlag,
+				Body:  tt.input,
+				Id:    0,
+			})
 			assert.NoError(t, err)
 			res, err := DecodeMessage(buf)
 			assert.NoError(t, err)
