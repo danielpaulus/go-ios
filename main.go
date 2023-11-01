@@ -925,10 +925,8 @@ The commands work as following:
 			log.Fatal(err)
 		}
 
-		// conn is reusable, you can launch app multiple times with it
-		appservice.LaunchApp(
-			conn,
-			"D8FB9E56-4394-40AC-81C1-9E50DD885AC2",
+		conn.LaunchApp(
+			"D8FB9E56-4394-40AC-81C1-9E50DD885AC2", // TODO : infer from selected device
 			"com.apple.mobilesafari",
 			[]interface{}{
 				"-U",
@@ -936,18 +934,6 @@ The commands work as following:
 			}, map[string]interface{}{
 				"TERM": "xterm-256color",
 			})
-
-		appservice.LaunchApp(
-			conn,
-			"D8FB9E56-4394-40AC-81C1-9E50DD885AC2",
-			"com.apple.mobilesafari",
-			[]interface{}{
-				"-U",
-				"https://yahoo.com",
-			}, map[string]interface{}{
-				"TERM": "xterm-256color",
-			})
-		return
 	}
 }
 

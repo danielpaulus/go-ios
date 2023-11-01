@@ -1,13 +1,19 @@
 package appservice
 
 import (
-	"encoding/base64"
+	"bytes"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/xpc"
+
+	plist "howett.net/plist"
 )
 
-func New(deviceEntry ios.DeviceEntry) (*xpc.Connection, error) {
+type Connection struct {
+	conn *xpc.Connection
+}
+
+func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
 	xpcConn, err := ios.ConnectToServiceTunnelIface(deviceEntry, "com.apple.coredevice.appservice")
 	if err != nil {
 		return nil, err
@@ -16,11 +22,23 @@ func New(deviceEntry ios.DeviceEntry) (*xpc.Connection, error) {
 	print("We have a connection: ")
 	print(xpcConn)
 
-	return xpcConn, nil
+	return &Connection{conn: xpcConn}, nil
 }
 
-func LaunchApp(conn *xpc.Connection, deviceId string, bundleId string, args []interface{}, env map[string]interface{}) {
-	msg := map[string]interface{}{
+func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) {
+	msg := buildAppLaunchPayload(deviceId, bundleId, args, env)
+	c.conn.Send(msg)
+}
+
+func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) map[string]interface{} {
+	platformSpecificOptions := bytes.NewBuffer(nil)
+	plistEncoder := plist.NewBinaryEncoder(platformSpecificOptions)
+	err := plistEncoder.Encode(map[string]interface{}{})
+	if err != nil {
+		panic(err)
+	}
+
+	return map[string]interface{}{
 		"CoreDevice.CoreDeviceDDIProtocolVersion": int64(0),
 		"CoreDevice.action":                       map[string]interface{}{},
 		"CoreDevice.coreDeviceVersion": map[string]interface{}{
@@ -39,7 +57,7 @@ func LaunchApp(conn *xpc.Connection, deviceId string, bundleId string, args []in
 			"options": map[string]interface{}{
 				"arguments":                     args,
 				"environmentVariables":          env,
-				"platformSpecificOptions":       base64Decode("YnBsaXN0MDDQCAAAAAAAAAEBAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAJ"),
+				"platformSpecificOptions":       platformSpecificOptions.Bytes(),
 				"standardIOUsesPseudoterminals": true,
 				"startStopped":                  false,
 				"terminateExisting":             false,
@@ -52,15 +70,4 @@ func LaunchApp(conn *xpc.Connection, deviceId string, bundleId string, args []in
 		},
 		"CoreDevice.invocationIdentifier": "62419FC1-5ABF-4D96-BCA8-7A5F6F9A69EE",
 	}
-
-	conn.Send(msg)
-}
-
-func base64Decode(s string) []byte {
-	dst := make([]byte, base64.StdEncoding.DecodedLen(len(s)))
-	_, err := base64.StdEncoding.Decode(dst, []byte(s))
-	if err != nil {
-		panic(err)
-	}
-	return dst
 }
