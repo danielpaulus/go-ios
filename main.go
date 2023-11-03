@@ -925,7 +925,7 @@ The commands work as following:
 			log.Fatal(err)
 		}
 
-		conn.LaunchApp(
+		err = conn.LaunchApp(
 			"D8FB9E56-4394-40AC-81C1-9E50DD885AC2", // TODO : infer from selected device
 			"com.apple.mobilesafari",
 			[]interface{}{
@@ -934,6 +934,14 @@ The commands work as following:
 			}, map[string]interface{}{
 				"TERM": "xterm-256color",
 			})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = conn.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

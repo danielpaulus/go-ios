@@ -117,7 +117,7 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.C
 
 	deviceInterface := NewDeviceConnectionWithConn(conn)
 
-	xpcConn, err := xpc.New(deviceInterface.Conn(), deviceInterface.Conn())
+	xpcConn, err := xpc.New(deviceInterface.Conn())
 	if err != nil {
 		return nil, err
 	}

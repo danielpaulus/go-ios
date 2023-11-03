@@ -29,22 +29,24 @@ func (writer framerDataWriter) Write(p []byte) (int, error) {
 }
 
 type Connection struct {
-	framer *http2.Framer
-	msgId  uint64
+	connectionCloser io.Closer
+	framer           *http2.Framer
+	msgId            uint64
 }
 
-func New(reader io.Reader, writer io.Writer) (*Connection, error) {
+func New(readWriteCloser io.ReadWriteCloser) (*Connection, error) {
 	httpMagic := "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-	_, err := writer.Write([]byte(httpMagic))
+	_, err := readWriteCloser.Write([]byte(httpMagic))
 	if err != nil {
 		return nil, err
 	}
 
-	framer := http2.NewFramer(writer, reader)
+	framer := http2.NewFramer(readWriteCloser, readWriteCloser)
 
 	conn := &Connection{
-		framer: framer,
-		msgId:  1,
+		connectionCloser: readWriteCloser,
+		framer:           framer,
+		msgId:            1,
 	}
 
 	err = exchangeSettings(framer)
@@ -193,4 +195,8 @@ func (c *Connection) Send(data map[string]interface{}) error {
 	c.msgId += 1
 
 	return nil
+}
+
+func (c *Connection) Close() error {
+	return c.connectionCloser.Close()
 }

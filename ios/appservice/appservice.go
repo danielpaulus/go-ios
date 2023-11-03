@@ -25,9 +25,13 @@ func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
 	return &Connection{conn: xpcConn}, nil
 }
 
-func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) {
+func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) error {
 	msg := buildAppLaunchPayload(deviceId, bundleId, args, env)
-	c.conn.Send(msg)
+	return c.conn.Send(msg)
+}
+
+func (c *Connection) Close() error {
+	return c.conn.Close()
 }
 
 func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) map[string]interface{} {
