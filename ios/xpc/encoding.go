@@ -36,6 +36,7 @@ const (
 	dataFlag             = uint32(0x00000100)
 	heartbeatRequestFlag = uint32(0x00010000)
 	heartbeatReplyFlag   = uint32(0x00020000)
+	initHandshakeFlag    = uint32(0x00400000)
 )
 
 type wrapperHeader struct {
@@ -47,6 +48,7 @@ type wrapperHeader struct {
 type Message struct {
 	Flags uint32
 	Body  map[string]interface{}
+	Id    uint64
 }
 
 // DecodeMessage expects a full RemoteXPC message and decodes the message body into a map
@@ -62,53 +64,61 @@ func DecodeMessage(r io.Reader) (Message, error) {
 	return wrapper, err
 }
 
-// EncodeData creates a RemoteXPC message with the data flag set, if data is present (an empty dictionary is considered
-// to be no data)
-func EncodeData(w io.Writer, body map[string]interface{}) error {
-	if body == nil {
-		return encodeMessageWithoutBody(w)
-	}
-	buf := bytes.NewBuffer(nil)
-	err := encodeDictionary(buf, body)
-	if err != nil {
-		return err
-	}
-
-	flags := alwaysSetFlag
-	if len(body) > 0 {
-		flags |= dataFlag
-	}
-
-	wrapper := struct {
-		magic uint32
-		h     wrapperHeader
-		body  struct {
-			magic   uint32
-			version uint32
-		}
-	}{
-		magic: wrapperMagic,
-		h: wrapperHeader{
-			Flags:   flags,
-			BodyLen: uint64(buf.Len() + 8),
-			MsgId:   0,
-		},
-		body: struct {
-			magic   uint32
-			version uint32
+// EncodeMessage creates a RemoteXPC message encoded with the body and flags provided
+func EncodeMessage(w io.Writer, message Message) error {
+	if message.Body == nil {
+		wrapper := struct {
+			magic uint32
+			h     wrapperHeader
 		}{
-			magic:   objectMagic,
-			version: bodyVersion,
-		},
-	}
+			magic: wrapperMagic,
+			h: wrapperHeader{
+				Flags:   message.Flags,
+				BodyLen: 0,
+				MsgId:   message.Id,
+			},
+		}
 
-	err = binary.Write(w, binary.LittleEndian, wrapper)
-	if err != nil {
+		err := binary.Write(w, binary.LittleEndian, wrapper)
+		return err
+	} else {
+		buf := bytes.NewBuffer(nil)
+		err := encodeDictionary(buf, message.Body)
+		if err != nil {
+			return err
+		}
+
+		wrapper := struct {
+			magic uint32
+			h     wrapperHeader
+			body  struct {
+				magic   uint32
+				version uint32
+			}
+		}{
+			magic: wrapperMagic,
+			h: wrapperHeader{
+				Flags:   message.Flags,
+				BodyLen: uint64(buf.Len() + 8),
+				MsgId:   message.Id,
+			},
+			body: struct {
+				magic   uint32
+				version uint32
+			}{
+				magic:   objectMagic,
+				version: bodyVersion,
+			},
+		}
+
+		err = binary.Write(w, binary.LittleEndian, wrapper)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(w, buf)
 		return err
 	}
-
-	_, err = io.Copy(w, buf)
-	return err
 }
 
 func decodeWrapper(r io.Reader) (Message, error) {

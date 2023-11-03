@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/danielpaulus/go-ios/ios/appservice"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
 	"github.com/danielpaulus/go-ios/ios/afc"
@@ -122,14 +123,17 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
+  ios appservice [options]
 
 Options:
-  -v --verbose   Enable Debug Logging.
-  -t --trace     Enable Trace Logging (dump every message).
-  --nojson       Disable JSON output
-  --pretty       Pretty-print JSON command output
-  -h --help      Show this screen.
-  --udid=<udid>  UDID of the device.
+  -v --verbose   		Enable Debug Logging.
+  -t --trace     		Enable Trace Logging (dump every message).
+  --nojson       		Disable JSON output
+  --pretty       		Pretty-print JSON command output
+  -h --help      		Show this screen.
+  --udid=<udid>  		UDID of the device.
+  --address=<ipv6addrr>	Address of the device interface
+  --rsd=<path}			Path to RSD info
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -220,6 +224,7 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
+   ios appservice [options]											  Launches apps.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -278,8 +283,19 @@ The commands work as following:
 		return
 	}
 
+	rsdProvider := ios.RsdPortProvider{}
+	rsdFile, _ := arguments.String("--rsd")
+	if rsdFile != "" {
+		rsd, err := os.Open(rsdFile)
+		exitIfError("could not open rsd file", err)
+		defer rsd.Close()
+		rsdProvider, err = ios.NewRsdPortProvider(rsd)
+		exitIfError("could not parse rsd file", err)
+	}
+
 	udid, _ := arguments.String("--udid")
-	device, err := ios.GetDevice(udid)
+	address, _ := arguments.String("--address")
+	device, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	exitIfError("error getting devicelist", err)
 
 	b, _ = arguments.Bool("erase")
@@ -900,6 +916,28 @@ The commands work as following:
 	if b {
 		printBatteryDiagnostics(device)
 		return
+	}
+
+	b, _ = arguments.Bool("appservice")
+	if b {
+		conn, err := appservice.New(device)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer conn.Close()
+
+		err = conn.LaunchApp(
+			"D8FB9E56-4394-40AC-81C1-9E50DD885AC2", // TODO : infer from selected device
+			"com.apple.mobilesafari",
+			[]interface{}{
+				"-U",
+				"https://google.com",
+			}, map[string]interface{}{
+				"TERM": "xterm-256color",
+			})
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
