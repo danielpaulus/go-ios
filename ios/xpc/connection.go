@@ -197,6 +197,17 @@ func (c *Connection) Send(data map[string]interface{}) error {
 	return nil
 }
 
+func (c *Connection) SendBytes(data []byte) error {
+	err := c.framer.WriteData(rootChannel, false, data)
+	if err != nil {
+		return err
+	}
+
+	// c.msgId += 1
+
+	return nil
+}
+
 func (c *Connection) Close() error {
 	return c.connectionCloser.Close()
 }

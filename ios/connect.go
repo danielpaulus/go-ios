@@ -102,7 +102,30 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	return muxConn.ReleaseDeviceConnection(), nil
 }
 
-func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
+func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
+	deviceInterface, err := connectToServiceTunnelIface(device, serviceName)
+	if err != nil {
+		return nil, err
+	}
+
+	xpcConn, err := xpc.New(deviceInterface.Conn())
+	if err != nil {
+		return nil, err
+	}
+
+	return xpcConn, nil
+}
+
+func ConnectToDtServiceOverTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
+	conn, err := connectToServiceTunnelIface(device, serviceName)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func connectToServiceTunnelIface(device DeviceEntry, serviceName string) (*DeviceConnection, error) {
 	port := device.Rsd.GetPort(serviceName)
 	conn, err := net.Dial("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
 	if err != nil {
@@ -115,14 +138,8 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.C
 		return nil, err
 	}
 
-	deviceInterface := NewDeviceConnectionWithConn(conn)
-
-	xpcConn, err := xpc.New(deviceInterface.Conn())
-	if err != nil {
-		return nil, err
-	}
-
-	return xpcConn, nil
+	deviceConnection := NewDeviceConnectionWithConn(conn)
+	return deviceConnection, nil
 }
 
 // connectWithStartServiceResponse issues a Connect Message to UsbMuxd for the given deviceID on the given port

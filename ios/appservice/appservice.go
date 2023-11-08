@@ -14,7 +14,7 @@ type Connection struct {
 }
 
 func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
-	xpcConn, err := ios.ConnectToServiceTunnelIface(deviceEntry, "com.apple.coredevice.appservice")
+	xpcConn, err := ios.ConnectToXpcServiceTunnelIface(deviceEntry, "com.apple.coredevice.appservice")
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +63,8 @@ func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{},
 				"environmentVariables":          env,
 				"platformSpecificOptions":       platformSpecificOptions.Bytes(),
 				"standardIOUsesPseudoterminals": true,
-				"startStopped":                  false,
-				"terminateExisting":             false,
+				"startStopped":                  true,
+				"terminateExisting":             true,
 				"user": map[string]interface{}{
 					"active": true,
 				},
