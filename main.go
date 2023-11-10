@@ -95,7 +95,7 @@ Usage:
   ios httpproxy remove [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios ps [--apps] [options]
-  ios ip [options]
+  ios ip [options] [--lazy] [--timeout=<sec>]
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary]
   ios readpair [options]
@@ -184,11 +184,13 @@ The commands work as following:
    >                                                                  Use --nojson for a human-readable listing including BundleID when available. (not included with JSON output)
    >                                                                  --apps limits output to processes flagged by iOS as "isApplication". This greatly-filtered list
    >                                                                  should at least include user-installed software.  Additional packages will also be displayed depending on the version of iOS.
-   ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
+   ios ip [options] [--lazy] [--timeout=<sec>]                        Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
    >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP.
-   >                                                                  You have to disable the "automatic wifi address"-privacy feature of the device for this to work.
+   >                                                                  You have to disable the "automatic wifi address"-privacy feature of the device for this to work (if not possible, look at lazy option).
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
-   >                                                                  f.ex. "ios launch com.apple.Maps"
+   >                                                                  f.ex. "ios launch com.apple.Maps".
+   >                                                                  If using lazy, it will listen for a predefined time, and will return the IP with the most requests, which does not require turning off randomized MAC.
+   >                                                                  It is a good idea to launch e.g. apple maps before starting lazy IP finding, as it creates a lot of unique traffic.
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
    ios dproxy [--binary]                                              Starts the reverse engineering proxy server.
    >                                                                  It dumps every communication in plain text so it can be implemented easily.
@@ -378,7 +380,22 @@ The commands work as following:
 
 	b, _ = arguments.Bool("ip")
 	if b {
-		ip, err := pcap.FindIp(device)
+		var ip pcap.NetworkInfo
+		var err error
+
+		// determine timeout for commands
+		timeout, _ := arguments.Int("--timeout")
+		if timeout == 0 {
+			timeout = 10
+		}
+
+		lazy, _ := arguments.Bool("--lazy")
+		if !lazy {
+			ip, err = pcap.FindIPByMac(device, time.Second*time.Duration(timeout))
+		} else {
+			ip, err = pcap.FindIPByLazy(device, time.Second*time.Duration(timeout))
+		}
+
 		exitIfError("failed", err)
 		println(convertToJSONString(ip))
 		return
