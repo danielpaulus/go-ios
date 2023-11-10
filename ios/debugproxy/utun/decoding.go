@@ -5,10 +5,12 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"io"
+
+	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/xpc"
 	log "github.com/sirupsen/logrus"
 	http22 "golang.org/x/net/http2"
-	"io"
 )
 
 type contentType int
@@ -16,6 +18,7 @@ type contentType int
 const (
 	http2 = contentType(iota)
 	remoteXpc
+	remoteDtx
 	unknown
 )
 
@@ -38,6 +41,9 @@ func detectType(r io.ReadSeeker) contentType {
 	i := binary.LittleEndian.Uint32(b)
 	if i == 0x29b00b92 {
 		return remoteXpc
+	}
+	if string(b[:3]) == "y[=" {
+		return remoteDtx
 	}
 
 	return unknown
@@ -107,6 +113,23 @@ func decodeRemoteXpc(w io.Writer, r io.Reader) error {
 		if m.IsFileOpen() {
 			log.Info("file transfer started, skipping remaining data ")
 			return nil
+		}
+	}
+}
+
+func decodeRemoteDtx(w io.Writer, r io.Reader) error {
+	for {
+		m, err := dtx.ReadMessage(r)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
+		}
+
+		buf := bytes.NewBufferString(m.StringDebug() + "\n")
+		if _, err := io.Copy(w, buf); err != nil {
+			return err
 		}
 	}
 }

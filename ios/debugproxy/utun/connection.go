@@ -3,12 +3,13 @@ package utun
 import (
 	"errors"
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/sirupsen/logrus"
 )
 
 type connection struct {
@@ -114,6 +115,12 @@ func parseConnectionData(outgoing string, incoming string) error {
 		return createDecodingFiles(dir, "xpc.jsonl", func(outgoing, incoming pair) error {
 			outErr := decodeRemoteXpc(outgoing.w, outFile)
 			inErr := decodeRemoteXpc(incoming.w, inFile)
+			return errors.Join(outErr, inErr)
+		})
+	case remoteDtx:
+		return createDecodingFiles(dir, "dtx", func(outgoing, incoming pair) error {
+			outErr := decodeRemoteDtx(outgoing.w, outFile)
+			inErr := decodeRemoteDtx(incoming.w, inFile)
 			return errors.Join(outErr, inErr)
 		})
 	default:
