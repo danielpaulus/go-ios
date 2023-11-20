@@ -2,11 +2,11 @@ package appservice
 
 import (
 	"bytes"
-
+	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/xpc"
-
-	plist "howett.net/plist"
+	"github.com/google/uuid"
+	"howett.net/plist"
 )
 
 type Connection struct {
@@ -19,15 +19,17 @@ func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
 		return nil, err
 	}
 
-	print("We have a connection: ")
-	print(xpcConn)
-
 	return &Connection{conn: xpcConn}, nil
 }
 
-func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) error {
+func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) (int64, error) {
 	msg := buildAppLaunchPayload(deviceId, bundleId, args, env)
-	return c.conn.Send(msg)
+	err := c.conn.Send(msg, xpc.HeartbeatRequestFlag)
+	m, err := c.conn.Receive()
+	if err != nil {
+		return 0, err
+	}
+	return pidFromResponse(m)
 }
 
 func (c *Connection) Close() error {
@@ -35,6 +37,7 @@ func (c *Connection) Close() error {
 }
 
 func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) map[string]interface{} {
+	u := uuid.New()
 	platformSpecificOptions := bytes.NewBuffer(nil)
 	plistEncoder := plist.NewBinaryEncoder(platformSpecificOptions)
 	err := plistEncoder.Encode(map[string]interface{}{})
@@ -72,6 +75,17 @@ func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{},
 			},
 			"standardIOIdentifiers": map[string]interface{}{},
 		},
-		"CoreDevice.invocationIdentifier": "62419FC1-5ABF-4D96-BCA8-7A5F6F9A69EE",
+		"CoreDevice.invocationIdentifier": u.String(),
 	}
+}
+
+func pidFromResponse(response map[string]interface{}) (int64, error) {
+	if output, ok := response["CoreDevice.output"].(map[string]interface{}); ok {
+		if processToken, ok := output["processToken"].(map[string]interface{}); ok {
+			if pid, ok := processToken["processIdentifier"].(int64); ok {
+				return pid, nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("could not get pid from response")
 }

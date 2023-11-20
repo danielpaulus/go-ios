@@ -926,15 +926,13 @@ The commands work as following:
 		}
 		defer conn.Close()
 
-		err = conn.LaunchApp(
-			"D8FB9E56-4394-40AC-81C1-9E50DD885AC2", // TODO : infer from selected device
+		pid, err := conn.LaunchApp(
+			"E66A4DED-A888-495F-A701-1C478F94DC8B", // TODO : infer from selected device
 			"com.apple.mobilesafari",
-			[]interface{}{
-				"-U",
-				"https://google.com",
-			}, map[string]interface{}{
+			[]interface{}{}, map[string]interface{}{
 				"TERM": "xterm-256color",
 			})
+		log.WithField("pid", pid).Info("launched app")
 		if err != nil {
 			log.Fatal(err)
 		}

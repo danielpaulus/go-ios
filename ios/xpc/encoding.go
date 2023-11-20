@@ -32,11 +32,11 @@ const (
 )
 
 const (
-	alwaysSetFlag        = uint32(0x00000001)
-	dataFlag             = uint32(0x00000100)
-	heartbeatRequestFlag = uint32(0x00010000)
-	heartbeatReplyFlag   = uint32(0x00020000)
-	initHandshakeFlag    = uint32(0x00400000)
+	AlwaysSetFlag        = uint32(0x00000001)
+	DataFlag             = uint32(0x00000100)
+	HeartbeatRequestFlag = uint32(0x00010000)
+	HeartbeatReplyFlag   = uint32(0x00020000)
+	InitHandshakeFlag    = uint32(0x00400000)
 )
 
 type wrapperHeader struct {
@@ -111,12 +111,16 @@ func EncodeMessage(w io.Writer, message Message) error {
 			},
 		}
 
-		err = binary.Write(w, binary.LittleEndian, wrapper)
+		buf2 := bytes.NewBuffer(nil)
+
+		err = binary.Write(buf2, binary.LittleEndian, wrapper)
 		if err != nil {
 			return err
 		}
 
-		_, err = io.Copy(w, buf)
+		_, err = io.Copy(buf2, buf)
+
+		_, err = io.Copy(w, buf2)
 		return err
 	}
 }
@@ -325,6 +329,11 @@ func calcPadding(l int) int64 {
 func encodeDictionary(w io.Writer, v map[string]interface{}) error {
 	buf := bytes.NewBuffer(nil)
 
+	err := binary.Write(buf, binary.LittleEndian, uint32(len(v)))
+	if err != nil {
+		return err
+	}
+
 	for k, e := range v {
 		err := encodeDictionaryKey(buf, k)
 		if err != nil {
@@ -336,15 +345,11 @@ func encodeDictionary(w io.Writer, v map[string]interface{}) error {
 		}
 	}
 
-	err := binary.Write(w, binary.LittleEndian, dictionaryType)
+	err = binary.Write(w, binary.LittleEndian, dictionaryType)
 	if err != nil {
 		return err
 	}
 	err = binary.Write(w, binary.LittleEndian, uint32(buf.Len()))
-	if err != nil {
-		return err
-	}
-	err = binary.Write(w, binary.LittleEndian, uint32(len(v)))
 	if err != nil {
 		return err
 	}
@@ -521,7 +526,7 @@ func encodeMessageWithoutBody(w io.Writer) error {
 	}{
 		magic: wrapperMagic,
 		h: wrapperHeader{
-			Flags:   alwaysSetFlag,
+			Flags:   AlwaysSetFlag,
 			BodyLen: 0,
 			MsgId:   0,
 		},

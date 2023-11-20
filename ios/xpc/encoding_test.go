@@ -16,7 +16,7 @@ func TestEmptyDictionary(t *testing.T) {
 	res, err := DecodeMessage(bytes.NewReader(b))
 	assert.NoError(t, err)
 	assert.Equal(t, Message{
-		Flags: alwaysSetFlag,
+		Flags: AlwaysSetFlag,
 		Body:  map[string]interface{}{},
 	}, res)
 }
@@ -27,7 +27,7 @@ func TestDictionary(t *testing.T) {
 	res, err := DecodeMessage(bytes.NewReader(b))
 	assert.NoError(t, err)
 	assert.Equal(t, Message{
-		Flags: alwaysSetFlag | dataFlag | heartbeatRequestFlag,
+		Flags: AlwaysSetFlag | DataFlag | HeartbeatRequestFlag,
 		Body: map[string]interface{}{
 			"CoreDevice.CoreDeviceDDIProtocolVersion": int64(0),
 			"CoreDevice.action":                       map[string]interface{}{},
@@ -83,12 +83,12 @@ func TestEncodeDecode(t *testing.T) {
 		{
 			name:          "empty dict",
 			input:         map[string]interface{}{},
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
 			name:          "no xpc body",
 			input:         nil,
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
 			name: "keys without padding",
@@ -96,7 +96,7 @@ func TestEncodeDecode(t *testing.T) {
 				"key":     "value",
 				"key-key": "value",
 			},
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
 			name: "nested values",
@@ -109,21 +109,21 @@ func TestEncodeDecode(t *testing.T) {
 					"data":   []byte{0x1},
 				},
 			},
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
 			name: "null entry",
 			input: map[string]interface{}{
 				"null": nil,
 			},
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
 			name: "dictionary with array",
 			input: map[string]interface{}{
 				"array": []interface{}{uint64(1), uint64(2), uint64(3)},
 			},
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 	}
 
@@ -131,7 +131,7 @@ func TestEncodeDecode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := bytes.NewBuffer(nil)
 			err := EncodeMessage(buf, Message{
-				Flags: alwaysSetFlag | dataFlag,
+				Flags: AlwaysSetFlag | DataFlag,
 				Body:  tt.input,
 				Id:    0,
 			})
