@@ -41,6 +41,7 @@ const (
 	HeartbeatRequestFlag = uint32(0x00010000)
 	HeartbeatReplyFlag   = uint32(0x00020000)
 	FileOpenFlag         = uint32(0x00100000)
+	InitHandshakeFlag    = uint32(0x00400000)
 )
 
 type wrapperHeader struct {

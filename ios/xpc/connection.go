@@ -23,8 +23,20 @@ func New(clientServer io.ReadWriter, serverClient io.ReadWriter, closer io.Close
 	}, nil
 }
 
-func (c *Connection) Receive() (map[string]interface{}, error) {
+func (c *Connection) ReceiveOnServerClientStream() (map[string]interface{}, error) {
 	msg, err := DecodeMessage(c.serverClient)
+	if err != nil {
+		return nil, err
+	}
+	return msg.Body, nil
+}
+
+func (c *Connection) ReceiveOnClientServerStream() (map[string]interface{}, error) {
+	return c.receiveOnStream(c.clientServer)
+}
+
+func (c *Connection) receiveOnStream(r io.Reader) (map[string]interface{}, error) {
+	msg, err := DecodeMessage(r)
 	if err != nil {
 		return nil, err
 	}

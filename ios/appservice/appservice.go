@@ -22,14 +22,22 @@ func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
 	return &Connection{conn: xpcConn}, nil
 }
 
-func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) (int64, error) {
+type AppLaunch struct {
+	Pid int64
+}
+
+func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) (AppLaunch, error) {
 	msg := buildAppLaunchPayload(deviceId, bundleId, args, env)
 	err := c.conn.Send(msg, xpc.HeartbeatRequestFlag)
-	m, err := c.conn.Receive()
+	m, err := c.conn.ReceiveOnServerClientStream()
 	if err != nil {
-		return 0, err
+		return AppLaunch{}, err
 	}
-	return pidFromResponse(m)
+	pid, err := pidFromResponse(m)
+	if err != nil {
+		return AppLaunch{}, err
+	}
+	return AppLaunch{Pid: pid}, nil
 }
 
 func (c *Connection) Close() error {
