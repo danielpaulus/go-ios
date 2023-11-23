@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
+	log "github.com/sirupsen/logrus"
 	"strings"
 
 	"github.com/google/uuid"
@@ -205,6 +207,36 @@ func Pair(device DeviceEntry) error {
 	if !success || err != nil {
 		return errors.New("Saving the PairRecord to usbmux failed")
 	}
+	return nil
+}
+
+func TunnelPair(device DeviceEntry) error {
+	port := device.Rsd.GetPort(tunnel.UntrustedTunnelServiceName)
+	if port == 0 {
+		return fmt.Errorf("could not find port for '%s'", tunnel.UntrustedTunnelServiceName)
+	}
+	h, err := ConnectToHttp2WithAddr(device.InterfaceAddress, port)
+	if err != nil {
+		return err
+	}
+
+	xpcConn, err := CreateXpcConnection(h)
+	if err != nil {
+		return err
+	}
+	ts, err := tunnel.NewTunnelServiceWithXpc(xpcConn, h)
+	if err != nil {
+		return err
+	}
+	err = ts.Pair()
+	if err != nil {
+		return err
+	}
+	tunnelInfo, err := ts.CreateTunnelListener()
+	if err != nil {
+		return err
+	}
+	log.WithField("tunnel port", tunnelInfo.TunnelPort).Debug("created tunnel listener")
 	return nil
 }
 

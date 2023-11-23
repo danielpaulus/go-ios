@@ -283,7 +283,7 @@ The commands work as following:
 		return
 	}
 
-	rsdProvider := ios.RsdPortProvider{}
+	var rsdProvider ios.RsdPortProvider
 	rsdFile, _ := arguments.String("--rsd")
 	if rsdFile != "" {
 		rsd, err := os.Open(rsdFile)
@@ -297,6 +297,7 @@ The commands work as following:
 	address, _ := arguments.String("--address")
 	device, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	exitIfError("error getting devicelist", err)
+	device, err = ios.FindDeviceInterfaceAddress(device)
 
 	b, _ = arguments.Bool("erase")
 	if b {
@@ -1830,7 +1831,8 @@ func runSyslog(device ios.DeviceEntry) {
 
 func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password string) {
 	if orgIdentityP12File == "" {
-		err := ios.Pair(device)
+		//err := ios.Pair(device)
+		err := ios.TunnelPair(device)
 		exitIfError("Pairing failed", err)
 		log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 		return

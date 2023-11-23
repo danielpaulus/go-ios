@@ -64,7 +64,7 @@ func Ntohs(port uint16) uint16 {
 // if the env variable 'udid' is specified, the device with that udid
 // otherwise it returns the first device in the list.
 func GetDevice(udid string) (DeviceEntry, error) {
-	return GetDeviceWithAddress(udid, "", RsdPortProvider{})
+	return GetDeviceWithAddress(udid, "", nil)
 }
 
 func GetDeviceWithAddress(udid string, address string, provider RsdPortProvider) (DeviceEntry, error) {
