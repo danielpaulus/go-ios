@@ -2,6 +2,7 @@ package ios
 
 import (
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/http"
 	"net"
 	"time"
 
@@ -105,28 +106,14 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
 	port := device.Rsd.GetPort(serviceName)
 
-	h, err := ConnectToDeviceHttp2(device, port)
+	h, err := ConnectToHttp2(device, port)
 	if err != nil {
 		return nil, err
 	}
-
-	err = initializeXpcConnection(h)
-	if err != nil {
-		return nil, err
-	}
-
-	clientServerChannel := NewStreamReadWriter(h, ClientServer)
-	serverClientChannel := NewStreamReadWriter(h, ServerClient)
-
-	xpcConn, err := xpc.New(clientServerChannel, serverClientChannel, h)
-	if err != nil {
-		return nil, err
-	}
-
-	return xpcConn, nil
+	return CreateXpcConnection(h)
 }
 
-func ConnectToDeviceHttp2(device DeviceEntry, port int) (*HttpConnection, error) {
+func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
 	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
 	if err != nil {
 		return nil, err
@@ -146,7 +133,47 @@ func ConnectToDeviceHttp2(device DeviceEntry, port int) (*HttpConnection, error)
 	if err != nil {
 		return nil, err
 	}
-	return NewHttpConnection(conn)
+	return http.NewHttpConnection(conn)
+}
+
+func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {
+	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", a, port))
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := net.DialTCP("tcp", nil, addr)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = conn.SetKeepAlive(true)
+	if err != nil {
+		return nil, err
+	}
+	err = conn.SetKeepAlivePeriod(1 * time.Second)
+	if err != nil {
+		return nil, err
+	}
+	return http.NewHttpConnection(conn)
+}
+
+func CreateXpcConnection(h *http.HttpConnection) (*xpc.Connection, error) {
+	err := initializeXpcConnection(h)
+	if err != nil {
+		return nil, err
+	}
+
+	clientServerChannel := http.NewStreamReadWriter(h, http.ClientServer)
+	serverClientChannel := http.NewStreamReadWriter(h, http.ServerClient)
+
+	xpcConn, err := xpc.New(clientServerChannel, serverClientChannel, h)
+	if err != nil {
+		return nil, err
+	}
+
+	return xpcConn, nil
 }
 
 // connectWithStartServiceResponse issues a Connect Message to UsbMuxd for the given deviceID on the given port
@@ -196,9 +223,9 @@ func ConnectLockdownWithSession(device DeviceEntry) (*LockDownConnection, error)
 	return lockdownConnection, nil
 }
 
-func initializeXpcConnection(h *HttpConnection) error {
-	csWriter := NewStreamReadWriter(h, ClientServer)
-	ssWriter := NewStreamReadWriter(h, ServerClient)
+func initializeXpcConnection(h *http.HttpConnection) error {
+	csWriter := http.NewStreamReadWriter(h, http.ClientServer)
+	ssWriter := http.NewStreamReadWriter(h, http.ServerClient)
 
 	err := xpc.EncodeMessage(csWriter, xpc.Message{
 		Flags: xpc.AlwaysSetFlag,

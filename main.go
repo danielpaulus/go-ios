@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -124,6 +125,7 @@ Usage:
   ios diskspace [options]
   ios batterycheck [options]
   ios appservice [options]
+  ios start-tunnel [options]
 
 Options:
   -v --verbose   		Enable Debug Logging.
@@ -133,7 +135,7 @@ Options:
   -h --help      		Show this screen.
   --udid=<udid>  		UDID of the device.
   --address=<ipv6addrr>	Address of the device interface
-  --rsd=<path}			Path to RSD info
+  --rsd=<path>			Path to RSD info
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -225,6 +227,9 @@ The commands work as following:
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
    ios appservice [options]											  Launches apps.
+   ios start-tunnel [options]                                         Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
+   >                                                                  This command needs to be executed with admin privileges.
+   >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo kill -s STOP $(pgrep "^remoted")', and 'sudo kill -s CONT $(pgrep "^remoted")' to resume)
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -283,7 +288,7 @@ The commands work as following:
 		return
 	}
 
-	rsdProvider := ios.RsdPortProvider{}
+	var rsdProvider ios.RsdPortProvider
 	rsdFile, _ := arguments.String("--rsd")
 	if rsdFile != "" {
 		rsd, err := os.Open(rsdFile)
@@ -297,6 +302,7 @@ The commands work as following:
 	address, _ := arguments.String("--address")
 	device, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	exitIfError("error getting devicelist", err)
+	device, err = ios.FindDeviceInterfaceAddress(device)
 
 	b, _ = arguments.Bool("erase")
 	if b {
@@ -936,6 +942,11 @@ The commands work as following:
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	b, _ = arguments.Bool("start-tunnel")
+	if b {
+		startTunnel(device)
 	}
 }
 
@@ -1840,6 +1851,40 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	err = ios.PairSupervised(device, p12, p12Password)
 	exitIfError("Pairing failed", err)
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
+}
+
+func startTunnel(device ios.DeviceEntry) {
+	home, err := os.UserHomeDir()
+	exitIfError("", err)
+	pairRecordsDir := path.Join(home, ".go-ios")
+	pairRecords := tunnel.NewPairRecordStore(pairRecordsDir)
+	err = os.MkdirAll(pairRecordsDir, os.ModePerm)
+	exitIfError("could not create go-ios dir", err)
+
+	port := device.Rsd.GetPort(tunnel.UntrustedTunnelServiceName)
+	if port == 0 {
+		log.Fatal("could net get port for untrusted tunnel service")
+	}
+	h, err := ios.ConnectToHttp2WithAddr(device.InterfaceAddress, port)
+	exitIfError("failed to connect to device", err)
+
+	xpcConn, err := ios.CreateXpcConnection(h)
+	exitIfError("", err)
+	ts, err := tunnel.NewTunnelServiceWithXpc(xpcConn, h)
+
+	pr, err := pairRecords.LoadOrCreate(device.Properties.SerialNumber)
+	exitIfError("", err)
+	if err != nil {
+		log.WithError(err).Warn("could not store pair record")
+	}
+
+	err = ts.Pair(pr)
+	exitIfError("", err)
+	_ = pairRecords.Store(device.Properties.SerialNumber, pr)
+	tunnelInfo, err := ts.CreateTunnelListener()
+	exitIfError("", err)
+	err = tunnel.ConnectToTunnel(context.TODO(), tunnelInfo, device.InterfaceAddress)
+	exitIfError("", err)
 }
 
 func readPair(device ios.DeviceEntry) {

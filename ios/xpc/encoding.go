@@ -125,16 +125,12 @@ func EncodeMessage(w io.Writer, message Message) error {
 			},
 		}
 
-		buf2 := bytes.NewBuffer(nil)
-
-		err = binary.Write(buf2, binary.LittleEndian, wrapper)
+		err = binary.Write(w, binary.LittleEndian, wrapper)
 		if err != nil {
 			return err
 		}
 
-		_, err = io.Copy(buf2, buf)
-
-		_, err = io.Copy(w, buf2)
+		_, err = io.Copy(w, buf)
 		return err
 	}
 }
