@@ -237,6 +237,10 @@ func TunnelPair(device DeviceEntry) error {
 		return err
 	}
 	log.WithField("tunnel port", tunnelInfo.TunnelPort).Debug("created tunnel listener")
+	err = tunnel.ConnectToTunnel(tunnelInfo, device.InterfaceAddress)
+	if err != nil {
+		log.WithError(err).Fatal("failed creating tunnel")
+	}
 	return nil
 }
 

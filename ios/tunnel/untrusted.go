@@ -13,19 +13,21 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/opack"
 	"github.com/danielpaulus/go-ios/ios/xpc"
+	"github.com/dmissmann/quic-go"
 	"github.com/google/uuid"
-	"github.com/quic-go/quic-go"
 	log "github.com/sirupsen/logrus"
+	"github.com/songgao/water"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/hkdf"
 	"io"
 	"math/big"
-	"net"
+	"os/exec"
 	"sync/atomic"
 	"time"
 )
@@ -218,15 +220,16 @@ func (receiver *TunnelService) Pair() error {
 	return err
 }
 
-func (t *TunnelService) CreateTunnelListener() (TunnelInfo, error) {
+func (t *TunnelService) CreateTunnelListener() (TunnelListener, error) {
+	log.Info("create tunnel listener")
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+
 	if err != nil {
-		return TunnelInfo{}, err
+		return TunnelListener{}, err
 	}
-	der := x509.MarshalPKCS1PublicKey(&privateKey.PublicKey)
-	fmt.Printf("tunnel key: %s\n", hex.EncodeToString(der))
+	der, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 	if err != nil {
-		return TunnelInfo{}, err
+		return TunnelListener{}, err
 	}
 
 	createListenerRequest, err := EncodeStreamEncrypted(t.messageReadWriter, t.clientEncryption, t.cs, map[string]interface{}{
@@ -234,47 +237,48 @@ func (t *TunnelService) CreateTunnelListener() (TunnelInfo, error) {
 			"_0": map[string]interface{}{
 				"createListener": map[string]interface{}{
 					"key":                   der,
-					"transportProtocolType": "tcp",
+					"transportProtocolType": "quic",
+					//"transportProtocolType": "tcp",
 				},
 			},
 		},
 	})
 	if err != nil {
-		return TunnelInfo{}, err
+		return TunnelListener{}, err
 	}
 	err = t.xpcConn.Send(createListenerRequest)
 	if err != nil {
-		return TunnelInfo{}, err
+		return TunnelListener{}, err
 	}
 
 	m, err := t.xpcConn.ReceiveOnClientServerStream()
 	if err != nil {
-		return TunnelInfo{}, err
+		return TunnelListener{}, err
 	}
 
 	listenerRes, err := DecodeStreamEncrypted(t.messageReadWriter, t.serverEncryption, t.cs, m)
 	//listenerRes := new(cipherMessage)
 	//err = listenerRes.Decode(t.serverEncryption, t.cs, m)
 	if err != nil {
-		return TunnelInfo{}, err
+		return TunnelListener{}, err
 	}
 	log.Infof("Tunnel listener %v", listenerRes)
 
 	createListener, err := getChildMap(listenerRes, "response", "_1", "createListener")
 	if err != nil {
-		return TunnelInfo{}, err
+		return TunnelListener{}, err
 	}
 	port := createListener["port"].(float64)
 	devPublicKey := createListener["devicePublicKey"].(string)
 	devPK, err := base64.StdEncoding.DecodeString(devPublicKey)
 	if err != nil {
-		return TunnelInfo{}, err
+		return TunnelListener{}, err
 	}
 	publicKey, err := x509.ParsePKIXPublicKey(devPK)
 	if err != nil {
-		return TunnelInfo{}, err
+		return TunnelListener{}, err
 	}
-	return TunnelInfo{
+	return TunnelListener{
 		PrivateKey:      privateKey,
 		DevicePublicKey: publicKey,
 		TunnelPort:      uint64(port),
@@ -370,24 +374,38 @@ func (t *TunnelService) createUnlockKey() ([]byte, error) {
 	return nil, err
 }
 
-type TunnelInfo struct {
+type TunnelListener struct {
 	PrivateKey      *rsa.PrivateKey
 	DevicePublicKey interface{}
 	TunnelPort      uint64
 }
 
-func ConnectToTunnel(info TunnelInfo, addr string) error {
+type TunnelInfo struct {
+	ServerAddress    string //`json:"serverAddress"`
+	ServerRSDPort    uint64 //`json:"serverRSDPort"`
+	ClientParameters struct {
+		Address string
+		Netmask string //`json:"netmask"`
+		Mtu     uint64
+	} `json:"clientParameters"`
+}
+
+func ConnectToTunnel(info TunnelListener, addr string) error {
 	log.WithField("address", addr).WithField("port", info.TunnelPort).Info("connect to tunnel")
-	tmpl := &x509.Certificate{
-		SerialNumber: big.NewInt(2019),
-		Subject: pkix.Name{
-			Organization: []string{"go-ios"},
-		},
-		NotBefore: time.Now(),
-		NotAfter:  time.Now().AddDate(10, 0, 0),
+
+	ctx := context.TODO()
+
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
 	}
 
-	cert, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &info.PrivateKey.PublicKey, info.PrivateKey)
+	cert, err := x509.CreateCertificate(rand.Reader, template, template, &info.PrivateKey.PublicKey, info.PrivateKey)
 	if err != nil {
 		return err
 	}
@@ -407,23 +425,134 @@ func ConnectToTunnel(info TunnelInfo, addr string) error {
 		InsecureSkipVerify: true,
 		Certificates:       []tls.Certificate{cert5},
 		ClientAuth:         tls.NoClientCert,
+		NextProtos:         []string{"RemotePairingTunnelProtocol"},
+		CurvePreferences:   []tls.CurveID{tls.CurveP256},
 	}
 
-	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("[%s]:%d", addr, info.TunnelPort))
 	if err != nil {
 		return err
 	}
-	udpConn, err := net.DialUDP("udp", nil, udpAddr)
 	if err != nil {
 		return err
 	}
 
-	//conn, err := quic.Dial(context.TODO(), udpConn, udpAddr, conf, nil)
-	conn, err := quic.DialAddr(context.TODO(), fmt.Sprintf("[%s]:%d", addr, info.TunnelPort), conf, nil)
+	conn, err := quic.DialAddr(ctx, fmt.Sprintf("[%s]:%d", addr, info.TunnelPort), conf, &quic.Config{
+		EnableDatagrams: true,
+		KeepAlivePeriod: 1 * time.Second,
+	})
 	if err != nil {
 		return err
 	}
-	defer udpConn.Close()
-	conn.Context()
+	defer conn.CloseWithError(0, "")
+
+	err = conn.SendDatagram(make([]byte, 1))
+	if err != nil {
+		return err
+	}
+
+	stream, err := conn.OpenStream()
+	if err != nil {
+		return err
+	}
+	defer stream.Close()
+
+	rq, err := json.Marshal(map[string]interface{}{
+		"type": "clientHandshakeRequest",
+		"mtu":  1280,
+	})
+	if err != nil {
+		return err
+	}
+
+	buf := bytes.NewBuffer(nil)
+	buf.Write([]byte("CDTunnel\000"))
+	buf.WriteByte(byte(len(rq)))
+	buf.Write(rq)
+
+	_, err = stream.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	header := make([]byte, len("CDTunnel")+2)
+	n, err := stream.Read(header)
+	if err != nil {
+		return fmt.Errorf("could not header read from stream. %w", err)
+	}
+
+	bodyLen := header[len(header)-1]
+
+	res := make([]byte, bodyLen)
+	n, err = stream.Read(res)
+	if err != nil {
+		return fmt.Errorf("could not read from stream. %w", err)
+	}
+
+	log.WithField("response", string(res[:n])).Info("got response")
+
+	var tunnelInfo TunnelInfo
+	err = json.Unmarshal(res[:n], &tunnelInfo)
+	if err != nil {
+		return err
+	}
+	log.WithField("info", tunnelInfo).Info("got tunnel info")
+
+	ifce, err := water.New(water.Config{
+		DeviceType: water.TUN,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Interface Name: %s\n", ifce.Name())
+
+	//cmd := exec.Command("ifconfig", ifce.Name(), tunnelInfo.ClientParameters.Address, tunnelInfo.ServerAddress, "up")
+	cmd := exec.Command("ifconfig", ifce.Name(), "inet6", "add", fmt.Sprintf("%s/64", tunnelInfo.ClientParameters.Address))
+	log.WithField("cmd", cmd.String()).Info("run cmd")
+	err = cmd.Start()
+	if err != nil {
+		return err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+	if cmd.ProcessState.ExitCode() != 0 {
+		return fmt.Errorf("failed")
+	}
+
+	go func() {
+		for {
+			b, err := conn.ReceiveDatagram(ctx)
+			if err != nil {
+				log.WithError(err).Warn("failed to receive datagram")
+				continue
+			}
+			_, err = ifce.Write(b)
+			if err != nil {
+				log.WithError(err).Warn("failed to forward data")
+			}
+		}
+	}()
+
+	go func() {
+		packet := make([]byte, tunnelInfo.ClientParameters.Mtu)
+		for {
+			n, err := ifce.Read(packet)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = conn.SendDatagram(packet[:n])
+			if err != nil {
+				log.WithError(err).Warn("failed to send datagram")
+			}
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		break
+	}
+
 	return nil
 }
