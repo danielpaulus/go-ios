@@ -150,7 +150,6 @@ func (s RsdService) Handshake() (RsdHandshakeResponse, error) {
 				Port: uint32(p),
 			}
 		}
-		log.WithField("services", res).Info("got services")
 		return RsdHandshakeResponse{
 			Services: res,
 			Udid:     udid,

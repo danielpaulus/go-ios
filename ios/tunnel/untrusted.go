@@ -2,34 +2,22 @@ package tunnel
 
 import (
 	"bytes"
-	"context"
 	"crypto/cipher"
 	"crypto/ecdh"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha512"
-	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
-	"encoding/hex"
-	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/opack"
 	"github.com/danielpaulus/go-ios/ios/xpc"
-	"github.com/dmissmann/quic-go"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"github.com/songgao/water"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/hkdf"
 	"io"
-	"math/big"
-	"os/exec"
-	"sync/atomic"
-	"time"
 )
 
 const UntrustedTunnelServiceName = "com.apple.internal.dt.coredevice.untrusted.tunnelservice"
@@ -39,9 +27,21 @@ func NewTunnelServiceWithXpc(xpcConn *xpc.Connection, c io.Closer) (*TunnelServi
 	if err != nil {
 		return nil, err
 	}
-	sequence := atomic.Uint64{}
-	sequence.Store(1)
 	return &TunnelService{xpcConn: xpcConn, c: c, key: key, messageReadWriter: newControlChannelCodec()}, nil
+}
+
+func NewTunnelServiceWithSessionKey(conn *xpc.Connection, c io.Closer, sessionKey []byte) (*TunnelService, error) {
+	ts := &TunnelService{
+		xpcConn:           conn,
+		c:                 c,
+		key:               nil,
+		messageReadWriter: newControlChannelCodec(),
+	}
+	err := ts.setupCiphers(sessionKey)
+	if err != nil {
+		return nil, err
+	}
+	return ts, nil
 }
 
 type TunnelService struct {
@@ -55,12 +55,16 @@ type TunnelService struct {
 	messageReadWriter *controlChannelCodec
 }
 
-func (receiver *TunnelService) Close() error {
-	return receiver.c.Close()
+type PairInfo struct {
+	SessionKey []byte
 }
 
-func (receiver *TunnelService) Pair() error {
-	err := receiver.xpcConn.Send(EncodeRequest(receiver.messageReadWriter, map[string]interface{}{
+func (t *TunnelService) Close() error {
+	return t.c.Close()
+}
+
+func (t *TunnelService) Pair() (PairInfo, error) {
+	err := t.xpcConn.Send(EncodeRequest(t.messageReadWriter, map[string]interface{}{
 		"handshake": map[string]interface{}{
 			"_0": map[string]interface{}{
 				"hostOptions": map[string]interface{}{
@@ -72,27 +76,27 @@ func (receiver *TunnelService) Pair() error {
 	}))
 
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
-	m, err := receiver.xpcConn.ReceiveOnClientServerStream()
+	m, err := t.xpcConn.ReceiveOnClientServerStream()
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
-	m, err = receiver.messageReadWriter.Decode(m)
+	m, err = t.messageReadWriter.Decode(m)
 
-	err = receiver.setupManualPairing()
+	err = t.setupManualPairing()
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 
-	devPublicKey, devSaltKey, err := receiver.readDeviceKey()
+	devPublicKey, devSaltKey, err := t.readDeviceKey()
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 
 	srp, err := NewSrpInfo(devSaltKey, devPublicKey)
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 
 	proofTlv := NewTlvBuffer()
@@ -100,29 +104,29 @@ func (receiver *TunnelService) Pair() error {
 	proofTlv.WriteData(TypePublicKey, srp.ClientPublic)
 	proofTlv.WriteData(TypeProof, srp.ClientProof)
 
-	err = receiver.xpcConn.Send(EncodeEvent(receiver.messageReadWriter, &pairingData{
+	err = t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &pairingData{
 		data: proofTlv.Bytes(),
 		kind: "setupManualPairing",
 	}))
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 
-	m, err = receiver.xpcConn.ReceiveOnClientServerStream()
+	m, err = t.xpcConn.ReceiveOnClientServerStream()
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 
 	var proofPairingData pairingData
-	DecodeEvent(receiver.messageReadWriter, m, &proofPairingData)
+	DecodeEvent(t.messageReadWriter, m, &proofPairingData)
 
 	serverProof, err := TlvReader(proofPairingData.data).ReadCoalesced(TypeProof)
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 	verified := srp.VerifyServerProof(serverProof)
 	if !verified {
-		return fmt.Errorf("could not verify server proof")
+		return PairInfo{}, fmt.Errorf("could not verify server proof")
 	}
 
 	identifier := uuid.New()
@@ -134,7 +138,7 @@ func (receiver *TunnelService) Pair() error {
 	buf.Write(public)
 
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 	signature := ed25519.Sign(private, buf.Bytes())
 
@@ -157,67 +161,65 @@ func (receiver *TunnelService) Pair() error {
 	sessionKeyBuf := bytes.NewBuffer(nil)
 	_, err = io.CopyN(sessionKeyBuf, hkdf.New(sha512.New, srp.SessionKey, []byte("Pair-Setup-Encrypt-Salt"), []byte("Pair-Setup-Encrypt-Info")), 32)
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 	setupKey := sessionKeyBuf.Bytes()
 
 	cipher, err := chacha20poly1305.New(setupKey)
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 
-	//deviceInfoLen := len(deviceInfoTlv.Bytes())
 	nonce := make([]byte, cipher.NonceSize())
-	for x, y := range "PS-Msg05" {
-		nonce[4+x] = byte(y)
-	}
+	copy(nonce[4:], "PS-Msg05")
 	x := cipher.Seal(nil, nonce, deviceInfoTlv.Bytes(), nil)
 
 	encryptedTlv := NewTlvBuffer()
 	encryptedTlv.WriteByte(TypeState, 0x05)
 	encryptedTlv.WriteData(TypeEncryptedData, x)
 
-	err = receiver.xpcConn.Send(EncodeEvent(receiver.messageReadWriter, &pairingData{
+	err = t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &pairingData{
 		data:        encryptedTlv.Bytes(),
 		kind:        "setupManualPairing",
 		sendingHost: "SL-1876",
 	}))
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 
-	m, err = receiver.xpcConn.ReceiveOnClientServerStream()
-	log.WithField("data", m).Info("response")
+	m, err = t.xpcConn.ReceiveOnClientServerStream()
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 
 	var encRes pairingData
-	err = DecodeEvent(receiver.messageReadWriter, m, &encRes)
+	err = DecodeEvent(t.messageReadWriter, m, &encRes)
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 
 	encrData, err := TlvReader(encRes.data).ReadCoalesced(TypeEncryptedData)
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 	copy(nonce[4:], "PS-Msg06")
-	decrypted, err := cipher.Open(nil, nonce, encrData, nil)
-
-	log.WithField("decrypted", hex.EncodeToString(decrypted)).Info("response")
-	log.Printf("%s", decrypted)
-
-	err = receiver.setupCiphers(srp.SessionKey)
+	// the device info response from the device is not needed. we just make sure that there's no error decrypting it
+	_, err = cipher.Open(nil, nonce, encrData, nil)
 	if err != nil {
-		return err
+		return PairInfo{}, err
 	}
 
-	receiver.cs = &cipherStream{}
+	err = t.setupCiphers(srp.SessionKey)
+	if err != nil {
+		return PairInfo{}, err
+	}
 
-	_, err = receiver.createUnlockKey()
+	_, err = t.createUnlockKey()
+	if err != nil {
+		return PairInfo{}, err
+	}
 
-	return err
+	return PairInfo{SessionKey: srp.SessionKey}, nil
 }
 
 func (t *TunnelService) CreateTunnelListener() (TunnelListener, error) {
@@ -257,12 +259,9 @@ func (t *TunnelService) CreateTunnelListener() (TunnelListener, error) {
 	}
 
 	listenerRes, err := DecodeStreamEncrypted(t.messageReadWriter, t.serverEncryption, t.cs, m)
-	//listenerRes := new(cipherMessage)
-	//err = listenerRes.Decode(t.serverEncryption, t.cs, m)
 	if err != nil {
 		return TunnelListener{}, err
 	}
-	log.Infof("Tunnel listener %v", listenerRes)
 
 	createListener, err := getChildMap(listenerRes, "response", "_1", "createListener")
 	if err != nil {
@@ -304,6 +303,7 @@ func (t *TunnelService) setupCiphers(sessionKey []byte) error {
 	if err != nil {
 		return err
 	}
+	t.cs = &cipherStream{}
 	return nil
 }
 
@@ -381,178 +381,11 @@ type TunnelListener struct {
 }
 
 type TunnelInfo struct {
-	ServerAddress    string //`json:"serverAddress"`
-	ServerRSDPort    uint64 //`json:"serverRSDPort"`
+	ServerAddress    string
+	ServerRSDPort    uint64
 	ClientParameters struct {
 		Address string
-		Netmask string //`json:"netmask"`
+		Netmask string
 		Mtu     uint64
-	} `json:"clientParameters"`
-}
-
-func ConnectToTunnel(info TunnelListener, addr string) error {
-	log.WithField("address", addr).WithField("port", info.TunnelPort).Info("connect to tunnel")
-
-	ctx := context.TODO()
-
-	template := &x509.Certificate{
-		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		SignatureAlgorithm:    x509.SHA256WithRSA,
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		BasicConstraintsValid: true,
 	}
-
-	cert, err := x509.CreateCertificate(rand.Reader, template, template, &info.PrivateKey.PublicKey, info.PrivateKey)
-	if err != nil {
-		return err
-	}
-	privateKeyPem := pem.EncodeToMemory(
-		&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(info.PrivateKey),
-		},
-	)
-	certPem := pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: cert,
-	})
-	cert5, err := tls.X509KeyPair(certPem, privateKeyPem)
-
-	conf := &tls.Config{
-		InsecureSkipVerify: true,
-		Certificates:       []tls.Certificate{cert5},
-		ClientAuth:         tls.NoClientCert,
-		NextProtos:         []string{"RemotePairingTunnelProtocol"},
-		CurvePreferences:   []tls.CurveID{tls.CurveP256},
-	}
-
-	if err != nil {
-		return err
-	}
-	if err != nil {
-		return err
-	}
-
-	conn, err := quic.DialAddr(ctx, fmt.Sprintf("[%s]:%d", addr, info.TunnelPort), conf, &quic.Config{
-		EnableDatagrams: true,
-		KeepAlivePeriod: 1 * time.Second,
-	})
-	if err != nil {
-		return err
-	}
-	defer conn.CloseWithError(0, "")
-
-	err = conn.SendDatagram(make([]byte, 1))
-	if err != nil {
-		return err
-	}
-
-	stream, err := conn.OpenStream()
-	if err != nil {
-		return err
-	}
-	defer stream.Close()
-
-	rq, err := json.Marshal(map[string]interface{}{
-		"type": "clientHandshakeRequest",
-		"mtu":  1280,
-	})
-	if err != nil {
-		return err
-	}
-
-	buf := bytes.NewBuffer(nil)
-	buf.Write([]byte("CDTunnel\000"))
-	buf.WriteByte(byte(len(rq)))
-	buf.Write(rq)
-
-	_, err = stream.Write(buf.Bytes())
-	if err != nil {
-		return err
-	}
-
-	header := make([]byte, len("CDTunnel")+2)
-	n, err := stream.Read(header)
-	if err != nil {
-		return fmt.Errorf("could not header read from stream. %w", err)
-	}
-
-	bodyLen := header[len(header)-1]
-
-	res := make([]byte, bodyLen)
-	n, err = stream.Read(res)
-	if err != nil {
-		return fmt.Errorf("could not read from stream. %w", err)
-	}
-
-	log.WithField("response", string(res[:n])).Info("got response")
-
-	var tunnelInfo TunnelInfo
-	err = json.Unmarshal(res[:n], &tunnelInfo)
-	if err != nil {
-		return err
-	}
-	log.WithField("info", tunnelInfo).Info("got tunnel info")
-
-	ifce, err := water.New(water.Config{
-		DeviceType: water.TUN,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Printf("Interface Name: %s\n", ifce.Name())
-
-	//cmd := exec.Command("ifconfig", ifce.Name(), tunnelInfo.ClientParameters.Address, tunnelInfo.ServerAddress, "up")
-	cmd := exec.Command("ifconfig", ifce.Name(), "inet6", "add", fmt.Sprintf("%s/64", tunnelInfo.ClientParameters.Address))
-	log.WithField("cmd", cmd.String()).Info("run cmd")
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
-	err = cmd.Wait()
-	if err != nil {
-		return err
-	}
-	if cmd.ProcessState.ExitCode() != 0 {
-		return fmt.Errorf("failed")
-	}
-
-	go func() {
-		for {
-			b, err := conn.ReceiveDatagram(ctx)
-			if err != nil {
-				log.WithError(err).Warn("failed to receive datagram")
-				continue
-			}
-			_, err = ifce.Write(b)
-			if err != nil {
-				log.WithError(err).Warn("failed to forward data")
-			}
-		}
-	}()
-
-	go func() {
-		packet := make([]byte, tunnelInfo.ClientParameters.Mtu)
-		for {
-			n, err := ifce.Read(packet)
-			if err != nil {
-				log.Fatal(err)
-			}
-			err = conn.SendDatagram(packet[:n])
-			if err != nil {
-				log.WithError(err).Warn("failed to send datagram")
-			}
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
-		break
-	}
-
-	return nil
 }

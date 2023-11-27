@@ -2,6 +2,7 @@ package ios
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
@@ -228,7 +229,7 @@ func TunnelPair(device DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	err = ts.Pair()
+	_, err = ts.Pair()
 	if err != nil {
 		return err
 	}
@@ -236,8 +237,7 @@ func TunnelPair(device DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	log.WithField("tunnel port", tunnelInfo.TunnelPort).Debug("created tunnel listener")
-	err = tunnel.ConnectToTunnel(tunnelInfo, device.InterfaceAddress)
+	err = tunnel.ConnectToTunnel(context.TODO(), tunnelInfo, device.InterfaceAddress)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating tunnel")
 	}

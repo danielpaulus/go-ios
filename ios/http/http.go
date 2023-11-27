@@ -125,7 +125,6 @@ func (r *HttpConnection) readDataFrame() error {
 		if err != nil {
 			return err
 		}
-		log.WithField("frame", f.Header().String()).Debug("received frame")
 		switch f.Header().Type {
 		case http2.FrameData:
 			d := f.(*http2.DataFrame)
@@ -148,9 +147,6 @@ func (r *HttpConnection) readDataFrame() error {
 					return err
 				}
 			}
-		case http2.FrameWindowUpdate:
-			w := f.(*http2.WindowUpdateFrame)
-			log.Printf("Window increment %d", w.Increment)
 		default:
 			break
 		}
