@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -124,6 +125,7 @@ Usage:
   ios diskspace [options]
   ios batterycheck [options]
   ios appservice [options]
+  ios start-tunnel [options] [--pair]
 
 Options:
   -v --verbose   		Enable Debug Logging.
@@ -133,7 +135,7 @@ Options:
   -h --help      		Show this screen.
   --udid=<udid>  		UDID of the device.
   --address=<ipv6addrr>	Address of the device interface
-  --rsd=<path}			Path to RSD info
+  --rsd=<path>			Path to RSD info
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -225,6 +227,7 @@ The commands work as following:
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
    ios appservice [options]											  Launches apps.
+   ios start-tunnel [options] [--pair]                                          Establishes a secure connection through a tunnel to the device
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -936,6 +939,23 @@ The commands work as following:
 		log.WithField("pid", pid).Info("launched app")
 		if err != nil {
 			log.Fatal(err)
+		}
+	}
+
+	b, _ = arguments.Bool("start-tunnel")
+	if b {
+		home, err := os.UserHomeDir()
+		exitIfError("", err)
+		path := path.Join(home, ".go-ios")
+		prs := tunnel.NewPairRecordStore(path)
+		err = os.MkdirAll(path, os.ModePerm)
+		exitIfError("could not create go-ios dir", err)
+		pair, _ := arguments.Bool("--pair")
+		if pair {
+			err := ios.PairAndStartTunnel(device, prs)
+			if err != nil {
+				exitIfError("could not start tunnel", err)
+			}
 		}
 	}
 }
@@ -1831,8 +1851,7 @@ func runSyslog(device ios.DeviceEntry) {
 
 func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password string) {
 	if orgIdentityP12File == "" {
-		//err := ios.Pair(device)
-		err := ios.TunnelPair(device)
+		err := ios.Pair(device)
 		exitIfError("Pairing failed", err)
 		log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 		return

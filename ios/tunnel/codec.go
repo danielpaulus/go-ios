@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 )
 
 type controlChannelCodec struct {
@@ -24,7 +25,8 @@ func (c *controlChannelCodec) Encode(message map[string]interface{}) map[string]
 			"sequenceNumber": c.seqNr,
 		},
 	}
-	c.seqNr++
+	c.seqNr += 1
+	log.WithField("seq", c.seqNr).Trace("enc: updated sequence number")
 	return e
 }
 
@@ -33,11 +35,12 @@ func (c *controlChannelCodec) Decode(p map[string]interface{}) (map[string]inter
 	if err != nil {
 		return nil, err
 	}
-	if seqNr, ok := value["sequenceNumber"].(uint64); ok {
-		c.seqNr = seqNr + 1
-	} else {
-
-	}
+	//if seqNr, ok := value["sequenceNumber"].(uint64); ok {
+	//	c.seqNr = seqNr + 1
+	//	log.WithField("seq", c.seqNr).Trace("dec: updated sequence number")
+	//} else {
+	//
+	//}
 	return getChildMap(value, "message")
 }
 
@@ -156,6 +159,19 @@ func (p *pairingData) Decode(e map[string]interface{}) error {
 	if sendingHost, ok := pd["sendingHost"].(string); ok {
 		p.sendingHost = sendingHost
 	}
+	return nil
+}
+
+type pairVerifyFailed struct {
+}
+
+func (p pairVerifyFailed) Encode() map[string]interface{} {
+	return map[string]interface{}{
+		"pairVerifyFailed": map[string]interface{}{},
+	}
+}
+
+func (p pairVerifyFailed) Decode(e map[string]interface{}) error {
 	return nil
 }
 

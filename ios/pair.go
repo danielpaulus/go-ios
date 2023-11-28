@@ -211,7 +211,7 @@ func Pair(device DeviceEntry) error {
 	return nil
 }
 
-func TunnelPair(device DeviceEntry) error {
+func PairAndStartTunnel(device DeviceEntry, pairRecords tunnel.PairRecordStore) error {
 	port := device.Rsd.GetPort(tunnel.UntrustedTunnelServiceName)
 	if port == 0 {
 		return fmt.Errorf("could not find port for '%s'", tunnel.UntrustedTunnelServiceName)
@@ -229,9 +229,17 @@ func TunnelPair(device DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	_, err = ts.Pair()
+	pr, err := pairRecords.LoadOrCreate(device.Properties.SerialNumber)
 	if err != nil {
 		return err
+	}
+	_, err = ts.Pair(pr)
+	if err != nil {
+		return err
+	}
+	err = pairRecords.Store(device.Properties.SerialNumber, pr)
+	if err != nil {
+		log.WithError(err).Warn("could not store pair record")
 	}
 	tunnelInfo, err := ts.CreateTunnelListener()
 	if err != nil {

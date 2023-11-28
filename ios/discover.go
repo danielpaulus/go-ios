@@ -43,7 +43,7 @@ func FindDeviceInterfaceAddress(device DeviceEntry) (DeviceEntry, error) {
 	case <-ctx.Done():
 		break
 	case r := <-result:
-		log.WithField("addr", r).Info("got result")
+		log.WithField("udid", device.Properties.SerialNumber).WithField("address", r.addr).Debug("found device address")
 		device.InterfaceAddress = r.addr
 		device.Rsd = r.handshakeResponse
 		break

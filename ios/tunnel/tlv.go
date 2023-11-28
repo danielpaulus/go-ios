@@ -3,6 +3,7 @@ package tunnel
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 )
@@ -28,7 +29,7 @@ import (
 	#define kTLVError_UnknownPeer			0x04 // Peer is not paired.
 	#define kTLVError_MaxPeers				0x05 // Server cannot accept any more pairings.
 	#define kTLVError_MaxTries				0x06 // Server reached its maximum number of authentication attempts
-#define kTLVType_RetryDelay				0x08 // Seconds to delay until retrying setup.
+#define kTLVType_RetryDelay					0x08 // Seconds to delay until retrying setup.
 #define kTLVType_Certificate			0x09 // X.509 Certificate.
 #define kTLVType_Signature				0x0A // Ed25519 or MFi auth IC signature.
 #define kTLVType_ReservedB				0x0B // Reserved.
@@ -114,4 +115,15 @@ func (r TlvReader) ReadCoalesced(t TlvType) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+type Error byte
+
+var errorNames = [...]string{"reserved0", "unknown", "authentication", "backoff", "unknownpeer", "maxpeers", "maxtries"}
+
+func (e Error) Error() string {
+	if int(e) >= 0 && int(e) < len(errorNames) {
+		return errorNames[e]
+	}
+	return fmt.Sprintf("unknown error code '%d'", e)
 }

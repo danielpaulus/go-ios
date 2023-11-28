@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/opack"
 	"github.com/danielpaulus/go-ios/ios/xpc"
-	"github.com/google/uuid"
+	//"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/ed25519"
@@ -23,18 +23,19 @@ import (
 const UntrustedTunnelServiceName = "com.apple.internal.dt.coredevice.untrusted.tunnelservice"
 
 func NewTunnelServiceWithXpc(xpcConn *xpc.Connection, c io.Closer) (*TunnelService, error) {
-	key, err := ecdh.P256().GenerateKey(rand.Reader)
-	if err != nil {
-		return nil, err
-	}
-	return &TunnelService{xpcConn: xpcConn, c: c, key: key, messageReadWriter: newControlChannelCodec()}, nil
+
+	var pairRecord PairRecord
+	k := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize))
+	pairRecord.Private = k
+	pairRecord.Public = k.Public().(ed25519.PublicKey)
+
+	return &TunnelService{xpcConn: xpcConn, c: c, messageReadWriter: newControlChannelCodec()}, nil
 }
 
 func NewTunnelServiceWithSessionKey(conn *xpc.Connection, c io.Closer, sessionKey []byte) (*TunnelService, error) {
 	ts := &TunnelService{
 		xpcConn:           conn,
 		c:                 c,
-		key:               nil,
 		messageReadWriter: newControlChannelCodec(),
 	}
 	err := ts.setupCiphers(sessionKey)
@@ -47,7 +48,6 @@ func NewTunnelServiceWithSessionKey(conn *xpc.Connection, c io.Closer, sessionKe
 type TunnelService struct {
 	xpcConn *xpc.Connection
 	c       io.Closer
-	key     *ecdh.PrivateKey
 
 	clientEncryption  cipher.AEAD
 	serverEncryption  cipher.AEAD
@@ -63,12 +63,13 @@ func (t *TunnelService) Close() error {
 	return t.c.Close()
 }
 
-func (t *TunnelService) Pair() (PairInfo, error) {
+func (t *TunnelService) Pair(pr PairRecord) (PairInfo, error) {
+	const attemptVerify = true
 	err := t.xpcConn.Send(EncodeRequest(t.messageReadWriter, map[string]interface{}{
 		"handshake": map[string]interface{}{
 			"_0": map[string]interface{}{
 				"hostOptions": map[string]interface{}{
-					"attemptPairVerify": false,
+					"attemptPairVerify": attemptVerify,
 				},
 				"wireProtocolVersion": int64(19),
 			},
@@ -83,6 +84,14 @@ func (t *TunnelService) Pair() (PairInfo, error) {
 		return PairInfo{}, err
 	}
 	m, err = t.messageReadWriter.Decode(m)
+
+	if attemptVerify {
+		err = t.verifyPair(pr)
+		if err == nil {
+			return PairInfo{}, nil
+		}
+		log.WithError(err).Info("pair verify failed")
+	}
 
 	err = t.setupManualPairing()
 	if err != nil {
@@ -129,21 +138,20 @@ func (t *TunnelService) Pair() (PairInfo, error) {
 		return PairInfo{}, fmt.Errorf("could not verify server proof")
 	}
 
-	identifier := uuid.New()
-	public, private, err := ed25519.GenerateKey(rand.Reader)
+	//identifier := uuid.New()
 	hkdfPairSetup := hkdf.New(sha512.New, srp.SessionKey, []byte("Pair-Setup-Controller-Sign-Salt"), []byte("Pair-Setup-Controller-Sign-Info"))
 	buf := bytes.NewBuffer(nil)
 	io.CopyN(buf, hkdfPairSetup, 32)
-	buf.WriteString(identifier.String())
-	buf.Write(public)
+	buf.WriteString(pr.HostName)
+	buf.Write(pr.Public)
 
 	if err != nil {
 		return PairInfo{}, err
 	}
-	signature := ed25519.Sign(private, buf.Bytes())
+	signature := ed25519.Sign(pr.Private, buf.Bytes())
 
 	deviceInfo, err := opack.Encode(map[string]interface{}{
-		"accountID":                   identifier.String(),
+		"accountID":                   pr.HostName,
 		"altIRK":                      []byte{0x5e, 0xca, 0x81, 0x91, 0x92, 0x02, 0x82, 0x00, 0x11, 0x22, 0x33, 0x44, 0xbb, 0xf2, 0x4a, 0xc8},
 		"btAddr":                      "FF:DD:99:66:BB:AA",
 		"mac":                         []byte{0xff, 0x44, 0x88, 0x66, 0x33, 0x99},
@@ -154,8 +162,8 @@ func (t *TunnelService) Pair() (PairInfo, error) {
 
 	deviceInfoTlv := NewTlvBuffer()
 	deviceInfoTlv.WriteData(TypeSignature, signature)
-	deviceInfoTlv.WriteData(TypePublicKey, public)
-	deviceInfoTlv.WriteData(TypeIdentifier, []byte(identifier.String()))
+	deviceInfoTlv.WriteData(TypePublicKey, pr.Public)
+	deviceInfoTlv.WriteData(TypeIdentifier, []byte(pr.HostName))
 	deviceInfoTlv.WriteData(TypeInfo, deviceInfo)
 
 	sessionKeyBuf := bytes.NewBuffer(nil)
@@ -372,6 +380,124 @@ func (t *TunnelService) createUnlockKey() ([]byte, error) {
 
 	_, _ = DecodeStreamEncrypted(t.messageReadWriter, t.serverEncryption, t.cs, m)
 	return nil, err
+}
+
+func (t *TunnelService) verifyPair(pr PairRecord) error {
+	key, _ := ecdh.X25519().GenerateKey(rand.Reader)
+	tlv := NewTlvBuffer()
+	tlv.WriteByte(TypeState, PairStateStartRequest)
+	tlv.WriteData(TypePublicKey, key.PublicKey().Bytes())
+
+	event := pairingData{
+		data:            tlv.Bytes(),
+		kind:            "verifyManualPairing",
+		startNewSession: true,
+		//sendingHost:     "sl123",
+	}
+
+	err := t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &event))
+	if err != nil {
+		return err
+	}
+
+	msg, err := t.xpcConn.ReceiveOnClientServerStream()
+	if err != nil {
+		return err
+	}
+
+	var devP pairingData
+	err = DecodeEvent(t.messageReadWriter, msg, &devP)
+	if err != nil {
+		return err
+	}
+
+	devicePublicKeyBytes, err := TlvReader(devP.data).ReadCoalesced(TypePublicKey)
+	if err != nil {
+		return err
+	}
+
+	devicePublicKey, err := ecdh.X25519().NewPublicKey(devicePublicKeyBytes)
+	if err != nil {
+		return err
+	}
+
+	sharedSecret, err := key.ECDH(devicePublicKey)
+	if err != nil {
+		return err
+	}
+
+	derived := make([]byte, 32)
+	_, err = hkdf.New(sha512.New, sharedSecret, []byte("Pair-Verify-Encrypt-Salt"), []byte("Pair-Verify-Encrypt-Info")).Read(derived)
+	if err != nil {
+		return err
+	}
+
+	ci, err := chacha20poly1305.New(derived)
+	if err != nil {
+		return err
+	}
+
+	signBuf := bytes.NewBuffer(nil)
+	signBuf.Write(key.PublicKey().Bytes())
+	signBuf.Write([]byte(pr.HostName))
+	signBuf.Write(devicePublicKeyBytes)
+
+	signature := ed25519.Sign(pr.Private, signBuf.Bytes())
+
+	cTlv := NewTlvBuffer()
+	cTlv.WriteData(TypeSignature, signature)
+	cTlv.WriteData(TypeIdentifier, []byte(pr.HostName))
+
+	nonce := make([]byte, 12)
+	copy(nonce[4:], "PV-Msg03")
+	encrypted := ci.Seal(nil, nonce, cTlv.Bytes(), nil)
+
+	tlvOut := NewTlvBuffer()
+	tlvOut.WriteByte(TypeState, PairStateVerifyRequest)
+	tlvOut.WriteData(TypeEncryptedData, encrypted)
+
+	pd := pairingData{
+		data:            tlvOut.Bytes(),
+		kind:            "verifyManualPairing",
+		startNewSession: false,
+	}
+	outMsg := EncodeEvent(t.messageReadWriter, &pd)
+
+	err = t.xpcConn.Send(outMsg)
+	if err != nil {
+		return err
+	}
+
+	m, err := t.xpcConn.ReceiveOnClientServerStream()
+	if err != nil {
+		return err
+	}
+
+	var responseEvent pairingData
+	err = DecodeEvent(t.messageReadWriter, m, &responseEvent)
+	if err != nil {
+		return err
+	}
+
+	errRes, err := TlvReader(responseEvent.data).ReadCoalesced(TypeError)
+	if err != nil {
+		return err
+	}
+	if len(errRes) > 0 {
+		log.Debug("send pair verify failed event")
+		err := t.xpcConn.Send(EncodeEvent(t.messageReadWriter, pairVerifyFailed{}))
+		if err != nil {
+			return err
+		}
+		return Error(errRes[0])
+	}
+
+	err = t.setupCiphers(sharedSecret)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type TunnelListener struct {

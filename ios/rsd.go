@@ -119,7 +119,7 @@ func NewWithAddr(addr string) (RsdService, error) {
 }
 
 func (s RsdService) Handshake() (RsdHandshakeResponse, error) {
-	log.Info("execute handshake")
+	log.Debug("execute handshake")
 	err := s.xpc.Send(createHandshakeRequestMessage())
 	if err != nil {
 		return RsdHandshakeResponse{}, fmt.Errorf("could not send handshake request. %w", err)
