@@ -2,11 +2,8 @@ package ios
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/tunnel"
-	log "github.com/sirupsen/logrus"
 	"strings"
 
 	"github.com/google/uuid"
@@ -207,47 +204,6 @@ func Pair(device DeviceEntry) error {
 	success, err := usbmuxConn.savePair(device.Properties.SerialNumber, deviceCert, hostPrivateKey, hostCert, rootPrivateKey, rootCert, response.EscrowBag, wifiMac.(string), pairRecordData.HostID, buid)
 	if !success || err != nil {
 		return errors.New("Saving the PairRecord to usbmux failed")
-	}
-	return nil
-}
-
-func PairAndStartTunnel(device DeviceEntry, pairRecords tunnel.PairRecordStore) error {
-	port := device.Rsd.GetPort(tunnel.UntrustedTunnelServiceName)
-	if port == 0 {
-		return fmt.Errorf("could not find port for '%s'", tunnel.UntrustedTunnelServiceName)
-	}
-	h, err := ConnectToHttp2WithAddr(device.InterfaceAddress, port)
-	if err != nil {
-		return err
-	}
-
-	xpcConn, err := CreateXpcConnection(h)
-	if err != nil {
-		return err
-	}
-	ts, err := tunnel.NewTunnelServiceWithXpc(xpcConn, h)
-	if err != nil {
-		return err
-	}
-	pr, err := pairRecords.LoadOrCreate(device.Properties.SerialNumber)
-	if err != nil {
-		return err
-	}
-	_, err = ts.Pair(pr)
-	if err != nil {
-		return err
-	}
-	err = pairRecords.Store(device.Properties.SerialNumber, pr)
-	if err != nil {
-		log.WithError(err).Warn("could not store pair record")
-	}
-	tunnelInfo, err := ts.CreateTunnelListener()
-	if err != nil {
-		return err
-	}
-	err = tunnel.ConnectToTunnel(context.TODO(), tunnelInfo, device.InterfaceAddress)
-	if err != nil {
-		log.WithError(err).Fatal("failed creating tunnel")
 	}
 	return nil
 }

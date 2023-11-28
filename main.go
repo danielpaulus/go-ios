@@ -125,7 +125,7 @@ Usage:
   ios diskspace [options]
   ios batterycheck [options]
   ios appservice [options]
-  ios start-tunnel [options] [--pair]
+  ios start-tunnel [options]
 
 Options:
   -v --verbose   		Enable Debug Logging.
@@ -227,7 +227,9 @@ The commands work as following:
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
    ios appservice [options]											  Launches apps.
-   ios start-tunnel [options] [--pair]                                          Establishes a secure connection through a tunnel to the device
+   ios start-tunnel [options]                                         Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
+   >                                                                  This command needs to be executed with admin privileges.
+   >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo kill -s STOP $(pgrep "^remoted")', and 'sudo kill -s CONT $(pgrep "^remoted")' to resume)
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -944,19 +946,7 @@ The commands work as following:
 
 	b, _ = arguments.Bool("start-tunnel")
 	if b {
-		home, err := os.UserHomeDir()
-		exitIfError("", err)
-		path := path.Join(home, ".go-ios")
-		prs := tunnel.NewPairRecordStore(path)
-		err = os.MkdirAll(path, os.ModePerm)
-		exitIfError("could not create go-ios dir", err)
-		pair, _ := arguments.Bool("--pair")
-		if pair {
-			err := ios.PairAndStartTunnel(device, prs)
-			if err != nil {
-				exitIfError("could not start tunnel", err)
-			}
-		}
+		startTunnel(device)
 	}
 }
 
@@ -1861,6 +1851,40 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	err = ios.PairSupervised(device, p12, p12Password)
 	exitIfError("Pairing failed", err)
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
+}
+
+func startTunnel(device ios.DeviceEntry) {
+	home, err := os.UserHomeDir()
+	exitIfError("", err)
+	pairRecordsDir := path.Join(home, ".go-ios")
+	pairRecords := tunnel.NewPairRecordStore(pairRecordsDir)
+	err = os.MkdirAll(pairRecordsDir, os.ModePerm)
+	exitIfError("could not create go-ios dir", err)
+
+	port := device.Rsd.GetPort(tunnel.UntrustedTunnelServiceName)
+	if port == 0 {
+		log.Fatal("could net get port for untrusted tunnel service")
+	}
+	h, err := ios.ConnectToHttp2WithAddr(device.InterfaceAddress, port)
+	exitIfError("failed to connect to device", err)
+
+	xpcConn, err := ios.CreateXpcConnection(h)
+	exitIfError("", err)
+	ts, err := tunnel.NewTunnelServiceWithXpc(xpcConn, h)
+
+	pr, err := pairRecords.LoadOrCreate(device.Properties.SerialNumber)
+	exitIfError("", err)
+	if err != nil {
+		log.WithError(err).Warn("could not store pair record")
+	}
+
+	_, err = ts.Pair(pr)
+	exitIfError("", err)
+	_ = pairRecords.Store(device.Properties.SerialNumber, pr)
+	tunnelInfo, err := ts.CreateTunnelListener()
+	exitIfError("", err)
+	err = tunnel.ConnectToTunnel(context.TODO(), tunnelInfo, device.InterfaceAddress)
+	exitIfError("", err)
 }
 
 func readPair(device ios.DeviceEntry) {

@@ -64,12 +64,11 @@ func (t *TunnelService) Close() error {
 }
 
 func (t *TunnelService) Pair(pr PairRecord) (PairInfo, error) {
-	const attemptVerify = true
 	err := t.xpcConn.Send(EncodeRequest(t.messageReadWriter, map[string]interface{}{
 		"handshake": map[string]interface{}{
 			"_0": map[string]interface{}{
 				"hostOptions": map[string]interface{}{
-					"attemptPairVerify": attemptVerify,
+					"attemptPairVerify": true,
 				},
 				"wireProtocolVersion": int64(19),
 			},
@@ -85,139 +84,28 @@ func (t *TunnelService) Pair(pr PairRecord) (PairInfo, error) {
 	}
 	m, err = t.messageReadWriter.Decode(m)
 
-	if attemptVerify {
-		err = t.verifyPair(pr)
-		if err == nil {
-			return PairInfo{}, nil
-		}
-		log.WithError(err).Info("pair verify failed")
+	err = t.verifyPair(pr)
+	if err == nil {
+		return PairInfo{}, nil
 	}
+	log.WithError(err).Info("pair verify failed")
 
 	err = t.setupManualPairing()
 	if err != nil {
 		return PairInfo{}, err
 	}
 
-	devPublicKey, devSaltKey, err := t.readDeviceKey()
+	sessionKey, err := t.setupSessionKey()
 	if err != nil {
 		return PairInfo{}, err
 	}
 
-	srp, err := NewSrpInfo(devSaltKey, devPublicKey)
+	err = t.exchangeDeviceInfo(pr, sessionKey)
 	if err != nil {
 		return PairInfo{}, err
 	}
 
-	proofTlv := NewTlvBuffer()
-	proofTlv.WriteByte(TypeState, PairStateVerifyRequest)
-	proofTlv.WriteData(TypePublicKey, srp.ClientPublic)
-	proofTlv.WriteData(TypeProof, srp.ClientProof)
-
-	err = t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &pairingData{
-		data: proofTlv.Bytes(),
-		kind: "setupManualPairing",
-	}))
-	if err != nil {
-		return PairInfo{}, err
-	}
-
-	m, err = t.xpcConn.ReceiveOnClientServerStream()
-	if err != nil {
-		return PairInfo{}, err
-	}
-
-	var proofPairingData pairingData
-	DecodeEvent(t.messageReadWriter, m, &proofPairingData)
-
-	serverProof, err := TlvReader(proofPairingData.data).ReadCoalesced(TypeProof)
-	if err != nil {
-		return PairInfo{}, err
-	}
-	verified := srp.VerifyServerProof(serverProof)
-	if !verified {
-		return PairInfo{}, fmt.Errorf("could not verify server proof")
-	}
-
-	//identifier := uuid.New()
-	hkdfPairSetup := hkdf.New(sha512.New, srp.SessionKey, []byte("Pair-Setup-Controller-Sign-Salt"), []byte("Pair-Setup-Controller-Sign-Info"))
-	buf := bytes.NewBuffer(nil)
-	io.CopyN(buf, hkdfPairSetup, 32)
-	buf.WriteString(pr.HostName)
-	buf.Write(pr.Public)
-
-	if err != nil {
-		return PairInfo{}, err
-	}
-	signature := ed25519.Sign(pr.Private, buf.Bytes())
-
-	deviceInfo, err := opack.Encode(map[string]interface{}{
-		"accountID":                   pr.HostName,
-		"altIRK":                      []byte{0x5e, 0xca, 0x81, 0x91, 0x92, 0x02, 0x82, 0x00, 0x11, 0x22, 0x33, 0x44, 0xbb, 0xf2, 0x4a, 0xc8},
-		"btAddr":                      "FF:DD:99:66:BB:AA",
-		"mac":                         []byte{0xff, 0x44, 0x88, 0x66, 0x33, 0x99},
-		"model":                       "MacBookPro18,3",
-		"name":                        "host-name",
-		"remotepairing_serial_number": "YY9944YY99",
-	})
-
-	deviceInfoTlv := NewTlvBuffer()
-	deviceInfoTlv.WriteData(TypeSignature, signature)
-	deviceInfoTlv.WriteData(TypePublicKey, pr.Public)
-	deviceInfoTlv.WriteData(TypeIdentifier, []byte(pr.HostName))
-	deviceInfoTlv.WriteData(TypeInfo, deviceInfo)
-
-	sessionKeyBuf := bytes.NewBuffer(nil)
-	_, err = io.CopyN(sessionKeyBuf, hkdf.New(sha512.New, srp.SessionKey, []byte("Pair-Setup-Encrypt-Salt"), []byte("Pair-Setup-Encrypt-Info")), 32)
-	if err != nil {
-		return PairInfo{}, err
-	}
-	setupKey := sessionKeyBuf.Bytes()
-
-	cipher, err := chacha20poly1305.New(setupKey)
-	if err != nil {
-		return PairInfo{}, err
-	}
-
-	nonce := make([]byte, cipher.NonceSize())
-	copy(nonce[4:], "PS-Msg05")
-	x := cipher.Seal(nil, nonce, deviceInfoTlv.Bytes(), nil)
-
-	encryptedTlv := NewTlvBuffer()
-	encryptedTlv.WriteByte(TypeState, 0x05)
-	encryptedTlv.WriteData(TypeEncryptedData, x)
-
-	err = t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &pairingData{
-		data:        encryptedTlv.Bytes(),
-		kind:        "setupManualPairing",
-		sendingHost: "SL-1876",
-	}))
-	if err != nil {
-		return PairInfo{}, err
-	}
-
-	m, err = t.xpcConn.ReceiveOnClientServerStream()
-	if err != nil {
-		return PairInfo{}, err
-	}
-
-	var encRes pairingData
-	err = DecodeEvent(t.messageReadWriter, m, &encRes)
-	if err != nil {
-		return PairInfo{}, err
-	}
-
-	encrData, err := TlvReader(encRes.data).ReadCoalesced(TypeEncryptedData)
-	if err != nil {
-		return PairInfo{}, err
-	}
-	copy(nonce[4:], "PS-Msg06")
-	// the device info response from the device is not needed. we just make sure that there's no error decrypting it
-	_, err = cipher.Open(nil, nonce, encrData, nil)
-	if err != nil {
-		return PairInfo{}, err
-	}
-
-	err = t.setupCiphers(srp.SessionKey)
+	err = t.setupCiphers(sessionKey)
 	if err != nil {
 		return PairInfo{}, err
 	}
@@ -227,7 +115,7 @@ func (t *TunnelService) Pair(pr PairRecord) (PairInfo, error) {
 		return PairInfo{}, err
 	}
 
-	return PairInfo{SessionKey: srp.SessionKey}, nil
+	return PairInfo{SessionKey: sessionKey}, nil
 }
 
 func (t *TunnelService) CreateTunnelListener() (TunnelListener, error) {
@@ -248,7 +136,6 @@ func (t *TunnelService) CreateTunnelListener() (TunnelListener, error) {
 				"createListener": map[string]interface{}{
 					"key":                   der,
 					"transportProtocolType": "quic",
-					//"transportProtocolType": "tcp",
 				},
 			},
 		},
@@ -514,4 +401,125 @@ type TunnelInfo struct {
 		Netmask string
 		Mtu     uint64
 	}
+}
+
+func (t *TunnelService) setupSessionKey() ([]byte, error) {
+	devicePublicKey, deviceSalt, err := t.readDeviceKey()
+	if err != nil {
+		return nil, err
+	}
+
+	srp, err := NewSrpInfo(deviceSalt, devicePublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	proofTlv := NewTlvBuffer()
+	proofTlv.WriteByte(TypeState, PairStateVerifyRequest)
+	proofTlv.WriteData(TypePublicKey, srp.ClientPublic)
+	proofTlv.WriteData(TypeProof, srp.ClientProof)
+
+	err = t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &pairingData{
+		data: proofTlv.Bytes(),
+		kind: "setupManualPairing",
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := t.xpcConn.ReceiveOnClientServerStream()
+	if err != nil {
+		return nil, err
+	}
+
+	var proofPairingData pairingData
+	DecodeEvent(t.messageReadWriter, m, &proofPairingData)
+
+	serverProof, err := TlvReader(proofPairingData.data).ReadCoalesced(TypeProof)
+	if err != nil {
+		return nil, err
+	}
+	verified := srp.VerifyServerProof(serverProof)
+	if !verified {
+		return nil, fmt.Errorf("could not verify server proof")
+	}
+	return srp.SessionKey, nil
+}
+
+func (t *TunnelService) exchangeDeviceInfo(pr PairRecord, sessionKey []byte) error {
+	hkdfPairSetup := hkdf.New(sha512.New, sessionKey, []byte("Pair-Setup-Controller-Sign-Salt"), []byte("Pair-Setup-Controller-Sign-Info"))
+	buf := bytes.NewBuffer(nil)
+	io.CopyN(buf, hkdfPairSetup, 32)
+	buf.WriteString(pr.HostName)
+	buf.Write(pr.Public)
+
+	signature := ed25519.Sign(pr.Private, buf.Bytes())
+
+	deviceInfo, err := opack.Encode(map[string]interface{}{
+		"accountID":                   pr.HostName,
+		"altIRK":                      []byte{0x5e, 0xca, 0x81, 0x91, 0x92, 0x02, 0x82, 0x00, 0x11, 0x22, 0x33, 0x44, 0xbb, 0xf2, 0x4a, 0xc8},
+		"btAddr":                      "FF:DD:99:66:BB:AA",
+		"mac":                         []byte{0xff, 0x44, 0x88, 0x66, 0x33, 0x99},
+		"model":                       "go-ios",
+		"name":                        "host-name",
+		"remotepairing_serial_number": "remote-serial",
+	})
+
+	deviceInfoTlv := NewTlvBuffer()
+	deviceInfoTlv.WriteData(TypeSignature, signature)
+	deviceInfoTlv.WriteData(TypePublicKey, pr.Public)
+	deviceInfoTlv.WriteData(TypeIdentifier, []byte(pr.HostName))
+	deviceInfoTlv.WriteData(TypeInfo, deviceInfo)
+
+	sessionKeyBuf := bytes.NewBuffer(nil)
+	_, err = io.CopyN(sessionKeyBuf, hkdf.New(sha512.New, sessionKey, []byte("Pair-Setup-Encrypt-Salt"), []byte("Pair-Setup-Encrypt-Info")), 32)
+	if err != nil {
+		return err
+	}
+	setupKey := sessionKeyBuf.Bytes()
+
+	cipher, err := chacha20poly1305.New(setupKey)
+	if err != nil {
+		return err
+	}
+
+	nonce := make([]byte, cipher.NonceSize())
+	copy(nonce[4:], "PS-Msg05")
+	x := cipher.Seal(nil, nonce, deviceInfoTlv.Bytes(), nil)
+
+	encryptedTlv := NewTlvBuffer()
+	encryptedTlv.WriteByte(TypeState, 0x05)
+	encryptedTlv.WriteData(TypeEncryptedData, x)
+
+	err = t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &pairingData{
+		data:        encryptedTlv.Bytes(),
+		kind:        "setupManualPairing",
+		sendingHost: "SL-1876",
+	}))
+	if err != nil {
+		return err
+	}
+
+	m, err := t.xpcConn.ReceiveOnClientServerStream()
+	if err != nil {
+		return err
+	}
+
+	var encRes pairingData
+	err = DecodeEvent(t.messageReadWriter, m, &encRes)
+	if err != nil {
+		return err
+	}
+
+	encrData, err := TlvReader(encRes.data).ReadCoalesced(TypeEncryptedData)
+	if err != nil {
+		return err
+	}
+	copy(nonce[4:], "PS-Msg06")
+	// the device info response from the device is not needed. we just make sure that there's no error decrypting it
+	_, err = cipher.Open(nil, nonce, encrData, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
