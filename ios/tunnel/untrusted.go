@@ -2,7 +2,6 @@ package tunnel
 
 import (
 	"bytes"
-	"crypto/cipher"
 	"crypto/ecdh"
 	"crypto/rand"
 	"crypto/rsa"
@@ -29,30 +28,15 @@ func NewTunnelServiceWithXpc(xpcConn *xpc.Connection, c io.Closer) (*TunnelServi
 	pairRecord.Private = k
 	pairRecord.Public = k.Public().(ed25519.PublicKey)
 
-	return &TunnelService{xpcConn: xpcConn, c: c, messageReadWriter: newControlChannelCodec()}, nil
-}
-
-func NewTunnelServiceWithSessionKey(conn *xpc.Connection, c io.Closer, sessionKey []byte) (*TunnelService, error) {
-	ts := &TunnelService{
-		xpcConn:           conn,
-		c:                 c,
-		messageReadWriter: newControlChannelCodec(),
-	}
-	err := ts.setupCiphers(sessionKey)
-	if err != nil {
-		return nil, err
-	}
-	return ts, nil
+	return &TunnelService{xpcConn: xpcConn, c: c, controlChannel: newControlChannelReadWriter(xpcConn)}, nil
 }
 
 type TunnelService struct {
 	xpcConn *xpc.Connection
 	c       io.Closer
 
-	clientEncryption  cipher.AEAD
-	serverEncryption  cipher.AEAD
-	cs                *cipherStream
-	messageReadWriter *controlChannelCodec
+	controlChannel *controlChannelReadWriter
+	cipher         *cipherStream
 }
 
 type PairInfo struct {
@@ -64,7 +48,7 @@ func (t *TunnelService) Close() error {
 }
 
 func (t *TunnelService) Pair(pr PairRecord) (PairInfo, error) {
-	err := t.xpcConn.Send(EncodeRequest(t.messageReadWriter, map[string]interface{}{
+	err := t.controlChannel.writeRequest(map[string]interface{}{
 		"handshake": map[string]interface{}{
 			"_0": map[string]interface{}{
 				"hostOptions": map[string]interface{}{
@@ -73,16 +57,16 @@ func (t *TunnelService) Pair(pr PairRecord) (PairInfo, error) {
 				"wireProtocolVersion": int64(19),
 			},
 		},
-	}))
+	})
 
 	if err != nil {
 		return PairInfo{}, err
 	}
-	m, err := t.xpcConn.ReceiveOnClientServerStream()
+	// ignore the response for now
+	_, err = t.controlChannel.read()
 	if err != nil {
 		return PairInfo{}, err
 	}
-	m, err = t.messageReadWriter.Decode(m)
 
 	err = t.verifyPair(pr)
 	if err == nil {
@@ -130,7 +114,7 @@ func (t *TunnelService) CreateTunnelListener() (TunnelListener, error) {
 		return TunnelListener{}, err
 	}
 
-	createListenerRequest, err := EncodeStreamEncrypted(t.messageReadWriter, t.clientEncryption, t.cs, map[string]interface{}{
+	err = t.cipher.write(map[string]interface{}{
 		"request": map[string]interface{}{
 			"_0": map[string]interface{}{
 				"createListener": map[string]interface{}{
@@ -143,17 +127,9 @@ func (t *TunnelService) CreateTunnelListener() (TunnelListener, error) {
 	if err != nil {
 		return TunnelListener{}, err
 	}
-	err = t.xpcConn.Send(createListenerRequest)
-	if err != nil {
-		return TunnelListener{}, err
-	}
 
-	m, err := t.xpcConn.ReceiveOnClientServerStream()
-	if err != nil {
-		return TunnelListener{}, err
-	}
-
-	listenerRes, err := DecodeStreamEncrypted(t.messageReadWriter, t.serverEncryption, t.cs, m)
+	var listenerRes map[string]interface{}
+	err = t.cipher.read(&listenerRes)
 	if err != nil {
 		return TunnelListener{}, err
 	}
@@ -190,15 +166,17 @@ func (t *TunnelService) setupCiphers(sessionKey []byte) error {
 	if err != nil {
 		return err
 	}
-	t.serverEncryption, err = chacha20poly1305.New(serverKey)
+	server, err := chacha20poly1305.New(serverKey)
 	if err != nil {
 		return err
 	}
-	t.clientEncryption, err = chacha20poly1305.New(clientKey)
+	client, err := chacha20poly1305.New(clientKey)
 	if err != nil {
 		return err
 	}
-	t.cs = &cipherStream{}
+
+	t.cipher = newCipherStream(t.controlChannel, client, server)
+
 	return nil
 }
 
@@ -213,25 +191,20 @@ func (t *TunnelService) setupManualPairing() error {
 		startNewSession: true,
 	}
 
-	err := t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &event))
+	err := t.controlChannel.writeEvent(&event)
 	if err != nil {
 		return err
 	}
-	res, err := t.xpcConn.ReceiveOnClientServerStream()
+	_, err = t.controlChannel.read()
 	if err != nil {
 		return err
 	}
-	_, err = t.messageReadWriter.Decode(res)
 	return err
 }
 
 func (t *TunnelService) readDeviceKey() (publicKey []byte, salt []byte, err error) {
-	m, err := t.xpcConn.ReceiveOnClientServerStream()
-	if err != nil {
-		return
-	}
 	var pairingData pairingData
-	err = DecodeEvent(t.messageReadWriter, m, &pairingData)
+	err = t.controlChannel.readEvent(&pairingData)
 	if err != nil {
 		return
 	}
@@ -247,25 +220,23 @@ func (t *TunnelService) readDeviceKey() (publicKey []byte, salt []byte, err erro
 }
 
 func (t *TunnelService) createUnlockKey() ([]byte, error) {
-	unlockReqMsg, err := EncodeStreamEncrypted(t.messageReadWriter, t.clientEncryption, t.cs, map[string]interface{}{
+	err := t.cipher.write(map[string]interface{}{
 		"request": map[string]interface{}{
 			"_0": map[string]interface{}{
 				"createRemoteUnlockKey": map[string]interface{}{},
 			},
 		},
 	})
-
-	err = t.xpcConn.Send(unlockReqMsg)
 	if err != nil {
 		return nil, err
 	}
 
-	m, err := t.xpcConn.ReceiveOnClientServerStream()
+	var res map[string]interface{}
+	err = t.cipher.read(&res)
 	if err != nil {
 		return nil, err
 	}
 
-	_, _ = DecodeStreamEncrypted(t.messageReadWriter, t.serverEncryption, t.cs, m)
 	return nil, err
 }
 
@@ -279,21 +250,12 @@ func (t *TunnelService) verifyPair(pr PairRecord) error {
 		data:            tlv.Bytes(),
 		kind:            "verifyManualPairing",
 		startNewSession: true,
-		//sendingHost:     "sl123",
 	}
 
-	err := t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &event))
-	if err != nil {
-		return err
-	}
-
-	msg, err := t.xpcConn.ReceiveOnClientServerStream()
-	if err != nil {
-		return err
-	}
+	err := t.controlChannel.writeEvent(&event)
 
 	var devP pairingData
-	err = DecodeEvent(t.messageReadWriter, msg, &devP)
+	err = t.controlChannel.readEvent(&devP)
 	if err != nil {
 		return err
 	}
@@ -348,20 +310,14 @@ func (t *TunnelService) verifyPair(pr PairRecord) error {
 		kind:            "verifyManualPairing",
 		startNewSession: false,
 	}
-	outMsg := EncodeEvent(t.messageReadWriter, &pd)
 
-	err = t.xpcConn.Send(outMsg)
-	if err != nil {
-		return err
-	}
-
-	m, err := t.xpcConn.ReceiveOnClientServerStream()
+	err = t.controlChannel.writeEvent(&pd)
 	if err != nil {
 		return err
 	}
 
 	var responseEvent pairingData
-	err = DecodeEvent(t.messageReadWriter, m, &responseEvent)
+	err = t.controlChannel.readEvent(&responseEvent)
 	if err != nil {
 		return err
 	}
@@ -372,7 +328,7 @@ func (t *TunnelService) verifyPair(pr PairRecord) error {
 	}
 	if len(errRes) > 0 {
 		log.Debug("send pair verify failed event")
-		err := t.xpcConn.Send(EncodeEvent(t.messageReadWriter, pairVerifyFailed{}))
+		err := t.controlChannel.writeEvent(pairVerifyFailed{})
 		if err != nil {
 			return err
 		}
@@ -419,21 +375,19 @@ func (t *TunnelService) setupSessionKey() ([]byte, error) {
 	proofTlv.WriteData(TypePublicKey, srp.ClientPublic)
 	proofTlv.WriteData(TypeProof, srp.ClientProof)
 
-	err = t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &pairingData{
+	err = t.controlChannel.writeEvent(&pairingData{
 		data: proofTlv.Bytes(),
 		kind: "setupManualPairing",
-	}))
-	if err != nil {
-		return nil, err
-	}
-
-	m, err := t.xpcConn.ReceiveOnClientServerStream()
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	var proofPairingData pairingData
-	DecodeEvent(t.messageReadWriter, m, &proofPairingData)
+	err = t.controlChannel.readEvent(&proofPairingData)
+	if err != nil {
+		return nil, err
+	}
 
 	serverProof, err := TlvReader(proofPairingData.data).ReadCoalesced(TypeProof)
 	if err != nil {
@@ -491,22 +445,17 @@ func (t *TunnelService) exchangeDeviceInfo(pr PairRecord, sessionKey []byte) err
 	encryptedTlv.WriteByte(TypeState, 0x05)
 	encryptedTlv.WriteData(TypeEncryptedData, x)
 
-	err = t.xpcConn.Send(EncodeEvent(t.messageReadWriter, &pairingData{
+	err = t.controlChannel.writeEvent(&pairingData{
 		data:        encryptedTlv.Bytes(),
 		kind:        "setupManualPairing",
 		sendingHost: "SL-1876",
-	}))
-	if err != nil {
-		return err
-	}
-
-	m, err := t.xpcConn.ReceiveOnClientServerStream()
+	})
 	if err != nil {
 		return err
 	}
 
 	var encRes pairingData
-	err = DecodeEvent(t.messageReadWriter, m, &encRes)
+	err = t.controlChannel.readEvent(&encRes)
 	if err != nil {
 		return err
 	}

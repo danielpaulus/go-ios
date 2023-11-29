@@ -8,115 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type controlChannelCodec struct {
-	seqNr uint64
-}
-
-func newControlChannelCodec() *controlChannelCodec {
-	return &controlChannelCodec{seqNr: 1}
-}
-
-func (c *controlChannelCodec) Encode(message map[string]interface{}) map[string]interface{} {
-	e := map[string]interface{}{
-		"mangledTypeName": "RemotePairing.ControlChannelMessageEnvelope",
-		"value": map[string]interface{}{
-			"message":        message,
-			"originatedBy":   "host",
-			"sequenceNumber": c.seqNr,
-		},
-	}
-	c.seqNr += 1
-	log.WithField("seq", c.seqNr).Trace("enc: updated sequence number")
-	return e
-}
-
-func (c *controlChannelCodec) Decode(p map[string]interface{}) (map[string]interface{}, error) {
-	value, err := getChildMap(p, "value")
-	if err != nil {
-		return nil, err
-	}
-	//if seqNr, ok := value["sequenceNumber"].(uint64); ok {
-	//	c.seqNr = seqNr + 1
-	//	log.WithField("seq", c.seqNr).Trace("dec: updated sequence number")
-	//} else {
-	//
-	//}
-	return getChildMap(value, "message")
-}
-
-func EncodeEvent(c *controlChannelCodec, event eventCodec) map[string]interface{} {
-	return c.Encode(map[string]interface{}{
-		"plain": map[string]interface{}{
-			"_0": map[string]interface{}{
-				"event": map[string]interface{}{
-					"_0": event.Encode(),
-				},
-			},
-		},
-	})
-}
-
-func EncodeStreamEncrypted(c *controlChannelCodec, ciph cipher.AEAD, s *cipherStream, payload map[string]interface{}) (map[string]interface{}, error) {
-	encrypted, err := s.Encrypt2(ciph, payload)
-	if err != nil {
-		return nil, err
-	}
-	return c.Encode(map[string]interface{}{
-		"streamEncrypted": map[string]interface{}{
-			"_0": encrypted,
-		},
-	}), nil
-}
-
-func DecodeStreamEncrypted(c *controlChannelCodec, ciph cipher.AEAD, s *cipherStream, msg map[string]interface{}) (map[string]interface{}, error) {
-	m, err := c.Decode(msg)
-	if err != nil {
-		return nil, err
-	}
-	encr, err := getChildMap(m, "streamEncrypted")
-	if err != nil {
-		return nil, err
-	}
-	if data, ok := encr["_0"].([]byte); ok {
-		plain, err := s.Decrypt(ciph, data)
-		if err != nil {
-			return nil, err
-		}
-		res := make(map[string]interface{})
-		err = json.Unmarshal(plain, &res)
-		if err != nil {
-			return nil, err
-		}
-		return res, nil
-	} else {
-		return nil, fmt.Errorf("could not find encrypted data")
-	}
-}
-
-func DecodeEvent(c *controlChannelCodec, m map[string]interface{}, event eventCodec) error {
-	msg, err := c.Decode(m)
-	if err != nil {
-		return err
-	}
-	e, err := getChildMap(msg, "plain", "_0", "event", "_0")
-	if err != nil {
-		return err
-	}
-	return event.Decode(e)
-}
-
-func EncodeRequest(c *controlChannelCodec, r map[string]interface{}) map[string]interface{} {
-	return c.Encode(map[string]interface{}{
-		"plain": map[string]interface{}{
-			"_0": map[string]interface{}{
-				"request": map[string]interface{}{
-					"_0": r,
-				},
-			},
-		},
-	})
-}
-
 type eventCodec interface {
 	Encode() map[string]interface{}
 	Decode(e map[string]interface{}) error
@@ -186,33 +77,142 @@ func getChildMap(m map[string]interface{}, keys ...string) (map[string]interface
 	}
 }
 
-type cipherStream struct {
-	sequence uint64
-	nonce    []byte
+type xpcConn interface {
+	Send(data map[string]interface{}, flags ...uint32) error
+	ReceiveOnClientServerStream() (map[string]interface{}, error)
 }
 
-func (e *cipherStream) Encrypt(c cipher.AEAD, p []byte) []byte {
-	e.nonce = e.createNonce(c)
-	encrypted := c.Seal(nil, e.nonce, p, nil)
-	e.sequence += 1
-	return encrypted
+type controlChannelReadWriter struct {
+	seqNr uint64
+	conn  xpcConn
 }
 
-func (e *cipherStream) Encrypt2(c cipher.AEAD, plain map[string]interface{}) ([]byte, error) {
-	p, err := json.Marshal(plain)
+func newControlChannelReadWriter(conn xpcConn) *controlChannelReadWriter {
+	return &controlChannelReadWriter{
+		seqNr: 1,
+		conn:  conn,
+	}
+}
+
+func (c *controlChannelReadWriter) writeEventRaw(e map[string]interface{}) error {
+	panic(nil)
+}
+
+func (c *controlChannelReadWriter) writeEvent(e eventCodec) error {
+	encoded := map[string]interface{}{
+		"plain": map[string]interface{}{
+			"_0": map[string]interface{}{
+				"event": map[string]interface{}{
+					"_0": e.Encode(),
+				},
+			},
+		},
+	}
+	return c.write(encoded)
+}
+
+func (c *controlChannelReadWriter) readEvent(e eventCodec) error {
+	m, err := c.read()
+	if err != nil {
+		return err
+	}
+	event, err := getChildMap(m, "plain", "_0", "event", "_0")
+	if err != nil {
+		return err
+	}
+	return e.Decode(event)
+}
+
+func (c *controlChannelReadWriter) writeRequest(req map[string]interface{}) error {
+	return c.write(map[string]interface{}{
+		"plain": map[string]interface{}{
+			"_0": map[string]interface{}{
+				"request": map[string]interface{}{
+					"_0": req,
+				},
+			},
+		},
+	})
+}
+
+func (c *controlChannelReadWriter) write(message map[string]interface{}) error {
+	e := map[string]interface{}{
+		"mangledTypeName": "RemotePairing.ControlChannelMessageEnvelope",
+		"value": map[string]interface{}{
+			"message":        message,
+			"originatedBy":   "host",
+			"sequenceNumber": c.seqNr,
+		},
+	}
+	c.seqNr += 1
+	log.WithField("seq", c.seqNr).Trace("enc: updated sequence number")
+	return c.conn.Send(e)
+}
+
+func (c *controlChannelReadWriter) read() (map[string]interface{}, error) {
+	p, err := c.conn.ReceiveOnClientServerStream()
 	if err != nil {
 		return nil, err
 	}
-	e.nonce = e.createNonce(c)
-	encrypted := c.Seal(nil, e.nonce, p, nil)
-	e.sequence += 1
-	return encrypted, nil
+	value, err := getChildMap(p, "value")
+	if err != nil {
+		return nil, err
+	}
+
+	return getChildMap(value, "message")
 }
 
-func (e *cipherStream) Decrypt(c cipher.AEAD, p []byte) ([]byte, error) {
-	return c.Open(nil, e.nonce, p, nil)
+type cipherStream struct {
+	controlChannel *controlChannelReadWriter
+	clientCipher   cipher.AEAD
+	serverCipher   cipher.AEAD
+	nonce          []byte
+	sequence       uint64
 }
 
-func (e *cipherStream) createNonce(c cipher.AEAD) []byte {
-	return append(binary.LittleEndian.AppendUint64(nil, e.sequence), make([]byte, 4)...)
+func newCipherStream(controlChannel *controlChannelReadWriter, clientCipher, serverCipher cipher.AEAD) *cipherStream {
+	return &cipherStream{
+		controlChannel: controlChannel,
+		clientCipher:   clientCipher,
+		serverCipher:   serverCipher,
+		nonce:          make([]byte, clientCipher.NonceSize()),
+		sequence:       0,
+	}
+}
+
+func (c *cipherStream) write(p map[string]interface{}) error {
+	c.updateNonce()
+	marshalled, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	encrypted := c.clientCipher.Seal(nil, c.nonce, marshalled, nil)
+	c.sequence += 1
+	return c.controlChannel.write(map[string]interface{}{
+		"streamEncrypted": map[string]interface{}{
+			"_0": encrypted,
+		},
+	})
+}
+
+func (c *cipherStream) read(p *map[string]interface{}) error {
+	m, err := c.controlChannel.read()
+	if err != nil {
+		return err
+	}
+	if streamEncr, err := getChildMap(m, "streamEncrypted"); err == nil {
+		if cip, ok := streamEncr["_0"].([]byte); ok {
+			plain, err := c.serverCipher.Open(nil, c.nonce, cip, nil)
+			if err != nil {
+				return err
+			}
+			return json.Unmarshal(plain, p)
+		}
+	}
+	return fmt.Errorf("not implemented")
+}
+
+func (c *cipherStream) updateNonce() {
+	b := binary.LittleEndian.AppendUint64(nil, c.sequence)
+	copy(c.nonce[0:8], b)
 }
