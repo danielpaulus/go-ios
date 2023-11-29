@@ -18,7 +18,7 @@ type MethodWithResponse func(msg Message) (interface{}, error)
 // Connection manages channels, including the GlobalChannel, for a DtxConnection and dispatches received messages
 // to the right channel.
 type Connection struct {
-	deviceConnection       ios.DeviceConnectionInterface
+	conn                   io.ReadWriteCloser
 	channelCodeCounter     int
 	activeChannels         sync.Map
 	globalChannel          *Channel
@@ -41,10 +41,10 @@ type GlobalDispatcher struct {
 
 const requestChannel = "_requestChannelWithCode:identifier:"
 
-// Close closes the underlying deviceConnection
+// Close closes the underlying connection
 func (dtxConn *Connection) Close() error {
-	if dtxConn.deviceConnection != nil {
-		return dtxConn.deviceConnection.Close()
+	if dtxConn.conn != nil {
+		return dtxConn.conn.Close()
 	}
 	return nil
 }
@@ -105,7 +105,7 @@ func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, err
 	requestChannelMessages := make(chan Message, 5)
 
 	// The global channel has channelCode 0, so we need to start with channelCodeCounter==1
-	dtxConnection := &Connection{deviceConnection: conn, channelCodeCounter: 1, requestChannelMessages: requestChannelMessages}
+	dtxConnection := &Connection{conn: conn, channelCodeCounter: 1, requestChannelMessages: requestChannelMessages}
 
 	// The global channel is automatically present and used for requesting other channels and some other methods like notifyPublishedCapabilities
 	globalChannel := Channel{
@@ -125,14 +125,22 @@ func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, err
 
 // Send sends the byte slice directly to the device using the underlying DeviceConnectionInterface
 func (dtxConn *Connection) Send(message []byte) error {
-	return dtxConn.deviceConnection.Send(message)
+	n, err := dtxConn.conn.Write(message)
+	if n < len(message) {
+		log.Errorf("DeviceConnection failed writing %d bytes, only %d sent", len(message), n)
+	}
+	if err != nil {
+		log.Errorf("Failed sending: %s", err)
+		dtxConn.Close() // TODO: should this really be here???
+		return err
+	}
+	return nil
 }
 
 // reader reads messages from the byte stream and dispatches them to the right channel when they are decoded.
 func reader(dtxConn *Connection) {
 	for {
-		reader := dtxConn.deviceConnection.Reader()
-		msg, err := ReadMessage(reader)
+		msg, err := ReadMessage(dtxConn.conn)
 		if err != nil {
 			errText := err.Error()
 			if err == io.EOF || strings.Contains(errText, "use of closed network") {
