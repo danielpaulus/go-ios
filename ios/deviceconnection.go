@@ -13,9 +13,11 @@ import (
 
 // DeviceConnectionInterface contains a physical network connection to a usbmuxd socket.
 type DeviceConnectionInterface interface {
-	Close() error
+	// Deprecated: use the Read([]byte) (int, error) function instead
 	Send(message []byte) error
+	// Deprecated: use the Read([]byte) (int, error) function
 	Reader() io.Reader
+	// Deprecated: use the Write([]byte) (int, error) function
 	Writer() io.Writer
 	EnableSessionSsl(pairRecord PairRecord) error
 	EnableSessionSslServerMode(pairRecord PairRecord) error
@@ -23,6 +25,7 @@ type DeviceConnectionInterface interface {
 	EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord) error
 	DisableSessionSSL()
 	Conn() net.Conn
+	io.ReadWriteCloser
 }
 
 // DeviceConnection wraps the net.Conn to the ios Device and has support for
@@ -30,6 +33,14 @@ type DeviceConnectionInterface interface {
 type DeviceConnection struct {
 	c               net.Conn
 	unencryptedConn net.Conn
+}
+
+func (conn *DeviceConnection) Read(p []byte) (n int, err error) {
+	return conn.Reader().Read(p)
+}
+
+func (conn *DeviceConnection) Write(p []byte) (n int, err error) {
+	return conn.Writer().Write(p)
 }
 
 // NewDeviceConnection creates a new DeviceConnection pointing to the given socket waiting for a call to Connect()
