@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
@@ -174,8 +173,6 @@ func DecodeXCActivityRecord(object map[string]interface{}, objects []interface{}
 
 	activityType_ref := object["activityType"].(plist.UID)
 	activityType := objects[activityType_ref].(string)
-
-	log.Info(objects[9])
 
 	return XCActivityRecord{Finish: finish, Start: start, UUID: uuid, Title: title, Attachments: attachments, ActivityType: activityType}
 }
