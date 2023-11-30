@@ -12,6 +12,7 @@ import (
 
 type RsdPortProvider interface {
 	GetPort(service string) int
+	GetService(p int) string
 }
 
 type RsdPortProviderJson map[string]service
@@ -48,6 +49,19 @@ func (r RsdPortProviderJson) GetPort(service string) int {
 		return 0
 	}
 	return int(port)
+}
+
+func (r RsdPortProviderJson) GetService(p int) string {
+	for name, s := range r {
+		port, err := strconv.ParseInt(s.Port, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		if port == int64(p) {
+			return name
+		}
+	}
+	return ""
 }
 
 func RsdCheckin(rw io.ReadWriter) error {
@@ -91,6 +105,15 @@ type RsdServiceEntry struct {
 type RsdHandshakeResponse struct {
 	Udid     string
 	Services map[string]RsdServiceEntry
+}
+
+func (r RsdHandshakeResponse) GetService(p int) string {
+	for name, s := range r.Services {
+		if s.Port == uint32(p) {
+			return name
+		}
+	}
+	return ""
 }
 
 func (r RsdHandshakeResponse) GetPort(service string) int {

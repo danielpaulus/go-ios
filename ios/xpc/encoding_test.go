@@ -136,6 +136,16 @@ func TestEncodeDecode(t *testing.T) {
 			},
 			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
+		{
+			name: "encode uuid",
+			input: map[string]interface{}{
+				"uuidvalue": func() uuid.UUID {
+					u, _ := uuid.FromBytes(base64Decode("RYjS2yNAbEG+Y0WWxq5/4w=="))
+					return u
+				}(),
+			},
+			expectedFlags: alwaysSetFlag | dataFlag,
+		},
 	}
 
 	for _, tt := range tests {

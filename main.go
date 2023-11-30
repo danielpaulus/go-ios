@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
+	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
+	"github.com/danielpaulus/go-ios/ios/debugproxy/utun"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -34,7 +36,6 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/accessibility"
-	"github.com/danielpaulus/go-ios/ios/debugproxy"
 	"github.com/danielpaulus/go-ios/ios/diagnostics"
 	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
@@ -99,7 +100,7 @@ Usage:
   ios ps [--apps] [options]
   ios ip [options]
   ios forward [options] <hostPort> <targetPort>
-  ios dproxy [--binary]
+  ios dproxy [--binary][--mode=<all(default)|usbmuxd|utun> --iface=<iface>] [--rsd=<path-to-rsdifo>]
   ios readpair [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
@@ -196,7 +197,7 @@ The commands work as following:
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
    >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [--binary]                                              Starts the reverse engineering proxy server.
+   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun> --iface=<iface>] [--rsd=<path-to-rsdifo>] Starts the reverse engineering proxy server.
    >                                                                  It dumps every communication in plain text so it can be implemented easily.
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
@@ -525,10 +526,59 @@ The commands work as following:
 
 	b, _ = arguments.Bool("dproxy")
 	if b {
+		ctx := context.Background()
+
+		// trap Ctrl+C and call cancel on the context
+		ctx, cancel := context.WithCancel(ctx)
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		defer func() {
+			signal.Stop(c)
+			cancel()
+		}()
+		go func() {
+			select {
+			case <-c:
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+		dumpDir := filepath.Join(".", "dump-"+time.Now().UTC().Format("2006.01.02-15.04.05.000"))
+		os.MkdirAll(dumpDir, os.ModePerm)
+		usbmuxDir := filepath.Join(dumpDir, "usbmuxd")
+		os.MkdirAll(usbmuxDir, os.ModePerm)
+		tunDir := filepath.Join(dumpDir, "utun")
+		os.MkdirAll(tunDir, os.ModePerm)
 		log.SetFormatter(&log.TextFormatter{})
 		// log.SetLevel(log.DebugLevel)
 		binaryMode, _ := arguments.Bool("--binary")
-		startDebugProxy(device, binaryMode)
+		mode, _ := arguments.String("--mode")
+		iface, _ := arguments.String("--iface")
+		switch mode {
+		case "":
+			fallthrough
+		case "all":
+			fallthrough
+		case "utun":
+			if iface == "" {
+				log.Fatal("the '--iface' argument is required")
+			}
+		}
+		switch mode {
+		case "":
+			fallthrough
+		case "all":
+			go startDebugProxy(device, binaryMode, usbmuxDir)
+			go utun.Live(ctx, iface, rsdProvider, tunDir)
+			select {}
+		case "usbmuxd":
+			startDebugProxy(device, binaryMode, usbmuxDir)
+		case "utun":
+			utun.Live(ctx, iface, rsdProvider, tunDir)
+		default:
+			log.Fatal("Uknown mode '%s'", mode)
+
+		}
 		return
 	}
 
@@ -1443,8 +1493,8 @@ func printVersion() {
 	}
 }
 
-func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
-	proxy := debugproxy.NewDebugProxy()
+func startDebugProxy(device ios.DeviceEntry, binaryMode bool, dumpDir string) {
+	proxy := usbmuxd.NewDebugProxy(dumpDir)
 
 	go func() {
 		defer func() {
