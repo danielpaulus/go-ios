@@ -153,6 +153,24 @@ func (xdc XCTestManager_DaemonConnectionInterface) initiateControlSession(pid ui
 	return err
 }
 
+func (xdc XCTestManager_DaemonConnectionInterface) collectNewCrashReportsInDirectoriesMatchingProcessNames(logPaths []interface{}, processNames []interface{}) error {
+	var ok bool
+	rply, err := xdc.IDEDaemonProxy.MethodCall("_IDE_collectNewCrashReportsInDirectories:matchingProcessNames:", logPaths, processNames)
+	if err != nil {
+		log.Errorf("_IDE_collectNewCrashReportsInDirectories:matchingProcessNames: failed: %v", err)
+		return err
+	}
+	returnValue := rply.Payload[0]
+	returnValue = returnValue
+
+	if _, ok = returnValue.([]interface{}); !ok {
+		return fmt.Errorf("_IDE_collectNewCrashReportsInDirectories:matchingProcessNames: got wrong returnvalue: %s", rply.Payload)
+	}
+	log.WithFields(log.Fields{"channel_id": ideToDaemonProxyChannelName, "reply": rply}).Debug("_IDE_collectNewCrashReportsInDirectories:matchingProcessNames: reply")
+
+	return err
+}
+
 func startExecutingTestPlanWithProtocolVersion(channel *dtx.Channel, protocolVersion uint64) error {
 	rply, err := channel.MethodCall("_IDE_startExecutingTestPlanWithProtocolVersion:", protocolVersion)
 	if err != nil {
@@ -309,10 +327,36 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 		return err
 	}
 	log.Debug(caps)
+	// ideDaemonProxy.daemonConnection.collectNewCrashReportsInDirectoriesMatchingProcessNames(
+	// 	[]interface{}{
+	// 		"/var/mobile/Library/Logs/CrashReporter/",
+	// 	},
+	// 	[]interface{}{
+	// 		"debugserver",
+	// 		testInfo.targetAppBundleName,
+	// 		testInfo.testAppBundleName, // This is identical to testInfo.targetAppBundleName for WDA
+	// 		"FrontBoard",
+	// 		"assertiond",
+	// 		"backboardd",
+	// 		"runningboardd",
+	// 		"testmanagerd",
+	// 		"SpringBoard",
+	// 		"xctest",
+	// 		"DTServiceHub",
+	// 	},
+	// )
+
 	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
-		"XCTIssue capability":     uint64(1),
-		"skipped test capability": uint64(1),
-		"test timeout capability": uint64(1),
+		"XCTIssue capability":                      uint64(1),
+		"daemon container sandbox extension":       uint64(1),
+		"delayed attachment transfer":              uint64(1),
+		"expected failure test capability":         uint64(1),
+		"request diagnostics for specific devices": uint64(1),
+		"skipped test capability":                  uint64(1),
+		"test case run configurations":             uint64(1),
+		"test iterations":                          uint64(1),
+		"ubiquitous test identifiers":              uint64(1),
+		"test timeout capability":                  uint64(1),
 	}}
 
 	caps2, err := ideDaemonProxy2.daemonConnection.initiateSessionWithIdentifierAndCaps(testSessionId, localCaps)
@@ -325,7 +369,6 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	// 	return err
 	// }
 	// defer pControl.Close()
-
 	pid, err := startTestRunner17(device, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
 	if err != nil {
 		return err
@@ -334,10 +377,14 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 
 	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "emty"})
 	// TODO : figure out why it hangs here
-
 	time.Sleep(time.Second)
 
-	success, _ := ideDaemonProxy.daemonConnection.authorizeTestSessionWithProcessID(pid)
+	success, err := ideDaemonProxy.daemonConnection.authorizeTestSessionWithProcessID(pid)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
 	log.Debugf("authorizing test session for pid %d successful %t", pid, success)
 	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 36)
 	if err != nil {
@@ -461,7 +508,7 @@ func startTestRunner17(device ios.DeviceEntry, xctestConfigPath string, bundleID
 		return 0, err
 	}
 
-	conn.LaunchApp(
+	pid, err := conn.LaunchApp(
 		"D8FB9E56-4394-40AC-81C1-9E50DD885AC2",
 		bundleID,
 		args,
@@ -469,7 +516,11 @@ func startTestRunner17(device ios.DeviceEntry, xctestConfigPath string, bundleID
 	)
 	// return pControl.StartProcess(bundleID, env, args, opts)
 
-	return 0, nil
+	if err != nil {
+		return 0, err
+	}
+
+	return pid, nil
 }
 
 func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
@@ -530,6 +581,7 @@ type testInfo struct {
 	targetAppPath       string
 	targetAppBundleName string
 	targetAppBundleID   string
+	testAppBundleName   string
 }
 
 func getAppInfos(bundleID string, testRunnerBundleID string, apps []installationproxy.AppInfo) (testInfo, error) {
@@ -542,6 +594,7 @@ func getAppInfos(bundleID string, testRunnerBundleID string, apps []installation
 		}
 		if app.CFBundleIdentifier == testRunnerBundleID {
 			info.testrunnerAppPath = app.Path
+			info.testAppBundleName = app.CFBundleName
 			info.testRunnerHomePath = app.EnvironmentVariables["HOME"].(string)
 		}
 	}

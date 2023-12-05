@@ -24,7 +24,6 @@ type framerDataWriter struct {
 
 func (writer framerDataWriter) Write(p []byte) (int, error) {
 	err := writer.Framer.WriteData(writer.StreamID, false, p)
-
 	return len(p), err
 }
 
@@ -46,7 +45,7 @@ func New(readWriteCloser io.ReadWriteCloser) (*Connection, error) {
 	conn := &Connection{
 		connectionCloser: readWriteCloser,
 		framer:           framer,
-		msgId:            1,
+		msgId:            0,
 	}
 
 	err = exchangeSettings(framer)
@@ -104,7 +103,7 @@ func exchangeData(conn *Connection, framer *http2.Framer) error {
 		Framer:   *framer,
 		StreamID: rootChannel,
 	}, Message{
-		Flags: alwaysSetFlag | dataFlag,
+		Flags: alwaysSetFlag,
 		Body:  map[string]interface{}{},
 		Id:    conn.msgId,
 	})
@@ -121,7 +120,7 @@ func exchangeData(conn *Connection, framer *http2.Framer) error {
 		Framer:   *framer,
 		StreamID: rootChannel,
 	}, Message{
-		Flags: 0x201, // alwaysSetFlag | 0x200
+		Flags: 0x201, // alwaysSetFlag | 0x200 (unknown flag)
 		Body:  nil,
 		Id:    conn.msgId,
 	})
@@ -195,6 +194,24 @@ func (c *Connection) Send(data map[string]interface{}) error {
 	c.msgId += 1
 
 	return nil
+}
+
+func (c *Connection) SendReceive(data map[string]interface{}) (map[string]interface{}, error) {
+	err := EncodeMessage(framerDataWriter{
+		Framer:   *c.framer,
+		StreamID: rootChannel,
+	}, Message{
+		Flags: alwaysSetFlag | dataFlag | heartbeatRequestFlag,
+		Body:  data,
+		Id:    c.msgId,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	c.msgId += 1
+
+	return c.Receive()
 }
 
 func (c *Connection) Close() error {
