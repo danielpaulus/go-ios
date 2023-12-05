@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/dmissmann/quic-go"
+	"github.com/quic-go/quic-go"
 	"github.com/sirupsen/logrus"
 	"github.com/songgao/water"
 	"io"
