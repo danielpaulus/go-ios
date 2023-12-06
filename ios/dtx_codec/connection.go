@@ -1,8 +1,10 @@
 package dtx
 
 import (
+	"fmt"
 	"io"
 	"math"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -70,6 +72,7 @@ func NewGlobalDispatcher(requestChannelMessages chan Message, dtxConnection *Con
 func (g GlobalDispatcher) Dispatch(msg Message) {
 	SendAckIfNeeded(g.dtxConnection, msg)
 	if msg.Payload != nil {
+		log.WithField("payload", msg.Payload[0]).Info("_requestChannelWithCode:identifier:")
 		if requestChannel == msg.Payload[0] {
 			g.requestChannelMessages <- msg
 		}
@@ -99,6 +102,33 @@ func notifyOfPublishedCapabilities(msg Message) {
 // NewConnection connects and starts reading from a Dtx based service on the device
 func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, error) {
 	conn, err := ios.ConnectToService(device, serviceName)
+	if err != nil {
+		return nil, err
+	}
+	requestChannelMessages := make(chan Message, 5)
+
+	// The global channel has channelCode 0, so we need to start with channelCodeCounter==1
+	dtxConnection := &Connection{conn: conn, channelCodeCounter: 1, requestChannelMessages: requestChannelMessages}
+
+	// The global channel is automatically present and used for requesting other channels and some other methods like notifyPublishedCapabilities
+	globalChannel := Channel{
+		channelCode:       0,
+		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
+		messageDispatcher: NewGlobalDispatcher(requestChannelMessages, dtxConnection),
+		responseWaiters:   map[int]chan Message{},
+		registeredMethods: map[string]chan Message{},
+		defragmenters:     map[int]*FragmentDecoder{},
+		timeout:           5 * time.Second,
+	}
+	dtxConnection.globalChannel = &globalChannel
+	go reader(dtxConnection)
+
+	return dtxConnection, nil
+}
+
+func NewConnectionTunnel(device ios.DeviceEntry, port int) (*Connection, error) {
+	conn, err := net.Dial("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
+	//conn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +208,19 @@ func (dtxConn *Connection) ForChannelRequest(messageDispatcher Dispatcher) *Chan
 	// TODO: Setting the channel code here manually to -1 for making testmanagerd work. For some reason it requests the TestDriver proxy channel with code 1 but sends messages on -1. Should probably be fixed somehow
 	// TODO: try to refactor testmanagerd/xcuitest code and use AddDefaultChannelReceiver instead of this function. The only code calling this is in testmanagerd right now.
 	channel := &Channel{channelCode: -1, channelName: identifier[0].(string), messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
+	dtxConn.activeChannels.Store(-1, channel)
+	return channel
+}
+
+func (dtxConn *Connection) ForChannelRequest2(messageDispatcher Dispatcher) *Channel {
+	//msg := <-dtxConn.requestChannelMessages
+	dtxConn.mutex.Lock()
+	defer dtxConn.mutex.Unlock()
+	// code := msg.Auxiliary.GetArguments()[0].(uint32)
+	//identifier, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
+	// TODO: Setting the channel code here manually to -1 for making testmanagerd work. For some reason it requests the TestDriver proxy channel with code 1 but sends messages on -1. Should probably be fixed somehow
+	// TODO: try to refactor testmanagerd/xcuitest code and use AddDefaultChannelReceiver instead of this function. The only code calling this is in testmanagerd right now.
+	channel := &Channel{channelCode: -1, channelName: "", messageIdentifier: 1, connection: dtxConn, messageDispatcher: messageDispatcher, responseWaiters: map[int]chan Message{}, defragmenters: map[int]*FragmentDecoder{}, timeout: 5 * time.Second}
 	dtxConn.activeChannels.Store(-1, channel)
 	return channel
 }

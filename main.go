@@ -302,7 +302,7 @@ The commands work as following:
 	address, _ := arguments.String("--address")
 	device, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	exitIfError("error getting devicelist", err)
-	device, err = ios.FindDeviceInterfaceAddress(device)
+	//device, err = ios.FindDeviceInterfaceAddress(device)
 
 	b, _ = arguments.Bool("erase")
 	if b {

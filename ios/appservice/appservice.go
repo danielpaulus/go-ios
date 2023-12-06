@@ -40,15 +40,30 @@ func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interfac
 	return AppLaunch{Pid: pid}, nil
 }
 
+func (c *Connection) StartProcess(bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (uint64, error) {
+	l, err := c.LaunchApp("E66A4DED-A888-495F-A701-1C478F94DC8B", bundleID, arguments, envVars)
+	if err != nil {
+		return 0, err
+	}
+	return uint64(l.Pid), nil
+}
+
 func (c *Connection) Close() error {
 	return c.conn.Close()
+}
+
+func (c *Connection) KillProcess(pid uint64) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) map[string]interface{} {
 	u := uuid.New()
 	platformSpecificOptions := bytes.NewBuffer(nil)
 	plistEncoder := plist.NewBinaryEncoder(platformSpecificOptions)
-	err := plistEncoder.Encode(map[string]interface{}{})
+	err := plistEncoder.Encode(map[string]interface{}{
+		"__ActivateSuspende": 1,
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -75,12 +90,21 @@ func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{},
 				"platformSpecificOptions":       platformSpecificOptions.Bytes(),
 				"standardIOUsesPseudoterminals": true,
 				"startStopped":                  false,
-				"terminateExisting":             false,
+				"terminateExisting":             true,
 				"user": map[string]interface{}{
 					"active": true,
 				},
 				"workingDirectory": nil,
 			},
+			//"installationResult": map[string]interface{}{
+			//	"_persistentIdentifier":  "AAAAAEwGAAAIAAAAPb97tuaXS8yiRGRoMPN1U0wGAAAAAAAA",
+			//	"applicationBundleId":    "com.saucelabs.TestGridWithInjectorUITests.xctrunner",
+			//	"databaseSequenceNumber": uint64(1612),
+			//	"databaseUUID":           "3dbf7bb6-e697-4bcc-a244-646830f37553",
+			//	"installationURL": map[string]interface{}{
+			//		"relative": "file:///private/var/containers/Bundle/Application/17B6955A-A4C0-47DC-BD3A-C3B39E1922E9/TestGridWithInjectorUITests-Runner.app/",
+			//	},
+			//},
 			"standardIOIdentifiers": map[string]interface{}{},
 		},
 		"CoreDevice.invocationIdentifier": u.String(),
