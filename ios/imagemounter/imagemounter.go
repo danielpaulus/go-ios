@@ -53,6 +53,18 @@ func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Versio
 	}, nil
 }
 
+func NewImageMounter(device ios.DeviceEntry) (ImageMounter, error) {
+	version, err := ios.GetProductVersion(device)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get device version. %w", err)
+	}
+	if version.Major() < 17 {
+		return NewDeveloperDiskImageMounter(device, version)
+	} else {
+		return NewPersonalizedDeveloperDiskImageMounter(device, version)
+	}
+}
+
 // ListImages returns a list with signatures of installed developer images
 func (conn *developerDiskImageMounter) ListImages() ([][]byte, error) {
 	return listImages(conn.plistRw, "Developer", conn.version)
@@ -167,13 +179,7 @@ func hangUp(plistRw ios.PlistCodecReadWriter) error {
 }
 
 func MountImage(device ios.DeviceEntry, path string) error {
-	version, err := ios.GetProductVersion(device)
-	var conn ImageMounter
-	if version.Major() < 17 {
-		conn, err = NewDeveloperDiskImageMounter(device, version)
-	} else {
-		conn, err = NewPersonalizedDeveloperDiskImageMounter(device, version)
-	}
+	conn, err := NewImageMounter(device)
 	if err != nil {
 		return fmt.Errorf("failed connecting to image mounter: %v", err)
 	}
