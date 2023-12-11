@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"howett.net/plist"
 	"io"
 	"reflect"
 
@@ -55,4 +56,51 @@ func (plistCodec PlistCodec) Decode(r io.Reader) ([]byte, error) {
 		return nil, fmt.Errorf("lockdown Payload had incorrect size: %d expected: %d original error: %s", n, length, err)
 	}
 	return payloadBytes, nil
+}
+
+type PlistCodecReadWriter struct {
+	w io.Writer
+	r io.Reader
+}
+
+func NewPlistCodecReadWriter(r io.Reader, w io.Writer) PlistCodecReadWriter {
+	return PlistCodecReadWriter{
+		w: w,
+		r: r,
+	}
+}
+
+func (p PlistCodecReadWriter) Write(m interface{}) error {
+	stringContent := ToPlist(m)
+	log.Tracef("Lockdown send %v", reflect.TypeOf(m))
+	buf := new(bytes.Buffer)
+	length := len(stringContent)
+	messageLength := uint32(length)
+
+	err := binary.Write(buf, binary.BigEndian, messageLength)
+	if err != nil {
+		return err
+	}
+	buf.Write([]byte(stringContent))
+	n, err := p.w.Write(buf.Bytes())
+	if n != len(buf.Bytes()) {
+		return fmt.Errorf("wrong length")
+	}
+	return err
+}
+
+func (p PlistCodecReadWriter) Read(v interface{}) error {
+	buf := make([]byte, 4)
+	err := binary.Read(p.r, binary.BigEndian, buf)
+	if err != nil {
+		return err
+	}
+	length := binary.BigEndian.Uint32(buf)
+	payloadBytes := make([]byte, length)
+	n, err := io.ReadFull(p.r, payloadBytes)
+	if err != nil {
+		return fmt.Errorf("lockdown Payload had incorrect size: %d expected: %d original error: %s", n, length, err)
+	}
+	_, err = plist.Unmarshal(payloadBytes, v)
+	return err
 }
