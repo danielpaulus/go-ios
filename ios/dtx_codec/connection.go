@@ -96,8 +96,8 @@ func notifyOfPublishedCapabilities(msg Message) {
 	log.Debug("capabs received")
 }
 
-// NewConnection connects and starts reading from a Dtx based service on the device
-func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, error) {
+// NewLockdownConnection connects and starts reading from a Dtx based service on the device
+func NewLockdownConnection(device ios.DeviceEntry, serviceName string) (*Connection, error) {
 	conn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return nil, err
@@ -123,9 +123,9 @@ func NewConnection(device ios.DeviceEntry, serviceName string) (*Connection, err
 	return dtxConnection, nil
 }
 
-// NewDtConnection connects and starts reading from a Dtx based service on the device, using tunnel interface instead of usbmuxd
-func NewDtConnection(device ios.DeviceEntry, serviceName string) (*Connection, error) {
-	conn, err := ios.ConnectToDtServiceOverTunnelIface(device, serviceName)
+// NewTunnelConnection connects and starts reading from a Dtx based service on the device, using tunnel interface instead of usbmuxd
+func NewTunnelConnection(device ios.DeviceEntry, serviceName string) (*Connection, error) {
+	conn, err := ios.ConnectToServiceTunnelIface(device, serviceName)
 	if err != nil {
 		return nil, err
 	}

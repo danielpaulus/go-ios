@@ -335,13 +335,13 @@ func runXUITestWithBundleIdsXcode15Ctx(ctx context.Context,
 	wdaargs []string,
 	wdaenv []string,
 ) error {
-	conn1, err := dtx.NewDtConnection(device, testmanagerdiOS17)
+	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
 		return err
 	}
 	defer conn1.Close()
 
-	conn2, err := dtx.NewDtConnection(device, testmanagerdiOS17)
+	conn2, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
 		return err
 	}

@@ -16,7 +16,7 @@ type Connection struct {
 }
 
 func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
-	xpcConn, err := ios.ConnectToServiceTunnelIface(deviceEntry, "com.apple.coredevice.appservice")
+	xpcConn, err := ios.ConnectToXpcServiceTunnelIface(deviceEntry, "com.apple.coredevice.appservice")
 	if err != nil {
 		return nil, err
 	}
@@ -103,9 +103,7 @@ func pidFromResponse(response map[string]interface{}) (int64, error) {
 	return 0, fmt.Errorf("could not get pid from response")
 }
 
-func (c *Connection) ListProcesses(deviceId string) error {
+func (c *Connection) ListProcesses(deviceId string) (map[string]interface{}, error) {
 	msg := buildCoreDevicePayload(deviceId, "com.apple.coredevice.feature.listprocesses", map[string]interface{}{})
-	lol, err := c.conn.SendReceive(msg)
-	lol = lol
-	return err
+	return c.conn.SendReceive(msg)
 }

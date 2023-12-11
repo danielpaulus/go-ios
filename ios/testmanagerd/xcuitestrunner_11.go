@@ -25,14 +25,14 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 		return err
 	}
 	log.Debugf("test session setup ok")
-	conn, err := dtx.NewConnection(device, testmanagerd)
+	conn, err := dtx.NewLockdownConnection(device, testmanagerd)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
 
-	conn2, err := dtx.NewConnection(device, testmanagerd)
+	conn2, err := dtx.NewLockdownConnection(device, testmanagerd)
 	if err != nil {
 		return err
 	}

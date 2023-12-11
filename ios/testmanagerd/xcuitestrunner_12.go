@@ -15,7 +15,7 @@ import (
 func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, testRunnerBundleID string, xctestConfigFileName string,
 	device ios.DeviceEntry, args []string, env []string,
 ) error {
-	conn, err := dtx.NewConnection(device, testmanagerdiOS14)
+	conn, err := dtx.NewLockdownConnection(device, testmanagerdiOS14)
 	if err != nil {
 		return err
 	}
@@ -27,7 +27,7 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
 
-	conn2, err := dtx.NewConnection(device, testmanagerdiOS14)
+	conn2, err := dtx.NewLockdownConnection(device, testmanagerdiOS14)
 	if err != nil {
 		return err
 	}

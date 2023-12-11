@@ -104,7 +104,7 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	return muxConn.ReleaseDeviceConnection(), nil
 }
 
-func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
+func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
 	port := device.Rsd.GetPort(serviceName)
 
 	h, err := ConnectToHttp2(device, port)
@@ -114,8 +114,9 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.C
 	return CreateXpcConnection(h)
 }
 
-func ConnectToDtServiceOverTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
+func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
 	port := device.Rsd.GetPort(serviceName)
+
 	conn, err := connectToTunnel(device, port)
 	if err != nil {
 		return nil, err
