@@ -11,6 +11,7 @@ type personalizedDeveloperDiskImageMounter struct {
 	deviceConn ios.DeviceConnectionInterface
 	plistRw    ios.PlistCodecReadWriter
 	version    *semver.Version
+	tss        tssClient
 }
 
 func (p personalizedDeveloperDiskImageMounter) ListImages() ([][]byte, error) {
