@@ -142,6 +142,7 @@ The commands work as following:
    ios info [options]                                                 Prints a dump of Lockdown getValues.
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
+   >                                                                  For iOS 17+ (personalized deverloper disk images) <imagepath> must point to the "Restore" directory inside the developer disk 
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
