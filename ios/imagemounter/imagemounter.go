@@ -60,10 +60,6 @@ func (conn *developerDiskImageMounter) MountImage(imagePath string) error {
 	if err != nil {
 		return err
 	}
-	err = conn.checkUploadResponse()
-	if err != nil {
-		return err
-	}
 	imageFile, err := os.Open(imagePath)
 	if err != nil {
 		return err
@@ -74,7 +70,7 @@ func (conn *developerDiskImageMounter) MountImage(imagePath string) error {
 	if err != nil {
 		return err
 	}
-	err = conn.waitForUploadComplete()
+	err = waitForUploadComplete(conn.plistRw)
 	if err != nil {
 		return err
 	}
@@ -137,26 +133,9 @@ func (conn *developerDiskImageMounter) Close() {
 	conn.deviceConn.Close()
 }
 
-func (conn *developerDiskImageMounter) checkUploadResponse() error {
+func waitForUploadComplete(plistRw ios.PlistCodecReadWriter) error {
 	var plist map[string]interface{}
-	err := conn.plistRw.Read(&plist)
-	if err != nil {
-		return err
-	}
-	log.Debugf("upload response: %+v", plist)
-	status, ok := plist["Status"]
-	if !ok {
-		return fmt.Errorf("unexpected response: %+v", plist)
-	}
-	if "ReceiveBytesAck" != status {
-		return fmt.Errorf("unexpected response: %+v", plist)
-	}
-	return nil
-}
-
-func (conn *developerDiskImageMounter) waitForUploadComplete() error {
-	var plist map[string]interface{}
-	err := conn.plistRw.Read(&plist)
+	err := plistRw.Read(&plist)
 	if err != nil {
 		return err
 	}
@@ -256,5 +235,21 @@ func sendUploadRequest(plistRw ios.PlistCodecReadWriter, imageType string, signa
 	if err != nil {
 		return err
 	}
+
+	var plist map[string]interface{}
+	err = plistRw.Read(&plist)
+	if err != nil {
+		return err
+	}
+	log.Debugf("upload response: %+v", plist)
+	status, ok := plist["Status"]
+	if !ok {
+		return fmt.Errorf("unexpected response: %+v", plist)
+	}
+	if "ReceiveBytesAck" != status {
+		return fmt.Errorf("unexpected response: %+v", plist)
+	}
+	return nil
+
 	return nil
 }
