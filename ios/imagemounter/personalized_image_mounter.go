@@ -4,6 +4,7 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	log "github.com/sirupsen/logrus"
+	"path"
 )
 
 type personalizedDeveloperDiskImageMounter struct {
@@ -17,6 +18,7 @@ func (p personalizedDeveloperDiskImageMounter) ListImages() ([][]byte, error) {
 }
 
 func (p personalizedDeveloperDiskImageMounter) MountImage(imagePath string) error {
+	manifest, err := loadBuildManifest(path.Join(imagePath, "BuildManifest.plist"))
 	//TODO implement me
 	panic("implement me")
 }
