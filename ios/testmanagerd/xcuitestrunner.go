@@ -457,7 +457,7 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 	}
 
 	appLaunch, err := appserviceConn.LaunchApp(
-		"D8FB9E56-4394-40AC-81C1-9E50DD885AC2",
+		"D8FB9E56-4394-40AC-81C1-9E50DD885AC2", // TODO : this should be inferred from the tunnel and be present in `device`
 		bundleID,
 		args,
 		env,
