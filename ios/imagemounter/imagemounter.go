@@ -56,7 +56,7 @@ func (conn *developerDiskImageMounter) MountImage(imagePath string) error {
 	if err != nil {
 		return err
 	}
-	err = conn.sendUploadRequest(signatureBytes, uint64(imageSize))
+	err = sendUploadRequest(conn.plistRw, "Developer", signatureBytes, uint64(imageSize))
 	if err != nil {
 		return err
 	}
@@ -135,21 +135,6 @@ func validatePathAndLoadSignature(imagePath string) ([]byte, int64, error) {
 // Close closes the underlying UsbMuxConnection
 func (conn *developerDiskImageMounter) Close() {
 	conn.deviceConn.Close()
-}
-
-func (conn *developerDiskImageMounter) sendUploadRequest(signatureBytes []byte, fileSize uint64) error {
-	req := map[string]interface{}{
-		"Command":        "ReceiveBytes",
-		"ImageSignature": signatureBytes,
-		"ImageSize":      fileSize,
-		"ImageType":      "Developer",
-	}
-	log.Debugf("sending: %+v", req)
-	err := conn.plistRw.Write(req)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (conn *developerDiskImageMounter) checkUploadResponse() error {
@@ -257,4 +242,19 @@ func listImages(prw ios.PlistCodecReadWriter, imageType string, v *semver.Versio
 		result[i] = bytes
 	}
 	return result, nil
+}
+
+func sendUploadRequest(plistRw ios.PlistCodecReadWriter, imageType string, signatureBytes []byte, fileSize uint64) error {
+	req := map[string]interface{}{
+		"Command":        "ReceiveBytes",
+		"ImageSignature": signatureBytes,
+		"ImageSize":      fileSize,
+		"ImageType":      imageType,
+	}
+	log.Debugf("sending: %+v", req)
+	err := plistRw.Write(req)
+	if err != nil {
+		return err
+	}
+	return nil
 }
