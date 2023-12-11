@@ -47,42 +47,7 @@ func New(device ios.DeviceEntry) (ImageMounter, error) {
 
 // ListImages returns a list with signatures of installed developer images
 func (conn *developerDiskImageMounter) ListImages() ([][]byte, error) {
-	err := conn.plistRw.Write(map[string]interface{}{
-		"Command":   "LookupImage",
-		"ImageType": "Developer",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var resp map[string]interface{}
-	err = conn.plistRw.Read(&resp)
-	if err != nil {
-		return nil, err
-	}
-	deviceError, ok := resp["Error"]
-	if ok {
-		return nil, fmt.Errorf("device error: %v", deviceError)
-	}
-
-	signatures, ok := resp["ImageSignature"]
-	if !ok {
-		if conn.version.LessThan(ios.IOS14()) {
-			return [][]byte{}, nil
-		}
-		return nil, fmt.Errorf("invalid response: %+v", resp)
-	}
-
-	array, ok := signatures.([]interface{})
-	result := make([][]byte, len(array))
-	for i, intf := range array {
-		bytes, ok := intf.([]byte)
-		if !ok {
-			return nil, fmt.Errorf("could not convert %+v to byte slice", intf)
-		}
-		result[i] = bytes
-	}
-	return result, nil
+	return listImages(conn.plistRw, "Developer", conn.version)
 }
 
 // MountImage installs a .dmg image from imagePath after checking that it is present and valid.
@@ -253,4 +218,43 @@ func MountImage(device ios.DeviceEntry, path string) error {
 		return nil
 	}
 	return conn.MountImage(path)
+}
+
+func listImages(prw ios.PlistCodecReadWriter, imageType string, v *semver.Version) ([][]byte, error) {
+	err := prw.Write(map[string]interface{}{
+		"Command":   "LookupImage",
+		"ImageType": imageType,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var resp map[string]interface{}
+	err = prw.Read(&resp)
+	if err != nil {
+		return nil, err
+	}
+	deviceError, ok := resp["Error"]
+	if ok {
+		return nil, fmt.Errorf("device error: %v", deviceError)
+	}
+
+	signatures, ok := resp["ImageSignature"]
+	if !ok {
+		if v.LessThan(ios.IOS14()) {
+			return [][]byte{}, nil
+		}
+		return nil, fmt.Errorf("invalid response: %+v", resp)
+	}
+
+	array, ok := signatures.([]interface{})
+	result := make([][]byte, len(array))
+	for i, intf := range array {
+		bytes, ok := intf.([]byte)
+		if !ok {
+			return nil, fmt.Errorf("could not convert %+v to byte slice", intf)
+		}
+		result[i] = bytes
+	}
+	return result, nil
 }
