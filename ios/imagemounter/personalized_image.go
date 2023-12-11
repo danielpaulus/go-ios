@@ -33,7 +33,7 @@ func (m buildManifest) findIdentity(identifiers personalizationIdentifiers) (bui
 			return i, nil
 		}
 	}
-	return buildIdentity{}, fmt.Errorf("not found")
+	return buildIdentity{}, fmt.Errorf("failed to find identity for ApBoardId 0x%x and ApChipId 0x%x", identifiers.BoardId, identifiers.ChipID)
 }
 
 type buildIdentity struct {
