@@ -14,49 +14,49 @@ import (
 
 const serviceName string = "com.apple.mobile.mobile_image_mounter"
 
-// Connection to mobile image mounter
-type Connection struct {
+// developerDiskImageMounter to mobile image mounter
+type developerDiskImageMounter struct {
 	deviceConn ios.DeviceConnectionInterface
 	plistCodec ios.PlistCodec
 	version    *semver.Version
+	plistRw    ios.PlistCodecReadWriter
 }
 
-// New returns a new mobile image mounter Connection for the given DeviceID and Udid
-func New(device ios.DeviceEntry) (*Connection, error) {
+type ImageMounter interface {
+	ListImages() ([][]byte, error)
+	MountImage(imagePath string) error
+}
+
+// New returns a new mobile image mounter developerDiskImageMounter for the given DeviceID and Udid
+func New(device ios.DeviceEntry) (ImageMounter, error) {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
 		return nil, err
 	}
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
-		return &Connection{}, err
+		return nil, err
 	}
-	return &Connection{
+	return &developerDiskImageMounter{
 		deviceConn: deviceConn,
 		plistCodec: ios.NewPlistCodec(),
 		version:    version,
+		plistRw:    ios.NewPlistCodecReadWriter(deviceConn.Reader(), deviceConn.Writer()),
 	}, nil
 }
 
 // ListImages returns a list with signatures of installed developer images
-func (conn *Connection) ListImages() ([][]byte, error) {
-	req := map[string]interface{}{
+func (conn *developerDiskImageMounter) ListImages() ([][]byte, error) {
+	err := conn.plistRw.Write(map[string]interface{}{
 		"Command":   "LookupImage",
 		"ImageType": "Developer",
-	}
-	bytes, err := conn.plistCodec.Encode(req)
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	err = conn.deviceConn.Send(bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	bytes, err = conn.plistCodec.Decode(conn.deviceConn.Reader())
-
-	resp, err := ios.ParsePlist(bytes)
+	var resp map[string]interface{}
+	err = conn.plistRw.Read(&resp)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (conn *Connection) ListImages() ([][]byte, error) {
 }
 
 // MountImage installs a .dmg image from imagePath after checking that it is present and valid.
-func (conn *Connection) MountImage(imagePath string) error {
+func (conn *developerDiskImageMounter) MountImage(imagePath string) error {
 	signatureBytes, imageSize, err := validatePathAndLoadSignature(imagePath)
 	if err != nil {
 		return err
@@ -121,19 +121,14 @@ func (conn *Connection) MountImage(imagePath string) error {
 	return conn.hangUp()
 }
 
-func (conn *Connection) mountImage(signatureBytes []byte) error {
+func (conn *developerDiskImageMounter) mountImage(signatureBytes []byte) error {
 	req := map[string]interface{}{
 		"Command":        "MountImage",
 		"ImageSignature": signatureBytes,
 		"ImageType":      "Developer",
 	}
 	log.Debugf("sending: %+v", req)
-	bytes, err := conn.plistCodec.Encode(req)
-	if err != nil {
-		return err
-	}
-
-	err = conn.deviceConn.Send(bytes)
+	err := conn.plistRw.Write(req)
 	if err != nil {
 		return err
 	}
@@ -173,11 +168,11 @@ func validatePathAndLoadSignature(imagePath string) ([]byte, int64, error) {
 }
 
 // Close closes the underlying UsbMuxConnection
-func (conn *Connection) Close() {
+func (conn *developerDiskImageMounter) Close() {
 	conn.deviceConn.Close()
 }
 
-func (conn *Connection) sendUploadRequest(signatureBytes []byte, fileSize uint64) error {
+func (conn *developerDiskImageMounter) sendUploadRequest(signatureBytes []byte, fileSize uint64) error {
 	req := map[string]interface{}{
 		"Command":        "ReceiveBytes",
 		"ImageSignature": signatureBytes,
@@ -185,21 +180,19 @@ func (conn *Connection) sendUploadRequest(signatureBytes []byte, fileSize uint64
 		"ImageType":      "Developer",
 	}
 	log.Debugf("sending: %+v", req)
-	bytes, err := conn.plistCodec.Encode(req)
-	if err != nil {
-		return err
-	}
-
-	err = conn.deviceConn.Send(bytes)
+	err := conn.plistRw.Write(req)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (conn *Connection) checkUploadResponse() error {
-	msg, _ := conn.plistCodec.Decode(conn.deviceConn.Reader())
-	plist, _ := ios.ParsePlist(msg)
+func (conn *developerDiskImageMounter) checkUploadResponse() error {
+	var plist map[string]interface{}
+	err := conn.plistRw.Read(&plist)
+	if err != nil {
+		return err
+	}
 	log.Debugf("upload response: %+v", plist)
 	status, ok := plist["Status"]
 	if !ok {
@@ -211,9 +204,12 @@ func (conn *Connection) checkUploadResponse() error {
 	return nil
 }
 
-func (conn *Connection) waitForUploadComplete() error {
-	msg, _ := conn.plistCodec.Decode(conn.deviceConn.Reader())
-	plist, _ := ios.ParsePlist(msg)
+func (conn *developerDiskImageMounter) waitForUploadComplete() error {
+	var plist map[string]interface{}
+	err := conn.plistRw.Read(&plist)
+	if err != nil {
+		return err
+	}
 	log.Debugf("received complete: %+v", plist)
 	status, ok := plist["Status"]
 	if !ok {
@@ -225,7 +221,7 @@ func (conn *Connection) waitForUploadComplete() error {
 	return nil
 }
 
-func (conn *Connection) hangUp() error {
+func (conn *developerDiskImageMounter) hangUp() error {
 	req := map[string]interface{}{
 		"Command": "Hangup",
 	}
