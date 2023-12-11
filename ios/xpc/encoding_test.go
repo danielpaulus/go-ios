@@ -3,11 +3,11 @@ package xpc
 import (
 	"bytes"
 	"encoding/base64"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"path"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestEmptyDictionary(t *testing.T) {
@@ -16,7 +16,7 @@ func TestEmptyDictionary(t *testing.T) {
 	res, err := DecodeMessage(bytes.NewReader(b))
 	assert.NoError(t, err)
 	assert.Equal(t, Message{
-		Flags: alwaysSetFlag,
+		Flags: AlwaysSetFlag,
 		Body:  map[string]interface{}{},
 	}, res)
 }
@@ -27,7 +27,7 @@ func TestDictionary(t *testing.T) {
 	res, err := DecodeMessage(bytes.NewReader(b))
 	assert.NoError(t, err)
 	assert.Equal(t, Message{
-		Flags: alwaysSetFlag | dataFlag | heartbeatRequestFlag,
+		Flags: AlwaysSetFlag | DataFlag | HeartbeatRequestFlag,
 		Body: map[string]interface{}{
 			"CoreDevice.CoreDeviceDDIProtocolVersion": int64(0),
 			"CoreDevice.action":                       map[string]interface{}{},
@@ -83,12 +83,12 @@ func TestEncodeDecode(t *testing.T) {
 		{
 			name:          "empty dict",
 			input:         map[string]interface{}{},
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
 			name:          "no xpc body",
 			input:         nil,
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
 			name: "keys without padding",
@@ -96,7 +96,7 @@ func TestEncodeDecode(t *testing.T) {
 				"key":     "value",
 				"key-key": "value",
 			},
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
 			name: "nested values",
@@ -107,21 +107,42 @@ func TestEncodeDecode(t *testing.T) {
 					"int64":  int64(123),
 					"uint64": uint64(321),
 					"data":   []byte{0x1},
+					"double": float64(1.2),
 				},
 			},
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
 			name: "null entry",
 			input: map[string]interface{}{
 				"null": nil,
 			},
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
 			name: "dictionary with array",
 			input: map[string]interface{}{
 				"array": []interface{}{uint64(1), uint64(2), uint64(3)},
+			},
+			expectedFlags: AlwaysSetFlag | DataFlag,
+		},
+		{
+			name: "encode uuid",
+			input: map[string]interface{}{
+				"uuidvalue": func() uuid.UUID {
+					u, _ := uuid.FromBytes(base64Decode("RYjS2yNAbEG+Y0WWxq5/4w=="))
+					return u
+				}(),
+			},
+			expectedFlags: AlwaysSetFlag | DataFlag,
+		},
+		{
+			name: "encode uuid",
+			input: map[string]interface{}{
+				"uuidvalue": func() uuid.UUID {
+					u, _ := uuid.FromBytes(base64Decode("RYjS2yNAbEG+Y0WWxq5/4w=="))
+					return u
+				}(),
 			},
 			expectedFlags: alwaysSetFlag | dataFlag,
 		},
@@ -131,7 +152,7 @@ func TestEncodeDecode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := bytes.NewBuffer(nil)
 			err := EncodeMessage(buf, Message{
-				Flags: alwaysSetFlag | dataFlag,
+				Flags: AlwaysSetFlag | DataFlag,
 				Body:  tt.input,
 				Id:    0,
 			})

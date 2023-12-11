@@ -1,217 +1,74 @@
 package xpc
 
 import (
-	"bytes"
-	"errors"
 	"io"
 
 	"golang.org/x/net/http2"
 )
 
-const (
-	allChannels             = uint32(0)
-	rootChannel             = uint32(1)
-	replyChannel            = uint32(3)
-	xpcMaxConcurrentStreams = uint32(100)
-	xpcInitialWindowSize    = uint32(1048576)
-	xpcUpdatedWindowSize    = uint32(983041)
-)
-
-type framerDataWriter struct {
-	Framer   http2.Framer
-	StreamID uint32
-}
-
-func (writer framerDataWriter) Write(p []byte) (int, error) {
-	err := writer.Framer.WriteData(writer.StreamID, false, p)
-	return len(p), err
-}
-
 type Connection struct {
 	connectionCloser io.Closer
 	framer           *http2.Framer
 	msgId            uint64
+	clientServer     io.ReadWriter
+	serverClient     io.ReadWriter
 }
 
-func New(readWriteCloser io.ReadWriteCloser) (*Connection, error) {
-	httpMagic := "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-	_, err := readWriteCloser.Write([]byte(httpMagic))
+func New(clientServer io.ReadWriter, serverClient io.ReadWriter, closer io.Closer) (*Connection, error) {
+	return &Connection{
+		connectionCloser: closer,
+		msgId:            1,
+		clientServer:     clientServer,
+		serverClient:     serverClient,
+	}, nil
+}
+
+func (c *Connection) ReceiveOnServerClientStream() (map[string]interface{}, error) {
+	msg, err := DecodeMessage(c.serverClient)
 	if err != nil {
 		return nil, err
 	}
+	return msg.Body, nil
+}
 
-	framer := http2.NewFramer(readWriteCloser, readWriteCloser)
+func (c *Connection) ReceiveOnClientServerStream() (map[string]interface{}, error) {
+	return c.receiveOnStream(c.clientServer)
+}
 
-	conn := &Connection{
-		connectionCloser: readWriteCloser,
-		framer:           framer,
-		msgId:            0,
-	}
-
-	err = exchangeSettings(framer)
+func (c *Connection) receiveOnStream(r io.Reader) (map[string]interface{}, error) {
+	msg, err := DecodeMessage(r)
 	if err != nil {
 		return nil, err
 	}
-
-	err = exchangeData(conn, framer)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
+	return msg.Body, nil
 }
 
-func exchangeSettings(framer *http2.Framer) error {
-	err := framer.WriteSettings(
-		http2.Setting{ID: http2.SettingMaxConcurrentStreams, Val: xpcMaxConcurrentStreams},
-		http2.Setting{ID: http2.SettingInitialWindowSize, Val: xpcInitialWindowSize},
-	)
-	if err != nil {
-		return err
+// Send sends the passed data as XPC message.
+// Additional flags can be passed via the flags argument (the default ones are AlwaysSetFlag and if data != nil DataFlag)
+func (c *Connection) Send(data map[string]interface{}, flags ...uint32) error {
+	f := AlwaysSetFlag
+	if data != nil {
+		f |= DataFlag
 	}
-
-	err = framer.WriteWindowUpdate(allChannels, xpcUpdatedWindowSize)
-	if err != nil {
-		return err
+	for _, flag := range flags {
+		f |= flag
 	}
-
-	err = framer.WriteHeaders(http2.HeadersFrameParam{StreamID: rootChannel, EndHeaders: true})
-	if err != nil {
-		return err
-	}
-
-	firstReadFrame, err := framer.ReadFrame()
-	if err != nil {
-		return err
-	} else {
-		if firstReadFrame.Header().Type != http2.FrameSettings {
-			return errors.New("Received unexpected frame from XPC connection")
-		}
-		// TODO : figure out if need to act on this frame
-	}
-
-	err = framer.WriteSettingsAck()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func exchangeData(conn *Connection, framer *http2.Framer) error {
-	err := EncodeMessage(framerDataWriter{
-		Framer:   *framer,
-		StreamID: rootChannel,
-	}, Message{
-		Flags: alwaysSetFlag,
-		Body:  map[string]interface{}{},
-		Id:    conn.msgId,
-	})
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Receive() // TODO : figure out if need to act on this frame
-	if err != nil {
-		return err
-	}
-
-	err = EncodeMessage(framerDataWriter{
-		Framer:   *framer,
-		StreamID: rootChannel,
-	}, Message{
-		Flags: 0x201, // alwaysSetFlag | 0x200 (unknown flag)
-		Body:  nil,
-		Id:    conn.msgId,
-	})
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Receive() // TODO : figure out if need to act on this frame
-	if err != nil {
-		return err
-	}
-
-	err = framer.WriteHeaders(http2.HeadersFrameParam{StreamID: replyChannel, EndHeaders: true})
-	if err != nil {
-		return err
-	}
-
-	err = EncodeMessage(framerDataWriter{
-		Framer:   *framer,
-		StreamID: replyChannel,
-	}, Message{
-		Flags: initHandshakeFlag | alwaysSetFlag,
-		Body:  nil,
-		Id:    conn.msgId,
-	})
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Receive() // TODO : figure out if need to act on this frame
-	if err != nil {
-		return err
-	}
-
-	conn.msgId += 1
-
-	return nil
-}
-
-func (c *Connection) Receive() (map[string]interface{}, error) {
-	for {
-		response, err := c.framer.ReadFrame()
-		if err != nil {
-			return nil, err
-		}
-
-		if response.Header().Type == http2.FrameData {
-			dataFrame := response.(*http2.DataFrame)
-			msg, err := DecodeMessage(bytes.NewReader(dataFrame.Data()))
-			if err != nil {
-				return nil, err
-			}
-			return msg.Body, nil
-		}
-	}
-}
-
-func (c *Connection) Send(data map[string]interface{}) error {
-	err := EncodeMessage(framerDataWriter{
-		Framer:   *c.framer,
-		StreamID: rootChannel,
-	}, Message{
-		Flags: alwaysSetFlag | dataFlag,
+	msg := Message{
+		Flags: f,
 		Body:  data,
 		Id:    c.msgId,
-	})
-	if err != nil {
-		return err
 	}
-
-	c.msgId += 1
-
-	return nil
+	c.msgId++
+	return EncodeMessage(c.clientServer, msg)
 }
 
 func (c *Connection) SendReceive(data map[string]interface{}) (map[string]interface{}, error) {
-	err := EncodeMessage(framerDataWriter{
-		Framer:   *c.framer,
-		StreamID: rootChannel,
-	}, Message{
-		Flags: alwaysSetFlag | dataFlag | heartbeatRequestFlag,
-		Body:  data,
-		Id:    c.msgId,
-	})
+	err := c.Send(data, HeartbeatRequestFlag)
 	if err != nil {
 		return nil, err
 	}
 
-	c.msgId += 1
-
-	return c.Receive()
+	return c.ReceiveOnServerClientStream()
 }
 
 func (c *Connection) Close() error {

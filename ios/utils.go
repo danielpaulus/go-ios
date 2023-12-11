@@ -64,7 +64,7 @@ func Ntohs(port uint16) uint16 {
 // if the env variable 'udid' is specified, the device with that udid
 // otherwise it returns the first device in the list.
 func GetDevice(udid string) (DeviceEntry, error) {
-	return GetDeviceWithAddress(udid, "", RsdPortProvider{})
+	return GetDeviceWithAddress(udid, "", nil)
 }
 
 func GetDeviceWithAddress(udid string, address string, provider RsdPortProvider) (DeviceEntry, error) {
@@ -111,6 +111,10 @@ func PathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func IOS17() *semver.Version {
+	return semver.MustParse("17.0")
 }
 
 func IOS14() *semver.Version {

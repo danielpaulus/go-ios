@@ -2,14 +2,13 @@ package appservice
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/xpc"
 	"github.com/google/uuid"
-
-	plist "howett.net/plist"
+	"howett.net/plist"
 )
 
 type Connection struct {
@@ -17,57 +16,40 @@ type Connection struct {
 }
 
 func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
-	xpcConn, err := ios.ConnectToXpcServiceTunnelIface(deviceEntry, "com.apple.coredevice.appservice")
+	xpcConn, err := ios.ConnectToServiceTunnelIface(deviceEntry, "com.apple.coredevice.appservice")
 	if err != nil {
 		return nil, err
 	}
 
-	print("We have a connection: ")
-	print(xpcConn)
-
 	return &Connection{conn: xpcConn}, nil
 }
 
-func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) (uint64, error) {
-	msg := buildAppLaunchPayload(deviceId, bundleId, args, env)
-	result, err := c.conn.SendReceive(msg)
-	if err != nil {
-		return 0, err
-	}
-
-	output, exists := result["CoreDevice.output"].(map[string]interface{})
-	if !exists {
-		return 0, errors.New("Process not launched")
-	}
-	processToken, exists := output["processToken"].(map[string]interface{})
-	if !exists {
-		return 0, errors.New("Process not launched")
-	}
-	pid, exists := processToken["processIdentifier"].(int64)
-	if !exists {
-		return 0, errors.New("Process not launched")
-	}
-
-	return uint64(pid), nil
+type AppLaunch struct {
+	Pid int64
 }
 
-func (c *Connection) ListProcesses(deviceId string) error {
-	msg := buildCoreDevicePayload(deviceId, "com.apple.coredevice.feature.listprocesses", map[string]interface{}{})
-	lol, err := c.conn.SendReceive(msg)
-	lol = lol
-	return err
+func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}, opt map[string]interface{}) (AppLaunch, error) {
+	msg := buildAppLaunchPayload(deviceId, bundleId, args, env, opt)
+	err := c.conn.Send(msg, xpc.HeartbeatRequestFlag)
+	m, err := c.conn.ReceiveOnServerClientStream()
+	if err != nil {
+		return AppLaunch{}, err
+	}
+	pid, err := pidFromResponse(m)
+	if err != nil {
+		return AppLaunch{}, err
+	}
+	return AppLaunch{Pid: pid}, nil
 }
 
 func (c *Connection) Close() error {
 	return c.conn.Close()
 }
 
-func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) map[string]interface{} {
+func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}, opt map[string]interface{}) map[string]interface{} {
 	platformSpecificOptions := bytes.NewBuffer(nil)
 	plistEncoder := plist.NewBinaryEncoder(platformSpecificOptions)
-	err := plistEncoder.Encode(map[string]interface{}{
-		"ActivateSuspended": uint64(1),
-	})
+	err := plistEncoder.Encode(opt)
 	if err != nil {
 		panic(err)
 	}
@@ -83,7 +65,7 @@ func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{},
 			"environmentVariables":          env,
 			"platformSpecificOptions":       platformSpecificOptions.Bytes(),
 			"standardIOUsesPseudoterminals": true,
-			"startStopped":                  true,
+			"startStopped":                  false,
 			"terminateExisting":             true,
 			"user": map[string]interface{}{
 				"active": true,
@@ -108,4 +90,22 @@ func buildCoreDevicePayload(deviceId string, feature string, input map[string]in
 		"CoreDevice.input":                input,
 		"CoreDevice.invocationIdentifier": strings.ToUpper(uuid.New().String()),
 	}
+}
+
+func pidFromResponse(response map[string]interface{}) (int64, error) {
+	if output, ok := response["CoreDevice.output"].(map[string]interface{}); ok {
+		if processToken, ok := output["processToken"].(map[string]interface{}); ok {
+			if pid, ok := processToken["processIdentifier"].(int64); ok {
+				return pid, nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("could not get pid from response")
+}
+
+func (c *Connection) ListProcesses(deviceId string) error {
+	msg := buildCoreDevicePayload(deviceId, "com.apple.coredevice.feature.listprocesses", map[string]interface{}{})
+	lol, err := c.conn.SendReceive(msg)
+	lol = lol
+	return err
 }

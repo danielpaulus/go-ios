@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func RunXCUIWithBundleIds11Ctx(
+func RunXCUIWithBundleIdsXcode11Ctx(
 	ctx context.Context,
 	bundleID string,
 	testRunnerBundleID string,
@@ -20,7 +20,7 @@ func RunXCUIWithBundleIds11Ctx(
 	env []string,
 ) error {
 	log.Debugf("set up xcuitest")
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := SetupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
 	}

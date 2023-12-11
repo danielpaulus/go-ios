@@ -79,7 +79,7 @@ func (d *Channel) MethodCallAsync(selector string, args ...interface{}) error {
 	return nil
 }
 
-func (d *Channel) Send(expectsReply bool, messageType int, payloadBytes []byte, auxiliary PrimitiveDictionary) error {
+func (d *Channel) Send(expectsReply bool, messageType MessageType, payloadBytes []byte, auxiliary PrimitiveDictionary) error {
 	d.mutex.Lock()
 
 	identifier := d.messageIdentifier
@@ -99,7 +99,7 @@ func (d *Channel) AddResponseWaiter(identifier int, channel chan Message) {
 	d.responseWaiters[identifier] = channel
 }
 
-func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType int, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
+func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType MessageType, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
 	d.mutex.Lock()
 	identifier := d.messageIdentifier
 	d.messageIdentifier++

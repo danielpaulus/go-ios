@@ -195,7 +195,7 @@ func parseAuxiliaryHeader(headerBytes []byte) (AuxiliaryHeader, error) {
 
 func parsePayloadHeader(messageBytes []byte) (PayloadHeader, error) {
 	result := PayloadHeader{}
-	result.MessageType = int(binary.LittleEndian.Uint32(messageBytes))
+	result.MessageType = MessageType(binary.LittleEndian.Uint32(messageBytes))
 	result.AuxiliaryLength = int(binary.LittleEndian.Uint32(messageBytes[4:]))
 	result.TotalPayloadLength = int(binary.LittleEndian.Uint32(messageBytes[8:]))
 	result.Flags = int(binary.LittleEndian.Uint32(messageBytes[12:]))

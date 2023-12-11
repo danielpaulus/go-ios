@@ -9,7 +9,7 @@ import (
 func BuildAckMessage(msg Message) []byte {
 	response := make([]byte, 48)
 	writeHeader(response, 16, msg.Identifier, msg.ConversationIndex+1, msg.ChannelCode, false)
-	binary.LittleEndian.PutUint32(response[32:], Ack)
+	binary.LittleEndian.PutUint32(response[32:], uint32(Ack))
 	binary.LittleEndian.PutUint32(response[36:], 0)
 	binary.LittleEndian.PutUint32(response[40:], 0)
 	binary.LittleEndian.PutUint32(response[44:], 0)
@@ -22,7 +22,7 @@ func Encode(
 	ConversationIndex int,
 	ChannelCode int,
 	ExpectsReply bool,
-	MessageType int,
+	MessageType MessageType,
 	payloadBytes []byte,
 	Auxiliary PrimitiveDictionary,
 ) ([]byte, error) {
@@ -74,7 +74,7 @@ func writeHeader(messageBytes []byte, messageLength uint32, Identifier int, Conv
 	binary.LittleEndian.PutUint32(messageBytes[28:], expectsReplyUint32)
 }
 
-func writePayloadHeader(messageBytes []byte, MessageType int, payloadLength int, auxLength int) {
+func writePayloadHeader(messageBytes []byte, MessageType MessageType, payloadLength int, auxLength int) {
 	binary.LittleEndian.PutUint32(messageBytes, uint32(MessageType))
 	auxLengthWithHeader := uint32(auxLength)
 	if auxLength > 0 {

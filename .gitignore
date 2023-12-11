@@ -16,6 +16,7 @@ devimages
 *.dylib
 go-ios
 usbmuxd
+!ios/debugproxy/usbmuxd
 main
 *.png
 !logo.png
