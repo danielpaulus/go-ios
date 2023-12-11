@@ -25,6 +25,7 @@ type developerDiskImageMounter struct {
 type ImageMounter interface {
 	ListImages() ([][]byte, error)
 	MountImage(imagePath string) error
+	io.Closer
 }
 
 // New returns a new mobile image mounter developerDiskImageMounter for the given DeviceID and Udid
@@ -136,8 +137,8 @@ func validatePathAndLoadSignature(imagePath string) ([]byte, int64, error) {
 }
 
 // Close closes the underlying UsbMuxConnection
-func (conn *developerDiskImageMounter) Close() {
-	conn.deviceConn.Close()
+func (conn *developerDiskImageMounter) Close() error {
+	return conn.deviceConn.Close()
 }
 
 func waitForUploadComplete(plistRw ios.PlistCodecReadWriter) error {
@@ -176,6 +177,7 @@ func MountImage(device ios.DeviceEntry, path string) error {
 	if err != nil {
 		return fmt.Errorf("failed connecting to image mounter: %v", err)
 	}
+	defer conn.Close()
 
 	signatures, err := conn.ListImages()
 	if err != nil {

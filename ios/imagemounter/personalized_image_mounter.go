@@ -42,6 +42,10 @@ func NewPersonalizedDeveloperDiskImageMounter(entry ios.DeviceEntry, version *se
 	}, nil
 }
 
+func (p personalizedDeveloperDiskImageMounter) Close() error {
+	return p.deviceConn.Close()
+}
+
 func (p personalizedDeveloperDiskImageMounter) ListImages() ([][]byte, error) {
 	return listImages(p.plistRw, "Personalized", p.version)
 }
