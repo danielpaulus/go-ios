@@ -5,6 +5,8 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	log "github.com/sirupsen/logrus"
+	"io"
+	"os"
 	"path"
 )
 
@@ -14,6 +16,30 @@ type personalizedDeveloperDiskImageMounter struct {
 	version    *semver.Version
 	tss        tssClient
 	ecid       uint64
+}
+
+func NewPersonalizedDeveloperDiskImageMounter(entry ios.DeviceEntry, version *semver.Version) (personalizedDeveloperDiskImageMounter, error) {
+	values, err := ios.GetValuesPlist(entry)
+	if err != nil {
+		return personalizedDeveloperDiskImageMounter{}, nil
+	}
+	var ecid uint64
+	if e, ok := values["UniqueChipID"].(uint64); ok {
+		ecid = e
+	} else {
+		return personalizedDeveloperDiskImageMounter{}, fmt.Errorf("could not get ECID from device")
+	}
+	deviceConn, err := ios.ConnectToService(entry, serviceName)
+	if err != nil {
+		return personalizedDeveloperDiskImageMounter{}, err
+	}
+	return personalizedDeveloperDiskImageMounter{
+		deviceConn: deviceConn,
+		plistRw:    ios.NewPlistCodecReadWriter(deviceConn.Reader(), deviceConn.Writer()),
+		version:    version,
+		tss:        newTssClient(),
+		ecid:       ecid,
+	}, nil
 }
 
 func (p personalizedDeveloperDiskImageMounter) ListImages() ([][]byte, error) {
@@ -44,6 +70,42 @@ func (p personalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 	if err != nil {
 		return fmt.Errorf("failed to get signature from Apple. %w", err)
 	}
+
+	dmgPath := path.Join(imagePath, identity.Manifest.PersonalizedDmg.Info.Path)
+
+	imageSize, err := getFileSize(dmgPath)
+
+	err = sendUploadRequest(p.plistRw, "Personalized", signature, imageSize)
+	if err != nil {
+		return err
+	}
+	imageFile, err := os.Open(dmgPath)
+	if err != nil {
+		return err
+	}
+	defer imageFile.Close()
+	n, err := io.Copy(p.deviceConn.Writer(), imageFile)
+	log.Debugf("%d bytes written", n)
+	if err != nil {
+		return err
+	}
+	err = waitForUploadComplete(p.plistRw)
+	if err != nil {
+		return err
+	}
+
+	trustCache, err := os.ReadFile(path.Join(imagePath, identity.Manifest.LoadableTrustCache.Info.Path))
+	if err != nil {
+		return fmt.Errorf("could not load trust-cache. %w", err)
+	}
+
+	err = p.mountPersonalizedImage(signature, trustCache)
+	if err != nil {
+		return err
+	}
+
+	//return conn.hangUp() // TODO
+
 	panic("implement me")
 }
 
@@ -97,4 +159,36 @@ func (p personalizedDeveloperDiskImageMounter) queryIdentifiers() (personalizati
 	}
 
 	return identifiers, nil
+}
+
+func (p personalizedDeveloperDiskImageMounter) mountPersonalizedImage(signatureBytes []byte, trustCache []byte) error {
+	err := p.plistRw.Write(map[string]interface{}{
+		"Command":         "MountImage",
+		"ImageSignature":  signatureBytes,
+		"ImageType":       "Personalized",
+		"ImageTrustCache": trustCache,
+	})
+	if err != nil {
+		return err
+	}
+
+	var res map[string]interface{}
+	err = p.plistRw.Read(&res)
+	if err != nil {
+		return err
+	}
+
+	log.WithField("response", res).Info("got response")
+	return nil
+}
+
+func getFileSize(p string) (uint64, error) {
+	info, err := os.Stat(p)
+	if err != nil {
+		return 0, err
+	}
+	if info.IsDir() {
+		return 0, fmt.Errorf("expected a file, but got a directory: '%s'", p)
+	}
+	return uint64(info.Size()), nil
 }

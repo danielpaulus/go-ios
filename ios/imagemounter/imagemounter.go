@@ -28,11 +28,18 @@ type ImageMounter interface {
 }
 
 // New returns a new mobile image mounter developerDiskImageMounter for the given DeviceID and Udid
-func New(device ios.DeviceEntry) (ImageMounter, error) {
+//
+// Deprecated: use NewDeveloperDiskImageMounter
+func New(device ios.DeviceEntry) (*developerDiskImageMounter, error) {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
 		return nil, err
 	}
+	return NewDeveloperDiskImageMounter(device, version)
+}
+
+// NewDeveloperDiskImageMounter
+func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Version) (*developerDiskImageMounter, error) {
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return nil, err
@@ -168,7 +175,13 @@ func (conn *developerDiskImageMounter) hangUp() error {
 }
 
 func MountImage(device ios.DeviceEntry, path string) error {
-	conn, err := New(device)
+	version, err := ios.GetProductVersion(device)
+	var conn ImageMounter
+	if version.Major() < 17 {
+		conn, err = NewDeveloperDiskImageMounter(device, version)
+	} else {
+		conn, err = NewPersonalizedDeveloperDiskImageMounter(device, version)
+	}
 	if err != nil {
 		return fmt.Errorf("failed connecting to image mounter: %v", err)
 	}
@@ -249,7 +262,5 @@ func sendUploadRequest(plistRw ios.PlistCodecReadWriter, imageType string, signa
 	if "ReceiveBytesAck" != status {
 		return fmt.Errorf("unexpected response: %+v", plist)
 	}
-	return nil
-
 	return nil
 }

@@ -42,9 +42,15 @@ type buildIdentity struct {
 	Manifest struct {
 		LoadableTrustCache struct {
 			Digest []byte
+			Info   struct {
+				Path string
+			}
 		}
 		PersonalizedDmg struct {
 			Digest []byte
+			Info   struct {
+				Path string
+			}
 		} `plist:"PersonalizedDMG"`
 	}
 }
