@@ -14,8 +14,8 @@ import (
 
 const serviceName string = "com.apple.mobile.mobile_image_mounter"
 
-// developerDiskImageMounter to mobile image mounter
-type developerDiskImageMounter struct {
+// DeveloperDiskImageMounter to mobile image mounter
+type DeveloperDiskImageMounter struct {
 	deviceConn ios.DeviceConnectionInterface
 	plistCodec ios.PlistCodec
 	version    *semver.Version
@@ -31,7 +31,7 @@ type ImageMounter interface {
 // New returns a new mobile image mounter developerDiskImageMounter for the given DeviceID and Udid
 //
 // Deprecated: use NewDeveloperDiskImageMounter
-func New(device ios.DeviceEntry) (*developerDiskImageMounter, error) {
+func New(device ios.DeviceEntry) (*DeveloperDiskImageMounter, error) {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
 		return nil, err
@@ -40,12 +40,12 @@ func New(device ios.DeviceEntry) (*developerDiskImageMounter, error) {
 }
 
 // NewDeveloperDiskImageMounter
-func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Version) (*developerDiskImageMounter, error) {
+func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Version) (*DeveloperDiskImageMounter, error) {
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
-	return &developerDiskImageMounter{
+	return &DeveloperDiskImageMounter{
 		deviceConn: deviceConn,
 		plistCodec: ios.NewPlistCodec(),
 		version:    version,
@@ -66,12 +66,12 @@ func NewImageMounter(device ios.DeviceEntry) (ImageMounter, error) {
 }
 
 // ListImages returns a list with signatures of installed developer images
-func (conn *developerDiskImageMounter) ListImages() ([][]byte, error) {
+func (conn *DeveloperDiskImageMounter) ListImages() ([][]byte, error) {
 	return listImages(conn.plistRw, "Developer", conn.version)
 }
 
 // MountImage installs a .dmg image from imagePath after checking that it is present and valid.
-func (conn *developerDiskImageMounter) MountImage(imagePath string) error {
+func (conn *DeveloperDiskImageMounter) MountImage(imagePath string) error {
 	signatureBytes, imageSize, err := validatePathAndLoadSignature(imagePath)
 	if err != nil {
 		return err
@@ -102,7 +102,7 @@ func (conn *developerDiskImageMounter) MountImage(imagePath string) error {
 	return hangUp(conn.plistRw)
 }
 
-func (conn *developerDiskImageMounter) mountImage(signatureBytes []byte) error {
+func (conn *DeveloperDiskImageMounter) mountImage(signatureBytes []byte) error {
 	req := map[string]interface{}{
 		"Command":        "MountImage",
 		"ImageSignature": signatureBytes,
@@ -149,7 +149,7 @@ func validatePathAndLoadSignature(imagePath string) ([]byte, int64, error) {
 }
 
 // Close closes the underlying UsbMuxConnection
-func (conn *developerDiskImageMounter) Close() error {
+func (conn *DeveloperDiskImageMounter) Close() error {
 	return conn.deviceConn.Close()
 }
 

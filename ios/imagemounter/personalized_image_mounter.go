@@ -10,7 +10,7 @@ import (
 	"path"
 )
 
-type personalizedDeveloperDiskImageMounter struct {
+type PersonalizedDeveloperDiskImageMounter struct {
 	deviceConn ios.DeviceConnectionInterface
 	plistRw    ios.PlistCodecReadWriter
 	version    *semver.Version
@@ -18,22 +18,22 @@ type personalizedDeveloperDiskImageMounter struct {
 	ecid       uint64
 }
 
-func NewPersonalizedDeveloperDiskImageMounter(entry ios.DeviceEntry, version *semver.Version) (personalizedDeveloperDiskImageMounter, error) {
+func NewPersonalizedDeveloperDiskImageMounter(entry ios.DeviceEntry, version *semver.Version) (PersonalizedDeveloperDiskImageMounter, error) {
 	values, err := ios.GetValuesPlist(entry)
 	if err != nil {
-		return personalizedDeveloperDiskImageMounter{}, nil
+		return PersonalizedDeveloperDiskImageMounter{}, nil
 	}
 	var ecid uint64
 	if e, ok := values["UniqueChipID"].(uint64); ok {
 		ecid = e
 	} else {
-		return personalizedDeveloperDiskImageMounter{}, fmt.Errorf("could not get ECID from device")
+		return PersonalizedDeveloperDiskImageMounter{}, fmt.Errorf("could not get ECID from device")
 	}
 	deviceConn, err := ios.ConnectToService(entry, serviceName)
 	if err != nil {
-		return personalizedDeveloperDiskImageMounter{}, err
+		return PersonalizedDeveloperDiskImageMounter{}, err
 	}
-	return personalizedDeveloperDiskImageMounter{
+	return PersonalizedDeveloperDiskImageMounter{
 		deviceConn: deviceConn,
 		plistRw:    ios.NewPlistCodecReadWriter(deviceConn.Reader(), deviceConn.Writer()),
 		version:    version,
@@ -42,15 +42,15 @@ func NewPersonalizedDeveloperDiskImageMounter(entry ios.DeviceEntry, version *se
 	}, nil
 }
 
-func (p personalizedDeveloperDiskImageMounter) Close() error {
+func (p PersonalizedDeveloperDiskImageMounter) Close() error {
 	return p.deviceConn.Close()
 }
 
-func (p personalizedDeveloperDiskImageMounter) ListImages() ([][]byte, error) {
+func (p PersonalizedDeveloperDiskImageMounter) ListImages() ([][]byte, error) {
 	return listImages(p.plistRw, "Personalized", p.version)
 }
 
-func (p personalizedDeveloperDiskImageMounter) MountImage(imagePath string) error {
+func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) error {
 	manifest, err := loadBuildManifest(path.Join(imagePath, "BuildManifest.plist"))
 	if err != nil {
 		return fmt.Errorf("failed to load build manifest. %w", err)
@@ -111,7 +111,7 @@ func (p personalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 	return hangUp(p.plistRw)
 }
 
-func (p personalizedDeveloperDiskImageMounter) queryPersonalizedImageNonce() ([]byte, error) {
+func (p PersonalizedDeveloperDiskImageMounter) queryPersonalizedImageNonce() ([]byte, error) {
 	err := p.plistRw.Write(map[string]interface{}{
 		"Command":               "QueryNonce",
 		"HostProcessName":       "CoreDeviceService",
@@ -133,7 +133,7 @@ func (p personalizedDeveloperDiskImageMounter) queryPersonalizedImageNonce() ([]
 	return nil, nil
 }
 
-func (p personalizedDeveloperDiskImageMounter) queryIdentifiers() (personalizationIdentifiers, error) {
+func (p PersonalizedDeveloperDiskImageMounter) queryIdentifiers() (personalizationIdentifiers, error) {
 	err := p.plistRw.Write(map[string]interface{}{
 		"Command":               "QueryPersonalizationIdentifiers",
 		"PersonalizedImageType": "DeveloperDiskImage",
@@ -163,7 +163,7 @@ func (p personalizedDeveloperDiskImageMounter) queryIdentifiers() (personalizati
 	return identifiers, nil
 }
 
-func (p personalizedDeveloperDiskImageMounter) mountPersonalizedImage(signatureBytes []byte, trustCache []byte) error {
+func (p PersonalizedDeveloperDiskImageMounter) mountPersonalizedImage(signatureBytes []byte, trustCache []byte) error {
 	err := p.plistRw.Write(map[string]interface{}{
 		"Command":         "MountImage",
 		"ImageSignature":  signatureBytes,
