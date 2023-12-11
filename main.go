@@ -985,6 +985,8 @@ The commands work as following:
 		}
 		defer conn.Close()
 
+		// TODO : get rid of this and implement launch, kill etc under existing commands
+
 		applaunch, err := conn.LaunchApp(
 			"E66A4DED-A888-495F-A701-1C478F94DC8B", // TODO : infer from selected device
 			"com.apple.mobilesafari",

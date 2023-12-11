@@ -3,7 +3,6 @@ package testmanagerd
 import (
 	"context"
 	"fmt"
-	"io"
 	"path"
 	"strings"
 	"time"
@@ -557,10 +556,4 @@ func getAppInfos(bundleID string, testRunnerBundleID string, apps []installation
 		return testInfo{}, fmt.Errorf("Did not find AppInfo for '%s' on device. Is it installed?", testRunnerBundleID)
 	}
 	return info, nil
-}
-
-type processControl interface {
-	StartProcess(bundleID string, envVars map[string]interface{}, arguments []interface{}, options map[string]interface{}) (uint64, error)
-	KillProcess(pid uint64) error
-	io.Closer
 }
