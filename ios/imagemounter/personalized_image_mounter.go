@@ -104,9 +104,7 @@ func (p personalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 		return err
 	}
 
-	//return conn.hangUp() // TODO
-
-	panic("implement me")
+	return hangUp(p.plistRw)
 }
 
 func (p personalizedDeveloperDiskImageMounter) queryPersonalizedImageNonce() ([]byte, error) {

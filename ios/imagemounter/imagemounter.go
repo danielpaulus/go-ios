@@ -86,7 +86,7 @@ func (conn *developerDiskImageMounter) MountImage(imagePath string) error {
 		return err
 	}
 
-	return conn.hangUp()
+	return hangUp(conn.plistRw)
 }
 
 func (conn *developerDiskImageMounter) mountImage(signatureBytes []byte) error {
@@ -157,21 +157,12 @@ func waitForUploadComplete(plistRw ios.PlistCodecReadWriter) error {
 	return nil
 }
 
-func (conn *developerDiskImageMounter) hangUp() error {
+func hangUp(plistRw ios.PlistCodecReadWriter) error {
 	req := map[string]interface{}{
 		"Command": "Hangup",
 	}
 	log.Debugf("sending: %+v", req)
-	bytes, err := conn.plistCodec.Encode(req)
-	if err != nil {
-		return err
-	}
-
-	err = conn.deviceConn.Send(bytes)
-	if err != nil {
-		return err
-	}
-	return nil
+	return plistRw.Write(req)
 }
 
 func MountImage(device ios.DeviceEntry, path string) error {
