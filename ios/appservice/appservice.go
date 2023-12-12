@@ -105,5 +105,10 @@ func pidFromResponse(response map[string]interface{}) (int64, error) {
 
 func (c *Connection) ListProcesses(deviceId string) (map[string]interface{}, error) {
 	msg := buildCoreDevicePayload(deviceId, "com.apple.coredevice.feature.listprocesses", map[string]interface{}{})
-	return c.conn.SendReceive(msg)
+	err := c.conn.Send(msg, xpc.HeartbeatRequestFlag)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.conn.ReceiveOnServerClientStream()
 }

@@ -300,7 +300,7 @@ func RunXCUIWithBundleIdsCtx(
 	if err != nil {
 		return err
 	}
-	log.Debugf("%v", version)
+
 	if version.LessThan(ios.IOS14()) {
 		log.Infof("iOS version: %s detected, running with ios11 support", version)
 		return RunXCUIWithBundleIdsXcode11Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
@@ -312,7 +312,7 @@ func RunXCUIWithBundleIdsCtx(
 	}
 
 	log.Infof("iOS version: %s detected, running with ios17 support", version)
-	return runXUITestWithBundleIdsXcode15Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
+	return runXUITestWithBundleIdsXcode15Ctx(bundleID, testRunnerBundleID, xctestConfigFileName, device)
 }
 
 func CloseXCUITestRunner() error {
@@ -326,13 +326,11 @@ func CloseXCUITestRunner() error {
 	}
 }
 
-func runXUITestWithBundleIdsXcode15Ctx(ctx context.Context,
+func runXUITestWithBundleIdsXcode15Ctx(
 	bundleID string,
 	testRunnerBundleID string,
 	xctestConfigFileName string,
 	device ios.DeviceEntry,
-	wdaargs []string,
-	wdaenv []string,
 ) error {
 	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
@@ -413,7 +411,7 @@ func runXUITestWithBundleIdsXcode15Ctx(ctx context.Context,
 
 	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, proto)
 
-	time.Sleep(600 * time.Second)
+	time.Sleep(60 * time.Second)
 
 	return nil
 }
@@ -471,7 +469,7 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 	return uint64(appLaunch.Pid), nil
 }
 
-func SetupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
+func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
 	testSessionID := uuid.New()
 	installationProxy, err := installationproxy.New(device)
 	if err != nil {

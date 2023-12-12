@@ -20,19 +20,19 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 	env []string,
 ) error {
 	log.Debugf("set up xcuitest")
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := SetupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
 		return err
 	}
 	log.Debugf("test session setup ok")
-	conn, err := dtx.NewLockdownConnection(device, testmanagerd)
+	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
 
-	conn2, err := dtx.NewLockdownConnection(device, testmanagerd)
+	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
 	if err != nil {
 		return err
 	}

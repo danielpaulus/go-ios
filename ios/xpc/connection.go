@@ -62,15 +62,6 @@ func (c *Connection) Send(data map[string]interface{}, flags ...uint32) error {
 	return EncodeMessage(c.clientServer, msg)
 }
 
-func (c *Connection) SendReceive(data map[string]interface{}) (map[string]interface{}, error) {
-	err := c.Send(data, HeartbeatRequestFlag)
-	if err != nil {
-		return nil, err
-	}
-
-	return c.ReceiveOnServerClientStream()
-}
-
 func (c *Connection) Close() error {
 	return c.connectionCloser.Close()
 }
