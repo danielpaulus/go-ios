@@ -137,7 +137,6 @@ func TestReadWriteCipher(t *testing.T) {
 	require.NoError(t, err)
 
 	nonce := make([]byte, cipher.NonceSize())
-	nonce[0] = 1
 
 	expected := map[string]interface{}{
 		"mangledTypeName": "RemotePairing.ControlChannelMessageEnvelope",
