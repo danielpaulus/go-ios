@@ -6,6 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
+	"github.com/danielpaulus/go-ios/ios/debugproxy/utun"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -579,7 +582,7 @@ The commands work as following:
 		case "utun":
 			utun.Live(ctx, iface, rsdProvider, tunDir)
 		default:
-			log.Fatal("Uknown mode '%s'", mode)
+			log.Fatalf("Uknown mode '%s'", mode)
 
 		}
 		return

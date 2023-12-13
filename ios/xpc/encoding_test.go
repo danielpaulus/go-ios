@@ -144,7 +144,7 @@ func TestEncodeDecode(t *testing.T) {
 					return u
 				}(),
 			},
-			expectedFlags: alwaysSetFlag | dataFlag,
+			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 	}
 
