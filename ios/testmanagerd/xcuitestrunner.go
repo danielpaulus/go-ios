@@ -302,16 +302,16 @@ func RunXCUIWithBundleIdsCtx(
 	}
 
 	if version.LessThan(ios.IOS14()) {
-		log.Infof("iOS version: %s detected, running with ios11 support", version)
+		log.Debugf("iOS version: %s detected, running with ios11 support", version)
 		return RunXCUIWithBundleIdsXcode11Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
 	}
 
 	if version.LessThan(ios.IOS17()) {
-		log.Infof("iOS version: %s detected, running with ios14 support", version)
+		log.Debugf("iOS version: %s detected, running with ios14 support", version)
 		return RunXUITestWithBundleIdsXcode12Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
 	}
 
-	log.Infof("iOS version: %s detected, running with ios17 support", version)
+	log.Debugf("iOS version: %s detected, running with ios17 support", version)
 	return runXUITestWithBundleIdsXcode15Ctx(bundleID, testRunnerBundleID, xctestConfigFileName, device)
 }
 
@@ -405,7 +405,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	if err != nil {
 		return err
 	}
-	log.Info("control session initiated")
+	log.Debug("control session initiated")
 
 	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface"})
 

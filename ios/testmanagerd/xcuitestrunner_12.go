@@ -89,12 +89,12 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	}
 
 	<-closeChan
-	log.Infof("Killing UITest with pid %d ...", pid)
+	log.Debugf("Killing UITest with pid %d ...", pid)
 	err = pControl.KillProcess(pid)
 	if err != nil {
 		return err
 	}
-	log.Info("WDA killed with success")
+	log.Debugf("WDA killed with success")
 	var signal interface{}
 	closedChan <- signal
 	return nil
