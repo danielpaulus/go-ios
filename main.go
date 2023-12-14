@@ -887,11 +887,21 @@ The commands work as following:
 
 	b, _ = arguments.Bool("reboot")
 	if b {
-		err := diagnostics.Reboot(device)
-		if err != nil {
-			log.Error(err)
+		v, err := ios.GetProductVersion(device)
+		exitIfError("could not get device version", err)
+		if v.Major() < 17 {
+			err := diagnostics.Reboot(device)
+			if err != nil {
+				log.Error(err)
+			} else {
+				log.Info("ok")
+			}
 		} else {
-			log.Info("ok")
+			app, err := appservice.New(device)
+			exitIfError("could not connect to appservice", err)
+			defer app.Close()
+			err = app.Reboot()
+			exitIfError("could not execute reboot", err)
 		}
 		return
 	}
