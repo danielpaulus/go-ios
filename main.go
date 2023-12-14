@@ -301,12 +301,9 @@ The commands work as following:
 	}
 
 	udid, _ := arguments.String("--udid")
-	address, addressError := arguments.String("--address")
+	address, _ := arguments.String("--address")
 	device, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	exitIfError("error getting devicelist", err)
-	if addressError != nil {
-		device, err = ios.FindDeviceInterfaceAddress(device)
-	}
 
 	b, _ = arguments.Bool("erase")
 	if b {
@@ -1910,6 +1907,17 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 }
 
 func startTunnel(device ios.DeviceEntry) {
+	ctx := context.Background()
+	findCtx, _ := context.WithTimeout(ctx, 10*time.Second)
+	addr, err := ios.FindDeviceInterfaceAddress(findCtx, device)
+	exitIfError("could not find device address", err)
+
+	rsdService, err := ios.NewWithAddr(addr)
+	exitIfError("could not connect to RSD", err)
+	defer rsdService.Close()
+	handshakeResponse, err := rsdService.Handshake()
+	exitIfError("could not execute RSD handshake", err)
+
 	home, err := os.UserHomeDir()
 	exitIfError("", err)
 	pairRecordsDir := path.Join(home, ".go-ios")
@@ -1917,11 +1925,11 @@ func startTunnel(device ios.DeviceEntry) {
 	err = os.MkdirAll(pairRecordsDir, os.ModePerm)
 	exitIfError("could not create go-ios dir", err)
 
-	port := device.Rsd.GetPort(tunnel.UntrustedTunnelServiceName)
+	port := handshakeResponse.GetPort(tunnel.UntrustedTunnelServiceName)
 	if port == 0 {
 		log.Fatal("could net get port for untrusted tunnel service")
 	}
-	h, err := ios.ConnectToHttp2WithAddr(device.InterfaceAddress, port)
+	h, err := ios.ConnectToHttp2WithAddr(addr, port)
 	exitIfError("failed to connect to device", err)
 
 	xpcConn, err := ios.CreateXpcConnection(h)
@@ -1939,7 +1947,7 @@ func startTunnel(device ios.DeviceEntry) {
 	_ = pairRecords.Store(device.Properties.SerialNumber, pr)
 	tunnelInfo, err := ts.CreateTunnelListener()
 	exitIfError("", err)
-	err = tunnel.ConnectToTunnel(context.TODO(), tunnelInfo, device.InterfaceAddress)
+	err = tunnel.ConnectToTunnel(ctx, tunnelInfo, addr)
 	exitIfError("", err)
 }
 

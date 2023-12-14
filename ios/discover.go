@@ -6,23 +6,15 @@ import (
 	"github.com/grandcat/zeroconf"
 	log "github.com/sirupsen/logrus"
 	"net"
-	"time"
 )
 
-type discoverResult struct {
-	handshakeResponse RsdHandshakeResponse
-	addr              string
-}
-
-func FindDeviceInterfaceAddress(device DeviceEntry) (DeviceEntry, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+func FindDeviceInterfaceAddress(ctx context.Context, device DeviceEntry) (string, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		return device, err
+		return "", err
 	}
 
-	result := make(chan discoverResult)
+	result := make(chan string)
 	defer close(result)
 
 	for _, iface := range ifaces {
@@ -41,24 +33,21 @@ func FindDeviceInterfaceAddress(device DeviceEntry) (DeviceEntry, error) {
 
 	select {
 	case <-ctx.Done():
-		break
+		return "", ctx.Err()
 	case r := <-result:
-		log.WithField("udid", device.Properties.SerialNumber).WithField("address", r.addr).Debug("found device address")
-		device.InterfaceAddress = r.addr
-		device.Rsd = r.handshakeResponse
-		break
+		log.WithField("udid", device.Properties.SerialNumber).WithField("address", r).Debug("found device address")
+		return r, nil
 	}
-	return device, nil
 }
 
-func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, entries chan *zeroconf.ServiceEntry, result chan discoverResult) {
+func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, entries chan *zeroconf.ServiceEntry, result chan<- string) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case entry := <-entries:
 			for _, ip6 := range entry.AddrIPv6 {
-				log.WithField("adrr", ip6).Info("query addr")
+				log.WithField("adrr", ip6).WithField("ifce", interfaceName).Info("query addr")
 				addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
 				s, err := NewWithAddr(addr)
 				if err != nil {
@@ -70,10 +59,7 @@ func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, e
 					continue
 				}
 				if device.Properties.SerialNumber == h.Udid {
-					result <- discoverResult{
-						handshakeResponse: h,
-						addr:              addr,
-					}
+					result <- addr
 				}
 			}
 		}
