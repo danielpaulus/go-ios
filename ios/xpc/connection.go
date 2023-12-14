@@ -58,7 +58,6 @@ func (c *Connection) Send(data map[string]interface{}, flags ...uint32) error {
 		Body:  data,
 		Id:    c.msgId,
 	}
-	c.msgId++
 	return EncodeMessage(c.clientServer, msg)
 }
 
