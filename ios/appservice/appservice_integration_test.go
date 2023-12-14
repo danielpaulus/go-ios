@@ -50,7 +50,7 @@ func testLaunchAndKillApp(t *testing.T, device ios.DeviceEntry) {
 	require.NoError(t, err)
 	defer as.Close()
 
-	_, err = as.LaunchApp(uuid.New().String(), "com.apple.mobilesafari", nil, nil)
+	_, err = as.LaunchApp(uuid.New().String(), "com.apple.mobilesafari", nil, nil, nil)
 	require.NoError(t, err)
 
 	processes, err := as.ListProcesses()
@@ -72,7 +72,7 @@ func testKillInvalidPidReturnsError(t *testing.T, device ios.DeviceEntry) {
 	require.NoError(t, err)
 	defer as.Close()
 
-	launched, err := as.LaunchApp(uuid.New().String(), "com.apple.mobilesafari", nil, nil)
+	launched, err := as.LaunchApp(uuid.New().String(), "com.apple.mobilesafari", nil, nil, nil)
 	require.NoError(t, err)
 
 	err = as.KillProcess(int(launched.Pid))

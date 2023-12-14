@@ -35,8 +35,8 @@ type Process struct {
 	Path string
 }
 
-func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) (AppLaunch, error) {
-	msg := buildAppLaunchPayload(c.deviceId, bundleId, args, env)
+func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}) (AppLaunch, error) {
+	msg := buildAppLaunchPayload(c.deviceId, bundleId, args, env, options)
 	err := c.conn.Send(msg, xpc.HeartbeatRequestFlag)
 	m, err := c.conn.ReceiveOnServerClientStream()
 	if err != nil {
@@ -111,10 +111,10 @@ func (c *Connection) KillProcess(pid int) error {
 	return nil
 }
 
-func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}) map[string]interface{} {
+func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}) map[string]interface{} {
 	platformSpecificOptions := bytes.NewBuffer(nil)
 	plistEncoder := plist.NewBinaryEncoder(platformSpecificOptions)
-	err := plistEncoder.Encode(map[string]interface{}{})
+	err := plistEncoder.Encode(options)
 	if err != nil {
 		panic(err)
 	}
