@@ -9,6 +9,7 @@ import (
 	"math"
 	"reflect"
 	"strings"
+	"time"
 )
 
 const bodyVersion = uint32(0x00000005)
@@ -27,6 +28,7 @@ const (
 	int64Type        = xpcType(0x00003000)
 	uint64Type       = xpcType(0x00004000)
 	doubleType       = xpcType(0x00005000)
+	dateType         = xpcType(0x00007000)
 	dataType         = xpcType(0x00008000)
 	stringType       = xpcType(0x00009000)
 	uuidType         = xpcType(0x0000a000)
@@ -200,6 +202,8 @@ func decodeObject(r io.Reader) (interface{}, error) {
 		return decodeUint64(r)
 	case doubleType:
 		return decodeDouble(r)
+	case dateType:
+		return decodeDate(r)
 	case dataType:
 		return decodeData(r)
 	case stringType:
@@ -379,6 +383,16 @@ func decodeBool(r io.Reader) (bool, error) {
 	return b, nil
 }
 
+func decodeDate(r io.Reader) (time.Time, error) {
+	var i int64
+	err := binary.Read(r, binary.LittleEndian, &i)
+	if err != nil {
+		return time.Time{}, err
+	}
+	t := time.Unix(0, i)
+	return t, err
+}
+
 func calcPadding(l int) int64 {
 	c := int(math.Ceil(float64(l) / 4.0))
 	return int64(c*4 - l)
@@ -458,6 +472,10 @@ func encodeObject(w io.Writer, e interface{}) error {
 		}
 	case uuid.UUID:
 		if err := encodeUuid(w, e.(uuid.UUID)); err != nil {
+			return err
+		}
+	case time.Time:
+		if err := encodeDate(w, e.(time.Time)); err != nil {
 			return err
 		}
 	case map[string]interface{}:
@@ -591,6 +609,18 @@ func encodeBool(w io.Writer, b bool) error {
 		t: boolType,
 		b: b,
 	}
+	err := binary.Write(w, binary.LittleEndian, out)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func encodeDate(w io.Writer, t time.Time) error {
+	out := struct {
+		t xpcType
+		i int64
+	}{dateType, t.UnixNano()}
 	err := binary.Write(w, binary.LittleEndian, out)
 	if err != nil {
 		return err
