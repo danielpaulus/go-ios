@@ -136,8 +136,11 @@ Options:
   --pretty       		Pretty-print JSON command output
   -h --help      		Show this screen.
   --udid=<udid>  		UDID of the device.
-  --address=<ipv6addrr>	Address of the device interface
+  --address=<ipv6addrr>	Address of the device interface ()
   --rsd=<path>			Path to RSD info
+  --rsd-port=<port>
+  --rsd-address=<ipv6addrr>
+  --tunnel-address=<ipv6addrr>
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -290,20 +293,32 @@ The commands work as following:
 		return
 	}
 
-	var rsdProvider ios.RsdPortProvider
-	rsdFile, _ := arguments.String("--rsd")
-	if rsdFile != "" {
-		rsd, err := os.Open(rsdFile)
-		exitIfError("could not open rsd file", err)
-		defer rsd.Close()
-		rsdProvider, err = ios.NewRsdPortProvider(rsd)
-		exitIfError("could not parse rsd file", err)
-	}
+	// TODO : Old code, find a way to remove it without breaking dproxy
+	// rsdFile, _ := arguments.String("--rsd")
+	// if rsdFile != "" {
+	// 	rsd, err := os.Open(rsdFile)
+	// 	exitIfError("could not open rsd file", err)
+	// 	defer rsd.Close()
+	// 	rsdProvider, err = ios.NewRsdPortProvider(rsd)
+	// 	exitIfError("could not parse rsd file", err)
+	// }
 
 	udid, _ := arguments.String("--udid")
-	address, _ := arguments.String("--address")
-	device, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
-	exitIfError("error getting devicelist", err)
+	rsdAddress, addressErr := arguments.String("--rsd-address")
+	rsdPort, rsdErr := arguments.Int("--rsd-port")
+	tunnelAddress, tunnelErr := arguments.String("--tunnel-address")
+
+	// TODO : Diego
+	device, err := ios.GetDevice(udid)
+	if addressErr == nil && rsdErr == nil && tunnelErr == nil {
+		// TODO : Extract this block into its own function
+		rsdService, err := ios.NewWithAddrPort(rsdAddress, rsdPort)
+		exitIfError("could not connect to RSD", err)
+		defer rsdService.Close()
+		rsdProvider, err := rsdService.Handshake()
+		device, err = ios.GetDeviceWithAddress(udid, tunnelAddress, rsdAddress, rsdPort, rsdProvider)
+		exitIfError("error getting devicelist", err)
+	}
 
 	b, _ = arguments.Bool("erase")
 	if b {
@@ -569,12 +584,12 @@ The commands work as following:
 			fallthrough
 		case "all":
 			go startDebugProxy(device, binaryMode, usbmuxDir)
-			go utun.Live(ctx, iface, rsdProvider, tunDir)
+			go utun.Live(ctx, iface, device.Rsd, tunDir)
 			select {}
 		case "usbmuxd":
 			startDebugProxy(device, binaryMode, usbmuxDir)
 		case "utun":
-			utun.Live(ctx, iface, rsdProvider, tunDir)
+			utun.Live(ctx, iface, device.Rsd, tunDir)
 		default:
 			log.Fatalf("Uknown mode '%s'", mode)
 

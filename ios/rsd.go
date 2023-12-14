@@ -3,11 +3,12 @@ package ios
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"strconv"
+
 	"github.com/danielpaulus/go-ios/ios/xpc"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"io"
-	"strconv"
 )
 
 type RsdPortProvider interface {
@@ -95,7 +96,8 @@ type RsdService struct {
 }
 
 func (s RsdService) Close() error {
-	return s.c.Close()
+	return s.xpc.Close()
+	// return s.c.Close()
 }
 
 type RsdServiceEntry struct {
@@ -124,6 +126,10 @@ func (r RsdHandshakeResponse) GetPort(service string) int {
 }
 
 func NewWithAddr(addr string) (RsdService, error) {
+	return NewWithAddrPort(addr, port)
+}
+
+func NewWithAddrPort(addr string, port int) (RsdService, error) {
 	h, err := ConnectToHttp2WithAddr(addr, port)
 	if err != nil {
 		return RsdService{}, err

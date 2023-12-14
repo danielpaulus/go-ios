@@ -126,7 +126,7 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 }
 
 func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
+	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.RsdAddress, port))
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 }
 
 func connectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
+	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.TunnelAddress, port))
 	if err != nil {
 		return nil, err
 	}
