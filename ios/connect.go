@@ -2,9 +2,10 @@ package ios
 
 import (
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/http"
 	"net"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios/http"
 
 	"github.com/danielpaulus/go-ios/ios/xpc"
 )
@@ -103,7 +104,7 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	return muxConn.ReleaseDeviceConnection(), nil
 }
 
-func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
+func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
 	port := device.Rsd.GetPort(serviceName)
 
 	h, err := ConnectToHttp2(device, port)
@@ -111,6 +112,17 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.C
 		return nil, err
 	}
 	return CreateXpcConnection(h)
+}
+
+func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
+	port := device.Rsd.GetPort(serviceName)
+
+	conn, err := connectToTunnel(device, port)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewDeviceConnectionWithConn(conn), nil
 }
 
 func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
@@ -134,6 +146,30 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 		return nil, err
 	}
 	return http.NewHttpConnection(conn)
+}
+
+func connectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
+	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := net.DialTCP("tcp", nil, addr)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = conn.SetKeepAlive(true)
+	if err != nil {
+		return nil, err
+	}
+	err = conn.SetKeepAlivePeriod(1 * time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {

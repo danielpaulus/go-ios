@@ -6,9 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
-	"github.com/danielpaulus/go-ios/ios/debugproxy/utun"
-	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -19,6 +16,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
+	"github.com/danielpaulus/go-ios/ios/debugproxy/utun"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 
 	"github.com/danielpaulus/go-ios/ios/appservice"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
@@ -100,7 +101,7 @@ Usage:
   ios ps [--apps] [options]
   ios ip [options]
   ios forward [options] <hostPort> <targetPort>
-  ios dproxy [--binary][--mode=<all(default)|usbmuxd|utun> --iface=<iface>] [--rsd=<path-to-rsdifo>]
+  ios dproxy [--binary]
   ios readpair [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
@@ -300,10 +301,12 @@ The commands work as following:
 	}
 
 	udid, _ := arguments.String("--udid")
-	address, _ := arguments.String("--address")
+	address, addressError := arguments.String("--address")
 	device, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	exitIfError("error getting devicelist", err)
-	device, err = ios.FindDeviceInterfaceAddress(device)
+	if addressError != nil {
+		device, err = ios.FindDeviceInterfaceAddress(device)
+	}
 
 	b, _ = arguments.Bool("erase")
 	if b {
@@ -982,13 +985,16 @@ The commands work as following:
 		}
 		defer conn.Close()
 
-		pid, err := conn.LaunchApp(
+		// TODO : get rid of this and implement launch, kill etc under existing commands
+
+		applaunch, err := conn.LaunchApp(
 			"E66A4DED-A888-495F-A701-1C478F94DC8B", // TODO : infer from selected device
 			"com.apple.mobilesafari",
 			[]interface{}{}, map[string]interface{}{
 				"TERM": "xterm-256color",
-			})
-		log.WithField("pid", pid).Info("launched app")
+			},
+			map[string]interface{}{})
+		log.WithField("pid", applaunch.Pid).Info("launched app")
 		if err != nil {
 			log.Fatal(err)
 		}
