@@ -8,6 +8,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/xpc"
 	"github.com/google/uuid"
 	"howett.net/plist"
+	"io"
 	"path"
 	"syscall"
 )
@@ -111,6 +112,21 @@ func (c *Connection) KillProcess(pid int) error {
 	return nil
 }
 
+func (c *Connection) Reboot() error {
+	err := c.conn.Send(buildRebootPayload(c.deviceId))
+	if err != nil {
+		return err
+	}
+	m, err := c.conn.ReceiveOnServerClientStream()
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		return err
+	}
+	return getError(m)
+}
+
 func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}) map[string]interface{} {
 	platformSpecificOptions := bytes.NewBuffer(nil)
 	plistEncoder := plist.NewBinaryEncoder(platformSpecificOptions)
@@ -143,6 +159,14 @@ func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{},
 
 func buildListProcessesPayload(deviceId string) map[string]interface{} {
 	return buildRequest(deviceId, "com.apple.coredevice.feature.listprocesses", nil)
+}
+
+func buildRebootPayload(deviceId string) map[string]interface{} {
+	return buildRequest(deviceId, "com.apple.coredevice.feature.rebootdevice", map[string]interface{}{
+		"rebootStyle": map[string]interface{}{
+			"full": map[string]interface{}{},
+		},
+	})
 }
 
 func buildSendSignalPayload(deviceId string, pid int, signal syscall.Signal) map[string]interface{} {
