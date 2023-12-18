@@ -96,8 +96,7 @@ type RsdService struct {
 }
 
 func (s RsdService) Close() error {
-	return s.xpc.Close()
-	// return s.c.Close()
+	return s.c.Close()
 }
 
 type RsdServiceEntry struct {

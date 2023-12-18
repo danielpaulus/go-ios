@@ -56,7 +56,6 @@ type DeviceEntry struct {
 	DeviceID         int
 	MessageType      string
 	Properties       DeviceProperties
-	TunnelAddress    string
 	RsdAddress       string
 	RsdPort          int
 	InterfaceAddress string

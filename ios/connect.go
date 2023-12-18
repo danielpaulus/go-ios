@@ -149,7 +149,7 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 }
 
 func connectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.TunnelAddress, port))
+	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.RsdAddress, port))
 	if err != nil {
 		return nil, err
 	}
