@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func RunXCUIWithBundleIds11Ctx(
+func RunXCUIWithBundleIdsXcode11Ctx(
 	ctx context.Context,
 	bundleID string,
 	testRunnerBundleID string,
@@ -25,14 +25,14 @@ func RunXCUIWithBundleIds11Ctx(
 		return err
 	}
 	log.Debugf("test session setup ok")
-	conn, err := dtx.NewConnection(device, testmanagerd)
+	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
 
-	conn2, err := dtx.NewConnection(device, testmanagerd)
+	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
 	if err != nil {
 		return err
 	}

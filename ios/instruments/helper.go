@@ -24,10 +24,10 @@ func (p loggingDispatcher) Dispatch(m dtx.Message) {
 }
 
 func connectInstruments(device ios.DeviceEntry) (*dtx.Connection, error) {
-	dtxConn, err := dtx.NewConnection(device, serviceName)
+	dtxConn, err := dtx.NewUsbmuxdConnection(device, serviceName)
 	if err != nil {
 		log.Debugf("Failed connecting to %s, trying %s", serviceName, serviceNameiOS14)
-		dtxConn, err = dtx.NewConnection(device, serviceNameiOS14)
+		dtxConn, err = dtx.NewUsbmuxdConnection(device, serviceNameiOS14)
 		if err != nil {
 			return nil, err
 		}

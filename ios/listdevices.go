@@ -53,9 +53,12 @@ type DeviceList struct {
 // f.ex. to enable LockdownSSL. More importantly it contains
 // DeviceProperties where the udid is stored.
 type DeviceEntry struct {
-	DeviceID    int
-	MessageType string
-	Properties  DeviceProperties
+	DeviceID         int
+	MessageType      string
+	Properties       DeviceProperties
+	Address          string
+	InterfaceAddress string
+	Rsd              RsdPortProvider
 }
 
 // DeviceProperties contains important device related info like the udid which is named SerialNumber

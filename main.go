@@ -17,6 +17,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
+	"github.com/danielpaulus/go-ios/ios/debugproxy/utun"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
+
+	"github.com/danielpaulus/go-ios/ios/appservice"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
 	"github.com/danielpaulus/go-ios/ios/afc"
@@ -32,7 +37,6 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/accessibility"
-	"github.com/danielpaulus/go-ios/ios/debugproxy"
 	"github.com/danielpaulus/go-ios/ios/diagnostics"
 	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
@@ -122,14 +126,18 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
+  ios appservice [options]
+  ios start-tunnel [options]
 
 Options:
-  -v --verbose   Enable Debug Logging.
-  -t --trace     Enable Trace Logging (dump every message).
-  --nojson       Disable JSON output
-  --pretty       Pretty-print JSON command output
-  -h --help      Show this screen.
-  --udid=<udid>  UDID of the device.
+  -v --verbose   		Enable Debug Logging.
+  -t --trace     		Enable Trace Logging (dump every message).
+  --nojson       		Disable JSON output
+  --pretty       		Pretty-print JSON command output
+  -h --help      		Show this screen.
+  --udid=<udid>  		UDID of the device.
+  --address=<ipv6addrr>	Address of the device interface
+  --rsd=<path>			Path to RSD info
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -190,7 +198,7 @@ The commands work as following:
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
    >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [--binary]                                              Starts the reverse engineering proxy server.
+   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun> --iface=<iface>] [--rsd=<path-to-rsdifo>] Starts the reverse engineering proxy server.
    >                                                                  It dumps every communication in plain text so it can be implemented easily.
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
@@ -220,6 +228,10 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
+   ios appservice [options]											  Launches apps.
+   ios start-tunnel [options]                                         Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
+   >                                                                  This command needs to be executed with admin privileges.
+   >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo kill -s STOP $(pgrep "^remoted")', and 'sudo kill -s CONT $(pgrep "^remoted")' to resume)
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -278,8 +290,19 @@ The commands work as following:
 		return
 	}
 
+	var rsdProvider ios.RsdPortProvider
+	rsdFile, _ := arguments.String("--rsd")
+	if rsdFile != "" {
+		rsd, err := os.Open(rsdFile)
+		exitIfError("could not open rsd file", err)
+		defer rsd.Close()
+		rsdProvider, err = ios.NewRsdPortProvider(rsd)
+		exitIfError("could not parse rsd file", err)
+	}
+
 	udid, _ := arguments.String("--udid")
-	device, err := ios.GetDevice(udid)
+	address, _ := arguments.String("--address")
+	device, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	exitIfError("error getting devicelist", err)
 
 	b, _ = arguments.Bool("erase")
@@ -503,10 +526,59 @@ The commands work as following:
 
 	b, _ = arguments.Bool("dproxy")
 	if b {
+		ctx := context.Background()
+
+		// trap Ctrl+C and call cancel on the context
+		ctx, cancel := context.WithCancel(ctx)
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		defer func() {
+			signal.Stop(c)
+			cancel()
+		}()
+		go func() {
+			select {
+			case <-c:
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+		dumpDir := filepath.Join(".", "dump-"+time.Now().UTC().Format("2006.01.02-15.04.05.000"))
+		os.MkdirAll(dumpDir, os.ModePerm)
+		usbmuxDir := filepath.Join(dumpDir, "usbmuxd")
+		os.MkdirAll(usbmuxDir, os.ModePerm)
+		tunDir := filepath.Join(dumpDir, "utun")
+		os.MkdirAll(tunDir, os.ModePerm)
 		log.SetFormatter(&log.TextFormatter{})
 		// log.SetLevel(log.DebugLevel)
 		binaryMode, _ := arguments.Bool("--binary")
-		startDebugProxy(device, binaryMode)
+		mode, _ := arguments.String("--mode")
+		iface, _ := arguments.String("--iface")
+		switch mode {
+		case "":
+			fallthrough
+		case "all":
+			fallthrough
+		case "utun":
+			if iface == "" {
+				log.Fatal("the '--iface' argument is required")
+			}
+		}
+		switch mode {
+		case "":
+			fallthrough
+		case "all":
+			go startDebugProxy(device, binaryMode, usbmuxDir)
+			go utun.Live(ctx, iface, rsdProvider, tunDir)
+			select {}
+		case "usbmuxd":
+			startDebugProxy(device, binaryMode, usbmuxDir)
+		case "utun":
+			utun.Live(ctx, iface, rsdProvider, tunDir)
+		default:
+			log.Fatalf("Uknown mode '%s'", mode)
+
+		}
 		return
 	}
 
@@ -900,6 +972,34 @@ The commands work as following:
 	if b {
 		printBatteryDiagnostics(device)
 		return
+	}
+
+	b, _ = arguments.Bool("appservice")
+	if b {
+		conn, err := appservice.New(device)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer conn.Close()
+
+		// TODO : get rid of this and implement launch, kill etc under existing commands
+
+		applaunch, err := conn.LaunchApp(
+			"E66A4DED-A888-495F-A701-1C478F94DC8B", // TODO : infer from selected device
+			"com.apple.mobilesafari",
+			[]interface{}{}, map[string]interface{}{
+				"TERM": "xterm-256color",
+			},
+			map[string]interface{}{})
+		log.WithField("pid", applaunch.Pid).Info("launched app")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	b, _ = arguments.Bool("start-tunnel")
+	if b {
+		startTunnel(device)
 	}
 }
 
@@ -1396,8 +1496,8 @@ func printVersion() {
 	}
 }
 
-func startDebugProxy(device ios.DeviceEntry, binaryMode bool) {
-	proxy := debugproxy.NewDebugProxy()
+func startDebugProxy(device ios.DeviceEntry, binaryMode bool, dumpDir string) {
+	proxy := usbmuxd.NewDebugProxy(dumpDir)
 
 	go func() {
 		defer func() {
@@ -1804,6 +1904,51 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	err = ios.PairSupervised(device, p12, p12Password)
 	exitIfError("Pairing failed", err)
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
+}
+
+func startTunnel(device ios.DeviceEntry) {
+	ctx := context.Background()
+	findCtx, _ := context.WithTimeout(ctx, 10*time.Second)
+	addr, err := ios.FindDeviceInterfaceAddress(findCtx, device)
+	exitIfError("could not find device address", err)
+
+	rsdService, err := ios.NewWithAddr(addr)
+	exitIfError("could not connect to RSD", err)
+	defer rsdService.Close()
+	handshakeResponse, err := rsdService.Handshake()
+	exitIfError("could not execute RSD handshake", err)
+
+	home, err := os.UserHomeDir()
+	exitIfError("", err)
+	pairRecordsDir := path.Join(home, ".go-ios")
+	pairRecords := tunnel.NewPairRecordStore(pairRecordsDir)
+	err = os.MkdirAll(pairRecordsDir, os.ModePerm)
+	exitIfError("could not create go-ios dir", err)
+
+	port := handshakeResponse.GetPort(tunnel.UntrustedTunnelServiceName)
+	if port == 0 {
+		log.Fatal("could net get port for untrusted tunnel service")
+	}
+	h, err := ios.ConnectToHttp2WithAddr(addr, port)
+	exitIfError("failed to connect to device", err)
+
+	xpcConn, err := ios.CreateXpcConnection(h)
+	exitIfError("", err)
+	ts, err := tunnel.NewTunnelServiceWithXpc(xpcConn, h)
+
+	pr, err := pairRecords.LoadOrCreate(device.Properties.SerialNumber)
+	exitIfError("", err)
+	if err != nil {
+		log.WithError(err).Warn("could not store pair record")
+	}
+
+	err = ts.Pair(pr)
+	exitIfError("", err)
+	_ = pairRecords.Store(device.Properties.SerialNumber, pr)
+	tunnelInfo, err := ts.CreateTunnelListener()
+	exitIfError("", err)
+	err = tunnel.ConnectToTunnel(ctx, tunnelInfo, addr)
+	exitIfError("", err)
 }
 
 func readPair(device ios.DeviceEntry) {

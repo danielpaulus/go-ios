@@ -35,7 +35,8 @@ func archiveObject(object interface{}) (interface{}, error) {
 	archiverSkeleton := createSkeleton(true)
 	objects := make([]interface{}, 1)
 	objects[0] = null
-	objects, _ = archive(object, objects)
+	objects, pid := archive(object, objects)
+	archiverSkeleton[topKey] = map[string]interface{}{"root": pid}
 
 	archiverSkeleton[objectsKey] = objects
 	return archiverSkeleton, nil
