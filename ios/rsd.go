@@ -3,11 +3,11 @@ package ios
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/xpc"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"strconv"
+
+	"github.com/danielpaulus/go-ios/ios/xpc"
+	log "github.com/sirupsen/logrus"
 )
 
 type RsdPortProvider interface {
@@ -124,6 +124,10 @@ func (r RsdHandshakeResponse) GetPort(service string) int {
 }
 
 func NewWithAddr(addr string) (RsdService, error) {
+	return NewWithAddrPort(addr, port)
+}
+
+func NewWithAddrPort(addr string, port int) (RsdService, error) {
 	h, err := ConnectToHttp2WithAddr(addr, port)
 	if err != nil {
 		return RsdService{}, err
@@ -143,10 +147,6 @@ func NewWithAddr(addr string) (RsdService, error) {
 
 func (s RsdService) Handshake() (RsdHandshakeResponse, error) {
 	log.Debug("execute handshake")
-	err := s.xpc.Send(createHandshakeRequestMessage())
-	if err != nil {
-		return RsdHandshakeResponse{}, fmt.Errorf("could not send handshake request. %w", err)
-	}
 	m, err := s.xpc.ReceiveOnClientServerStream()
 	if err != nil {
 		return RsdHandshakeResponse{}, fmt.Errorf("failed to receive handshake response. %w", err)
@@ -179,75 +179,5 @@ func (s RsdService) Handshake() (RsdHandshakeResponse, error) {
 		}, nil
 	} else {
 		return RsdHandshakeResponse{}, fmt.Errorf("unknown response")
-	}
-}
-
-func createHandshakeRequestMessage() map[string]interface{} {
-	u := uuid.New()
-	return map[string]interface{}{
-		"MessageType":              "Handshake",
-		"MessagingProtocolVersion": uint64(3),
-		"Properties": map[string]interface{}{
-			"AppleInternal":                     false,
-			"BoardId":                           uint64(8),
-			"BootSessionUUID":                   uuid.New(),
-			"BridgeVersion":                     "21.16.365.0.0,0",
-			"BuildVersion":                      "23A344",
-			"CPUArchitecture":                   "arm64e",
-			"CertificateProductionStatus":       true,
-			"CertificateSecurityMode":           true,
-			"ChipID":                            uint64(24576),
-			"DeviceClass":                       "Mac",
-			"DeviceColor":                       "unknown",
-			"DeviceEnclosureColor":              "2",
-			"DeviceSupportsLockdown":            false,
-			"EffectiveProductionStatusAp":       true,
-			"EffectiveProductionStatusSEP":      true,
-			"EffectiveSecurityModeAp":           true,
-			"EffectiveSecurityModeSEP":          true,
-			"HWModel":                           "J314sAP",
-			"HardwarePlatform":                  "t6000",
-			"HasSEP":                            true,
-			"HumanReadableProductVersionString": "14.0",
-			"Image4CryptoHashMethod":            "sha2-384",
-			"Image4Supported":                   true,
-			"IsUIBuild":                         true,
-			"IsVirtualDevice":                   false,
-			"MobileDeviceMinimumVersion":        "1600",
-			"ModelNumber":                       "Z15G0022T",
-			"OSInstallEnvironment":              false,
-			"OSVersion":                         "14.0",
-			"ProductName":                       "macOS",
-			"ProductType":                       "MacBookPro18,3",
-			"RegionCode":                        "D",
-			"RegionInfo":                        "D/A",
-			"RemoteXPCVersionFlags":             uint64(72057594037927942),
-			"RestoreLongVersion":                "23.1.344.0.0,0",
-			"SecurityDomain":                    uint64(1),
-			"SensitivePropertiesVisible":        true,
-			"SerialNumber":                      "YL924VYJ9Y",
-			"SigningFuse":                       true,
-			"SupplementalBuildVersion":          "23A344",
-			"ThinningProductType":               "MacBookPro18,3",
-			"UniqueChipID":                      uint64(1249397419704350),
-			"UniqueDeviceID":                    "00006000-000470520162801E",
-		},
-		"Services": map[string]interface{}{
-			"com.apple.osanalytics.logRelay": map[string]interface{}{
-				"Entitlement": "com.apple.SubmitDiagInfo.tower-access",
-				"Port":        "59209",
-				"Properties": map[string]interface{}{
-					"UsesRemoteXPC": true,
-				},
-			},
-			"ssh": map[string]interface{}{
-				"Entitlement": "AppleInternal",
-				"Port":        "22",
-				"Properties": map[string]interface{}{
-					"Legacy": true,
-				},
-			},
-		},
-		"UUID": u,
 	}
 }
