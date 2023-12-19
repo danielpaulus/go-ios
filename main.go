@@ -126,7 +126,6 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
-  ios appservice [options]
   ios start-tunnel [options]
 
 Options:
@@ -230,7 +229,6 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
-   ios appservice [options]											  Launches apps.
    ios start-tunnel [options]                                         Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo kill -s STOP $(pgrep "^remoted")', and 'sudo kill -s CONT $(pgrep "^remoted")' to resume)
@@ -768,17 +766,41 @@ The commands work as following:
 		if bundleID == "" {
 			log.Fatal("please provide a bundleID")
 		}
-		pControl, err := instruments.NewProcessControl(device)
-		exitIfError("processcontrol failed", err)
 
-		pid, err := pControl.LaunchApp(bundleID)
-		exitIfError("launch app command failed", err)
-		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
-		if wait {
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-			<-c
-			log.WithFields(log.Fields{"pid": pid}).Info("stop listening to logs")
+		version, err := ios.GetProductVersion(device)
+		exitIfError("failed getting device product version", err)
+
+		if version.LessThan(ios.IOS17()) {
+			pControl, err := instruments.NewProcessControl(device)
+			exitIfError("processcontrol failed", err)
+
+			pid, err := pControl.LaunchApp(bundleID)
+			exitIfError("launch app command failed", err)
+			log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
+			if wait {
+				c := make(chan os.Signal, 1)
+				signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+				<-c
+				log.WithFields(log.Fields{"pid": pid}).Info("stop listening to logs")
+			}
+		} else {
+			conn, err := appservice.New(device)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer conn.Close()
+
+			applaunch, err := conn.LaunchApp(
+				bundleID,
+				[]interface{}{},
+				map[string]interface{}{},
+				map[string]interface{}{},
+				false,
+			)
+			log.WithField("pid", applaunch.Pid).Info("launched app")
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 
@@ -979,29 +1001,6 @@ The commands work as following:
 	if b {
 		printBatteryDiagnostics(device)
 		return
-	}
-
-	b, _ = arguments.Bool("appservice")
-	if b {
-		conn, err := appservice.New(device)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer conn.Close()
-
-		// TODO : get rid of this and implement launch, kill etc under existing commands
-
-		applaunch, err := conn.LaunchApp(
-			"E66A4DED-A888-495F-A701-1C478F94DC8B", // TODO : infer from selected device
-			"com.apple.mobilesafari",
-			[]interface{}{}, map[string]interface{}{
-				"TERM": "xterm-256color",
-			},
-			map[string]interface{}{})
-		log.WithField("pid", applaunch.Pid).Info("launched app")
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
 
 	b, _ = arguments.Bool("start-tunnel")

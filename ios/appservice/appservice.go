@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/xpc"
-	"github.com/google/uuid"
-	"howett.net/plist"
 	"io"
 	"net"
 	"path"
 	"syscall"
+
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/xpc"
+	"github.com/google/uuid"
+	"howett.net/plist"
 )
 
 type Connection struct {
@@ -42,8 +43,8 @@ type Process struct {
 	Path string
 }
 
-func (c *Connection) LaunchApp(deviceId string, bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}) (AppLaunch, error) {
-	msg := buildAppLaunchPayload(c.deviceId, bundleId, args, env, options)
+func (c *Connection) LaunchApp(bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool) (AppLaunch, error) {
+	msg := buildAppLaunchPayload(c.deviceId, bundleId, args, env, options, terminateExisting)
 	err := c.conn.Send(msg, xpc.HeartbeatRequestFlag)
 	m, err := c.conn.ReceiveOnServerClientStream()
 	if err != nil {
@@ -142,13 +143,15 @@ func (c *Connection) RebootWithStyle(style string) error {
 	return getError(m)
 }
 
-func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}) map[string]interface{} {
+func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool) map[string]interface{} {
 	platformSpecificOptions := bytes.NewBuffer(nil)
 	plistEncoder := plist.NewBinaryEncoder(platformSpecificOptions)
 	err := plistEncoder.Encode(options)
 	if err != nil {
 		panic(err)
 	}
+
+	env["TERM"] = "xterm-256color"
 
 	return buildRequest(deviceId, "com.apple.coredevice.feature.launchapplication", map[string]interface{}{
 		"applicationSpecifier": map[string]interface{}{
@@ -162,7 +165,7 @@ func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{},
 			"platformSpecificOptions":       platformSpecificOptions.Bytes(),
 			"standardIOUsesPseudoterminals": true,
 			"startStopped":                  false,
-			"terminateExisting":             false,
+			"terminateExisting":             terminateExisting,
 			"user": map[string]interface{}{
 				"active": true,
 			},

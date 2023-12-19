@@ -213,22 +213,6 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 	log.Tracef("dispatcher received: %s", m.String())
 }
 
-func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
-	testBundleReadyChannel := make(chan dtx.Message, 1)
-	//(xide XCTestManager_IDEInterface)
-	proxyDispatcher := ProxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection}
-	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, proxyDispatcher)
-	ideInterface := XCTestManager_IDEInterface{IDEDaemonProxy: IDEDaemonProxy, testBundleReadyChannel: testBundleReadyChannel}
-
-	return dtxproxy{
-		IDEDaemonProxy:   IDEDaemonProxy,
-		ideInterface:     ideInterface,
-		daemonConnection: XCTestManager_DaemonConnectionInterface{IDEDaemonProxy},
-		dtxConnection:    dtxConnection,
-		proxyDispatcher:  proxyDispatcher,
-	}
-}
-
 func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
@@ -455,11 +439,11 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 	}
 
 	appLaunch, err := appserviceConn.LaunchApp(
-		"D8FB9E56-4394-40AC-81C1-9E50DD885AC2", // TODO : this should be inferred from the tunnel and be present in `device`
 		bundleID,
 		args,
 		env,
 		opts,
+		true,
 	)
 
 	if err != nil {
