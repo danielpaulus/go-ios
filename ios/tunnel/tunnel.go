@@ -10,14 +10,15 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/quic-go/quic-go"
-	"github.com/sirupsen/logrus"
-	"github.com/songgao/water"
 	"io"
 	"math/big"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/quic-go/quic-go"
+	"github.com/sirupsen/logrus"
+	"github.com/songgao/water"
 )
 
 func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) error {
@@ -67,7 +68,8 @@ func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) erro
 	}()
 
 	logrus.WithField("address", tunnelInfo.ServerAddress).
-		WithField("rsd", tunnelInfo.ServerRSDPort).
+		WithField("rsd-port", tunnelInfo.ServerRSDPort).
+		WithField("cli-args", "--address="+tunnelInfo.ServerAddress+" --rsd-port="+fmt.Sprint(tunnelInfo.ServerRSDPort)).
 		Info("tunnel started")
 
 	select {

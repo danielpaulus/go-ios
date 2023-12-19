@@ -130,14 +130,15 @@ Usage:
   ios start-tunnel [options]
 
 Options:
-  -v --verbose   		Enable Debug Logging.
-  -t --trace     		Enable Trace Logging (dump every message).
-  --nojson       		Disable JSON output
-  --pretty       		Pretty-print JSON command output
-  -h --help      		Show this screen.
-  --udid=<udid>  		UDID of the device.
-  --address=<ipv6addrr>	Address of the device interface
-  --rsd=<path>			Path to RSD info
+  -v --verbose   		    Enable Debug Logging.
+  -t --trace     		    Enable Trace Logging (dump every message).
+  --nojson       		    Disable JSON output
+  --pretty       		    Pretty-print JSON command output
+  -h --help      		    Show this screen.
+  --udid=<udid>  		    UDID of the device.
+  --address=<ipv6addrr>     Address of the device interface. Can be acquired by running start-tunnel in a parallel shell.
+  --rsd-port=<port>         Port of the rsd service listening over the tunel. Can be acquired by running start-tunnel in a parallel shell.
+  
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -198,11 +199,12 @@ The commands work as following:
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
    >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun> --iface=<iface>] [--rsd=<path-to-rsdifo>] Starts the reverse engineering proxy server.
+   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun> --iface=<iface>] [--address=<ipv6addrr>] [--rsd-port=<port>] Starts the reverse engineering proxy server.
    >                                                                  It dumps every communication in plain text so it can be implemented easily.
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding.
+   >                                                                  Address and rsd port is mandatory to sniff tunnel traffic with utun mode.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
@@ -290,20 +292,15 @@ The commands work as following:
 		return
 	}
 
-	var rsdProvider ios.RsdPortProvider
-	rsdFile, _ := arguments.String("--rsd")
-	if rsdFile != "" {
-		rsd, err := os.Open(rsdFile)
-		exitIfError("could not open rsd file", err)
-		defer rsd.Close()
-		rsdProvider, err = ios.NewRsdPortProvider(rsd)
-		exitIfError("could not parse rsd file", err)
-	}
-
 	udid, _ := arguments.String("--udid")
-	address, _ := arguments.String("--address")
-	device, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
-	exitIfError("error getting devicelist", err)
+	address, addressErr := arguments.String("--address")
+	rsdPort, rsdErr := arguments.Int("--rsd-port")
+
+	device, err := ios.GetDevice(udid)
+	exitIfError("Device not found: "+udid, err)
+	if addressErr == nil && rsdErr == nil {
+		device = deviceWithRsdProvider(device, udid, address, rsdPort)
+	}
 
 	b, _ = arguments.Bool("erase")
 	if b {
@@ -569,12 +566,12 @@ The commands work as following:
 			fallthrough
 		case "all":
 			go startDebugProxy(device, binaryMode, usbmuxDir)
-			go utun.Live(ctx, iface, rsdProvider, tunDir)
+			go utun.Live(ctx, iface, device.Rsd, tunDir)
 			select {}
 		case "usbmuxd":
 			startDebugProxy(device, binaryMode, usbmuxDir)
 		case "utun":
-			utun.Live(ctx, iface, rsdProvider, tunDir)
+			utun.Live(ctx, iface, device.Rsd, tunDir)
 		default:
 			log.Fatalf("Uknown mode '%s'", mode)
 
@@ -887,11 +884,21 @@ The commands work as following:
 
 	b, _ = arguments.Bool("reboot")
 	if b {
-		err := diagnostics.Reboot(device)
-		if err != nil {
-			log.Error(err)
+		v, err := ios.GetProductVersion(device)
+		exitIfError("could not get device version", err)
+		if v.Major() < 17 {
+			err := diagnostics.Reboot(device)
+			if err != nil {
+				log.Error(err)
+			} else {
+				log.Info("ok")
+			}
 		} else {
-			log.Info("ok")
+			app, err := appservice.New(device)
+			exitIfError("could not connect to appservice", err)
+			defer app.Close()
+			err = app.Reboot()
+			exitIfError("could not execute reboot", err)
 		}
 		return
 	}
@@ -1949,6 +1956,17 @@ func startTunnel(device ios.DeviceEntry) {
 	exitIfError("", err)
 	err = tunnel.ConnectToTunnel(ctx, tunnelInfo, addr)
 	exitIfError("", err)
+}
+
+func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
+	rsdService, err := ios.NewWithAddrPort(address, rsdPort)
+	exitIfError("could not connect to RSD", err)
+	defer rsdService.Close()
+	rsdProvider, err := rsdService.Handshake()
+	device, err = ios.GetDeviceWithAddress(udid, address, rsdProvider)
+	exitIfError("error getting devicelist", err)
+
+	return device
 }
 
 func readPair(device ios.DeviceEntry) {
