@@ -64,10 +64,10 @@ func Ntohs(port uint16) uint16 {
 // if the env variable 'udid' is specified, the device with that udid
 // otherwise it returns the first device in the list.
 func GetDevice(udid string) (DeviceEntry, error) {
-	return GetDeviceWithAddress(udid, "", 0, nil)
+	return GetDeviceWithAddress(udid, "", nil)
 }
 
-func GetDeviceWithAddress(udid string, rsdAddress string, rsdPort int, provider RsdPortProvider) (DeviceEntry, error) {
+func GetDeviceWithAddress(udid string, address string, provider RsdPortProvider) (DeviceEntry, error) {
 	if udid == "" {
 		udid = os.Getenv("udid")
 		if udid != "" {
@@ -86,16 +86,14 @@ func GetDeviceWithAddress(udid string, rsdAddress string, rsdPort int, provider 
 		device := deviceList.DeviceList[0]
 		log.WithFields(log.Fields{"udid": device.Properties.SerialNumber}).
 			Info("no udid specified using first device in list")
-		device.RsdAddress = rsdAddress
+		device.Address = address
 		device.Rsd = provider
-		device.RsdPort = rsdPort
 		return device, nil
 	}
 	for _, device := range deviceList.DeviceList {
 		if device.Properties.SerialNumber == udid {
-			device.RsdAddress = rsdAddress
+			device.Address = address
 			device.Rsd = provider
-			device.RsdPort = rsdPort
 			return device, nil
 		}
 	}

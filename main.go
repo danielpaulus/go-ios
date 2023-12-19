@@ -136,8 +136,7 @@ Options:
   --pretty       		    Pretty-print JSON command output
   -h --help      		    Show this screen.
   --udid=<udid>  		    UDID of the device.
-  --rsd=<path>			    Path to RSD info
-  --rsd-address=<ipv6addrr> Address of the device interface. Can be acquired by running start-tunnel in a parallel shell.
+  --address=<ipv6addrr>     Address of the device interface. Can be acquired by running start-tunnel in a parallel shell.
   --rsd-port=<port>         Port of the rsd service listening over the tunel. Can be acquired by running start-tunnel in a parallel shell.
   
 
@@ -200,11 +199,12 @@ The commands work as following:
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
    >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun> --iface=<iface>] [--rsd=<path-to-rsdifo>] Starts the reverse engineering proxy server.
+   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun> --iface=<iface>] [--address=<ipv6addrr>] [--rsd-port=<port>] Starts the reverse engineering proxy server.
    >                                                                  It dumps every communication in plain text so it can be implemented easily.
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding.
+   >                                                                  Address and rsd port is mandatory to sniff tunnel traffic with utun mode.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
@@ -293,23 +293,13 @@ The commands work as following:
 	}
 
 	udid, _ := arguments.String("--udid")
-	rsdAddress, addressErr := arguments.String("--rsd-address")
+	address, addressErr := arguments.String("--address")
 	rsdPort, rsdErr := arguments.Int("--rsd-port")
 
 	device, err := ios.GetDevice(udid)
 	exitIfError("Device not found: "+udid, err)
 	if addressErr == nil && rsdErr == nil {
-		device = updateDeviceRsd(device, udid, rsdAddress, rsdPort)
-	}
-
-	rsdFile, _ := arguments.String("--rsd")
-	if rsdFile != "" {
-		rsd, err := os.Open(rsdFile)
-		exitIfError("could not open rsd file", err)
-		defer rsd.Close()
-		rsdProvider, err := ios.NewRsdPortProvider(rsd)
-		exitIfError("could not parse rsd file", err)
-		device.Rsd = rsdProvider
+		device = deviceWithRsdProvider(device, udid, address, rsdPort)
 	}
 
 	b, _ = arguments.Bool("erase")
@@ -1958,12 +1948,12 @@ func startTunnel(device ios.DeviceEntry) {
 	exitIfError("", err)
 }
 
-func updateDeviceRsd(device ios.DeviceEntry, udid string, rsdAddress string, rsdPort int) ios.DeviceEntry {
-	rsdService, err := ios.NewWithAddrPort(rsdAddress, rsdPort)
+func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
+	rsdService, err := ios.NewWithAddrPort(address, rsdPort)
 	exitIfError("could not connect to RSD", err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
-	device, err = ios.GetDeviceWithAddress(udid, rsdAddress, rsdPort, rsdProvider)
+	device, err = ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	exitIfError("error getting devicelist", err)
 
 	return device
