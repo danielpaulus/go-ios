@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"howett.net/plist"
 	"io"
+	"net"
 	"path"
 	"syscall"
 )
@@ -17,6 +18,11 @@ type Connection struct {
 	conn     *xpc.Connection
 	deviceId string
 }
+
+const (
+	RebootFull      = "full"
+	RebootUserspace = "userspace"
+)
 
 func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
 	xpcConn, err := ios.ConnectToXpcServiceTunnelIface(deviceEntry, "com.apple.coredevice.appservice")
@@ -112,14 +118,23 @@ func (c *Connection) KillProcess(pid int) error {
 	return nil
 }
 
+// Reboot performs a full reboot of the device
 func (c *Connection) Reboot() error {
-	err := c.conn.Send(buildRebootPayload(c.deviceId))
+	return c.RebootWithStyle(RebootFull)
+}
+
+func (c *Connection) RebootWithStyle(style string) error {
+	err := c.conn.Send(buildRebootPayload(c.deviceId, style))
 	if err != nil {
 		return err
 	}
 	m, err := c.conn.ReceiveOnServerClientStream()
 	if err != nil {
 		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		var opErr *net.OpError
+		if errors.As(err, &opErr) && opErr.Timeout() {
 			return nil
 		}
 		return err
@@ -161,10 +176,10 @@ func buildListProcessesPayload(deviceId string) map[string]interface{} {
 	return buildRequest(deviceId, "com.apple.coredevice.feature.listprocesses", nil)
 }
 
-func buildRebootPayload(deviceId string) map[string]interface{} {
+func buildRebootPayload(deviceId string, style string) map[string]interface{} {
 	return buildRequest(deviceId, "com.apple.coredevice.feature.rebootdevice", map[string]interface{}{
 		"rebootStyle": map[string]interface{}{
-			"full": map[string]interface{}{},
+			style: map[string]interface{}{},
 		},
 	})
 }
