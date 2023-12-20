@@ -40,7 +40,7 @@ func New(device ios.DeviceEntry) (*DeveloperDiskImageMounter, error) {
 	return NewDeveloperDiskImageMounter(device, version)
 }
 
-// NewDeveloperDiskImageMounter
+// NewDeveloperDiskImageMounter returns a new mobile image mounter DeveloperDiskImageMounter for the given device
 func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Version) (*DeveloperDiskImageMounter, error) {
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
@@ -54,10 +54,13 @@ func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Versio
 	}, nil
 }
 
+// NewImageMounter creates a new ImageMounter depending on the version of the given device.
+// For iOS 17+ devices a PersonalizedDeveloperDiskImageMounter is created, and for all other devices
+// a DeveloperDiskImageMounter gets created
 func NewImageMounter(device ios.DeviceEntry) (ImageMounter, error) {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get device version. %w", err)
+		return nil, fmt.Errorf("NewImageMounter: failed to get device version. %w", err)
 	}
 	if version.Major() < 17 {
 		return NewDeveloperDiskImageMounter(device, version)
