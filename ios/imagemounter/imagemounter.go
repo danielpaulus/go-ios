@@ -22,6 +22,7 @@ type DeveloperDiskImageMounter struct {
 	plistRw    ios.PlistCodecReadWriter
 }
 
+// ImageMounter mounts developer disk images to an iOS device, and give a list of already mounted images
 type ImageMounter interface {
 	ListImages() ([][]byte, error)
 	MountImage(imagePath string) error
