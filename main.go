@@ -6,8 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
-	"github.com/danielpaulus/go-ios/ios/debugproxy/utun"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -18,6 +16,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
+	"github.com/danielpaulus/go-ios/ios/debugproxy/utun"
 
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 

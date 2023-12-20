@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -114,6 +115,7 @@ func decodeRemoteXpc(w io.Writer, r io.Reader) error {
 			log.Info("file transfer started, skipping remaining data ")
 			return nil
 		}
+		fmt.Fprintf(w, "\n")
 	}
 }
 
@@ -127,9 +129,11 @@ func decodeRemoteDtx(w io.Writer, r io.Reader) error {
 			return err
 		}
 
-		buf := bytes.NewBufferString(m.StringDebug() + "\n")
+		buf := bytes.NewBufferString(m.StringDebug())
 		if _, err := io.Copy(w, buf); err != nil {
 			return err
 		}
+
+		fmt.Fprintf(w, "\n\n")
 	}
 }

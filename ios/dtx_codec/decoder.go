@@ -3,6 +3,8 @@ package dtx
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -23,73 +25,98 @@ func ReadMessage(reader io.Reader) (Message, error) {
 	}
 	result := readHeader(header)
 
-	if result.IsFragment() {
+	messageLength := result.MessageLength
+	// if messageLength == 468 {
+	// 	messageLength -= 72
+	// }
 
-		// the first part of a fragmented message is only a header indicating the total length of
-		// the defragmented message
-		if result.IsFirstFragment() {
-			// put in the header as bytes here
-			result.fragmentBytes = header
-			return result, nil
-		}
-		// 32 offset is correct, the binary starts with a payload header
-		messageBytes := make([]byte, result.MessageLength)
-		_, err := io.ReadFull(reader, messageBytes)
-		if err != nil {
-			return Message{}, err
-		}
-		result.fragmentBytes = messageBytes
-		return result, nil
-	}
-
-	payloadHeaderBytes := make([]byte, 16)
-	_, err = io.ReadFull(reader, payloadHeaderBytes)
+	remainingBytes := make([]byte, messageLength)
+	_, err = io.ReadFull(reader, remainingBytes)
 	if err != nil {
+		d, _ := json.Marshal(result)
+		log.Printf("%s", string(d))
+
 		return Message{}, err
 	}
 
-	ph, err := parsePayloadHeader(payloadHeaderBytes)
+	m, _, err := DecodeNonBlocking(append(header, remainingBytes[:]...))
 	if err != nil {
 		return Message{}, err
 	}
-	result.PayloadHeader = ph
+	return m, nil
 
-	if result.HasAuxiliary() {
-		auxHeaderBytes := make([]byte, 16)
-		_, err = io.ReadFull(reader, auxHeaderBytes)
-		if err != nil {
-			return Message{}, err
-		}
+	// if result.IsFragment() {
 
-		header, err := parseAuxiliaryHeader(auxHeaderBytes)
-		if err != nil {
-			return Message{}, err
-		}
-		result.AuxiliaryHeader = header
-		auxBytes := make([]byte, result.AuxiliaryHeader.AuxiliarySize)
-		_, err = io.ReadFull(reader, auxBytes)
-		if err != nil {
-			return Message{}, err
-		}
-		result.Auxiliary = DecodeAuxiliary(auxBytes)
-	}
+	// 	// the first part of a fragmented message is only a header indicating the total length of
+	// 	// the defragmented message
+	// 	if result.IsFirstFragment() {
+	// 		// put in the header as bytes here
+	// 		result.fragmentBytes = header
+	// 		return result, nil
+	// 	}
+	// 	// 32 offset is correct, the binary starts with a payload header
+	// 	messageBytes := make([]byte, result.MessageLength)
+	// 	_, err := io.ReadFull(reader, messageBytes)
+	// 	if err != nil {
+	// 		return Message{}, err
+	// 	}
+	// 	result.fragmentBytes = messageBytes
+	// 	return result, nil
+	// }
 
-	result.RawBytes = make([]byte, 0)
-	if result.HasPayload() {
-		payloadBytes := make([]byte, result.PayloadLength())
-		_, err := io.ReadFull(reader, payloadBytes)
-		if err != nil {
-			return Message{}, err
-		}
+	// payloadHeaderBytes := make([]byte, 16)
+	// _, err = io.ReadFull(reader, payloadHeaderBytes)
+	// if err != nil {
+	// 	return Message{}, err
+	// }
 
-		payload, err := nskeyedarchiver.Unarchive(payloadBytes)
-		if err != nil {
-			return Message{}, err
-		}
-		result.Payload = payload
-	}
+	// ph, err := parsePayloadHeader(payloadHeaderBytes)
+	// if err != nil {
+	// 	return Message{}, err
+	// }
+	// result.PayloadHeader = ph
 
-	return result, nil
+	// if result.HasAuxiliary() {
+	// 	auxHeaderBytes := make([]byte, 16)
+	// 	_, err = io.ReadFull(reader, auxHeaderBytes)
+	// 	if err != nil {
+	// 		return Message{}, err
+	// 	}
+
+	// 	header, err := parseAuxiliaryHeader(auxHeaderBytes)
+	// 	if err != nil {
+	// 		return Message{}, err
+	// 	}
+	// 	result.AuxiliaryHeader = header
+	// 	auxBytes := make([]byte, result.AuxiliaryHeader.AuxiliarySize)
+	// 	_, err = io.ReadFull(reader, auxBytes)
+	// 	if err != nil {
+	// 		return Message{}, err
+	// 	}
+	// 	result.Auxiliary = DecodeAuxiliary(auxBytes)
+	// }
+
+	// result.RawBytes = make([]byte, 0)
+	// if result.HasPayload() {
+	// 	payloadLength := result.PayloadLength()
+	// 	if payloadLength == 161 {
+	// 		payloadLength = 300
+	// 	}
+	// 	payloadBytes := make([]byte, payloadLength)
+	// 	_, err := io.ReadFull(reader, payloadBytes)
+	// 	if err != nil {
+	// 		return Message{}, err
+	// 	}
+
+	// 	log.Printf("\nBYTES:::::::::::::::::::::: %s", string(payloadBytes[:]))
+	// 	payload, err := nskeyedarchiver.Unarchive(payloadBytes)
+	// 	if err != nil {
+	// 		return Message{}, err
+	// 	}
+	// 	result.Payload = payload
+	// }
+
+	// return result, nil
 }
 
 // DecodeNonBlocking should only be used for the debug proxy to on the fly decode DtxMessages.
@@ -158,9 +185,14 @@ func DecodeNonBlocking(messageBytes []byte) (Message, []byte, error) {
 	}
 	result.RawBytes = messageBytes[:totalMessageLength]
 
+	// d, _ := json.Marshal(result)
+	// log.Printf("%s", string(d))
+
 	if result.HasPayload() {
+		// log.Printf("BYTESSSSSSSSS: %s", result.RawBytes)
 		payload, err := result.parsePayloadBytes(result.RawBytes)
 		if err != nil {
+			log.Printf("RAW BYTES: %s", hex.EncodeToString(result.RawBytes))
 			return Message{}, make([]byte, 0), err
 		}
 		result.Payload = payload

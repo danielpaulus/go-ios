@@ -3,13 +3,14 @@ package utun
 import (
 	"context"
 	"fmt"
+	"io"
+	"net"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	log "github.com/sirupsen/logrus"
-	"io"
-	"net"
 )
 
 type direction uint8
@@ -32,7 +33,7 @@ func Live(ctx context.Context, iface string, provider ios.RsdPortProvider, dumpD
 		return err
 	}
 	log.Infof("Capture traffice for iface %s with address %s", iface, addr)
-	if handle, err := pcap.OpenLive(iface, 1600, true, pcap.BlockForever); err != nil {
+	if handle, err := pcap.OpenLive(iface, 65536, true, pcap.BlockForever); err != nil {
 		return fmt.Errorf("failed to connect to iface %s. %w", iface, err)
 	} else {
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
