@@ -2,13 +2,10 @@ package api
 
 import (
 	"bytes"
-	"fmt"
-	"github.com/danielpaulus/go-ios/ios/imagemounter"
-	"github.com/danielpaulus/go-ios/ios/mobileactivation"
-	"io"
 	"net/http"
-	"os"
 	"sync"
+
+	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -36,77 +33,6 @@ func Activate(c *gin.Context) {
 		return
 	}
 	c.IndentedJSON(http.StatusOK, GenericResponse{Message: "Activation successful"})
-}
-
-func GetImages(c *gin.Context) {
-	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	conn, err := imagemounter.New(device)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
-		return
-	}
-	signatures, err := conn.ListImages()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
-		return
-	}
-
-	res := make([]string, len(signatures))
-	for i, sig := range signatures {
-		res[i] = fmt.Sprintf("%x", sig)
-	}
-	c.JSON(http.StatusOK, res)
-
-}
-func InstallImage(c *gin.Context) {
-	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	auto := c.Query("auto")
-	if auto == "true" {
-		basedir := c.Query("basedir")
-		if basedir == "" {
-			basedir = "./devimages"
-		}
-
-		path, err := imagemounter.DownloadImageFor(device, basedir)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, err)
-			return
-		}
-		err = imagemounter.MountImage(device, path)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, err)
-			return
-		}
-		c.JSON(http.StatusOK, "ok")
-		return
-	}
-	body := c.Request.Body
-	defer body.Close()
-
-	tempfile, err := os.CreateTemp(os.TempDir(), "go-ios")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
-		return
-	}
-	tempfilepath := tempfile.Name()
-	defer os.Remove(tempfilepath)
-	_, err = io.Copy(tempfile, body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
-		return
-	}
-	err = tempfile.Close()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
-		return
-	}
-	err = imagemounter.MountImage(device, tempfilepath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
-		return
-	}
-	c.JSON(http.StatusOK, "ok")
-	return
 }
 
 // Info gets device info
