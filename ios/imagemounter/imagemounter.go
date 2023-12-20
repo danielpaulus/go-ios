@@ -203,17 +203,17 @@ func listImages(prw ios.PlistCodecReadWriter, imageType string, v *semver.Versio
 		"ImageType": imageType,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listImages: failed to write command 'LookupImage': %w", err)
 	}
 
 	var resp map[string]interface{}
 	err = prw.Read(&resp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listImages: failed to read response for 'LookupImage': %w", err)
 	}
 	deviceError, ok := resp["Error"]
 	if ok {
-		return nil, fmt.Errorf("device error: %v", deviceError)
+		return nil, fmt.Errorf("listImages: device responded with error: %v", deviceError)
 	}
 
 	signatures, ok := resp["ImageSignature"]
@@ -221,7 +221,7 @@ func listImages(prw ios.PlistCodecReadWriter, imageType string, v *semver.Versio
 		if v.LessThan(ios.IOS14()) {
 			return [][]byte{}, nil
 		}
-		return nil, fmt.Errorf("invalid response: %+v", resp)
+		return nil, fmt.Errorf("listImages: invalid response: %+v", resp)
 	}
 
 	array, ok := signatures.([]interface{})
@@ -229,7 +229,7 @@ func listImages(prw ios.PlistCodecReadWriter, imageType string, v *semver.Versio
 	for i, intf := range array {
 		bytes, ok := intf.([]byte)
 		if !ok {
-			return nil, fmt.Errorf("could not convert %+v to byte slice", intf)
+			return nil, fmt.Errorf("listImages: could not convert %+v to byte slice", intf)
 		}
 		result[i] = bytes
 	}
