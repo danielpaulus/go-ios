@@ -249,21 +249,21 @@ func sendUploadRequest(plistRw ios.PlistCodecReadWriter, imageType string, signa
 	log.Debugf("sending: %+v", req)
 	err := plistRw.Write(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("sendUploadRequest: failed to write command 'ReceiveBytes': %w", err)
 	}
 
 	var plist map[string]interface{}
 	err = plistRw.Read(&plist)
 	if err != nil {
-		return err
+		return fmt.Errorf("sendUploadRequest: failed to read response for 'ReceiveBytes': %w", err)
 	}
 	log.Debugf("upload response: %+v", plist)
 	status, ok := plist["Status"]
 	if !ok {
-		return fmt.Errorf("unexpected response: %+v", plist)
+		return fmt.Errorf("sendUploadRequest: unexpected response: %+v", plist)
 	}
 	if "ReceiveBytesAck" != status {
-		return fmt.Errorf("unexpected response: %+v", plist)
+		return fmt.Errorf("sendUploadRequest: unexpected status: %+v", plist)
 	}
 	return nil
 }
