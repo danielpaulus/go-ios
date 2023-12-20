@@ -26,7 +26,7 @@ type PersonalizedDeveloperDiskImageMounter struct {
 func NewPersonalizedDeveloperDiskImageMounter(entry ios.DeviceEntry, version *semver.Version) (PersonalizedDeveloperDiskImageMounter, error) {
 	values, err := ios.GetValuesPlist(entry)
 	if err != nil {
-		return PersonalizedDeveloperDiskImageMounter{}, nil
+		return PersonalizedDeveloperDiskImageMounter{}, fmt.Errorf("NewPersonalizedDeveloperDiskImageMounter: could not read lockdown values: %w", err)
 	}
 	var ecid uint64
 	if e, ok := values["UniqueChipID"].(uint64); ok {
