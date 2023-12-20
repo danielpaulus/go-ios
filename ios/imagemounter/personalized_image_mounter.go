@@ -202,7 +202,7 @@ func (p PersonalizedDeveloperDiskImageMounter) mountPersonalizedImage(signatureB
 func getFileSize(p string) (uint64, error) {
 	info, err := os.Stat(p)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("getFileSize: could not get file stats for '%s': %w", p, err)
 	}
 	if info.IsDir() {
 		return 0, fmt.Errorf("getFileSize: expected a file, but got a directory: '%s'", p)
