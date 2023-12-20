@@ -793,7 +793,9 @@ The commands work as following:
 			applaunch, err := conn.LaunchApp(
 				bundleID,
 				[]interface{}{},
-				map[string]interface{}{},
+				map[string]interface{}{
+					"TERM": "xterm-256color",
+				},
 				map[string]interface{}{},
 				false,
 			)
@@ -1086,18 +1088,22 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			return true
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
+
+		testRunnerChannel := make(chan *testmanagerd.TestRunner)
 		go func() {
-			err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
+			testRunner, err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 			}
+			testRunnerChannel <- testRunner
 		}()
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		signal := <-c
 		log.Infof("os signal:%d received, closing..", signal)
 
-		err := testmanagerd.CloseXCUITestRunner()
+		testRunner := <-testRunnerChannel
+		err := testRunner.Close()
 		if err != nil {
 			log.Error("Failed closing wda-testrunner")
 			os.Exit(1)

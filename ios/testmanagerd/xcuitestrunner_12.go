@@ -14,22 +14,22 @@ import (
 
 func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, testRunnerBundleID string, xctestConfigFileName string,
 	device ios.DeviceEntry, args []string, env []string,
-) error {
+) (*TestRunner, error) {
 	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
 
 	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer conn2.Close()
 	log.Debug("connections ready")
@@ -37,7 +37,7 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 	caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.Debug(caps)
 	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
@@ -48,22 +48,23 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 
 	caps2, err := ideDaemonProxy2.daemonConnection.initiateSessionWithIdentifierAndCaps(testSessionId, localCaps)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.Debug(caps2)
 	pControl, err := instruments.NewProcessControl(device)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer pControl.Close()
 
 	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
 
-	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "emty"})
+	proxyDispatcher := ProxyDispatcher{id: "emty", closeChannel: make(chan interface{}), closedChannel: make(chan interface{})}
+	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(proxyDispatcher)
 
 	time.Sleep(time.Second)
 
@@ -72,32 +73,32 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 36)
 	if err != nil {
 		log.Error(err)
-		return err
+		return nil, err
 	}
 
 	if ctx != nil {
 		select {
 		case <-ctx.Done():
-			log.Infof("Killing WebDriverAgent with pid %d ...", pid)
+			log.Infof("Killing test runner with pid %d ...", pid)
 			err = pControl.KillProcess(pid)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			log.Info("WDA killed with success")
+			log.Info("Test runner killed with success")
 		}
-		return nil
+		return &TestRunner{proxyDispatcher: proxyDispatcher}, nil
 	}
 
-	<-closeChan
+	<-proxyDispatcher.closeChannel
 	log.Debugf("Killing UITest with pid %d ...", pid)
 	err = pControl.KillProcess(pid)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	log.Debugf("WDA killed with success")
+	log.Debugf("Test runner killed with success")
 	var signal interface{}
-	closedChan <- signal
-	return nil
+	proxyDispatcher.closedChannel <- signal
+	return &TestRunner{proxyDispatcher: proxyDispatcher}, nil
 }
 
 func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,

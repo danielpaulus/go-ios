@@ -178,6 +178,8 @@ type ProxyDispatcher struct {
 	testRunnerReadyWithCapabilities dtx.MethodWithResponse
 	dtxConnection                   *dtx.Connection
 	id                              string
+	closeChannel                    chan interface{}
+	closedChannel                   chan interface{}
 }
 
 func (p ProxyDispatcher) Dispatch(m dtx.Message) {
@@ -202,7 +204,10 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			p.dtxConnection.Send(messageBytes)
 		case "_XCT_didFinishExecutingTestPlan":
 			log.Info("_XCT_didFinishExecutingTestPlan received. Closing test.")
-			CloseXCUITestRunner()
+			p.DispatchClose()
+		case "_XCT_didFailToBootstrapWithError:":
+			log.Info("_XCT_didFailToBootstrapWithError received. Closing test.")
+			p.DispatchClose()
 		default:
 			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")
 		}
@@ -213,10 +218,24 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 	log.Tracef("dispatcher received: %s", m.String())
 }
 
+func (p *ProxyDispatcher) DispatchClose() error {
+	var signal interface{}
+	go func() {
+		p.closeChannel <- signal
+		log.Debug("DIEGO")
+	}()
+	select {
+	case <-p.closedChannel:
+		return nil
+	case <-time.After(10 * time.Second):
+		return fmt.Errorf("Failed closing, exiting due to timeout")
+	}
+}
+
 func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
-	proxyDispatcher := ProxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection, testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig)}
+	proxyDispatcher := ProxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection, testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig), closeChannel: make(chan interface{}, 1), closedChannel: make(chan interface{}, 1)}
 	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, proxyDispatcher)
 	ideInterface := XCTestManager_IDEInterface{IDEDaemonProxy: IDEDaemonProxy, testConfig: testConfig, testBundleReadyChannel: testBundleReadyChannel}
 
@@ -263,13 +282,17 @@ func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName st
 		xctestConfigName = info.targetAppBundleName + "UITests.xctest"
 	}
 
-	return RunXCUIWithBundleIdsCtx(nil, bundleID, testRunnerBundleID, xctestConfigName, device, nil, env)
+	_, err = RunXCUIWithBundleIdsCtx(nil, bundleID, testRunnerBundleID, xctestConfigName, device, nil, env)
+	return err
 }
 
-var (
-	closeChan  = make(chan interface{})
-	closedChan = make(chan interface{})
-)
+type TestRunner struct {
+	proxyDispatcher ProxyDispatcher
+}
+
+func (t *TestRunner) Close() error {
+	return t.proxyDispatcher.DispatchClose()
+}
 
 func RunXCUIWithBundleIdsCtx(
 	ctx context.Context,
@@ -279,10 +302,10 @@ func RunXCUIWithBundleIdsCtx(
 	device ios.DeviceEntry,
 	wdaargs []string,
 	wdaenv []string,
-) error {
+) (*TestRunner, error) {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if version.LessThan(ios.IOS14()) {
@@ -296,46 +319,36 @@ func RunXCUIWithBundleIdsCtx(
 	}
 
 	log.Debugf("iOS version: %s detected, running with ios17 support", version)
-	return runXUITestWithBundleIdsXcode15Ctx(bundleID, testRunnerBundleID, xctestConfigFileName, device)
-}
-
-func CloseXCUITestRunner() error {
-	var signal interface{}
-	go func() { closeChan <- signal }()
-	select {
-	case <-closedChan:
-		return nil
-	case <-time.After(5 * time.Second):
-		return fmt.Errorf("Failed closing, exiting due to timeout")
-	}
+	return runXUITestWithBundleIdsXcode15Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device)
 }
 
 func runXUITestWithBundleIdsXcode15Ctx(
+	ctx context.Context,
 	bundleID string,
 	testRunnerBundleID string,
 	xctestConfigFileName string,
 	device ios.DeviceEntry,
-) error {
+) (*TestRunner, error) {
 	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer conn1.Close()
 
 	conn2, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer conn2.Close()
 
 	installationProxy, err := installationproxy.New(device)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer installationProxy.Close()
 	apps, err := installationProxy.BrowseUserApps()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
@@ -348,17 +361,17 @@ func runXUITestWithBundleIdsXcode15Ctx(
 
 	proto, err := ideDaemonProxy1.daemonConnection.initiateSessionWithIdentifier(testSessionID, 29)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.WithField("proto", proto).Info("got capabilities")
 
 	appserviceConn, err := appservice.New(device)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer appserviceConn.Close()
 
-	pid, err := startTestRunner17(device, appserviceConn, "", testRunnerBundleID, strings.ToUpper(testSessionID.String()), info.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, []string{}, []string{})
+	pid, err := startTestRunner17(device, appserviceConn, "", testRunnerBundleID, strings.ToUpper(testSessionID.String()), info.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName)
 
 	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
 		"XCTIssue capability":                      uint64(1),
@@ -376,37 +389,61 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testconfig)
 	caps, err := ideDaemonProxy1.daemonConnection.initiateControlSessionWithCapabilities(localCaps)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.WithField("caps", caps).Info("got capabilities")
 	authorized, err := ideDaemonProxy2.daemonConnection.authorizeTestSessionWithProcessID(pid)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.WithField("authorized", authorized).Info("authorized")
 
 	err = ideDaemonProxy2.daemonConnection.initiateControlSession(pid, proto)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.Debug("control session initiated")
 
-	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface"})
+	proxyDispatcher := ProxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface", closeChannel: make(chan interface{}, 1), closedChannel: make(chan interface{}, 1)}
+	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(proxyDispatcher)
 
 	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, proto)
 
-	time.Sleep(60 * time.Second)
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			log.Infof("Killing test runner with pid %d ...", pid)
+			err = appserviceConn.KillProcess(int(pid))
+			if err != nil {
+				return nil, err
+			}
+			log.Info("Test runner killed with success")
+		}
+		return &TestRunner{proxyDispatcher: proxyDispatcher}, nil
+	}
 
-	return nil
+	<-proxyDispatcher.closeChannel
+	log.Debugf("Killing test runner with pid %d ...", pid)
+	err = appserviceConn.KillProcess(int(pid))
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("Test runner killed with success")
+	var signal interface{}
+	proxyDispatcher.closedChannel <- signal
+
+	return &TestRunner{proxyDispatcher: proxyDispatcher}, nil
 }
 
-func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connection, xctestConfigPath string, bundleID string,
-	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv []string,
+func startTestRunner17(
+	device ios.DeviceEntry,
+	appserviceConn *appservice.Connection,
+	xctestConfigPath string,
+	bundleID string,
+	sessionIdentifier string,
+	testBundlePath string,
 ) (uint64, error) {
 	args := []interface{}{}
-	for _, arg := range wdaargs {
-		args = append(args, arg)
-	}
 
 	env := map[string]interface{}{
 		"CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0",
@@ -423,14 +460,6 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 		"XCTestConfigurationFilePath":     "",
 		"XCTestManagerVariant":            "DDI",
 		"XCTestSessionIdentifier":         strings.ToUpper(sessionIdentifier),
-	}
-
-	for _, entrystring := range wdaenv {
-		entry := strings.Split(entrystring, "=")
-		key := entry[0]
-		value := entry[1]
-		env[key] = value
-		log.Debugf("adding extra env %s=%s", key, value)
 	}
 
 	opts := map[string]interface{}{

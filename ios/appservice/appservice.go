@@ -151,8 +151,6 @@ func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{},
 		panic(err)
 	}
 
-	env["TERM"] = "xterm-256color"
-
 	return buildRequest(deviceId, "com.apple.coredevice.feature.launchapplication", map[string]interface{}{
 		"applicationSpecifier": map[string]interface{}{
 			"bundleIdentifier": map[string]interface{}{
