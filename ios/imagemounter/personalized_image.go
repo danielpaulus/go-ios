@@ -15,14 +15,14 @@ type buildManifest struct {
 func loadBuildManifest(p string) (buildManifest, error) {
 	f, err := os.Open(p)
 	if err != nil {
-		return buildManifest{}, err
+		return buildManifest{}, fmt.Errorf("loadBuildManifest: faild to open manifest file: %w", err)
 	}
 	defer f.Close()
 	dec := plist.NewDecoder(f)
 	var m buildManifest
 	err = dec.Decode(&m)
 	if err != nil {
-		return buildManifest{}, err
+		return buildManifest{}, fmt.Errorf("loadBuildManifest: could not decode manifest file: %w", err)
 	}
 	return m, nil
 }
@@ -33,7 +33,7 @@ func (m buildManifest) findIdentity(identifiers personalizationIdentifiers) (bui
 			return i, nil
 		}
 	}
-	return buildIdentity{}, fmt.Errorf("failed to find identity for ApBoardId 0x%x and ApChipId 0x%x", identifiers.BoardId, identifiers.ChipID)
+	return buildIdentity{}, fmt.Errorf("findIdentity: failed to find identity for ApBoardId 0x%x and ApChipId 0x%x", identifiers.BoardId, identifiers.ChipID)
 }
 
 type buildIdentity struct {
