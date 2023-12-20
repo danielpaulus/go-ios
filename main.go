@@ -1121,7 +1121,7 @@ func outputPrettyStateList(types []instruments.ProfileType) {
 }
 
 func listMountedImages(device ios.DeviceEntry) {
-	conn, err := imagemounter.New(device)
+	conn, err := imagemounter.NewImageMounter(device)
 	exitIfError("failed connecting to image mounter", err)
 	signatures, err := conn.ListImages()
 	exitIfError("failed getting image list", err)

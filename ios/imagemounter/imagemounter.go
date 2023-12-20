@@ -29,17 +29,6 @@ type ImageMounter interface {
 	io.Closer
 }
 
-// New returns a new mobile image mounter developerDiskImageMounter for the given DeviceID and Udid
-//
-// Deprecated: use NewDeveloperDiskImageMounter
-func New(device ios.DeviceEntry) (*DeveloperDiskImageMounter, error) {
-	version, err := ios.GetProductVersion(device)
-	if err != nil {
-		return nil, err
-	}
-	return NewDeveloperDiskImageMounter(device, version)
-}
-
 // NewDeveloperDiskImageMounter returns a new mobile image mounter DeveloperDiskImageMounter for the given device
 func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Version) (*DeveloperDiskImageMounter, error) {
 	deviceConn, err := ios.ConnectToService(device, serviceName)
