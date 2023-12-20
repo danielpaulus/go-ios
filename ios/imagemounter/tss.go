@@ -62,7 +62,7 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 	enc := plist.NewEncoderForFormat(buf, plist.XMLFormat)
 	err := enc.Encode(params)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getSignature: failed to encode request body: %w", err)
 	}
 	h := http.Client{}
 	req, err := http.NewRequest("POST", "https://gs.apple.com/TSS/controller?action=2", buf)
@@ -71,13 +71,13 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 	}
 	res, err := h.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getSignature: failed to send request: %w", err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusOK {
 		resp, err := parseResponse(res.Body)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("getSignature: failed to parse response: %w", err)
 		}
 		if resp.status != 0 {
 			return nil, fmt.Errorf("unexpected status in response %d", resp.status)
@@ -85,15 +85,15 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 		var ticket map[string]interface{}
 		_, err = plist.Unmarshal([]byte(resp.requestString), &ticket)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("getSignature: failed to decode plist data: %w", err)
 		}
 		if ticket, ok := ticket["ApImg4Ticket"].([]byte); ok {
 			return ticket, nil
 		} else {
-			return nil, fmt.Errorf("could not get 'ApImg4Ticket' value from response")
+			return nil, fmt.Errorf("getSignature: could not get 'ApImg4Ticket' value from response")
 		}
 	}
-	return nil, fmt.Errorf("unexpected response status %d", res.StatusCode)
+	return nil, fmt.Errorf("getSignature: unexpected response status %d", res.StatusCode)
 }
 
 type response struct {
@@ -105,7 +105,7 @@ type response struct {
 func parseResponse(r io.Reader) (response, error) {
 	b, err := io.ReadAll(r)
 	if err != nil {
-		return response{}, fmt.Errorf("could not read content. %w", err)
+		return response{}, fmt.Errorf("parseResponse: could not read content. %w", err)
 	}
 	s := string(b)
 	end := func(s string) int {
@@ -127,7 +127,7 @@ func parseResponse(r io.Reader) (response, error) {
 		status = status[:statusEnd]
 		stat, err := strconv.ParseInt(status, 10, 64)
 		if err != nil {
-			return response{}, fmt.Errorf("could not parse status '%s'. %w", status, err)
+			return response{}, fmt.Errorf("parseResponse: could not parse status '%s'. %w", status, err)
 		}
 		res.status = int(stat)
 	}
