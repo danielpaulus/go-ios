@@ -14,88 +14,62 @@ import (
 
 const serviceName string = "com.apple.mobile.mobile_image_mounter"
 
-// Connection to mobile image mounter
-type Connection struct {
+// DeveloperDiskImageMounter to mobile image mounter
+type DeveloperDiskImageMounter struct {
 	deviceConn ios.DeviceConnectionInterface
 	plistCodec ios.PlistCodec
 	version    *semver.Version
+	plistRw    ios.PlistCodecReadWriter
 }
 
-// New returns a new mobile image mounter Connection for the given DeviceID and Udid
-func New(device ios.DeviceEntry) (*Connection, error) {
-	version, err := ios.GetProductVersion(device)
+// ImageMounter mounts developer disk images to an iOS device, and give a list of already mounted images
+type ImageMounter interface {
+	ListImages() ([][]byte, error)
+	MountImage(imagePath string) error
+	io.Closer
+}
+
+// NewDeveloperDiskImageMounter returns a new mobile image mounter DeveloperDiskImageMounter for the given device
+func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Version) (*DeveloperDiskImageMounter, error) {
+	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
-	deviceConn, err := ios.ConnectToService(device, serviceName)
-	if err != nil {
-		return &Connection{}, err
-	}
-	return &Connection{
+	return &DeveloperDiskImageMounter{
 		deviceConn: deviceConn,
 		plistCodec: ios.NewPlistCodec(),
 		version:    version,
+		plistRw:    ios.NewPlistCodecReadWriter(deviceConn.Reader(), deviceConn.Writer()),
 	}, nil
 }
 
+// NewImageMounter creates a new ImageMounter depending on the version of the given device.
+// For iOS 17+ devices a PersonalizedDeveloperDiskImageMounter is created, and for all other devices
+// a DeveloperDiskImageMounter gets created
+func NewImageMounter(device ios.DeviceEntry) (ImageMounter, error) {
+	version, err := ios.GetProductVersion(device)
+	if err != nil {
+		return nil, fmt.Errorf("NewImageMounter: failed to get device version. %w", err)
+	}
+	if version.Major() < 17 {
+		return NewDeveloperDiskImageMounter(device, version)
+	} else {
+		return NewPersonalizedDeveloperDiskImageMounter(device, version)
+	}
+}
+
 // ListImages returns a list with signatures of installed developer images
-func (conn *Connection) ListImages() ([][]byte, error) {
-	req := map[string]interface{}{
-		"Command":   "LookupImage",
-		"ImageType": "Developer",
-	}
-	bytes, err := conn.plistCodec.Encode(req)
-	if err != nil {
-		return nil, err
-	}
-
-	err = conn.deviceConn.Send(bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	bytes, err = conn.plistCodec.Decode(conn.deviceConn.Reader())
-
-	resp, err := ios.ParsePlist(bytes)
-	if err != nil {
-		return nil, err
-	}
-	deviceError, ok := resp["Error"]
-	if ok {
-		return nil, fmt.Errorf("device error: %v", deviceError)
-	}
-
-	signatures, ok := resp["ImageSignature"]
-	if !ok {
-		if conn.version.LessThan(ios.IOS14()) {
-			return [][]byte{}, nil
-		}
-		return nil, fmt.Errorf("invalid response: %+v", resp)
-	}
-
-	array, ok := signatures.([]interface{})
-	result := make([][]byte, len(array))
-	for i, intf := range array {
-		bytes, ok := intf.([]byte)
-		if !ok {
-			return nil, fmt.Errorf("could not convert %+v to byte slice", intf)
-		}
-		result[i] = bytes
-	}
-	return result, nil
+func (conn *DeveloperDiskImageMounter) ListImages() ([][]byte, error) {
+	return listImages(conn.plistRw, "Developer", conn.version)
 }
 
 // MountImage installs a .dmg image from imagePath after checking that it is present and valid.
-func (conn *Connection) MountImage(imagePath string) error {
+func (conn *DeveloperDiskImageMounter) MountImage(imagePath string) error {
 	signatureBytes, imageSize, err := validatePathAndLoadSignature(imagePath)
 	if err != nil {
 		return err
 	}
-	err = conn.sendUploadRequest(signatureBytes, uint64(imageSize))
-	if err != nil {
-		return err
-	}
-	err = conn.checkUploadResponse()
+	err = sendUploadRequest(conn.plistRw, "Developer", signatureBytes, uint64(imageSize))
 	if err != nil {
 		return err
 	}
@@ -109,7 +83,7 @@ func (conn *Connection) MountImage(imagePath string) error {
 	if err != nil {
 		return err
 	}
-	err = conn.waitForUploadComplete()
+	err = waitForUploadComplete(conn.plistRw)
 	if err != nil {
 		return err
 	}
@@ -118,22 +92,17 @@ func (conn *Connection) MountImage(imagePath string) error {
 		return err
 	}
 
-	return conn.hangUp()
+	return hangUp(conn.plistRw)
 }
 
-func (conn *Connection) mountImage(signatureBytes []byte) error {
+func (conn *DeveloperDiskImageMounter) mountImage(signatureBytes []byte) error {
 	req := map[string]interface{}{
 		"Command":        "MountImage",
 		"ImageSignature": signatureBytes,
 		"ImageType":      "Developer",
 	}
 	log.Debugf("sending: %+v", req)
-	bytes, err := conn.plistCodec.Encode(req)
-	if err != nil {
-		return err
-	}
-
-	err = conn.deviceConn.Send(bytes)
+	err := conn.plistRw.Write(req)
 	if err != nil {
 		return err
 	}
@@ -173,47 +142,16 @@ func validatePathAndLoadSignature(imagePath string) ([]byte, int64, error) {
 }
 
 // Close closes the underlying UsbMuxConnection
-func (conn *Connection) Close() {
-	conn.deviceConn.Close()
+func (conn *DeveloperDiskImageMounter) Close() error {
+	return conn.deviceConn.Close()
 }
 
-func (conn *Connection) sendUploadRequest(signatureBytes []byte, fileSize uint64) error {
-	req := map[string]interface{}{
-		"Command":        "ReceiveBytes",
-		"ImageSignature": signatureBytes,
-		"ImageSize":      fileSize,
-		"ImageType":      "Developer",
-	}
-	log.Debugf("sending: %+v", req)
-	bytes, err := conn.plistCodec.Encode(req)
+func waitForUploadComplete(plistRw ios.PlistCodecReadWriter) error {
+	var plist map[string]interface{}
+	err := plistRw.Read(&plist)
 	if err != nil {
 		return err
 	}
-
-	err = conn.deviceConn.Send(bytes)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (conn *Connection) checkUploadResponse() error {
-	msg, _ := conn.plistCodec.Decode(conn.deviceConn.Reader())
-	plist, _ := ios.ParsePlist(msg)
-	log.Debugf("upload response: %+v", plist)
-	status, ok := plist["Status"]
-	if !ok {
-		return fmt.Errorf("unexpected response: %+v", plist)
-	}
-	if "ReceiveBytesAck" != status {
-		return fmt.Errorf("unexpected response: %+v", plist)
-	}
-	return nil
-}
-
-func (conn *Connection) waitForUploadComplete() error {
-	msg, _ := conn.plistCodec.Decode(conn.deviceConn.Reader())
-	plist, _ := ios.ParsePlist(msg)
 	log.Debugf("received complete: %+v", plist)
 	status, ok := plist["Status"]
 	if !ok {
@@ -225,28 +163,20 @@ func (conn *Connection) waitForUploadComplete() error {
 	return nil
 }
 
-func (conn *Connection) hangUp() error {
+func hangUp(plistRw ios.PlistCodecReadWriter) error {
 	req := map[string]interface{}{
 		"Command": "Hangup",
 	}
 	log.Debugf("sending: %+v", req)
-	bytes, err := conn.plistCodec.Encode(req)
-	if err != nil {
-		return err
-	}
-
-	err = conn.deviceConn.Send(bytes)
-	if err != nil {
-		return err
-	}
-	return nil
+	return plistRw.Write(req)
 }
 
 func MountImage(device ios.DeviceEntry, path string) error {
-	conn, err := New(device)
+	conn, err := NewImageMounter(device)
 	if err != nil {
 		return fmt.Errorf("failed connecting to image mounter: %v", err)
 	}
+	defer conn.Close()
 
 	signatures, err := conn.ListImages()
 	if err != nil {
@@ -257,4 +187,72 @@ func MountImage(device ios.DeviceEntry, path string) error {
 		return nil
 	}
 	return conn.MountImage(path)
+}
+
+func listImages(prw ios.PlistCodecReadWriter, imageType string, v *semver.Version) ([][]byte, error) {
+	err := prw.Write(map[string]interface{}{
+		"Command":   "LookupImage",
+		"ImageType": imageType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listImages: failed to write command 'LookupImage': %w", err)
+	}
+
+	var resp map[string]interface{}
+	err = prw.Read(&resp)
+	if err != nil {
+		return nil, fmt.Errorf("listImages: failed to read response for 'LookupImage': %w", err)
+	}
+	deviceError, ok := resp["Error"]
+	if ok {
+		return nil, fmt.Errorf("listImages: device responded with error: %v", deviceError)
+	}
+
+	signatures, ok := resp["ImageSignature"]
+	if !ok {
+		if v.LessThan(ios.IOS14()) {
+			return [][]byte{}, nil
+		}
+		return nil, fmt.Errorf("listImages: invalid response: %+v", resp)
+	}
+
+	array, ok := signatures.([]interface{})
+	result := make([][]byte, len(array))
+	for i, intf := range array {
+		bytes, ok := intf.([]byte)
+		if !ok {
+			return nil, fmt.Errorf("listImages: could not convert %+v to byte slice", intf)
+		}
+		result[i] = bytes
+	}
+	return result, nil
+}
+
+func sendUploadRequest(plistRw ios.PlistCodecReadWriter, imageType string, signatureBytes []byte, fileSize uint64) error {
+	req := map[string]interface{}{
+		"Command":        "ReceiveBytes",
+		"ImageSignature": signatureBytes,
+		"ImageSize":      fileSize,
+		"ImageType":      imageType,
+	}
+	log.Debugf("sending: %+v", req)
+	err := plistRw.Write(req)
+	if err != nil {
+		return fmt.Errorf("sendUploadRequest: failed to write command 'ReceiveBytes': %w", err)
+	}
+
+	var plist map[string]interface{}
+	err = plistRw.Read(&plist)
+	if err != nil {
+		return fmt.Errorf("sendUploadRequest: failed to read response for 'ReceiveBytes': %w", err)
+	}
+	log.Debugf("upload response: %+v", plist)
+	status, ok := plist["Status"]
+	if !ok {
+		return fmt.Errorf("sendUploadRequest: unexpected response: %+v", plist)
+	}
+	if "ReceiveBytesAck" != status {
+		return fmt.Errorf("sendUploadRequest: unexpected status: %+v", plist)
+	}
+	return nil
 }

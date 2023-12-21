@@ -142,6 +142,7 @@ The commands work as following:
    ios info [options]                                                 Prints a dump of Lockdown getValues.
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
+   >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk 
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
@@ -1120,7 +1121,7 @@ func outputPrettyStateList(types []instruments.ProfileType) {
 }
 
 func listMountedImages(device ios.DeviceEntry) {
-	conn, err := imagemounter.New(device)
+	conn, err := imagemounter.NewImageMounter(device)
 	exitIfError("failed connecting to image mounter", err)
 	signatures, err := conn.ListImages()
 	exitIfError("failed getting image list", err)
