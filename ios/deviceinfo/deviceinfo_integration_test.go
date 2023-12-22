@@ -1,3 +1,5 @@
+//go:build !fast
+
 package deviceinfo
 
 import (
