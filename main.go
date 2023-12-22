@@ -1101,7 +1101,7 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 
-		testRunnerChannel := make(chan context.CancelFunc)
+		testRunnerChannel := make(chan context.CancelFunc, 1)
 		go func() {
 			ctx, cancel := context.WithCancel(context.Background())
 			testRunnerChannel <- cancel
