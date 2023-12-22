@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -109,7 +110,7 @@ Usage:
   ios apps [--system] [--all] [--list] [--filesharing] [options]
   ios launch <bundleID> [--wait] [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
-  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--env=<e>]... [options]
+  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--raw-testlog] [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [options]
   ios debug [options] [--stop-at-entry] <app_path>
@@ -210,7 +211,7 @@ The commands work as following:
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
    ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
-   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
+   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--raw-testlog] [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [options]                                                   Access accessibility inspector features.
@@ -874,12 +875,23 @@ The commands work as following:
 		bundleID, _ := arguments.String("--bundle-id")
 		testRunnerBundleId, _ := arguments.String("--test-runner-bundle-id")
 		xctestConfig, _ := arguments.String("--xctest-config")
-
+		rawTestlog, rawTestlogErr := arguments.Bool("--raw-testlog")
 		env := arguments["--env"].([]string)
-		err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env)
-		if err != nil {
-			log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
+
+		if rawTestlogErr == nil && rawTestlog {
+			var writer io.Writer = os.Stdout
+			var listener testmanagerd.TestListener = testmanagerd.TestLogCollector{Writer: &writer}
+			err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, &listener)
+			if err != nil {
+				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
+			}
+		} else {
+			err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, nil)
+			if err != nil {
+				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
+			}
 		}
+
 		return
 	}
 
@@ -1089,25 +1101,24 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 
-		testRunnerChannel := make(chan *testmanagerd.TestRunner)
+		testRunnerChannel := make(chan context.CancelFunc)
 		go func() {
-			testRunner, err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
+			ctx, cancel := context.WithCancel(context.Background())
+			testRunnerChannel <- cancel
+
+			err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 			}
-			testRunnerChannel <- testRunner
+
 		}()
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		signal := <-c
 		log.Infof("os signal:%d received, closing..", signal)
 
-		testRunner := <-testRunnerChannel
-		err := testRunner.Close()
-		if err != nil {
-			log.Error("Failed closing wda-testrunner")
-			os.Exit(1)
-		}
+		cancel := <-testRunnerChannel
+		cancel()
 		log.Info("Done Closing")
 	}
 	return b
