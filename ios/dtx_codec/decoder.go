@@ -190,8 +190,6 @@ func DecodeNonBlocking(messageBytes []byte) (Message, []byte, error) {
 	result.RawBytes = messageBytes[:totalMessageLength]
 
 	if result.HasPayload() {
-		log.Printf("BYTESSSSSSSSS: %s", result.RawBytes)
-
 		payload, err := result.parsePayloadBytes(result.RawBytes)
 		if err != nil {
 			return Message{}, make([]byte, 0), err
