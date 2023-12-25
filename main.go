@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/danielpaulus/go-ios/ios/amfi"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
 	"github.com/danielpaulus/go-ios/ios/afc"
@@ -122,6 +124,7 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
+  ios dev-mode (enable | get) [--enable-post-restart] [options]
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -221,6 +224,7 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
+   ios dev-mode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -900,6 +904,23 @@ The commands work as following:
 	b, _ = arguments.Bool("batterycheck")
 	if b {
 		printBatteryDiagnostics(device)
+		return
+	}
+
+	b, _ = arguments.Bool("dev-mode")
+	if b {
+		enable, _ := arguments.Bool("enable")
+		get, _ := arguments.Bool("get")
+		enablePostRestart, _ := arguments.Bool("--enable-post-restart")
+		if enable {
+			enableDevMode(device, enablePostRestart)
+		}
+
+		if get {
+			devModeEnabled, _ := imagemounter.QueryDevModeStatus(device)
+			fmt.Printf("Developer mode enabled: %v\n", devModeEnabled)
+		}
+
 		return
 	}
 }
@@ -1840,4 +1861,56 @@ func exitIfError(msg string, err error) {
 	if err != nil {
 		log.WithFields(log.Fields{"err": err}).Fatalf(msg)
 	}
+}
+
+func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
+	devModeEnabled, err := imagemounter.QueryDevModeStatus(device)
+	exitIfError("Failed checking developer mode status", err)
+	if devModeEnabled {
+		log.Info("Developer mode is already enabled for the device")
+		return
+	}
+
+	conn, err := amfi.New(device)
+	exitIfError("Failed connecting to amfi service", err)
+	err = conn.EnableDevMode()
+	exitIfError("Failed enabling developer mode", err)
+
+	// Try to also enable dev mode after the device reboots - skip the system popup to agree manually
+	if enablePostRestart {
+		log.Infof("Waiting for device `%s` to reboot after enabling developer mode", device.Properties.SerialNumber)
+		// We need to reinit the device after the reboot
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		// Create a channel to signal and stop waiting for device to be available after 60 seconds
+		done := make(chan bool)
+		go func() {
+			time.Sleep(60 * time.Second)
+			done <- true
+		}()
+
+		// Loop trying to reinit the device
+	WaitLoop:
+		for {
+			select {
+			case <-ticker.C:
+				device, err = ios.GetDevice(device.Properties.SerialNumber)
+				if err != nil {
+					log.Info("Device is not yet available")
+					continue WaitLoop
+				}
+				break WaitLoop
+			case <-done:
+				ticker.Stop()
+				exitIfError("Device was not rebooted in 60 seconds", errors.New(""))
+			}
+		}
+
+		conn, err = amfi.New(device)
+		exitIfError("Failed connecting to amfi service post restart", err)
+		err = conn.EnableDevModePostRestart()
+		exitIfError("Failed enabling developer mode post restart, you need to finish the set up manually through the popup on the device", err)
+	}
+	log.Infof("Successfully enabled developer mode on device `%s`", device.Properties.SerialNumber)
 }

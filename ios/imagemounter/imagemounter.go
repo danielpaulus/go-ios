@@ -256,3 +256,41 @@ func sendUploadRequest(plistRw ios.PlistCodecReadWriter, imageType string, signa
 	}
 	return nil
 }
+
+func QueryDevModeStatus(device ios.DeviceEntry) (bool, error) {
+	conn, err := ios.ConnectToService(device, serviceName)
+	if err != nil {
+		return false, err
+	}
+
+	reader := conn.Reader()
+	request := map[string]interface{}{"Command": "QueryDeveloperModeStatus"}
+
+	plistCodec := ios.NewPlistCodec()
+
+	bytes, err := plistCodec.Encode(request)
+	if err != nil {
+		return false, err
+	}
+
+	err = conn.Send(bytes)
+	if err != nil {
+		return false, err
+	}
+
+	responseBytes, err := plistCodec.Decode(reader)
+	if err != nil {
+		return false, err
+	}
+
+	plist, err := ios.ParsePlist(responseBytes)
+	if err != nil {
+		return false, err
+	}
+
+	if val, ok := plist["DeveloperModeStatus"]; ok {
+		return val.(bool), nil
+	}
+
+	return false, nil
+}
