@@ -917,7 +917,7 @@ The commands work as following:
 		}
 
 		if get {
-			devModeEnabled, _ := imagemounter.QueryDevModeStatus(device)
+			devModeEnabled, _ := imagemounter.IsDevModeEnabled(device)
 			fmt.Printf("Developer mode enabled: %v\n", devModeEnabled)
 		}
 
@@ -1864,7 +1864,7 @@ func exitIfError(msg string, err error) {
 }
 
 func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
-	devModeEnabled, err := imagemounter.QueryDevModeStatus(device)
+	devModeEnabled, err := imagemounter.IsDevModeEnabled(device)
 	exitIfError("Failed checking developer mode status", err)
 	if devModeEnabled {
 		log.Info("Developer mode is already enabled for the device")
@@ -1909,6 +1909,7 @@ func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
 
 		conn, err = amfi.New(device)
 		exitIfError("Failed connecting to amfi service post restart", err)
+		defer conn.Close()
 		err = conn.EnableDevModePostRestart()
 		exitIfError("Failed enabling developer mode post restart, you need to finish the set up manually through the popup on the device", err)
 	}

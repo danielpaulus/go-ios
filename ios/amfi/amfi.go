@@ -30,6 +30,7 @@ func (devModeConn *Connection) Close() error {
 	return devModeConn.deviceConn.Close()
 }
 
+// Enable developer mode on a device, e.g. after content reset
 func (devModeConn *Connection) EnableDevMode() error {
 	reader := devModeConn.deviceConn.Reader()
 
@@ -37,36 +38,38 @@ func (devModeConn *Connection) EnableDevMode() error {
 
 	bytes, err := devModeConn.plistCodec.Encode(request)
 	if err != nil {
-		return err
+		return fmt.Errorf("EnableDevMode: failed encoding request to service with err: %w", err)
 	}
 
 	err = devModeConn.deviceConn.Send(bytes)
 	if err != nil {
-		return err
+		return fmt.Errorf("EnableDevMode: failed sending request bytes to service with err: %w", err)
 	}
 
 	responseBytes, err := devModeConn.plistCodec.Decode(reader)
 	if err != nil {
-		return err
+		return fmt.Errorf("EnableDevMode: failed decoding response from service with err: %w", err)
 	}
 
 	plist, err := ios.ParsePlist(responseBytes)
 	if err != nil {
-		return err
+		return fmt.Errorf("EnableDevMode: failed parsing response plist with err: %w", err)
 	}
 
 	// Check if we have an error returned by the service
 	if _, ok := plist["Error"]; ok {
-		return fmt.Errorf("amfi could not enable developer mode")
+		return fmt.Errorf("EnableDevMode: could not enable developer mode through amfi service")
 	}
 
 	if _, ok := plist["success"]; ok {
 		return nil
 	}
 
-	return fmt.Errorf("amfi could not enable developer mode but no error or success was reported")
+	return fmt.Errorf("EnableDevMode: could not enable developer mode through amfi service but no error or success was reported")
 }
 
+// When you enable developer mode and device is rebooted, you get a popup on the device to finish enabling developer mode
+// This function "accepts" that popup
 func (devModeConn *Connection) EnableDevModePostRestart() error {
 	reader := devModeConn.deviceConn.Reader()
 
@@ -74,27 +77,27 @@ func (devModeConn *Connection) EnableDevModePostRestart() error {
 
 	bytes, err := devModeConn.plistCodec.Encode(request)
 	if err != nil {
-		return err
+		return fmt.Errorf("EnableDevModePostRestart: failed encoding request to service with err: %w", err)
 	}
 
 	err = devModeConn.deviceConn.Send(bytes)
 	if err != nil {
-		return err
+		return fmt.Errorf("EnableDevModePostRestart: failed sending request bytes to service with err: %w", err)
 	}
 
 	responseBytes, err := devModeConn.plistCodec.Decode(reader)
 	if err != nil {
-		return err
+		return fmt.Errorf("EnableDevModePostRestart: failed decoding response from service with err: %w", err)
 	}
 
 	plist, err := ios.ParsePlist(responseBytes)
 	if err != nil {
-		return err
+		return fmt.Errorf("EnableDevModePostRestart: failed parsing response plist with err: %w", err)
 	}
 
 	if _, ok := plist["success"]; ok {
 		return nil
 	}
 
-	return fmt.Errorf("amfi could not enable developer mode post restart")
+	return fmt.Errorf("EnableDevModePostRestart: could not enable developer mode post restart through amfi service")
 }
