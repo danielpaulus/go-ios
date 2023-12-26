@@ -1864,6 +1864,7 @@ func exitIfError(msg string, err error) {
 }
 
 func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
+	// Don't try to enable if it already is
 	devModeEnabled, err := imagemounter.IsDevModeEnabled(device)
 	exitIfError("Failed checking developer mode status", err)
 	if devModeEnabled {
@@ -1871,45 +1872,46 @@ func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
 		return
 	}
 
+	// Perform the first step of developer mode enablement and wait for the device to restart
 	conn, err := amfi.New(device)
 	exitIfError("Failed connecting to amfi service", err)
 	err = conn.EnableDevMode()
 	exitIfError("Failed enabling developer mode", err)
-	log.Infof("Successfully enabled developer mode on device `%s`, device will reboot", device.Properties.SerialNumber)
+	log.Infof("Successfully enabled developer mode on device `%s`, device will restart", device.Properties.SerialNumber)
 
-	// Try to also enable dev mode after the device reboots - skip the system popup to agree manually
-	if enablePostRestart {
-		udid := device.Properties.SerialNumber
-		log.Info("Waiting for device to reboot after enabling developer mode")
-		// We need to reinit the device after the reboot
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
+	udid := device.Properties.SerialNumber
+	log.Info("Waiting for device to restart after enabling developer mode")
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
 
-		// Create a channel to signal and stop waiting for device to be available after 60 seconds
-		done := make(chan bool)
-		go func() {
-			time.Sleep(60 * time.Second)
-			done <- true
-		}()
+	// Create a channel to signal and stop waiting for device to be available after 60 seconds
+	done := make(chan bool)
+	go func() {
+		time.Sleep(60 * time.Second)
+		done <- true
+	}()
 
-		// Loop trying to reinit the device
-	WaitLoop:
-		for {
-			select {
-			case <-ticker.C:
-				device, err = ios.GetDevice(udid)
-				if err != nil {
-					log.Info("Device is not yet available")
-					continue WaitLoop
-				}
-				break WaitLoop
-			case <-done:
-				ticker.Stop()
-				exitIfError("Device was not rebooted in 60 seconds", errors.New(""))
+	// Loop trying to reinit the device to find out if it restarted
+WaitLoop:
+	for {
+		select {
+		case <-ticker.C:
+			device, err = ios.GetDevice(udid)
+			if err != nil {
+				log.Info("Device is not yet available")
+				continue WaitLoop
 			}
+			break WaitLoop
+		case <-done:
+			ticker.Stop()
+			exitIfError("Device was not restarted in 60 seconds", errors.New(""))
 		}
+	}
+	log.Info("Device was successfully restarted after enabling developer mode")
 
-		log.Info("Device was rebooted, will attempt to enable developer mode post restart")
+	// Try to also enable dev mode after the device restarts - skips the system popup that asks you to finalize dev mode enablement
+	if enablePostRestart {
+		log.Info("Will attempt to enable developer mode post restart")
 		conn, err = amfi.New(device)
 		exitIfError("Failed connecting to amfi service post restart", err)
 		defer conn.Close()
