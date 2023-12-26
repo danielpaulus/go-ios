@@ -1867,7 +1867,7 @@ func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
 	devModeEnabled, err := imagemounter.IsDevModeEnabled(device)
 	exitIfError("Failed checking developer mode status", err)
 	if devModeEnabled {
-		log.Info("Developer mode is already enabled for the device")
+		log.Info("Developer mode is already enabled on the device")
 		return
 	}
 
@@ -1875,12 +1875,14 @@ func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
 	exitIfError("Failed connecting to amfi service", err)
 	err = conn.EnableDevMode()
 	exitIfError("Failed enabling developer mode", err)
+	log.Infof("Successfully enabled developer mode on device `%s`, device will reboot", device.Properties.SerialNumber)
 
 	// Try to also enable dev mode after the device reboots - skip the system popup to agree manually
 	if enablePostRestart {
-		log.Infof("Waiting for device `%s` to reboot after enabling developer mode", device.Properties.SerialNumber)
+		udid := device.Properties.SerialNumber
+		log.Info("Waiting for device to reboot after enabling developer mode")
 		// We need to reinit the device after the reboot
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 
 		// Create a channel to signal and stop waiting for device to be available after 60 seconds
@@ -1895,7 +1897,7 @@ func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
 		for {
 			select {
 			case <-ticker.C:
-				device, err = ios.GetDevice(device.Properties.SerialNumber)
+				device, err = ios.GetDevice(udid)
 				if err != nil {
 					log.Info("Device is not yet available")
 					continue WaitLoop
@@ -1907,11 +1909,12 @@ func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
 			}
 		}
 
+		log.Info("Device was rebooted, will attempt to enable developer mode post restart")
 		conn, err = amfi.New(device)
 		exitIfError("Failed connecting to amfi service post restart", err)
 		defer conn.Close()
 		err = conn.EnableDevModePostRestart()
 		exitIfError("Failed enabling developer mode post restart, you need to finish the set up manually through the popup on the device", err)
+		log.Info("Successfully enabled developer mode on device post restart")
 	}
-	log.Infof("Successfully enabled developer mode on device `%s`", device.Properties.SerialNumber)
 }

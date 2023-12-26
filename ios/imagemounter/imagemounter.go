@@ -290,7 +290,10 @@ func IsDevModeEnabled(device ios.DeviceEntry) (bool, error) {
 	}
 
 	if val, ok := plist["DeveloperModeStatus"]; ok {
-		return val.(bool), nil
+		if assertedVal, ok := val.(bool); ok {
+			return assertedVal, nil
+		}
+		return false, fmt.Errorf("IsDevModeEnabled: failed type assertion on DeveloperModeStatus value from service response")
 	}
 
 	return false, nil
