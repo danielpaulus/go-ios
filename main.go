@@ -124,7 +124,7 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
-  ios dev-mode (enable | get) [--enable-post-restart] [options]
+  ios devmode (enable | get) [--enable-post-restart] [options]
 
 Options:
   -v --verbose   Enable Debug Logging.
@@ -224,7 +224,7 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
-   ios dev-mode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
+   ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -907,7 +907,7 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("dev-mode")
+	b, _ = arguments.Bool("devmode")
 	if b {
 		enable, _ := arguments.Bool("enable")
 		get, _ := arguments.Bool("get")
