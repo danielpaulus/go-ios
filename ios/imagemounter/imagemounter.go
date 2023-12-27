@@ -256,3 +256,45 @@ func sendUploadRequest(plistRw ios.PlistCodecReadWriter, imageType string, signa
 	}
 	return nil
 }
+
+// Check if developer mode is enabled through the mobile_image_mounter service
+func IsDevModeEnabled(device ios.DeviceEntry) (bool, error) {
+	conn, err := ios.ConnectToService(device, serviceName)
+	if err != nil {
+		return false, fmt.Errorf("IsDevModeEnabled: failed connecting to image mounter service with err: %w", err)
+	}
+
+	reader := conn.Reader()
+	request := map[string]interface{}{"Command": "QueryDeveloperModeStatus"}
+
+	plistCodec := ios.NewPlistCodec()
+
+	bytes, err := plistCodec.Encode(request)
+	if err != nil {
+		return false, fmt.Errorf("IsDevModeEnabled: failed encoding request to service with err: %w", err)
+	}
+
+	err = conn.Send(bytes)
+	if err != nil {
+		return false, fmt.Errorf("IsDevModeEnabled: failed sending request to service with err: %w", err)
+	}
+
+	responseBytes, err := plistCodec.Decode(reader)
+	if err != nil {
+		return false, fmt.Errorf("IsDevModeEnabled: failed decoding service response with err: %w", err)
+	}
+
+	plist, err := ios.ParsePlist(responseBytes)
+	if err != nil {
+		return false, fmt.Errorf("IsDevModeEnabled: failed parsing service response with err: %w", err)
+	}
+
+	if val, ok := plist["DeveloperModeStatus"]; ok {
+		if assertedVal, ok := val.(bool); ok {
+			return assertedVal, nil
+		}
+		return false, fmt.Errorf("IsDevModeEnabled: failed type assertion on DeveloperModeStatus value from service response")
+	}
+
+	return false, nil
+}
