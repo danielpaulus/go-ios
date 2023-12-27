@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -913,7 +912,8 @@ The commands work as following:
 		get, _ := arguments.Bool("get")
 		enablePostRestart, _ := arguments.Bool("--enable-post-restart")
 		if enable {
-			enableDevMode(device, enablePostRestart)
+			err := amfi.EnableDeveloperMode(device, enablePostRestart)
+			exitIfError("Failed enabling developer mode", err)
 		}
 
 		if get {
@@ -1860,56 +1860,5 @@ func convertToJSONString(data interface{}) string {
 func exitIfError(msg string, err error) {
 	if err != nil {
 		log.WithFields(log.Fields{"err": err}).Fatalf(msg)
-	}
-}
-
-func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
-	// Don't try to enable if it already is
-	devModeEnabled, err := imagemounter.IsDevModeEnabled(device)
-	exitIfError("Failed checking developer mode status", err)
-	if devModeEnabled {
-		log.Info("Developer mode is already enabled on the device")
-		return
-	}
-
-	// Perform the first step of developer mode enablement and wait for the device to restart
-	conn, err := amfi.New(device)
-	exitIfError("Failed connecting to amfi service", err)
-	err = conn.EnableDevMode()
-	exitIfError("Failed enabling developer mode", err)
-	log.Infof("Successfully enabled developer mode on device `%s`, device will restart", device.Properties.SerialNumber)
-
-	udid := device.Properties.SerialNumber
-	log.Info("Waiting for device to restart after enabling developer mode")
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	// Loop trying to reinit the device to find out if it restarted
-WaitLoop:
-	for {
-		select {
-		case <-ticker.C:
-			device, err = ios.GetDevice(udid)
-			if err != nil {
-				log.Info("Device is not yet available")
-				continue WaitLoop
-			}
-			break WaitLoop
-		case <-time.After(60 * time.Second):
-			ticker.Stop()
-			exitIfError("Device was not restarted in 60 seconds", errors.New(""))
-		}
-	}
-	log.Info("Device was successfully restarted after enabling developer mode")
-
-	// Try to also enable dev mode after the device restarts - skips the system popup that asks you to finalize dev mode enablement
-	if enablePostRestart {
-		log.Info("Will attempt to enable developer mode post restart")
-		conn, err = amfi.New(device)
-		exitIfError("Failed connecting to amfi service post restart", err)
-		defer conn.Close()
-		err = conn.EnableDevModePostRestart()
-		exitIfError("Failed enabling developer mode post restart, you need to finish the set up manually through the popup on the device", err)
-		log.Info("Successfully enabled developer mode on device post restart")
 	}
 }
