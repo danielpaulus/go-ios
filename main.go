@@ -1884,13 +1884,6 @@ func enableDevMode(device ios.DeviceEntry, enablePostRestart bool) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
-	// Create a channel to signal and stop waiting for device to be available after 60 seconds
-	done := make(chan bool)
-	go func() {
-		time.Sleep(60 * time.Second)
-		done <- true
-	}()
-
 	// Loop trying to reinit the device to find out if it restarted
 WaitLoop:
 	for {
@@ -1902,7 +1895,7 @@ WaitLoop:
 				continue WaitLoop
 			}
 			break WaitLoop
-		case <-done:
+		case <-time.After(60 * time.Second):
 			ticker.Stop()
 			exitIfError("Device was not restarted in 60 seconds", errors.New(""))
 		}
