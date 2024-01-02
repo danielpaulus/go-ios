@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/xpc"
-	"github.com/google/uuid"
-	"howett.net/plist"
 	"io"
 	"net"
 	"path"
 	"syscall"
+
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/coredevice"
+	"github.com/danielpaulus/go-ios/ios/xpc"
+	"github.com/google/uuid"
+	"howett.net/plist"
 )
 
 type Connection struct {
@@ -150,7 +152,7 @@ func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{},
 		panic(err)
 	}
 
-	return buildRequest(deviceId, "com.apple.coredevice.feature.launchapplication", map[string]interface{}{
+	return coredevice.BuildRequest(deviceId, "com.apple.coredevice.feature.launchapplication", map[string]interface{}{
 		"applicationSpecifier": map[string]interface{}{
 			"bundleIdentifier": map[string]interface{}{
 				"_0": bundleId,
@@ -173,11 +175,11 @@ func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{},
 }
 
 func buildListProcessesPayload(deviceId string) map[string]interface{} {
-	return buildRequest(deviceId, "com.apple.coredevice.feature.listprocesses", nil)
+	return coredevice.BuildRequest(deviceId, "com.apple.coredevice.feature.listprocesses", nil)
 }
 
 func buildRebootPayload(deviceId string, style string) map[string]interface{} {
-	return buildRequest(deviceId, "com.apple.coredevice.feature.rebootdevice", map[string]interface{}{
+	return coredevice.BuildRequest(deviceId, "com.apple.coredevice.feature.rebootdevice", map[string]interface{}{
 		"rebootStyle": map[string]interface{}{
 			style: map[string]interface{}{},
 		},
@@ -185,7 +187,7 @@ func buildRebootPayload(deviceId string, style string) map[string]interface{} {
 }
 
 func buildSendSignalPayload(deviceId string, pid int, signal syscall.Signal) map[string]interface{} {
-	return buildRequest(deviceId, "com.apple.coredevice.feature.sendsignaltoprocess", map[string]interface{}{
+	return coredevice.BuildRequest(deviceId, "com.apple.coredevice.feature.sendsignaltoprocess", map[string]interface{}{
 		"process": map[string]interface{}{
 			"processIdentifier": int64(pid),
 		},
@@ -202,23 +204,6 @@ func pidFromResponse(response map[string]interface{}) (int64, error) {
 		}
 	}
 	return 0, fmt.Errorf("could not get pid from response")
-}
-
-func buildRequest(deviceId, feature string, input map[string]interface{}) map[string]interface{} {
-	u := uuid.New()
-	return map[string]interface{}{
-		"CoreDevice.CoreDeviceDDIProtocolVersion": int64(0),
-		"CoreDevice.action":                       map[string]interface{}{},
-		"CoreDevice.coreDeviceVersion": map[string]interface{}{
-			"components":              []interface{}{uint64(0x15c), uint64(0x1), uint64(0x0), uint64(0x0), uint64(0x0)},
-			"originalComponentsCount": int64(2),
-			"stringValue":             "348.1",
-		},
-		"CoreDevice.deviceIdentifier":     deviceId,
-		"CoreDevice.featureIdentifier":    feature,
-		"CoreDevice.input":                input,
-		"CoreDevice.invocationIdentifier": u.String(),
-	}
 }
 
 func getError(response map[string]interface{}) error {

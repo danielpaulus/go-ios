@@ -19,6 +19,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
 	"github.com/danielpaulus/go-ios/ios/debugproxy/utun"
+	"github.com/danielpaulus/go-ios/ios/deviceinfo"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 
 	"github.com/danielpaulus/go-ios/ios/appservice"
@@ -70,7 +71,7 @@ Usage:
   ios activate [options]
   ios listen [options]
   ios list [options] [--details]
-  ios info [options]
+  ios info [options]  
   ios image list [options]
   ios image mount [--path=<imagepath>] [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
@@ -128,6 +129,7 @@ Usage:
   ios batterycheck [options]
   ios appservice [options]
   ios start-tunnel [options]
+  ios deviceinfo [options] (display | lockdown)
 
 Options:
   -v --verbose   		    Enable Debug Logging.
@@ -149,6 +151,7 @@ The commands work as following:
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios info [options]                                                 Prints a dump of Lockdown getValues.
+   >  																  DEPRECATED: use 'ios deviceinfo lockdown'
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
@@ -234,6 +237,7 @@ The commands work as following:
    ios start-tunnel [options]                                         Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo kill -s STOP $(pgrep "^remoted")', and 'sudo kill -s CONT $(pgrep "^remoted")' to resume)
+   ios deviceinfo [options] (display | lockdown)                  	  Queries device infos
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -1007,6 +1011,24 @@ The commands work as following:
 	b, _ = arguments.Bool("start-tunnel")
 	if b {
 		startTunnel(device)
+	}
+
+	b, _ = arguments.Bool("deviceinfo")
+	if b {
+		if display, _ := arguments.Bool("display"); display {
+			deviceInfo, err := deviceinfo.NewDeviceInfo(device)
+			exitIfError("Can't connect to deviceinfo service", err)
+			defer deviceInfo.Close()
+
+			info, err := deviceInfo.GetDisplayInfo()
+			exitIfError("Can't fetch dispaly info", err)
+
+			log.WithField("display", info).Info("Got display info")
+		} else if lockdown, _ := arguments.Bool("lockdown"); lockdown {
+			printDeviceInfo(device)
+		} else {
+			log.Fatal("unknown sub-command")
+		}
 	}
 }
 
