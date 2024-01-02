@@ -22,6 +22,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/deviceinfo"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 
+	"github.com/danielpaulus/go-ios/ios/amfi"
 	"github.com/danielpaulus/go-ios/ios/appservice"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
@@ -130,6 +131,7 @@ Usage:
   ios appservice [options]
   ios start-tunnel [options]
   ios deviceinfo [options] (display | lockdown)
+  ios devmode (enable | get) [--enable-post-restart] [options]
 
 Options:
   -v --verbose   		    Enable Debug Logging.
@@ -154,6 +156,7 @@ The commands work as following:
    >  																  DEPRECATED: use 'ios deviceinfo lockdown'
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
+   >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk 
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
@@ -238,6 +241,7 @@ The commands work as following:
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo kill -s STOP $(pgrep "^remoted")', and 'sudo kill -s CONT $(pgrep "^remoted")' to resume)
    ios deviceinfo [options] (display | lockdown)                  	  Queries device infos
+   ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -1030,6 +1034,24 @@ The commands work as following:
 			log.Fatal("unknown sub-command")
 		}
 	}
+
+	b, _ = arguments.Bool("devmode")
+	if b {
+		enable, _ := arguments.Bool("enable")
+		get, _ := arguments.Bool("get")
+		enablePostRestart, _ := arguments.Bool("--enable-post-restart")
+		if enable {
+			err := amfi.EnableDeveloperMode(device, enablePostRestart)
+			exitIfError("Failed enabling developer mode", err)
+		}
+
+		if get {
+			devModeEnabled, _ := imagemounter.IsDevModeEnabled(device)
+			fmt.Printf("Developer mode enabled: %v\n", devModeEnabled)
+		}
+
+		return
+	}
 }
 
 func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
@@ -1249,7 +1271,7 @@ func outputPrettyStateList(types []instruments.ProfileType) {
 }
 
 func listMountedImages(device ios.DeviceEntry) {
-	conn, err := imagemounter.New(device)
+	conn, err := imagemounter.NewImageMounter(device)
 	exitIfError("failed connecting to image mounter", err)
 	signatures, err := conn.ListImages()
 	exitIfError("failed getting image list", err)
