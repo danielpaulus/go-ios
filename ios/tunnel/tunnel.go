@@ -61,7 +61,7 @@ func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) erro
 	}()
 
 	go func() {
-		err := forwardDataToDevice(tunnelInfo.ClientParameters.Mtu, utunIface, conn)
+		err := forwardDataToDevice(ctx, tunnelInfo.ClientParameters.Mtu, utunIface, conn)
 		if err != nil {
 			logrus.WithError(err).Error("failed to forward data to the device")
 		}
@@ -147,29 +147,39 @@ func createTlsConfig(info TunnelListener) (*tls.Config, error) {
 	return conf, nil
 }
 
-func forwardDataToDevice(mtu uint64, r io.Reader, conn quic.Connection) error {
+func forwardDataToDevice(ctx context.Context, mtu uint64, r io.Reader, conn quic.Connection) error {
 	packet := make([]byte, mtu)
 	for {
-		n, err := r.Read(packet)
-		if err != nil {
-			return fmt.Errorf("could not read packet. %w", err)
-		}
-		err = conn.SendDatagram(packet[:n])
-		if err != nil {
-			return fmt.Errorf("could not write packet. %w", err)
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			n, err := r.Read(packet)
+			if err != nil {
+				return fmt.Errorf("could not read packet. %w", err)
+			}
+			err = conn.SendDatagram(packet[:n])
+			if err != nil {
+				return fmt.Errorf("could not write packet. %w", err)
+			}
 		}
 	}
 }
 
 func forwardDataToInterface(ctx context.Context, conn quic.Connection, w io.Writer) error {
 	for {
-		b, err := conn.ReceiveDatagram(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to read datagram. %w", err)
-		}
-		_, err = w.Write(b)
-		if err != nil {
-			return fmt.Errorf("failed to forward data. %w", err)
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			b, err := conn.ReceiveDatagram(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to read datagram. %w", err)
+			}
+			_, err = w.Write(b)
+			if err != nil {
+				return fmt.Errorf("failed to forward data. %w", err)
+			}
 		}
 	}
 }
