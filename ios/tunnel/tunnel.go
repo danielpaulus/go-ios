@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -21,12 +22,28 @@ import (
 	"github.com/songgao/water"
 )
 
-func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) error {
+type Tunnel struct {
+	Address string
+	RsdPort int
+
+	quicConn   quic.Connection
+	utunCloser io.Closer
+	ctxCancel  context.CancelFunc
+}
+
+func (t Tunnel) Close() error {
+	t.ctxCancel()
+	quicErr := t.quicConn.CloseWithError(0, "")
+	utunErr := t.utunCloser.Close()
+	return errors.Join(quicErr, utunErr)
+}
+
+func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) (Tunnel, error) {
 	logrus.WithField("address", addr).WithField("port", info.TunnelPort).Info("connect to tunnel endpoint on device")
 
 	conf, err := createTlsConfig(info)
 	if err != nil {
-		return err
+		return Tunnel{}, err
 	}
 
 	conn, err := quic.DialAddr(ctx, fmt.Sprintf("[%s]:%d", addr, info.TunnelPort), conf, &quic.Config{
@@ -34,51 +51,47 @@ func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) erro
 		KeepAlivePeriod: 1 * time.Second,
 	})
 	if err != nil {
-		return err
+		return Tunnel{}, err
 	}
-	defer conn.CloseWithError(0, "")
 
 	err = conn.SendDatagram(make([]byte, 1))
 	if err != nil {
-		return err
+		return Tunnel{}, err
 	}
 
 	tunnelInfo, err := exchangeCoreTunnelParameters(conn)
 	if err != nil {
-		return fmt.Errorf("could not exchange tunnel parameters. %w", err)
+		return Tunnel{}, fmt.Errorf("could not exchange tunnel parameters. %w", err)
 	}
 
 	utunIface, err := setupTunnelInterface(err, tunnelInfo)
 	if err != nil {
-		return fmt.Errorf("could not setup tunnel interface. %w", err)
+		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
 	}
 
+	ctx2, cancel := context.WithCancel(ctx)
+
 	go func() {
-		err := forwardDataToInterface(ctx, conn, utunIface)
+		err := forwardDataToInterface(ctx2, conn, utunIface)
 		if err != nil {
 			logrus.WithError(err).Error("failed to forward data to tunnel interface")
 		}
 	}()
 
 	go func() {
-		err := forwardDataToDevice(ctx, tunnelInfo.ClientParameters.Mtu, utunIface, conn)
+		err := forwardDataToDevice(ctx2, tunnelInfo.ClientParameters.Mtu, utunIface, conn)
 		if err != nil {
 			logrus.WithError(err).Error("failed to forward data to the device")
 		}
 	}()
 
-	logrus.WithField("address", tunnelInfo.ServerAddress).
-		WithField("rsd-port", tunnelInfo.ServerRSDPort).
-		WithField("cli-args", "--address="+tunnelInfo.ServerAddress+" --rsd-port="+fmt.Sprint(tunnelInfo.ServerRSDPort)).
-		Info("tunnel started")
-
-	select {
-	case <-ctx.Done():
-		logrus.Info("closing tunnel")
-		break
-	}
-
-	return nil
+	return Tunnel{
+		Address:    tunnelInfo.ServerAddress,
+		RsdPort:    int(tunnelInfo.ServerRSDPort),
+		quicConn:   conn,
+		utunCloser: utunIface,
+		ctxCancel:  cancel,
+	}, nil
 }
 
 func setupTunnelInterface(err error, tunnelInfo TunnelInfo) (*water.Interface, error) {

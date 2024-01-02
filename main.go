@@ -1986,8 +1986,15 @@ func startTunnel(device ios.DeviceEntry) {
 	exitIfError("", err)
 	tunnelInfo, err := ts.CreateTunnelListener()
 	exitIfError("", err)
-	err = tunnel.ConnectToTunnel(ctx, tunnelInfo, addr)
+	t, err := tunnel.ConnectToTunnel(ctx, tunnelInfo, addr)
 	exitIfError("", err)
+	log.WithField("address", t.Address).
+		WithField("rsd-port", t.RsdPort).
+		WithField("cli-args", fmt.Sprintf("--address=%s --rsd-port=%d", t.Address, t.RsdPort)).
+		Info("tunnel started")
+	<-ctx.Done()
+	log.Info("closing tunnel")
+	t.Close()
 }
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
