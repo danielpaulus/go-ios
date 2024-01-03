@@ -21,13 +21,13 @@ import (
 
 const UntrustedTunnelServiceName = "com.apple.internal.dt.coredevice.untrusted.tunnelservice"
 
-func NewTunnelServiceWithXpc(xpcConn *xpc.Connection, c io.Closer, pairRecords PairRecordManager) (*TunnelService, error) {
+func NewTunnelServiceWithXpc(xpcConn *xpc.Connection, c io.Closer, pairRecords PairRecordManager) *TunnelService {
 	return &TunnelService{
 		xpcConn:        xpcConn,
 		c:              c,
 		controlChannel: newControlChannelReadWriter(xpcConn),
 		pairRecords:    pairRecords,
-	}, nil
+	}
 }
 
 type TunnelService struct {

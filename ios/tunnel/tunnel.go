@@ -11,6 +11,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios"
 	"io"
 	"math/big"
 	"os/exec"
@@ -36,6 +37,54 @@ func (t Tunnel) Close() error {
 	quicErr := t.quicConn.CloseWithError(0, "")
 	utunErr := t.utunCloser.Close()
 	return errors.Join(quicErr, utunErr)
+}
+
+// ManualPairAndConnectToTunnel tries to verify an existing pairing, and if this fails it triggers a new manual pairing process.
+// After a successful pairing a tunnel for this device gets started and the tunnel information is returned
+func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager) (Tunnel, error) {
+	addr, err := ios.FindDeviceInterfaceAddress(ctx, device)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to find device ethernet interface: %w", err)
+	}
+
+	rsdService, err := ios.NewWithAddr(addr)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to connect to RSD service: %w", err)
+	}
+	defer rsdService.Close()
+	handshakeResponse, err := rsdService.Handshake()
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to perform RSD handshake: %w", err)
+	}
+
+	port := handshakeResponse.GetPort(UntrustedTunnelServiceName)
+	if port == 0 {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: could not find port for '%s'", UntrustedTunnelServiceName)
+	}
+	h, err := ios.ConnectToHttp2WithAddr(addr, port)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create HTTP2 connection: %w", err)
+	}
+
+	xpcConn, err := ios.CreateXpcConnection(h)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create RemoteXPC connection: %w", err)
+	}
+	ts := NewTunnelServiceWithXpc(xpcConn, h, p)
+
+	err = ts.Pair()
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to pair device: %w", err)
+	}
+	tunnelInfo, err := ts.CreateTunnelListener()
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create tunnel listener: %w", err)
+	}
+	t, err := ConnectToTunnel(ctx, tunnelInfo, addr)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to connect to tunnel: %w", err)
+	}
+	return t, nil
 }
 
 func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) (Tunnel, error) {
@@ -69,17 +118,19 @@ func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) (Tun
 		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
 	}
 
-	ctx2, cancel := context.WithCancel(ctx)
+	// we want a copy of the parent ctx here, but it shouldn't time out/be cancelled at the same time.
+	// doing it like this allows us to have a context with a timeout for the tunnel creation, but the tunnel itself
+	tunnelCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	go func() {
-		err := forwardDataToInterface(ctx2, conn, utunIface)
+		err := forwardDataToInterface(tunnelCtx, conn, utunIface)
 		if err != nil {
 			logrus.WithError(err).Error("failed to forward data to tunnel interface")
 		}
 	}()
 
 	go func() {
-		err := forwardDataToDevice(ctx2, tunnelInfo.ClientParameters.Mtu, utunIface, conn)
+		err := forwardDataToDevice(tunnelCtx, tunnelInfo.ClientParameters.Mtu, utunIface, conn)
 		if err != nil {
 			logrus.WithError(err).Error("failed to forward data to the device")
 		}
