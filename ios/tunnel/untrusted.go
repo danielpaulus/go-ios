@@ -21,14 +21,13 @@ import (
 
 const UntrustedTunnelServiceName = "com.apple.internal.dt.coredevice.untrusted.tunnelservice"
 
-func NewTunnelServiceWithXpc(xpcConn *xpc.Connection, c io.Closer) (*TunnelService, error) {
-
-	var pairRecord PairRecord
-	k := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize))
-	pairRecord.Private = k
-	pairRecord.Public = k.Public().(ed25519.PublicKey)
-
-	return &TunnelService{xpcConn: xpcConn, c: c, controlChannel: newControlChannelReadWriter(xpcConn)}, nil
+func NewTunnelServiceWithXpc(xpcConn *xpc.Connection, c io.Closer, pairRecords PairRecordManager) (*TunnelService, error) {
+	return &TunnelService{
+		xpcConn:        xpcConn,
+		c:              c,
+		controlChannel: newControlChannelReadWriter(xpcConn),
+		pairRecords:    pairRecords,
+	}, nil
 }
 
 type TunnelService struct {
@@ -37,13 +36,15 @@ type TunnelService struct {
 
 	controlChannel *controlChannelReadWriter
 	cipher         *cipherStream
+
+	pairRecords PairRecordManager
 }
 
 func (t *TunnelService) Close() error {
 	return t.c.Close()
 }
 
-func (t *TunnelService) Pair(pr PairRecord) error {
+func (t *TunnelService) Pair() error {
 	err := t.controlChannel.writeRequest(map[string]interface{}{
 		"handshake": map[string]interface{}{
 			"_0": map[string]interface{}{
@@ -64,7 +65,7 @@ func (t *TunnelService) Pair(pr PairRecord) error {
 		return err
 	}
 
-	err = t.verifyPair(pr)
+	err = t.verifyPair()
 	if err == nil {
 		return nil
 	}
@@ -80,7 +81,7 @@ func (t *TunnelService) Pair(pr PairRecord) error {
 		return err
 	}
 
-	err = t.exchangeDeviceInfo(pr, sessionKey)
+	err = t.exchangeDeviceInfo(sessionKey)
 	if err != nil {
 		return err
 	}
@@ -236,7 +237,7 @@ func (t *TunnelService) createUnlockKey() ([]byte, error) {
 	return nil, err
 }
 
-func (t *TunnelService) verifyPair(pr PairRecord) error {
+func (t *TunnelService) verifyPair() error {
 	key, _ := ecdh.X25519().GenerateKey(rand.Reader)
 	tlv := NewTlvBuffer()
 	tlv.WriteByte(TypeState, PairStateStartRequest)
@@ -247,6 +248,8 @@ func (t *TunnelService) verifyPair(pr PairRecord) error {
 		kind:            "verifyManualPairing",
 		startNewSession: true,
 	}
+
+	selfId := t.pairRecords.SelfId
 
 	err := t.controlChannel.writeEvent(&event)
 
@@ -284,14 +287,14 @@ func (t *TunnelService) verifyPair(pr PairRecord) error {
 
 	signBuf := bytes.NewBuffer(nil)
 	signBuf.Write(key.PublicKey().Bytes())
-	signBuf.Write([]byte(pr.HostName))
+	signBuf.Write([]byte(selfId.Identifier))
 	signBuf.Write(devicePublicKeyBytes)
 
-	signature := ed25519.Sign(pr.Private, signBuf.Bytes())
+	signature := ed25519.Sign(selfId.PrivateKey, signBuf.Bytes())
 
 	cTlv := NewTlvBuffer()
 	cTlv.WriteData(TypeSignature, signature)
-	cTlv.WriteData(TypeIdentifier, []byte(pr.HostName))
+	cTlv.WriteData(TypeIdentifier, []byte(selfId.Identifier))
 
 	nonce := make([]byte, 12)
 	copy(nonce[4:], "PV-Msg03")
@@ -396,17 +399,17 @@ func (t *TunnelService) setupSessionKey() ([]byte, error) {
 	return srp.SessionKey, nil
 }
 
-func (t *TunnelService) exchangeDeviceInfo(pr PairRecord, sessionKey []byte) error {
+func (t *TunnelService) exchangeDeviceInfo(sessionKey []byte) error {
 	hkdfPairSetup := hkdf.New(sha512.New, sessionKey, []byte("Pair-Setup-Controller-Sign-Salt"), []byte("Pair-Setup-Controller-Sign-Info"))
 	buf := bytes.NewBuffer(nil)
 	io.CopyN(buf, hkdfPairSetup, 32)
-	buf.WriteString(pr.HostName)
-	buf.Write(pr.Public)
+	buf.WriteString(t.pairRecords.SelfId.Identifier)
+	buf.Write(t.pairRecords.SelfId.PublicKey)
 
-	signature := ed25519.Sign(pr.Private, buf.Bytes())
+	signature := ed25519.Sign(t.pairRecords.SelfId.PrivateKey, buf.Bytes())
 
 	deviceInfo, err := opack.Encode(map[string]interface{}{
-		"accountID":                   pr.HostName,
+		"accountID":                   t.pairRecords.SelfId.Identifier,
 		"altIRK":                      []byte{0x5e, 0xca, 0x81, 0x91, 0x92, 0x02, 0x82, 0x00, 0x11, 0x22, 0x33, 0x44, 0xbb, 0xf2, 0x4a, 0xc8},
 		"btAddr":                      "FF:DD:99:66:BB:AA",
 		"mac":                         []byte{0xff, 0x44, 0x88, 0x66, 0x33, 0x99},
@@ -417,8 +420,8 @@ func (t *TunnelService) exchangeDeviceInfo(pr PairRecord, sessionKey []byte) err
 
 	deviceInfoTlv := NewTlvBuffer()
 	deviceInfoTlv.WriteData(TypeSignature, signature)
-	deviceInfoTlv.WriteData(TypePublicKey, pr.Public)
-	deviceInfoTlv.WriteData(TypeIdentifier, []byte(pr.HostName))
+	deviceInfoTlv.WriteData(TypePublicKey, t.pairRecords.SelfId.PublicKey)
+	deviceInfoTlv.WriteData(TypeIdentifier, []byte(t.pairRecords.SelfId.Identifier))
 	deviceInfoTlv.WriteData(TypeInfo, deviceInfo)
 
 	sessionKeyBuf := bytes.NewBuffer(nil)
@@ -462,6 +465,7 @@ func (t *TunnelService) exchangeDeviceInfo(pr PairRecord, sessionKey []byte) err
 	}
 	copy(nonce[4:], "PS-Msg06")
 	// the device info response from the device is not needed. we just make sure that there's no error decrypting it
+	// TODO: decode the opack encoded data and persist it using the PairRecordManager.StoreDeviceInfo method
 	_, err = cipher.Open(nil, nonce, encrData, nil)
 	if err != nil {
 		return err

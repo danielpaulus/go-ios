@@ -1958,6 +1958,8 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 }
 
 func startTunnel(device ios.DeviceEntry) {
+	pm, err := tunnel.NewPairRecordManager("/var/db/lockdown/RemotePairing/user_501")
+	exitIfError("could not creat pair record manager", err)
 	ctx := context.Background()
 	findCtx, _ := context.WithTimeout(ctx, 10*time.Second)
 	addr, err := ios.FindDeviceInterfaceAddress(findCtx, device)
@@ -1969,13 +1971,6 @@ func startTunnel(device ios.DeviceEntry) {
 	handshakeResponse, err := rsdService.Handshake()
 	exitIfError("could not execute RSD handshake", err)
 
-	home, err := os.UserHomeDir()
-	exitIfError("", err)
-	pairRecordsDir := path.Join(home, ".go-ios")
-	pairRecords := tunnel.NewPairRecordStore(pairRecordsDir)
-	err = os.MkdirAll(pairRecordsDir, os.ModePerm)
-	exitIfError("could not create go-ios dir", err)
-
 	port := handshakeResponse.GetPort(tunnel.UntrustedTunnelServiceName)
 	if port == 0 {
 		log.Fatal("could net get port for untrusted tunnel service")
@@ -1985,17 +1980,10 @@ func startTunnel(device ios.DeviceEntry) {
 
 	xpcConn, err := ios.CreateXpcConnection(h)
 	exitIfError("", err)
-	ts, err := tunnel.NewTunnelServiceWithXpc(xpcConn, h)
+	ts, err := tunnel.NewTunnelServiceWithXpc(xpcConn, h, pm)
 
-	pr, err := pairRecords.LoadOrCreate(device.Properties.SerialNumber)
+	err = ts.Pair()
 	exitIfError("", err)
-	if err != nil {
-		log.WithError(err).Warn("could not store pair record")
-	}
-
-	err = ts.Pair(pr)
-	exitIfError("", err)
-	_ = pairRecords.Store(device.Properties.SerialNumber, pr)
 	tunnelInfo, err := ts.CreateTunnelListener()
 	exitIfError("", err)
 	err = tunnel.ConnectToTunnel(ctx, tunnelInfo, addr)
