@@ -85,7 +85,7 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			}
 		case "_XCT_testCaseWithIdentifier:didFinishActivity:":
 			if p.testListener != nil {
-				testIdentifier := extractTestSuiteIdentifierArg(m, 0)
+				testIdentifier := extractTestIdentifierArg(m, 0)
 				activityRecord := extractActivityRecordArg(m, 1)
 				(*p.testListener).TestCaseWithIdentifierDidFinishActivity(testIdentifier, activityRecord)
 			}
@@ -99,7 +99,7 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			}
 		case "_XCT_testCaseWithIdentifier:willStartActivity:":
 			if p.testListener != nil {
-				testIdentifier := extractTestSuiteIdentifierArg(m, 0)
+				testIdentifier := extractTestIdentifierArg(m, 0)
 				activityRecord := extractActivityRecordArg(m, 1)
 				(*p.testListener).TestCaseWithIdentifierWillStartActivity(testIdentifier, activityRecord)
 			}
@@ -107,9 +107,11 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			if p.testListener != nil {
 				(*p.testListener).TestCaseDidFailForTestClassMethodWithMessageFileLine()
 			}
-		case "_XCT_testCaseWithIdentifier:didRecordIssue:": // TODO
+		case "_XCT_testCaseWithIdentifier:didRecordIssue:":
 			if p.testListener != nil {
-				(*p.testListener).TestCaseWithIdentifierDidRecordIssue()
+				testIdentifier := extractTestIdentifierArg(m, 0)
+				issue := extractIssueArg(m, 1)
+				(*p.testListener).TestCaseWithIdentifierDidRecordIssue(testIdentifier, issue)
 			}
 		case "_XCT_testCaseDidFinishForTestClass:method:withStatus:duration:": // TODO
 			if p.testListener != nil {
@@ -117,7 +119,11 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			}
 		case "_XCT_testCaseWithIdentifier:didFinishWithStatus:duration:": // TODO
 			if p.testListener != nil {
-				(*p.testListener).TestCaseWithIdentifierDidFinishWithStatusDuration()
+				testIdentifier := extractTestIdentifierArg(m, 0)
+				status := extractStringArg(m, 1)
+				duration := extractFloat64Arg(m, 2)
+
+				(*p.testListener).TestCaseWithIdentifierDidFinishWithStatusDuration(testIdentifier, status, duration)
 			}
 		case "_XCT_testCaseDidStartForTestClass:method:": // TODO
 			if p.testListener != nil {
@@ -125,7 +131,8 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			}
 		case "_XCT_testCaseDidStartWithIdentifier:testCaseRunConfiguration:": // TODO
 			if p.testListener != nil {
-				(*p.testListener).TestCaseDidStartWithIdentifierTestCaseRunConfiguration()
+				testIdentifier := extractTestIdentifierArg(m, 0)
+				(*p.testListener).TestCaseDidStartWithIdentifierTestCaseRunConfiguration(testIdentifier)
 			}
 		case "_XCT_testMethod:ofClass:didMeasureMetric:file:line:": // TODO
 			if p.testListener != nil {
@@ -137,7 +144,27 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			}
 		case "_XCT_testSuiteWithIdentifier:didFinishAt:runCount:skipCount:failureCount:expectedFailureCount:uncaughtExceptionCount:testDuration:totalDuration:": // TODO
 			if p.testListener != nil {
-				(*p.testListener).TestSuiteWithIdentifierDidFinishAtRunCountSkipCountFailureCountExpectedFailureCountUncaughtExceptionCountTestDurationTotalDuration()
+				testIdentifier := extractTestIdentifierArg(m, 0)
+				finishAt := extractStringArg(m, 1)
+				runCount := extractUint64Arg(m, 2)
+				skipCount := extractUint64Arg(m, 3)
+				failureCount := extractUint64Arg(m, 4)
+				expectedFailureCount := extractUint64Arg(m, 5)
+				uncaughtExceptionCount := extractUint64Arg(m, 6)
+				testDuration := extractFloat64Arg(m, 7)
+				totalDuration := extractFloat64Arg(m, 8)
+
+				(*p.testListener).TestSuiteWithIdentifierDidFinishAtRunCountSkipCountFailureCountExpectedFailureCountUncaughtExceptionCountTestDurationTotalDuration(
+					testIdentifier,
+					finishAt,
+					runCount,
+					skipCount,
+					failureCount,
+					expectedFailureCount,
+					uncaughtExceptionCount,
+					testDuration,
+					totalDuration,
+				)
 			}
 		case "_XCT_testSuite:didStartAt:": // TODO
 			if p.testListener != nil {
@@ -145,7 +172,7 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			}
 		case "_XCT_testSuiteWithIdentifier:didStartAt:":
 			if p.testListener != nil {
-				testIdentifier := extractTestSuiteIdentifierArg(m, 0)
+				testIdentifier := extractTestIdentifierArg(m, 0)
 				date := extractStringArg(m, 1)
 
 				(*p.testListener).TestSuiteWithIdentifierDidStartAt(testIdentifier, date)
@@ -177,16 +204,33 @@ func extractStringArg(m dtx.Message, index int) string {
 	return data[0].(string)
 }
 
+func extractFloat64Arg(m dtx.Message, index int) float64 {
+	mbytes := m.Auxiliary.GetArguments()[index].([]byte)
+	data, _ := nskeyedarchiver.Unarchive(mbytes)
+	return data[0].(float64)
+}
+
+func extractUint64Arg(m dtx.Message, index int) uint64 {
+	mbytes := m.Auxiliary.GetArguments()[index].([]byte)
+	data, _ := nskeyedarchiver.Unarchive(mbytes)
+	return data[0].(uint64)
+}
+
 func extractNSErrorArg(m dtx.Message, index int) nskeyedarchiver.NSError {
 	mbytes := m.Auxiliary.GetArguments()[index].([]byte)
 	data, _ := nskeyedarchiver.Unarchive(mbytes)
 	return data[0].(nskeyedarchiver.NSError)
 }
-
-func extractTestSuiteIdentifierArg(m dtx.Message, index int) nskeyedarchiver.XCTTestIdentifier {
+func extractTestIdentifierArg(m dtx.Message, index int) nskeyedarchiver.XCTTestIdentifier {
 	mbytes := m.Auxiliary.GetArguments()[index].([]byte)
 	data, _ := nskeyedarchiver.Unarchive(mbytes)
 	return data[0].(nskeyedarchiver.XCTTestIdentifier)
+}
+
+func extractIssueArg(m dtx.Message, index int) nskeyedarchiver.XCTIssue {
+	mbytes := m.Auxiliary.GetArguments()[index].([]byte)
+	data, _ := nskeyedarchiver.Unarchive(mbytes)
+	return data[0].(nskeyedarchiver.XCTIssue)
 }
 
 func extractActivityRecordArg(m dtx.Message, index int) nskeyedarchiver.XCActivityRecord {

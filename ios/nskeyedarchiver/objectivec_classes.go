@@ -32,6 +32,9 @@ func SetupDecoders() {
 			"DTTapStatusMessage":        NewDTTapStatusMessage,
 			"DTTapMessage":              NewDTTapMessage,
 			"DTCPUClusterInfo":          NewDTCPUClusterInfo,
+			"XCTIssue":                  NewXCTIssue,
+			"XCTSourceCodeContext":      NewXCTSourceCodeContext,
+			"XCTSourceCodeLocation":     NewXCTSourceCodeLocation,
 		}
 	}
 }
@@ -446,4 +449,50 @@ func archiveStringSlice(object interface{}, objects []interface{}) ([]interface{
 func archiveNSMutableDictionary(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	mut := object.(NSMutableDictionary)
 	return serializeMap(mut.internalDict, objects, buildClassDict("NSMutableDictionary", "NSDictionary", "NSObject"))
+}
+
+type XCTIssue struct {
+	RuntimeIssueSeverity uint64
+	DetailedDescription  string
+	CompactDescription   string
+	SourceCodeContext    XCTSourceCodeContext
+}
+
+func NewXCTIssue(object map[string]interface{}, objects []interface{}) interface{} {
+	runtimeIssueSeverity := object["runtimeIssueSeverity"].(uint64)
+	detailedDescriptionRef := object["detailed-description"].(plist.UID)
+	sourceCodeContextRef := object["source-code-context"].(plist.UID)
+	compactDescriptionRef := object["compact-description"].(plist.UID)
+
+	detailedDescription := objects[detailedDescriptionRef].(string)
+	compactDescription := objects[compactDescriptionRef].(string)
+	sourceCodeContext := NewXCTSourceCodeContext(objects[sourceCodeContextRef].(map[string]interface{}), objects).(XCTSourceCodeContext)
+
+	return XCTIssue{RuntimeIssueSeverity: runtimeIssueSeverity, DetailedDescription: detailedDescription, CompactDescription: compactDescription, SourceCodeContext: sourceCodeContext}
+}
+
+type XCTSourceCodeContext struct {
+	Location XCTSourceCodeLocation
+}
+
+func NewXCTSourceCodeContext(object map[string]interface{}, objects []interface{}) interface{} {
+	locationRef := object["location"].(plist.UID)
+	location := NewXCTSourceCodeLocation(objects[locationRef].(map[string]interface{}), objects).(XCTSourceCodeLocation)
+
+	return XCTSourceCodeContext{Location: location}
+}
+
+type XCTSourceCodeLocation struct {
+	FileUrl    NSURL
+	LineNumber uint64
+}
+
+func NewXCTSourceCodeLocation(object map[string]interface{}, objects []interface{}) interface{} {
+	fileUrlRef := object["file-url"].(plist.UID)
+	relativeRef := objects[fileUrlRef].(map[string]interface{})["NS.relative"].(plist.UID)
+	relativePath := objects[int(relativeRef)].(string)
+	fileUrl := NewNSURL(relativePath)
+	lineNumber := object["line-number"].(uint64)
+
+	return XCTSourceCodeLocation{FileUrl: fileUrl, LineNumber: lineNumber}
 }

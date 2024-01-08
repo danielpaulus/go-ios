@@ -21,14 +21,14 @@ type TestListener interface {
 	TestCaseMethodWillStartActivity()
 	TestCaseWithIdentifierWillStartActivity(testIdentifier nskeyedarchiver.XCTTestIdentifier, activityRecord nskeyedarchiver.XCActivityRecord)
 	TestCaseDidFailForTestClassMethodWithMessageFileLine()
-	TestCaseWithIdentifierDidRecordIssue()
+	TestCaseWithIdentifierDidRecordIssue(testIdentifier nskeyedarchiver.XCTTestIdentifier, issue nskeyedarchiver.XCTIssue)
 	TestCaseDidFinishForTestClassMethodWithStatusDuration()
-	TestCaseWithIdentifierDidFinishWithStatusDuration()
+	TestCaseWithIdentifierDidFinishWithStatusDuration(testIdentifier nskeyedarchiver.XCTTestIdentifier, status string, duration float64)
 	TestCaseDidStartForTestClassMethod()
-	TestCaseDidStartWithIdentifierTestCaseRunConfiguration()
+	TestCaseDidStartWithIdentifierTestCaseRunConfiguration(testIdentifier nskeyedarchiver.XCTTestIdentifier)
 	TestMethodOfClassDidMeasureMetricFileLine()
 	TestSuiteDidFinishAtRunCountWithFailuresUnexpectedTestDurationTotalDuration()
-	TestSuiteWithIdentifierDidFinishAtRunCountSkipCountFailureCountExpectedFailureCountUncaughtExceptionCountTestDurationTotalDuration()
+	TestSuiteWithIdentifierDidFinishAtRunCountSkipCountFailureCountExpectedFailureCountUncaughtExceptionCountTestDurationTotalDuration(testIdentifier nskeyedarchiver.XCTTestIdentifier, finishAt string, runCount uint64, skipCount uint64, failureCount uint64, expectedFailureCount uint64, uncaughtExceptionCount uint64, testDuration float64, totalDuration float64)
 	TestSuiteDidStartAt()
 	TestSuiteWithIdentifierDidStartAt(testIdentifier nskeyedarchiver.XCTTestIdentifier, date string)
 }
@@ -58,16 +58,19 @@ func (t TestLogCollector) TestCaseMethodDidStallOnMainThreadInFileLine() {}
 func (t TestLogCollector) TestCaseMethodWillStartActivity()              {}
 func (t TestLogCollector) TestCaseWithIdentifierWillStartActivity(testIdentifier nskeyedarchiver.XCTTestIdentifier, activityRecord nskeyedarchiver.XCActivityRecord) {
 }
-func (t TestLogCollector) TestCaseDidFailForTestClassMethodWithMessageFileLine()   {}
-func (t TestLogCollector) TestCaseWithIdentifierDidRecordIssue()                   {}
-func (t TestLogCollector) TestCaseDidFinishForTestClassMethodWithStatusDuration()  {}
-func (t TestLogCollector) TestCaseWithIdentifierDidFinishWithStatusDuration()      {}
-func (t TestLogCollector) TestCaseDidStartForTestClassMethod()                     {}
-func (t TestLogCollector) TestCaseDidStartWithIdentifierTestCaseRunConfiguration() {}
-func (t TestLogCollector) TestMethodOfClassDidMeasureMetricFileLine()              {}
+func (t TestLogCollector) TestCaseDidFailForTestClassMethodWithMessageFileLine() {}
+func (t TestLogCollector) TestCaseWithIdentifierDidRecordIssue(testIdentifier nskeyedarchiver.XCTTestIdentifier, issue nskeyedarchiver.XCTIssue) {
+}
+func (t TestLogCollector) TestCaseDidFinishForTestClassMethodWithStatusDuration() {}
+func (t TestLogCollector) TestCaseWithIdentifierDidFinishWithStatusDuration(testIdentifier nskeyedarchiver.XCTTestIdentifier, status string, duration float64) {
+}
+func (t TestLogCollector) TestCaseDidStartForTestClassMethod() {}
+func (t TestLogCollector) TestCaseDidStartWithIdentifierTestCaseRunConfiguration(testIdentifier nskeyedarchiver.XCTTestIdentifier) {
+}
+func (t TestLogCollector) TestMethodOfClassDidMeasureMetricFileLine() {}
 func (t TestLogCollector) TestSuiteDidFinishAtRunCountWithFailuresUnexpectedTestDurationTotalDuration() {
 }
-func (t TestLogCollector) TestSuiteWithIdentifierDidFinishAtRunCountSkipCountFailureCountExpectedFailureCountUncaughtExceptionCountTestDurationTotalDuration() {
+func (t TestLogCollector) TestSuiteWithIdentifierDidFinishAtRunCountSkipCountFailureCountExpectedFailureCountUncaughtExceptionCountTestDurationTotalDuration(testIdentifier nskeyedarchiver.XCTTestIdentifier, finishAt string, runCount uint64, skipCount uint64, failureCount uint64, expectedFailureCount uint64, uncaughtExceptionCount uint64, testDuration float64, totalDuration float64) {
 }
 func (t TestLogCollector) TestSuiteDidStartAt() {}
 func (t TestLogCollector) TestSuiteWithIdentifierDidStartAt(testIdentifier nskeyedarchiver.XCTTestIdentifier, date string) {
