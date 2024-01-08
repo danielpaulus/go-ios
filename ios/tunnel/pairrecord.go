@@ -2,104 +2,146 @@ package tunnel
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ed25519"
 	"howett.net/plist"
-	"io"
 	"os"
 	"path"
+	"strings"
 )
 
-type PairRecord struct {
-	Public   ed25519.PublicKey
-	Private  ed25519.PrivateKey
-	HostName string
+type SelfIdentity struct {
+	Identifier string
+	Irk        []byte
+	PrivateKey ed25519.PrivateKey
+	PublicKey  ed25519.PublicKey
 }
 
-type pairRecordData struct {
-	Seed     []byte
-	Hostname string
+type selfIdentityInternal struct {
+	Identifier string `plist:"identifier"`
+	Irk        []byte `plist:"irk"`
+	PrivateKey []byte `plist:"privateKey"`
+	PublicKey  []byte `plist:"publicKey"`
 }
 
-func NewPairRecord() (PairRecord, error) {
-	hostname, err := os.Hostname()
+type Device struct {
+	Identifier string `plist:"identifier"`
+	Info       []byte `plist:"info"`
+	Irk        []byte `plist:"irk"`
+	Model      string `plist:"model"`
+	Name       string `plist:"name"`
+	PublicKey  []byte `plist:"publicKey"`
+}
+
+// PairRecordManager implements the same logic as macOS related to remote pair records. Those pair records are used
+// whenever a tunnel gets created.
+type PairRecordManager struct {
+	SelfId        SelfIdentity
+	peersLocation string
+}
+
+// NewPairRecordManager creates a PairRecordManager that reads/stores the pair records information at the given path
+// To use the same pair records as macOS does, this path should be /var/db/lockdown/RemotePairing/user_501
+// (user_501 is the default for the root user)
+func NewPairRecordManager(p string) (PairRecordManager, error) {
+	selfIdPath := path.Join(p, "selfIdentity.plist")
+	selfId, err := getOrCreateSelfIdentity(selfIdPath)
 	if err != nil {
-		log.WithError(err).Warn("could not get hostname. generate a random one")
+		return PairRecordManager{}, fmt.Errorf("NewPairRecordManager: failed to get self identity: %w", err)
 	}
-	hostname = uuid.New().String() // FIXME: this should be the hostname, but pairing fails with it
-	var pairRecord PairRecord
-	priv, pub, err := ed25519.GenerateKey(rand.Reader)
-	pairRecord.Public = priv
-	pairRecord.Private = pub
-	pairRecord.HostName = hostname
+	return PairRecordManager{
+		SelfId:        selfId,
+		peersLocation: path.Join(p, "peers"),
+	}, nil
+}
+
+// StoreDeviceInfo stores the provided Device info as a plist encoded file in the `peers/` directory
+func (p PairRecordManager) StoreDeviceInfo(d Device) error {
+	devicePath := path.Join(p.peersLocation, fmt.Sprintf("%s.plist", d.Identifier))
+	f, err := os.OpenFile(devicePath, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
-		return PairRecord{}, err
-	}
-	log.WithField("hostname", pairRecord.HostName).Info("created new pair record")
-	return pairRecord, nil
-}
-
-func ParsePairRecord(r io.ReadSeeker) (PairRecord, error) {
-	dec := plist.NewDecoder(r)
-	var seed pairRecordData
-	err := dec.Decode(&seed)
-	if err != nil {
-		return PairRecord{}, err
-	}
-	key := ed25519.NewKeyFromSeed(seed.Seed)
-	return PairRecord{
-		Public:   key.Public().(ed25519.PublicKey),
-		Private:  key,
-		HostName: seed.Hostname,
-	}, err
-}
-
-func StorePairRecord(w io.Writer, p PairRecord) error {
-	enc := plist.NewEncoderForFormat(w, plist.BinaryFormat)
-	return enc.Encode(pairRecordData{
-		Seed:     p.Private.Seed(),
-		Hostname: p.HostName,
-	})
-}
-
-type PairRecordStore struct {
-	p string
-}
-
-func NewPairRecordStore(directory string) PairRecordStore {
-	return PairRecordStore{p: directory}
-}
-
-func (p PairRecordStore) Load(udid string) (PairRecord, error) {
-	f, err := os.Open(p.pairRecordPath(udid))
-	if err != nil {
-		return PairRecord{}, err
+		return fmt.Errorf("StoreDeviceInfo: could open file for writing: %w", err)
 	}
 	defer f.Close()
 
-	return ParsePairRecord(f)
+	enc := plist.NewEncoderForFormat(f, plist.BinaryFormat)
+	err = enc.Encode(d)
+	if err != nil {
+		return fmt.Errorf("StoreDeviceInfo: could not encode device info: %w", err)
+	}
+	return nil
 }
 
-func (p PairRecordStore) Store(udid string, pr PairRecord) error {
-	f, err := os.OpenFile(p.pairRecordPath(udid), os.O_CREATE|os.O_WRONLY, 0o666)
+func readSelfIdentity(p string) (SelfIdentity, error) {
+	content, err := os.ReadFile(p)
 	if err != nil {
-		return err
+		return SelfIdentity{}, fmt.Errorf("readSelfIdentity: could not read file: %w", err)
+	}
+	var s selfIdentityInternal
+	_, err = plist.Unmarshal(content, &s)
+	if err != nil {
+		return SelfIdentity{}, fmt.Errorf("readSelfIdentity: could not parse plist content: %w", err)
+	}
+
+	private := ed25519.NewKeyFromSeed(s.PrivateKey)
+
+	return SelfIdentity{
+		Identifier: s.Identifier,
+		Irk:        s.Irk,
+		PrivateKey: private,
+		PublicKey:  s.PublicKey,
+	}, nil
+}
+
+func getOrCreateSelfIdentity(p string) (SelfIdentity, error) {
+	info, err := os.Stat(p)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return createSelfIdentity(p)
+		} else {
+			return SelfIdentity{}, fmt.Errorf("getOrCreateSelfIdentity: failed to get file info: %w", err)
+		}
+	}
+	if info.IsDir() {
+		return SelfIdentity{}, fmt.Errorf("getOrCreateSelfIdentity: '%s' is a directory", p)
+	}
+	return readSelfIdentity(p)
+}
+
+func createSelfIdentity(p string) (SelfIdentity, error) {
+	irk := make([]byte, 16)
+	_, _ = rand.Read(irk)
+
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return SelfIdentity{}, fmt.Errorf("createSelfIdentity: failed to create key pair: %w", err)
+	}
+
+	si := selfIdentityInternal{
+		Identifier: strings.ToUpper(uuid.New().String()),
+		Irk:        irk,
+		PrivateKey: priv.Seed(),
+		PublicKey:  pub,
+	}
+
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return SelfIdentity{}, fmt.Errorf("createSelfIdentity: failed to open file for writing: %w", err)
 	}
 	defer f.Close()
-	return StorePairRecord(f, pr)
-}
 
-func (p PairRecordStore) pairRecordPath(udid string) string {
-	return path.Join(p.p, fmt.Sprintf("%s.plist", udid))
-}
-
-func (p PairRecordStore) LoadOrCreate(udid string) (PairRecord, error) {
-	pr, err := p.Load(udid)
+	enc := plist.NewEncoderForFormat(f, plist.BinaryFormat)
+	err = enc.Encode(si)
 	if err != nil {
-		log.WithError(err).Info("could load pair record. creating new one")
-		return NewPairRecord()
+		return SelfIdentity{}, fmt.Errorf("createSelfIdentity: failed to encode self identity as plist: %w", err)
 	}
-	return pr, nil
+
+	return SelfIdentity{
+		Identifier: si.Identifier,
+		Irk:        si.Irk,
+		PrivateKey: priv,
+		PublicKey:  pub,
+	}, nil
 }

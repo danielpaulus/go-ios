@@ -20,8 +20,10 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios/debugproxy/usbmuxd"
 	"github.com/danielpaulus/go-ios/ios/debugproxy/utun"
+	"github.com/danielpaulus/go-ios/ios/deviceinfo"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 
+	"github.com/danielpaulus/go-ios/ios/amfi"
 	"github.com/danielpaulus/go-ios/ios/appservice"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
@@ -71,7 +73,7 @@ Usage:
   ios activate [options]
   ios listen [options]
   ios list [options] [--details]
-  ios info [options]
+  ios info [options]  
   ios image list [options]
   ios image mount [--path=<imagepath>] [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
@@ -128,6 +130,8 @@ Usage:
   ios diskspace [options]
   ios batterycheck [options]
   ios start-tunnel [options]
+  ios deviceinfo [options] (display | lockdown)
+  ios devmode (enable | get) [--enable-post-restart] [options]
 
 Options:
   -v --verbose   		    Enable Debug Logging.
@@ -149,8 +153,10 @@ The commands work as following:
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios info [options]                                                 Prints a dump of Lockdown getValues.
+   >  																  DEPRECATED: use 'ios deviceinfo lockdown'
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
+   >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk 
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
@@ -233,6 +239,8 @@ The commands work as following:
    ios start-tunnel [options]                                         Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo kill -s STOP $(pgrep "^remoted")', and 'sudo kill -s CONT $(pgrep "^remoted")' to resume)
+   ios deviceinfo [options] (display | lockdown)                  	  Queries device infos
+   ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -1021,6 +1029,42 @@ The commands work as following:
 	if b {
 		startTunnel(device)
 	}
+
+	b, _ = arguments.Bool("deviceinfo")
+	if b {
+		if display, _ := arguments.Bool("display"); display {
+			deviceInfo, err := deviceinfo.NewDeviceInfo(device)
+			exitIfError("Can't connect to deviceinfo service", err)
+			defer deviceInfo.Close()
+
+			info, err := deviceInfo.GetDisplayInfo()
+			exitIfError("Can't fetch dispaly info", err)
+
+			log.WithField("display", info).Info("Got display info")
+		} else if lockdown, _ := arguments.Bool("lockdown"); lockdown {
+			printDeviceInfo(device)
+		} else {
+			log.Fatal("unknown sub-command")
+		}
+	}
+
+	b, _ = arguments.Bool("devmode")
+	if b {
+		enable, _ := arguments.Bool("enable")
+		get, _ := arguments.Bool("get")
+		enablePostRestart, _ := arguments.Bool("--enable-post-restart")
+		if enable {
+			err := amfi.EnableDeveloperMode(device, enablePostRestart)
+			exitIfError("Failed enabling developer mode", err)
+		}
+
+		if get {
+			devModeEnabled, _ := imagemounter.IsDevModeEnabled(device)
+			fmt.Printf("Developer mode enabled: %v\n", devModeEnabled)
+		}
+
+		return
+	}
 }
 
 func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
@@ -1243,7 +1287,7 @@ func outputPrettyStateList(types []instruments.ProfileType) {
 }
 
 func listMountedImages(device ios.DeviceEntry) {
-	conn, err := imagemounter.New(device)
+	conn, err := imagemounter.NewImageMounter(device)
 	exitIfError("failed connecting to image mounter", err)
 	signatures, err := conn.ListImages()
 	exitIfError("failed getting image list", err)
@@ -1930,6 +1974,8 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 }
 
 func startTunnel(device ios.DeviceEntry) {
+	pm, err := tunnel.NewPairRecordManager("/var/db/lockdown/RemotePairing/user_501")
+	exitIfError("could not creat pair record manager", err)
 	ctx := context.Background()
 	findCtx, _ := context.WithTimeout(ctx, 10*time.Second)
 	addr, err := ios.FindDeviceInterfaceAddress(findCtx, device)
@@ -1941,13 +1987,6 @@ func startTunnel(device ios.DeviceEntry) {
 	handshakeResponse, err := rsdService.Handshake()
 	exitIfError("could not execute RSD handshake", err)
 
-	home, err := os.UserHomeDir()
-	exitIfError("", err)
-	pairRecordsDir := path.Join(home, ".go-ios")
-	pairRecords := tunnel.NewPairRecordStore(pairRecordsDir)
-	err = os.MkdirAll(pairRecordsDir, os.ModePerm)
-	exitIfError("could not create go-ios dir", err)
-
 	port := handshakeResponse.GetPort(tunnel.UntrustedTunnelServiceName)
 	if port == 0 {
 		log.Fatal("could net get port for untrusted tunnel service")
@@ -1957,17 +1996,10 @@ func startTunnel(device ios.DeviceEntry) {
 
 	xpcConn, err := ios.CreateXpcConnection(h)
 	exitIfError("", err)
-	ts, err := tunnel.NewTunnelServiceWithXpc(xpcConn, h)
+	ts, err := tunnel.NewTunnelServiceWithXpc(xpcConn, h, pm)
 
-	pr, err := pairRecords.LoadOrCreate(device.Properties.SerialNumber)
+	err = ts.Pair()
 	exitIfError("", err)
-	if err != nil {
-		log.WithError(err).Warn("could not store pair record")
-	}
-
-	err = ts.Pair(pr)
-	exitIfError("", err)
-	_ = pairRecords.Store(device.Properties.SerialNumber, pr)
 	tunnelInfo, err := ts.CreateTunnelListener()
 	exitIfError("", err)
 	err = tunnel.ConnectToTunnel(ctx, tunnelInfo, addr)
