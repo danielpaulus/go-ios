@@ -33,6 +33,7 @@ type TestListener interface {
 	TestSuiteWithIdentifierDidStartAt(testIdentifier nskeyedarchiver.XCTTestIdentifier, date string)
 }
 
+// A concrete implementation of TestListener that writes all test logs to given Writer and ignores all other messages
 type TestLogCollector struct {
 	Writer *io.Writer
 }

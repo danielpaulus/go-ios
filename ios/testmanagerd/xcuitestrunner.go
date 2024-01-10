@@ -175,7 +175,18 @@ type dtxproxy struct {
 func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration, testListener *TestListener) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
-	proxyDispatcher := ProxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection, testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig), closeChannel: make(chan interface{}), closedChannel: make(chan interface{}), testListener: testListener}
+	dispatchHandler := DispatchHandler{
+		dtxConnection:                   dtxConnection,
+		testListener:                    testListener,
+		testBundleReadyChannel:          testBundleReadyChannel,
+		testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig),
+	}
+	proxyDispatcher := ProxyDispatcher{
+		dtxConnection:   dtxConnection,
+		closeChannel:    make(chan interface{}),
+		closedChannel:   make(chan interface{}),
+		dispatchHandler: &dispatchHandler,
+	}
 	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, proxyDispatcher)
 	ideInterface := XCTestManager_IDEInterface{IDEDaemonProxy: IDEDaemonProxy, testConfig: testConfig, testBundleReadyChannel: testBundleReadyChannel}
 
@@ -201,7 +212,8 @@ func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName st
 	// just to generate the xctestConfigFileName. Should be cleaned up at some point.
 	installationProxy, err := installationproxy.New(device)
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUITest: cannot connect to installation proxy: %w", err)
+
 	}
 	defer installationProxy.Close()
 
@@ -211,11 +223,11 @@ func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName st
 
 	apps, err := installationProxy.BrowseUserApps()
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUITest: cannot browse user apps: %w", err)
 	}
 	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUITest: cannot get app information: %w", err)
 	}
 
 	if xctestConfigName == "" {
@@ -237,7 +249,7 @@ func RunXCUIWithBundleIdsCtx(
 ) error {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUIWithBundleIdsCtx: cannot determine iOS version: %w", err)
 	}
 
 	if version.LessThan(ios.IOS14()) {
@@ -264,47 +276,52 @@ func runXUITestWithBundleIdsXcode15Ctx(
 ) error {
 	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
-		return err
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot create a tunnel connection to testmanagerd: %w", err)
 	}
 	defer conn1.Close()
 
 	conn2, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
-		return err
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot create a tunnel connection to testmanagerd: %w", err)
 	}
 	defer conn2.Close()
 
 	installationProxy, err := installationproxy.New(device)
 	if err != nil {
-		return err
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot connect to installation proxy: %w", err)
 	}
 	defer installationProxy.Close()
 	apps, err := installationProxy.BrowseUserApps()
 	if err != nil {
-		return err
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot browse user apps: %w", err)
 	}
 
 	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
+	if err != nil {
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot get app information: %w", err)
+	}
 
 	testSessionID := uuid.New()
 
 	testconfig := createTestConfig(info, testSessionID, xctestConfigFileName)
-
 	ideDaemonProxy1 := newDtxProxyWithConfig(conn1, testconfig, testListener)
 
 	proto, err := ideDaemonProxy1.daemonConnection.initiateSessionWithIdentifier(testSessionID, 29)
 	if err != nil {
-		return err
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a IDE session: %w", err)
 	}
 	log.WithField("proto", proto).Info("got capabilities")
 
 	appserviceConn, err := appservice.New(device)
 	if err != nil {
-		return err
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot connect to app service: %w", err)
 	}
 	defer appserviceConn.Close()
 
 	pid, err := startTestRunner17(device, appserviceConn, "", testRunnerBundleID, strings.ToUpper(testSessionID.String()), info.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName)
+	if err != nil {
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start test runner: %w", err)
+	}
 
 	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
 		"XCTIssue capability":                      uint64(1),
@@ -322,18 +339,18 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testconfig, testListener)
 	caps, err := ideDaemonProxy1.daemonConnection.initiateControlSessionWithCapabilities(localCaps)
 	if err != nil {
-		return err
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session with capabilities: %w", err)
 	}
 	log.WithField("caps", caps).Info("got capabilities")
 	authorized, err := ideDaemonProxy2.daemonConnection.authorizeTestSessionWithProcessID(pid)
 	if err != nil {
-		return err
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot authorize test session: %w", err)
 	}
 	log.WithField("authorized", authorized).Info("authorized")
 
 	err = ideDaemonProxy2.daemonConnection.initiateControlSession(pid, proto)
 	if err != nil {
-		return err
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session: %w", err)
 	}
 	log.Debug("control session initiated")
 
@@ -347,7 +364,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 			log.Infof("Killing test runner with pid %d ...", pid)
 			err = appserviceConn.KillProcess(int(pid))
 			if err != nil {
-				return err
+				return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot kill test process: %w", err)
 			}
 			log.Info("Test runner killed with success")
 		}
@@ -358,7 +375,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	log.Debugf("Killing test runner with pid %d ...", pid)
 	err = appserviceConn.KillProcess(int(pid))
 	if err != nil {
-		return err
+		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot kill test process: %w", err)
 	}
 	log.Debugf("Test runner killed with success")
 	var signal interface{}
@@ -408,7 +425,7 @@ func startTestRunner17(
 	)
 
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	return uint64(appLaunch.Pid), nil
