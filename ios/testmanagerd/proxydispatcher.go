@@ -7,6 +7,9 @@ import (
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 )
 
+// A proxy object to intercept incoming DTX messages
+// Intercepted messages are converted to channel signals to notify end of connection or forwarded to the dispatch handler for further processing.
+
 type ProxyDispatcher struct {
 	dtxConnection   *dtx.Connection
 	id              string

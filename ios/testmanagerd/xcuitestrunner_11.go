@@ -83,6 +83,9 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 				return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot kill test runner: %w", err)
 			}
 			log.Info("Test runner killed with success")
+			if testListener != nil {
+				(*testListener).TestRunnerKilled()
+			}
 		}
 		return nil
 	}
@@ -94,6 +97,10 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot kill test runner: %w", err)
 	}
 	log.Info("Test runner killed with success")
+	if testListener != nil {
+		(*testListener).TestRunnerKilled()
+	}
+
 	var signal interface{}
 	proxyDispatcher.closedChannel <- signal
 	return nil

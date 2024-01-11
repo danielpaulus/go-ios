@@ -175,9 +175,11 @@ type dtxproxy struct {
 func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration, testListener *TestListener) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
+	IdeInterfaceListener := IdeInterfaceListener{testListener: testListener}
+
 	dispatchHandler := DispatchHandler{
 		dtxConnection:                   dtxConnection,
-		testListener:                    testListener,
+		ideInterfaceListener:            &IdeInterfaceListener,
 		testBundleReadyChannel:          testBundleReadyChannel,
 		testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig),
 	}
@@ -367,6 +369,10 @@ func runXUITestWithBundleIdsXcode15Ctx(
 				return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot kill test process: %w", err)
 			}
 			log.Info("Test runner killed with success")
+
+			if testListener != nil {
+				(*testListener).TestRunnerKilled()
+			}
 		}
 		return nil
 	}
@@ -378,6 +384,9 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot kill test process: %w", err)
 	}
 	log.Debugf("Test runner killed with success")
+	if testListener != nil {
+		(*testListener).TestRunnerKilled()
+	}
 	var signal interface{}
 	ideDaemonProxy1.proxyDispatcher.closedChannel <- signal
 

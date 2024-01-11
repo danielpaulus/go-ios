@@ -6,31 +6,21 @@ import (
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 )
 
+// Realtime test callbacks
 type TestListener interface {
-	LogMessage(msg string)
-	LogDebugMessage(msg string)
 	DidBeginExecutingTestPlan()
 	DidFinishExecutingTestPlan()
-	DidFailToBootstrapWithError(err nskeyedarchiver.NSError)
-	DidBeginInitializingForUITesting()
-	GetProgressForLaunch()
-	InitializationForUITestingDidFailWithError(err nskeyedarchiver.NSError)
-	TestCaseMethodDidFinishActivity()
-	TestCaseWithIdentifierDidFinishActivity(testIdentifier nskeyedarchiver.XCTTestIdentifier, activityRecord nskeyedarchiver.XCActivityRecord)
-	TestCaseMethodDidStallOnMainThreadInFileLine()
-	TestCaseMethodWillStartActivity()
-	TestCaseWithIdentifierWillStartActivity(testIdentifier nskeyedarchiver.XCTTestIdentifier, activityRecord nskeyedarchiver.XCActivityRecord)
-	TestCaseDidFailForTestClassMethodWithMessageFileLine()
-	TestCaseWithIdentifierDidRecordIssue(testIdentifier nskeyedarchiver.XCTTestIdentifier, issue nskeyedarchiver.XCTIssue)
-	TestCaseDidFinishForTestClassMethodWithStatusDuration()
-	TestCaseWithIdentifierDidFinishWithStatusDuration(testIdentifier nskeyedarchiver.XCTTestIdentifier, status string, duration float64)
-	TestCaseDidStartForTestClassMethod()
-	TestCaseDidStartWithIdentifierTestCaseRunConfiguration(testIdentifier nskeyedarchiver.XCTTestIdentifier)
-	TestMethodOfClassDidMeasureMetricFileLine()
-	TestSuiteDidFinishAtRunCountWithFailuresUnexpectedTestDurationTotalDuration()
-	TestSuiteWithIdentifierDidFinishAtRunCountSkipCountFailureCountExpectedFailureCountUncaughtExceptionCountTestDurationTotalDuration(testIdentifier nskeyedarchiver.XCTTestIdentifier, finishAt string, runCount uint64, skipCount uint64, failureCount uint64, expectedFailureCount uint64, uncaughtExceptionCount uint64, testDuration float64, totalDuration float64)
-	TestSuiteDidStartAt()
-	TestSuiteWithIdentifierDidStartAt(testIdentifier nskeyedarchiver.XCTTestIdentifier, date string)
+	InitializationForUITestingFailed(err nskeyedarchiver.NSError)
+	TestCaseStalled(testCase string, method string, file string, line uint64)
+	TestCaseFailedForClass(testClass string, method string, message string, file string, line uint64)
+	TestCaseDidFinishForTest(testClass string, testMethod string, status string, duration float64)
+	TestCaseFinished(testCase string, method string, xcActivityRecord nskeyedarchiver.XCActivityRecord)
+	TestSuiteFinished(suiteName string, date string, testCount uint64, failures uint64, unexpected uint64, testDuration float64,
+		totalDuration float64)
+	TestCaseDidStartForClass(className string, methodName string)
+	TestRunnerKilled()
+	LogMessage(msg string)
+	LogDebugMessage(msg string)
 }
 
 // A concrete implementation of TestListener that writes all test logs to given Writer and ignores all other messages
@@ -38,41 +28,27 @@ type TestLogCollector struct {
 	Writer *io.Writer
 }
 
+// Forward logs to writer
 func (t TestLogCollector) LogDebugMessage(msg string) {
 	(*t.Writer).Write([]byte(msg))
 }
-
 func (t TestLogCollector) LogMessage(msg string) {
 	(*t.Writer).Write([]byte(msg))
 }
 
-func (t TestLogCollector) DidBeginExecutingTestPlan()                                             {}
-func (t TestLogCollector) DidFinishExecutingTestPlan()                                            {}
-func (t TestLogCollector) DidFailToBootstrapWithError(err nskeyedarchiver.NSError)                {}
-func (t TestLogCollector) DidBeginInitializingForUITesting()                                      {}
-func (t TestLogCollector) GetProgressForLaunch()                                                  {}
-func (t TestLogCollector) InitializationForUITestingDidFailWithError(err nskeyedarchiver.NSError) {}
-func (t TestLogCollector) TestCaseMethodDidFinishActivity()                                       {}
-func (t TestLogCollector) TestCaseWithIdentifierDidFinishActivity(testIdentifier nskeyedarchiver.XCTTestIdentifier, activityRecord nskeyedarchiver.XCActivityRecord) {
+// Ignore other messages
+func (t TestLogCollector) DidBeginExecutingTestPlan()                                               {}
+func (t TestLogCollector) DidFinishExecutingTestPlan()                                              {}
+func (t TestLogCollector) InitializationForUITestingFailed(err nskeyedarchiver.NSError)             {}
+func (t TestLogCollector) TestCaseStalled(testCase string, method string, file string, line uint64) {}
+func (t TestLogCollector) TestCaseFailedForClass(testClass string, method string, message string, file string, line uint64) {
 }
-func (t TestLogCollector) TestCaseMethodDidStallOnMainThreadInFileLine() {}
-func (t TestLogCollector) TestCaseMethodWillStartActivity()              {}
-func (t TestLogCollector) TestCaseWithIdentifierWillStartActivity(testIdentifier nskeyedarchiver.XCTTestIdentifier, activityRecord nskeyedarchiver.XCActivityRecord) {
+func (t TestLogCollector) TestCaseDidFinishForTest(testClass string, testMethod string, status string, duration float64) {
 }
-func (t TestLogCollector) TestCaseDidFailForTestClassMethodWithMessageFileLine() {}
-func (t TestLogCollector) TestCaseWithIdentifierDidRecordIssue(testIdentifier nskeyedarchiver.XCTTestIdentifier, issue nskeyedarchiver.XCTIssue) {
+func (t TestLogCollector) TestCaseFinished(testCase string, method string, xcActivityRecord nskeyedarchiver.XCActivityRecord) {
 }
-func (t TestLogCollector) TestCaseDidFinishForTestClassMethodWithStatusDuration() {}
-func (t TestLogCollector) TestCaseWithIdentifierDidFinishWithStatusDuration(testIdentifier nskeyedarchiver.XCTTestIdentifier, status string, duration float64) {
+func (t TestLogCollector) TestSuiteFinished(suiteName string, date string, testCount uint64, failures uint64, unexpected uint64, testDuration float64,
+	totalDuration float64) {
 }
-func (t TestLogCollector) TestCaseDidStartForTestClassMethod() {}
-func (t TestLogCollector) TestCaseDidStartWithIdentifierTestCaseRunConfiguration(testIdentifier nskeyedarchiver.XCTTestIdentifier) {
-}
-func (t TestLogCollector) TestMethodOfClassDidMeasureMetricFileLine() {}
-func (t TestLogCollector) TestSuiteDidFinishAtRunCountWithFailuresUnexpectedTestDurationTotalDuration() {
-}
-func (t TestLogCollector) TestSuiteWithIdentifierDidFinishAtRunCountSkipCountFailureCountExpectedFailureCountUncaughtExceptionCountTestDurationTotalDuration(testIdentifier nskeyedarchiver.XCTTestIdentifier, finishAt string, runCount uint64, skipCount uint64, failureCount uint64, expectedFailureCount uint64, uncaughtExceptionCount uint64, testDuration float64, totalDuration float64) {
-}
-func (t TestLogCollector) TestSuiteDidStartAt() {}
-func (t TestLogCollector) TestSuiteWithIdentifierDidStartAt(testIdentifier nskeyedarchiver.XCTTestIdentifier, date string) {
-}
+func (t TestLogCollector) TestCaseDidStartForClass(className string, methodName string) {}
+func (t TestLogCollector) TestRunnerKilled()                                            {}

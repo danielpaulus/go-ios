@@ -8,9 +8,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Handles dispatching method calls received from the dtx connection to ide interface listeners
 type DispatchHandler struct {
 	dtxConnection                   *dtx.Connection
-	testListener                    *TestListener
+	ideInterfaceListener            *IdeInterfaceListener
 	testBundleReadyChannel          chan dtx.Message
 	testRunnerReadyWithCapabilities dtx.MethodWithResponse
 }
@@ -34,112 +35,139 @@ func (d DispatchHandler) HandleDispatch(m dtx.Message, closer io.Closer) {
 		case "_XCT_logMessage:":
 			mbytes := m.Auxiliary.GetArguments()[0].([]byte)
 			data, _ := nskeyedarchiver.Unarchive(mbytes)
-			if d.testListener != nil {
-				(*d.testListener).LogDebugMessage(data[0].(string))
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).LogDebugMessage(data[0].(string))
 			} else {
 				log.Debug(data)
 			}
 		case "_XCT_logDebugMessage:":
 			mbytes := m.Auxiliary.GetArguments()[0].([]byte)
 			data, _ := nskeyedarchiver.Unarchive(mbytes)
-			if d.testListener != nil {
-				(*d.testListener).LogMessage(data[0].(string))
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).LogMessage(data[0].(string))
 			} else {
 				log.Debug(data)
 			}
 		case "_XCT_didBeginExecutingTestPlan":
-			if d.testListener != nil {
-				(*d.testListener).DidBeginExecutingTestPlan()
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).DidBeginExecutingTestPlan()
 			}
 		case "_XCT_didFinishExecutingTestPlan":
-			if d.testListener != nil {
-				(*d.testListener).DidFinishExecutingTestPlan()
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).DidFinishExecutingTestPlan()
 			}
 			log.Info("_XCT_didFinishExecutingTestPlan received. Closing test.")
 			closer.Close()
 		case "_XCT_didFailToBootstrapWithError:":
-			if d.testListener != nil {
-				(*d.testListener).DidFailToBootstrapWithError(extractNSErrorArg(m, 0))
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).DidFailToBootstrapWithError(extractNSErrorArg(m, 0))
 			}
 			log.Info("_XCT_didFailToBootstrapWithError received. Closing test.")
 			closer.Close()
 		case "_XCT_didBeginInitializingForUITesting":
-			if d.testListener != nil {
-				(*d.testListener).DidBeginInitializingForUITesting()
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).DidBeginInitializingForUITesting()
 			}
-		case "_XCT_getProgressForLaunch:": // TODO
-			if d.testListener != nil {
-				(*d.testListener).GetProgressForLaunch()
+		case "_XCT_getProgressForLaunch:":
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).GetProgressForLaunch()
 			}
 		case "_XCT_initializationForUITestingDidFailWithError:":
-			if d.testListener != nil {
-				(*d.testListener).InitializationForUITestingDidFailWithError(extractNSErrorArg(m, 0))
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).InitializationForUITestingDidFailWithError(extractNSErrorArg(m, 0))
 			}
-		case "_XCT_testCase:method:didFinishActivity:": // TODO
-			if d.testListener != nil {
-				(*d.testListener).TestCaseMethodDidFinishActivity()
+		case "_XCT_testCase:method:didFinishActivity:":
+			if d.ideInterfaceListener != nil {
+				testCase := extractStringArg(m, 0)
+				testMethod := extractStringArg(m, 1)
+				activityRecord := extractActivityRecordArg(m, 2)
+				(*d.ideInterfaceListener).TestCaseMethodDidFinishActivity(testCase, testMethod, activityRecord)
 			}
 		case "_XCT_testCaseWithIdentifier:didFinishActivity:":
-			if d.testListener != nil {
+			if d.ideInterfaceListener != nil {
 				testIdentifier := extractTestIdentifierArg(m, 0)
 				activityRecord := extractActivityRecordArg(m, 1)
-				(*d.testListener).TestCaseWithIdentifierDidFinishActivity(testIdentifier, activityRecord)
+				(*d.ideInterfaceListener).TestCaseWithIdentifierDidFinishActivity(testIdentifier, activityRecord)
 			}
-		case "_XCT_testCase:method:didStallOnMainThreadInFile:line:": // TODO
-			if d.testListener != nil {
-				(*d.testListener).TestCaseMethodDidStallOnMainThreadInFileLine()
+		case "_XCT_testCase:method:didStallOnMainThreadInFile:line:":
+			if d.ideInterfaceListener != nil {
+				testCase := extractStringArg(m, 0)
+				testMethod := extractStringArg(m, 1)
+				file := extractStringArg(m, 2)
+				line := extractUint64Arg(m, 3)
+				(*d.ideInterfaceListener).TestCaseMethodDidStallOnMainThreadInFileLine(testCase, testMethod, file, line)
 			}
-		case "_XCT_testCase:method:willStartActivity:": // TODO
-			if d.testListener != nil {
-				(*d.testListener).TestCaseMethodWillStartActivity()
+		case "_XCT_testCase:method:willStartActivity:":
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).TestCaseMethodWillStartActivity()
 			}
 		case "_XCT_testCaseWithIdentifier:willStartActivity:":
-			if d.testListener != nil {
+			if d.ideInterfaceListener != nil {
 				testIdentifier := extractTestIdentifierArg(m, 0)
 				activityRecord := extractActivityRecordArg(m, 1)
-				(*d.testListener).TestCaseWithIdentifierWillStartActivity(testIdentifier, activityRecord)
+				(*d.ideInterfaceListener).TestCaseWithIdentifierWillStartActivity(testIdentifier, activityRecord)
 			}
-		case "_XCT_testCaseDidFailForTestClass:method:withMessage:file:line:": // TODO
-			if d.testListener != nil {
-				(*d.testListener).TestCaseDidFailForTestClassMethodWithMessageFileLine()
+		case "_XCT_testCaseDidFailForTestClass:method:withMessage:file:line:":
+			if d.ideInterfaceListener != nil {
+				testCase := extractStringArg(m, 0)
+				testMethod := extractStringArg(m, 1)
+				message := extractStringArg(m, 2)
+				file := extractStringArg(m, 3)
+				line := extractUint64Arg(m, 4)
+				(*d.ideInterfaceListener).TestCaseDidFailForTestClassMethodWithMessageFileLine(testCase, testMethod, message, file, line)
 			}
 		case "_XCT_testCaseWithIdentifier:didRecordIssue:":
-			if d.testListener != nil {
+			if d.ideInterfaceListener != nil {
 				testIdentifier := extractTestIdentifierArg(m, 0)
 				issue := extractIssueArg(m, 1)
-				(*d.testListener).TestCaseWithIdentifierDidRecordIssue(testIdentifier, issue)
+				(*d.ideInterfaceListener).TestCaseWithIdentifierDidRecordIssue(testIdentifier, issue)
 			}
-		case "_XCT_testCaseDidFinishForTestClass:method:withStatus:duration:": // TODO
-			if d.testListener != nil {
-				(*d.testListener).TestCaseDidFinishForTestClassMethodWithStatusDuration()
+		case "_XCT_testCaseDidFinishForTestClass:method:withStatus:duration:":
+			if d.ideInterfaceListener != nil {
+				testCase := extractStringArg(m, 0)
+				testMethod := extractStringArg(m, 1)
+				status := extractStringArg(m, 2)
+				duration := extractFloat64Arg(m, 3)
+
+				(*d.ideInterfaceListener).TestCaseDidFinishForTestClassMethodWithStatusDuration(testCase, testMethod, status, duration)
 			}
-		case "_XCT_testCaseWithIdentifier:didFinishWithStatus:duration:": // TODO
-			if d.testListener != nil {
+		case "_XCT_testCaseWithIdentifier:didFinishWithStatus:duration:":
+			if d.ideInterfaceListener != nil {
 				testIdentifier := extractTestIdentifierArg(m, 0)
 				status := extractStringArg(m, 1)
 				duration := extractFloat64Arg(m, 2)
 
-				(*d.testListener).TestCaseWithIdentifierDidFinishWithStatusDuration(testIdentifier, status, duration)
+				(*d.ideInterfaceListener).TestCaseWithIdentifierDidFinishWithStatusDuration(testIdentifier, status, duration)
 			}
-		case "_XCT_testCaseDidStartForTestClass:method:": // TODO
-			if d.testListener != nil {
-				(*d.testListener).TestCaseDidStartForTestClassMethod()
+		case "_XCT_testCaseDidStartForTestClass:method:":
+			if d.ideInterfaceListener != nil {
+				testClass := extractStringArg(m, 0)
+				testMethod := extractStringArg(m, 1)
+				(*d.ideInterfaceListener).TestCaseDidStartForTestClassMethod(testClass, testMethod)
 			}
-		case "_XCT_testCaseDidStartWithIdentifier:testCaseRunConfiguration:": // TODO
-			if d.testListener != nil {
+		case "_XCT_testCaseDidStartWithIdentifier:testCaseRunConfiguration:":
+			if d.ideInterfaceListener != nil {
 				testIdentifier := extractTestIdentifierArg(m, 0)
-				(*d.testListener).TestCaseDidStartWithIdentifierTestCaseRunConfiguration(testIdentifier)
+				(*d.ideInterfaceListener).TestCaseDidStartWithIdentifierTestCaseRunConfiguration(testIdentifier)
 			}
-		case "_XCT_testMethod:ofClass:didMeasureMetric:file:line:": // TODO
-			if d.testListener != nil {
-				(*d.testListener).TestMethodOfClassDidMeasureMetricFileLine()
+		case "_XCT_testMethod:ofClass:didMeasureMetric:file:line:":
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).TestMethodOfClassDidMeasureMetricFileLine()
 			}
-		case "_XCT_testSuite:didFinishAt:runCount:withFailures:unexpected:testDuration:totalDuration:": // TODO
-			if d.testListener != nil {
-				(*d.testListener).TestSuiteDidFinishAtRunCountWithFailuresUnexpectedTestDurationTotalDuration()
+		case "_XCT_testSuite:didFinishAt:runCount:withFailures:unexpected:testDuration:totalDuration:":
+			if d.ideInterfaceListener != nil {
+				testSuite := extractStringArg(m, 0)
+				finishAt := extractStringArg(m, 1)
+				runCount := extractUint64Arg(m, 2)
+				failures := extractUint64Arg(m, 3)
+				unexpectedFailureCount := extractUint64Arg(m, 4)
+				testDuration := extractFloat64Arg(m, 5)
+				totalDuration := extractFloat64Arg(m, 6)
+
+				(*d.ideInterfaceListener).TestSuiteDidFinishAtRunCountWithFailuresUnexpectedTestDurationTotalDuration(testSuite, finishAt, runCount, failures, unexpectedFailureCount, testDuration, totalDuration)
 			}
-		case "_XCT_testSuiteWithIdentifier:didFinishAt:runCount:skipCount:failureCount:expectedFailureCount:uncaughtExceptionCount:testDuration:totalDuration:": // TODO
-			if d.testListener != nil {
+		case "_XCT_testSuiteWithIdentifier:didFinishAt:runCount:skipCount:failureCount:expectedFailureCount:uncaughtExceptionCount:testDuration:totalDuration:":
+			if d.ideInterfaceListener != nil {
 				testIdentifier := extractTestIdentifierArg(m, 0)
 				finishAt := extractStringArg(m, 1)
 				runCount := extractUint64Arg(m, 2)
@@ -150,7 +178,7 @@ func (d DispatchHandler) HandleDispatch(m dtx.Message, closer io.Closer) {
 				testDuration := extractFloat64Arg(m, 7)
 				totalDuration := extractFloat64Arg(m, 8)
 
-				(*d.testListener).TestSuiteWithIdentifierDidFinishAtRunCountSkipCountFailureCountExpectedFailureCountUncaughtExceptionCountTestDurationTotalDuration(
+				(*d.ideInterfaceListener).TestSuiteWithIdentifierDidFinishAtRunCountSkipCountFailureCountExpectedFailureCountUncaughtExceptionCountTestDurationTotalDuration(
 					testIdentifier,
 					finishAt,
 					runCount,
@@ -162,16 +190,16 @@ func (d DispatchHandler) HandleDispatch(m dtx.Message, closer io.Closer) {
 					totalDuration,
 				)
 			}
-		case "_XCT_testSuite:didStartAt:": // TODO
-			if d.testListener != nil {
-				(*d.testListener).TestSuiteDidStartAt()
+		case "_XCT_testSuite:didStartAt:":
+			if d.ideInterfaceListener != nil {
+				(*d.ideInterfaceListener).TestSuiteDidStartAt()
 			}
 		case "_XCT_testSuiteWithIdentifier:didStartAt:":
-			if d.testListener != nil {
+			if d.ideInterfaceListener != nil {
 				testIdentifier := extractTestIdentifierArg(m, 0)
 				date := extractStringArg(m, 1)
 
-				(*d.testListener).TestSuiteWithIdentifierDidStartAt(testIdentifier, date)
+				(*d.ideInterfaceListener).TestSuiteWithIdentifierDidStartAt(testIdentifier, date)
 			}
 		default:
 			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")

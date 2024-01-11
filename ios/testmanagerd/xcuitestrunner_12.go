@@ -86,6 +86,9 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 				return fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot kill test runner: %w", err)
 			}
 			log.Info("Test runner killed with success")
+			if testListener != nil {
+				(*testListener).TestRunnerKilled()
+			}
 		}
 		return nil
 	}
@@ -97,6 +100,10 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 		return fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot kill test runner: %w", err)
 	}
 	log.Debugf("Test runner killed with success")
+	if testListener != nil {
+		(*testListener).TestRunnerKilled()
+	}
+
 	var signal interface{}
 	proxyDispatcher.closedChannel <- signal
 	return nil

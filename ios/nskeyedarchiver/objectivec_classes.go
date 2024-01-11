@@ -225,7 +225,7 @@ func archiveNSUUID(uid interface{}, objects []interface{}) ([]interface{}, plist
 }
 
 type NSURL struct {
-	path string
+	Path string
 }
 
 func NewNSURL(path string) NSURL {
@@ -247,7 +247,7 @@ func archiveNSURL(nsurlInterface interface{}, objects []interface{}) ([]interfac
 
 	pathRef := classref + 1
 	object["NS.relative"] = plist.UID(pathRef)
-	objects = append(objects, fmt.Sprintf("file://%s", nsurl.path))
+	objects = append(objects, fmt.Sprintf("file://%s", nsurl.Path))
 
 	return objects, plist.UID(urlReference)
 }
