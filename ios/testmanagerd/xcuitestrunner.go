@@ -169,22 +169,21 @@ type dtxproxy struct {
 	daemonConnection XCTestManager_DaemonConnectionInterface
 	IDEDaemonProxy   *dtx.Channel
 	dtxConnection    *dtx.Connection
-	proxyDispatcher  ProxyDispatcher
+	proxyDispatcher  proxyDispatcher
 }
 
-func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration, testListener *TestListener) dtxproxy {
+func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration, testListener TestListener) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
 	IdeInterfaceListener := IdeInterfaceListener{testListener: testListener}
 
-	dispatchHandler := DispatchHandler{
+	dispatchHandler := ideInterfaceDtxMessageHandler{
 		dtxConnection:                   dtxConnection,
 		ideInterfaceListener:            &IdeInterfaceListener,
 		testBundleReadyChannel:          testBundleReadyChannel,
 		testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig),
 	}
-	proxyDispatcher := ProxyDispatcher{
-		dtxConnection:   dtxConnection,
+	proxyDispatcher := proxyDispatcher{
 		closeChannel:    make(chan interface{}),
 		closedChannel:   make(chan interface{}),
 		dispatchHandler: &dispatchHandler,
@@ -209,7 +208,7 @@ const (
 
 const testBundleSuffix = "UITests.xctrunner"
 
-func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName string, device ios.DeviceEntry, env []string, testListener *TestListener) error {
+func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName string, device ios.DeviceEntry, env []string, testListener TestListener) error {
 	// FIXME: this is redundant code, getting the app list twice and creating the appinfos twice
 	// just to generate the xctestConfigFileName. Should be cleaned up at some point.
 	installationProxy, err := installationproxy.New(device)
@@ -247,7 +246,7 @@ func RunXCUIWithBundleIdsCtx(
 	device ios.DeviceEntry,
 	wdaargs []string,
 	wdaenv []string,
-	testListener *TestListener,
+	testListener TestListener,
 ) error {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
@@ -274,7 +273,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	testRunnerBundleID string,
 	xctestConfigFileName string,
 	device ios.DeviceEntry,
-	testListener *TestListener,
+	testListener TestListener,
 ) error {
 	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
@@ -356,7 +355,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 	log.Debug("control session initiated")
 
-	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface"})
+	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(proxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface"})
 
 	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, proto)
 
@@ -371,7 +370,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 			log.Info("Test runner killed with success")
 
 			if testListener != nil {
-				(*testListener).TestRunnerKilled()
+				testListener.TestRunnerKilled()
 			}
 		}
 		return nil
@@ -384,9 +383,6 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot kill test process: %w", err)
 	}
 	log.Debugf("Test runner killed with success")
-	if testListener != nil {
-		(*testListener).TestRunnerKilled()
-	}
 	var signal interface{}
 	ideDaemonProxy1.proxyDispatcher.closedChannel <- signal
 

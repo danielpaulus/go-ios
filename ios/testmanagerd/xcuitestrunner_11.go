@@ -19,7 +19,7 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 	device ios.DeviceEntry,
 	args []string,
 	env []string,
-	testListener *TestListener,
+	testListener TestListener,
 ) error {
 	log.Debugf("set up xcuitest")
 	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
@@ -66,7 +66,7 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot initiate a control session with capabilities: %w", err)
 	}
 	log.Debugf("control session initiated")
-	proxyDispatcher := ProxyDispatcher{id: "emty"}
+	proxyDispatcher := proxyDispatcher{id: "emty"}
 	ideInterfaceChannel := ideDaemonProxy.dtxConnection.ForChannelRequest(proxyDispatcher)
 
 	log.Debug("start executing testplan")
@@ -84,7 +84,7 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 			}
 			log.Info("Test runner killed with success")
 			if testListener != nil {
-				(*testListener).TestRunnerKilled()
+				testListener.TestRunnerKilled()
 			}
 		}
 		return nil
@@ -97,9 +97,6 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot kill test runner: %w", err)
 	}
 	log.Info("Test runner killed with success")
-	if testListener != nil {
-		(*testListener).TestRunnerKilled()
-	}
 
 	var signal interface{}
 	proxyDispatcher.closedChannel <- signal

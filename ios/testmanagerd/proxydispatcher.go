@@ -10,21 +10,23 @@ import (
 // A proxy object to intercept incoming DTX messages
 // Intercepted messages are converted to channel signals to notify end of connection or forwarded to the dispatch handler for further processing.
 
-type ProxyDispatcher struct {
-	dtxConnection   *dtx.Connection
+type proxyDispatcher struct {
 	id              string
 	closeChannel    chan interface{}
 	closedChannel   chan interface{}
-	dispatchHandler *DispatchHandler
+	dispatchHandler *ideInterfaceDtxMessageHandler
 }
 
-func (p ProxyDispatcher) Dispatch(m dtx.Message) {
+func (p proxyDispatcher) Dispatch(m dtx.Message) {
 	if p.dispatchHandler != nil {
-		p.dispatchHandler.HandleDispatch(m, &p)
+		shouldClose := p.dispatchHandler.handleDtxMessage(m)
+		if shouldClose {
+			p.Close()
+		}
 	}
 }
 
-func (p *ProxyDispatcher) Close() error {
+func (p *proxyDispatcher) Close() error {
 	var signal interface{}
 	go func() { p.closeChannel <- signal }()
 	select {

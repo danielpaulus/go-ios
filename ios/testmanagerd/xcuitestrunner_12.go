@@ -14,7 +14,7 @@ import (
 )
 
 func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, testRunnerBundleID string, xctestConfigFileName string,
-	device ios.DeviceEntry, args []string, env []string, testListener *TestListener,
+	device ios.DeviceEntry, args []string, env []string, testListener TestListener,
 ) error {
 	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
 	if err != nil {
@@ -64,7 +64,7 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	}
 	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
 
-	proxyDispatcher := ProxyDispatcher{id: "emty"}
+	proxyDispatcher := proxyDispatcher{id: "emty"}
 	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(proxyDispatcher)
 
 	time.Sleep(time.Second)
@@ -87,7 +87,7 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 			}
 			log.Info("Test runner killed with success")
 			if testListener != nil {
-				(*testListener).TestRunnerKilled()
+				testListener.TestRunnerKilled()
 			}
 		}
 		return nil
@@ -100,9 +100,6 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 		return fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot kill test runner: %w", err)
 	}
 	log.Debugf("Test runner killed with success")
-	if testListener != nil {
-		(*testListener).TestRunnerKilled()
-	}
 
 	var signal interface{}
 	proxyDispatcher.closedChannel <- signal

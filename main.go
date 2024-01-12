@@ -889,7 +889,7 @@ The commands work as following:
 		if rawTestlogErr == nil && rawTestlog {
 			var writer io.Writer = os.Stdout
 			var listener testmanagerd.TestListener = testmanagerd.TestLogCollector{Writer: &writer}
-			err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, &listener)
+			err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, listener)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}

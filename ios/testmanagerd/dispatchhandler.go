@@ -1,29 +1,28 @@
 package testmanagerd
 
 import (
-	"io"
-
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
 )
 
 // Handles dispatching method calls received from the dtx connection to ide interface listeners
-type DispatchHandler struct {
+type ideInterfaceDtxMessageHandler struct {
 	dtxConnection                   *dtx.Connection
 	ideInterfaceListener            *IdeInterfaceListener
 	testBundleReadyChannel          chan dtx.Message
 	testRunnerReadyWithCapabilities dtx.MethodWithResponse
 }
 
-func (d DispatchHandler) HandleDispatch(m dtx.Message, closer io.Closer) {
+func (d ideInterfaceDtxMessageHandler) handleDtxMessage(m dtx.Message) bool {
+	shouldClose := false
 	shouldAck := true
 	if len(m.Payload) == 1 {
 		method := m.Payload[0].(string)
 		switch method {
 		case "_XCT_testBundleReadyWithProtocolVersion:minimumVersion:":
 			d.testBundleReadyChannel <- m
-			return
+			return shouldClose
 		case "_XCT_testRunnerReadyWithCapabilities:":
 			shouldAck = false
 			log.Debug("received testRunnerReadyWithCapabilities")
@@ -57,13 +56,13 @@ func (d DispatchHandler) HandleDispatch(m dtx.Message, closer io.Closer) {
 				(*d.ideInterfaceListener).DidFinishExecutingTestPlan()
 			}
 			log.Info("_XCT_didFinishExecutingTestPlan received. Closing test.")
-			closer.Close()
+			shouldClose = true
 		case "_XCT_didFailToBootstrapWithError:":
 			if d.ideInterfaceListener != nil {
 				(*d.ideInterfaceListener).DidFailToBootstrapWithError(extractNSErrorArg(m, 0))
 			}
 			log.Info("_XCT_didFailToBootstrapWithError received. Closing test.")
-			closer.Close()
+			shouldClose = true
 		case "_XCT_didBeginInitializingForUITesting":
 			if d.ideInterfaceListener != nil {
 				(*d.ideInterfaceListener).DidBeginInitializingForUITesting()
@@ -205,10 +204,13 @@ func (d DispatchHandler) HandleDispatch(m dtx.Message, closer io.Closer) {
 			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")
 		}
 	}
+
 	if shouldAck {
 		dtx.SendAckIfNeeded(d.dtxConnection, m)
 	}
 	log.Tracef("dispatcher received: %s", m.String())
+
+	return shouldClose
 }
 
 func extractStringArg(m dtx.Message, index int) string {
