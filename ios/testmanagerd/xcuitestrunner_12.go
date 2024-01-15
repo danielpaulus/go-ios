@@ -91,17 +91,6 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	return nil
 }
 
-func killTestRunner(pControl *instruments.ProcessControl, pid uint64) error {
-	log.Infof("Killing test runner with pid %d ...", pid)
-	err := pControl.KillProcess(pid)
-	if err != nil {
-		return err
-	}
-	log.Info("Test runner killed with success")
-
-	return nil
-}
-
 func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
 	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv []string,
 ) (uint64, error) {

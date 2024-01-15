@@ -436,7 +436,6 @@ type processKiller interface {
 }
 
 func killTestRunner(killer processKiller, pid uint64) error {
-
 	log.Infof("Killing test runner with pid %d ...", pid)
 	err := killer.KillProcess(pid)
 	if err != nil {
