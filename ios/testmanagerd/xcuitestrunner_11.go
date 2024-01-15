@@ -2,6 +2,7 @@ package testmanagerd
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -10,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func RunXCUIWithBundleIdsXcode11Ctx(
+func runXCUIWithBundleIdsXcode11Ctx(
 	ctx context.Context,
 	bundleID string,
 	testRunnerBundleID string,
@@ -23,19 +24,19 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 	log.Debugf("set up xcuitest")
 	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create test config: %w", err)
 	}
 	log.Debugf("test session setup ok")
 	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
 	defer conn.Close()
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
 
 	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
 	defer conn2.Close()
 	log.Debug("connections ready")
@@ -45,24 +46,24 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 	protocolVersion := uint64(25)
 	_, err = ideDaemonProxy.daemonConnection.initiateSessionWithIdentifier(testSessionId, protocolVersion)
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot initiate a test session: %w", err)
 	}
 
 	pControl, err := instruments.NewProcessControl(device)
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot connect to process control: %w", err)
 	}
 	defer pControl.Close()
 
 	pid, err := startTestRunner11(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot start the test runner: %w", err)
 	}
 	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
 
 	err = ideDaemonProxy2.daemonConnection.initiateControlSession(pid, protocolVersion)
 	if err != nil {
-		return err
+		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot initiate a control session with capabilities: %w", err)
 	}
 	log.Debugf("control session initiated")
 	ideInterfaceChannel := ideDaemonProxy.dtxConnection.ForChannelRequest(proxyDispatcher{id: "emty"})
@@ -70,7 +71,7 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 	log.Debug("start executing testplan")
 	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 25)
 	if err != nil {
-		log.Error(err)
+		return fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot start executing test plan: %w", err)
 	}
 
 	select {
@@ -80,9 +81,10 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 		log.Infof("Killing test runner with pid %d ...", pid)
 		err = pControl.KillProcess(pid)
 		if err != nil {
-			return err
+			log.Infof("Nothing to kill, process with pid %d is already dead", pid)
+		} else {
+			log.Info("Test runner killed with success")
 		}
-		log.Info("Test runner killed with success")
 	}
 
 	log.Debugf("Done running test")
