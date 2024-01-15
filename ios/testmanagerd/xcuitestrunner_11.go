@@ -87,7 +87,7 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 
 	log.Debugf("Done running test")
 
-	return nil
+	return testListener.err
 }
 
 func startTestRunner11(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,

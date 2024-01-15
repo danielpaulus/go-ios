@@ -203,8 +203,13 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			p.dtxConnection.Send(messageBytes)
 		case "_XCT_didFinishExecutingTestPlan":
 			log.Info("_XCT_didFinishExecutingTestPlan received. Closing test.")
-			// CloseXCUITestRunner()
 			p.testListener.didFinishExecutingTestPlan()
+		case "_XCT_initializationForUITestingDidFailWithError:":
+			err := extractNSErrorArg(m, 0)
+			p.testListener.initializationForUITestingDidFailWithError(err)
+		case "_XCT_didFailToBootstrapWithError:":
+			err := extractNSErrorArg(m, 0)
+			p.testListener.didFailToBootstrapWithError(err)
 		default:
 			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")
 		}
@@ -420,7 +425,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 
 	log.Debugf("Done running test")
 
-	return nil // Return io.Closer
+	return testListener.err // Return io.Closer
 }
 
 type processKiller interface {
@@ -576,4 +581,10 @@ func getAppInfos(bundleID string, testRunnerBundleID string, apps []installation
 		return testInfo{}, fmt.Errorf("Did not find AppInfo for '%s' on device. Is it installed?", testRunnerBundleID)
 	}
 	return info, nil
+}
+
+func extractNSErrorArg(m dtx.Message, index int) nskeyedarchiver.NSError {
+	mbytes := m.Auxiliary.GetArguments()[index].([]byte)
+	data, _ := nskeyedarchiver.Unarchive(mbytes)
+	return data[0].(nskeyedarchiver.NSError)
 }

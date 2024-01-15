@@ -62,13 +62,16 @@ func TestXcuiTest(t *testing.T) {
 		return
 	}
 
+	errorChannel := make(chan error)
+	ctx, stopWda := context.WithCancel(context.Background())
 	bundleID, testbundleID, xctestconfig := "com.facebook.WebDriverAgentRunner.xctrunner", "com.facebook.WebDriverAgentRunner.xctrunner", "WebDriverAgentRunner.xctest"
 	var wdaargs []string
 	var wdaenv []string
 	go func() {
-		err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
+		err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, testmanagerd.NewTestListener())
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
+			errorChannel <- err
 		}
 	}()
 
@@ -85,9 +88,10 @@ func TestXcuiTest(t *testing.T) {
 
 	log.Infof("done")
 
-	err = testmanagerd.CloseXCUITestRunner()
+	stopWda()
+	err = <-errorChannel
 	if err != nil {
-		log.Error("Failed closing wda-testrunner")
+		log.Errorf("Failed running wda-testrunner: %s", err)
 		t.Fail()
 	}
 }

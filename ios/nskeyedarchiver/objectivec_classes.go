@@ -341,6 +341,10 @@ func NewNSError(object map[string]interface{}, objects []interface{}) interface{
 	return NSError{ErrorCode: errorCode, Domain: domain, UserInfo: userinfo}
 }
 
+func (err NSError) Error() string {
+	return fmt.Sprintf("Error code: %d, Domain: %s, User info: %v", err.ErrorCode, err.Domain, err.UserInfo)
+}
+
 // Apples Reference Date is Jan 1st 2001 00:00
 const nsReferenceDate = 978307200000
 
