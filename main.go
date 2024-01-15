@@ -860,7 +860,7 @@ The commands work as following:
 		xctestConfig, _ := arguments.String("--xctest-config")
 
 		env := arguments["--env"].([]string)
-		err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env)
+		err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener())
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 		}
@@ -1131,22 +1131,30 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			return true
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
+
+		errorChannel := make(chan error)
+		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
-			err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
+			err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, testmanagerd.NewTestListener())
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
+				errorChannel <- err
 			}
+			close(errorChannel)
 		}()
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		signal := <-c
 		log.Infof("os signal:%d received, closing..", signal)
 
-		err := testmanagerd.CloseXCUITestRunner()
+		stopWda()
+
+		err := <-errorChannel
 		if err != nil {
-			log.Error("Failed closing wda-testrunner")
+			log.Errorf("Failed running wda-testrunner: %s", err)
 			os.Exit(1)
 		}
+
 		log.Info("Done Closing")
 	}
 	return b

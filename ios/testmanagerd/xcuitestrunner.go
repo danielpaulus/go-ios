@@ -178,6 +178,7 @@ type ProxyDispatcher struct {
 	testRunnerReadyWithCapabilities dtx.MethodWithResponse
 	dtxConnection                   *dtx.Connection
 	id                              string
+	testListener                    *TestListener
 }
 
 func (p ProxyDispatcher) Dispatch(m dtx.Message) {
@@ -202,7 +203,8 @@ func (p ProxyDispatcher) Dispatch(m dtx.Message) {
 			p.dtxConnection.Send(messageBytes)
 		case "_XCT_didFinishExecutingTestPlan":
 			log.Info("_XCT_didFinishExecutingTestPlan received. Closing test.")
-			CloseXCUITestRunner()
+			// CloseXCUITestRunner()
+			p.testListener.didFinishExecutingTestPlan()
 		default:
 			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")
 		}
@@ -229,10 +231,15 @@ func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
 	}
 }
 
-func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration) dtxproxy {
+func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration, testListener *TestListener) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
-	proxyDispatcher := ProxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection, testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig)}
+	proxyDispatcher := ProxyDispatcher{
+		testBundleReadyChannel:          testBundleReadyChannel,
+		dtxConnection:                   dtxConnection,
+		testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig),
+		testListener:                    testListener,
+	}
 	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, proxyDispatcher)
 	ideInterface := XCTestManager_IDEInterface{IDEDaemonProxy: IDEDaemonProxy, testConfig: testConfig, testBundleReadyChannel: testBundleReadyChannel}
 
@@ -253,7 +260,7 @@ const (
 
 const testBundleSuffix = "UITests.xctrunner"
 
-func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName string, device ios.DeviceEntry, env []string) error {
+func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName string, device ios.DeviceEntry, env []string, testListener *TestListener) error {
 	// FIXME: this is redundant code, getting the app list twice and creating the appinfos twice
 	// just to generate the xctestConfigFileName. Should be cleaned up at some point.
 	installationProxy, err := installationproxy.New(device)
@@ -279,13 +286,9 @@ func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName st
 		xctestConfigName = info.targetAppBundleName + "UITests.xctest"
 	}
 
-	return RunXCUIWithBundleIdsCtx(nil, bundleID, testRunnerBundleID, xctestConfigName, device, nil, env)
+	ctx, _ := context.WithTimeout(context.TODO(), 15*time.Second)
+	return RunXCUIWithBundleIdsCtx(ctx, bundleID, testRunnerBundleID, xctestConfigName, device, nil, env, testListener)
 }
-
-var (
-	closeChan  = make(chan interface{})
-	closedChan = make(chan interface{})
-)
 
 func RunXCUIWithBundleIdsCtx(
 	ctx context.Context,
@@ -295,6 +298,7 @@ func RunXCUIWithBundleIdsCtx(
 	device ios.DeviceEntry,
 	wdaargs []string,
 	wdaenv []string,
+	testListener *TestListener,
 ) error {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
@@ -303,34 +307,25 @@ func RunXCUIWithBundleIdsCtx(
 
 	if version.LessThan(ios.IOS14()) {
 		log.Debugf("iOS version: %s detected, running with ios11 support", version)
-		return RunXCUIWithBundleIdsXcode11Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
+		return RunXCUIWithBundleIdsXcode11Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv, testListener)
 	}
 
 	if version.LessThan(ios.IOS17()) {
 		log.Debugf("iOS version: %s detected, running with ios14 support", version)
-		return RunXUITestWithBundleIdsXcode12Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv)
+		return RunXUITestWithBundleIdsXcode12Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, wdaargs, wdaenv, testListener)
 	}
 
 	log.Debugf("iOS version: %s detected, running with ios17 support", version)
-	return runXUITestWithBundleIdsXcode15Ctx(bundleID, testRunnerBundleID, xctestConfigFileName, device)
-}
-
-func CloseXCUITestRunner() error {
-	var signal interface{}
-	go func() { closeChan <- signal }()
-	select {
-	case <-closedChan:
-		return nil
-	case <-time.After(5 * time.Second):
-		return fmt.Errorf("Failed closing, exiting due to timeout")
-	}
+	return runXUITestWithBundleIdsXcode15Ctx(ctx, bundleID, testRunnerBundleID, xctestConfigFileName, device, testListener)
 }
 
 func runXUITestWithBundleIdsXcode15Ctx(
+	ctx context.Context,
 	bundleID string,
 	testRunnerBundleID string,
 	xctestConfigFileName string,
 	device ios.DeviceEntry,
+	testListener *TestListener,
 ) error {
 	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
@@ -360,7 +355,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 
 	testconfig := createTestConfig(info, testSessionID, xctestConfigFileName)
 
-	ideDaemonProxy1 := newDtxProxyWithConfig(conn1, testconfig)
+	ideDaemonProxy1 := newDtxProxyWithConfig(conn1, testconfig, testListener)
 
 	proto, err := ideDaemonProxy1.daemonConnection.initiateSessionWithIdentifier(testSessionID, 29)
 	if err != nil {
@@ -389,7 +384,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		"ubiquitous test identifiers":              uint64(1),
 	}}
 
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testconfig)
+	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testconfig, testListener)
 	caps, err := ideDaemonProxy1.daemonConnection.initiateControlSessionWithCapabilities(localCaps)
 	if err != nil {
 		return err
@@ -412,23 +407,20 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, proto)
 
 	select {
-	case <-closeChan:
-		err = killTestRunner(appserviceConn, pid)
+	case <-testListener.Done():
+		break
 	case <-ctx.Done():
-		err = killTestRunner(appserviceConn, pid)
+		log.Infof("Killing test runner with pid %d ...", pid)
+		err = appserviceConn.KillProcess(pid)
+		if err != nil {
+			return err
+		}
+		log.Info("Test runner killed with success")
 	}
 
-	if err != nil {
-		return err // formatted
-	}
+	log.Debugf("Done running test")
 
-	var signal interface{}
-	closedChan <- signal
-	return nil
-
-	// TODO : replace nil context with context.TODO
-
-	return nil
+	return nil // Return io.Closer
 }
 
 type processKiller interface {

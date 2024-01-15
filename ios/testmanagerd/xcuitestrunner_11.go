@@ -18,6 +18,7 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 	device ios.DeviceEntry,
 	args []string,
 	env []string,
+	testListener *TestListener,
 ) error {
 	log.Debugf("set up xcuitest")
 	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
@@ -30,7 +31,7 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 		return err
 	}
 	defer conn.Close()
-	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
+	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
 
 	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
 	if err != nil {
@@ -38,7 +39,7 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 	}
 	defer conn2.Close()
 	log.Debug("connections ready")
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig)
+	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig, testListener)
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 	// TODO: fixme
 	protocolVersion := uint64(25)
@@ -71,28 +72,21 @@ func RunXCUIWithBundleIdsXcode11Ctx(
 	if err != nil {
 		log.Error(err)
 	}
-	if ctx != nil {
-		select {
-		case <-ctx.Done():
-			log.Infof("Killing WebDriverAgent with pid %d ...", pid)
-			err = pControl.KillProcess(pid)
-			if err != nil {
-				return err
-			}
-			log.Info("WDA killed with success")
+
+	select {
+	case <-testListener.Done():
+		break
+	case <-ctx.Done():
+		log.Infof("Killing test runner with pid %d ...", pid)
+		err = pControl.KillProcess(pid)
+		if err != nil {
+			return err
 		}
-		return nil
+		log.Info("Test runner killed with success")
 	}
-	log.Debugf("done starting test")
-	<-closeChan
-	log.Infof("Killing WebDriverAgent with pid %d ...", pid)
-	err = pControl.KillProcess(pid)
-	if err != nil {
-		return err
-	}
-	log.Info("WDA killed with success")
-	var signal interface{}
-	closedChan <- signal
+
+	log.Debugf("Done running test")
+
 	return nil
 }
 

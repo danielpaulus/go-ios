@@ -13,7 +13,7 @@ import (
 )
 
 func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, testRunnerBundleID string, xctestConfigFileName string,
-	device ios.DeviceEntry, args []string, env []string,
+	device ios.DeviceEntry, args []string, env []string, testListener *TestListener,
 ) error {
 	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
 	if err != nil {
@@ -25,7 +25,7 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 		return err
 	}
 	defer conn.Close()
-	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig)
+	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
 
 	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
 	if err != nil {
@@ -33,7 +33,7 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	}
 	defer conn2.Close()
 	log.Debug("connections ready")
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig)
+	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig, testListener)
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 	caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
 	if err != nil {
@@ -76,18 +76,19 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	}
 
 	select {
-	case <-closeChan:
-		err = killTestRunner(pControl, pid)
+	case <-testListener.Done():
+		break
 	case <-ctx.Done():
-		err = killTestRunner(pControl, pid)
+		log.Infof("Killing test runner with pid %d ...", pid)
+		err = pControl.KillProcess(pid)
+		if err != nil {
+			return err
+		}
+		log.Info("Test runner killed with success")
 	}
 
-	if err != nil {
-		return err // formatted
-	}
+	log.Debugf("Done running test")
 
-	var signal interface{}
-	closedChan <- signal
 	return nil
 }
 
