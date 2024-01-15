@@ -82,27 +82,31 @@ func (t *TestListener) didFailToBootstrapWithError(err nskeyedarchiver.NSError) 
 }
 
 func (t *TestListener) testCaseStalled(testCase string, method string, file string, line uint64) {
-	log.Debug("TODO")
+	log.Debug("TODO ?")
 }
 
-func (t *TestListener) testCaseFailedForClass(testClass string, method string, message string, file string, line uint64) {
-	log.Debug("TODO")
-}
-func (t *TestListener) testCaseDidFinishForTest(testClass string, testMethod string, status string, duration float64) {
-	log.Debug("TODO")
-}
 func (t *TestListener) testCaseFinished(testCase string, method string, xcActivityRecord nskeyedarchiver.XCActivityRecord) {
-	log.Debug("TODO")
-}
-func (t *TestListener) testSuiteFinished(suiteName string, date string, testCount uint64, failures uint64, skip uint64, expectedFailure uint64, unexpectedFailure uint64, uncaughtException uint64, testDuration float64, totalDuration float64) {
-	log.Debug("TODO")
-}
-func (t *TestListener) testCaseDidStartForClass(className string, methodName string) {
-	log.Debug("TODO")
+	log.Debug("TODO ?")
 }
 
 func (t *TestListener) testSuiteDidStart(suiteName string, date string) {
-	log.Debug("TODO")
+	log.Debug("TODO 1")
+}
+
+func (t *TestListener) testCaseDidStartForClass(className string, methodName string) {
+	log.Debug("TODO 2")
+}
+
+func (t *TestListener) testCaseFailedForClass(testClass string, method string, message string, file string, line uint64) {
+	log.Debug("TODO 3")
+}
+
+func (t *TestListener) testCaseDidFinishForTest(testClass string, testMethod string, status string, duration float64) {
+	log.Debug("TODO 3.1")
+}
+
+func (t *TestListener) testSuiteFinished(suiteName string, date string, testCount uint64, failures uint64, skip uint64, expectedFailure uint64, unexpectedFailure uint64, uncaughtException uint64, testDuration float64, totalDuration float64) {
+	log.Debug("TODO 4")
 }
 
 func (t *TestListener) LogMessage(msg string) {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/danielpaulus/go-ios/ios/appservice"
 
@@ -244,8 +243,7 @@ func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName st
 		xctestConfigName = info.targetAppBundleName + "UITests.xctest"
 	}
 
-	ctx, _ := context.WithTimeout(context.TODO(), 15*time.Second)
-	return RunXCUIWithBundleIdsCtx(ctx, bundleID, testRunnerBundleID, xctestConfigName, device, nil, env, testListener)
+	return RunXCUIWithBundleIdsCtx(context.TODO(), bundleID, testRunnerBundleID, xctestConfigName, device, nil, env, testListener)
 }
 
 func RunXCUIWithBundleIdsCtx(

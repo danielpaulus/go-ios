@@ -154,18 +154,20 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 			testDuration := extractFloat64Arg(m, 7)
 			totalDuration := extractFloat64Arg(m, 8)
 
-			p.testListener.testSuiteFinished(
-				testIdentifier.C[0],
-				finishAt,
-				runCount,
-				failureCount,
-				skipCount,
-				expectedFailureCount,
-				UnknownCount, // unexpected failure count
-				uncaughtExceptionCount,
-				testDuration,
-				totalDuration,
-			)
+			if len(testIdentifier.C) > 0 {
+				p.testListener.testSuiteFinished(
+					testIdentifier.C[0],
+					finishAt,
+					runCount,
+					failureCount,
+					skipCount,
+					expectedFailureCount,
+					UnknownCount, // unexpected failure count
+					uncaughtExceptionCount,
+					testDuration,
+					totalDuration,
+				)
+			}
 		case "_XCT_testSuite:didStartAt:":
 			testSuite := extractStringArg(m, 0)
 			date := extractStringArg(m, 1)
