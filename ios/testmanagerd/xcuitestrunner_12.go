@@ -63,7 +63,7 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	}
 	log.Debugf("Runner started with pid:%d, waiting for testBundleReady", pid)
 
-	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "emty"})
+	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(proxyDispatcher{id: "emty"})
 
 	time.Sleep(time.Second)
 

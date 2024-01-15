@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -111,8 +112,8 @@ Usage:
   ios apps [--system] [--all] [--list] [--filesharing] [options]
   ios launch <bundleID> [--wait] [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
-  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--env=<e>]... [options]
-  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
+  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--raw-testlog] [--env=<e>]... [options]
+  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--raw-testlog] [--env=<e>]... [options]
   ios ax [options]
   ios debug [options] [--stop-at-entry] <app_path>
   ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>
@@ -128,7 +129,6 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
-  ios appservice [options]
   ios start-tunnel [options]
   ios deviceinfo [options] (display | lockdown)
   ios devmode (enable | get) [--enable-post-restart] [options]
@@ -217,8 +217,8 @@ The commands work as following:
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
    ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
-   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
-   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
+   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--raw-testlog] [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
+   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--raw-testlog] [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [options]                                                   Access accessibility inspector features.
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
@@ -236,7 +236,6 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
-   ios appservice [options]											  Launches apps.
    ios start-tunnel [options]                                         Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo kill -s STOP $(pgrep "^remoted")', and 'sudo kill -s CONT $(pgrep "^remoted")' to resume)
@@ -776,17 +775,43 @@ The commands work as following:
 		if bundleID == "" {
 			log.Fatal("please provide a bundleID")
 		}
-		pControl, err := instruments.NewProcessControl(device)
-		exitIfError("processcontrol failed", err)
 
-		pid, err := pControl.LaunchApp(bundleID)
-		exitIfError("launch app command failed", err)
-		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
-		if wait {
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-			<-c
-			log.WithFields(log.Fields{"pid": pid}).Info("stop listening to logs")
+		version, err := ios.GetProductVersion(device)
+		exitIfError("failed getting device product version", err)
+
+		if version.LessThan(ios.IOS17()) {
+			pControl, err := instruments.NewProcessControl(device)
+			exitIfError("processcontrol failed", err)
+
+			pid, err := pControl.LaunchApp(bundleID)
+			exitIfError("launch app command failed", err)
+			log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
+			if wait {
+				c := make(chan os.Signal, 1)
+				signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+				<-c
+				log.WithFields(log.Fields{"pid": pid}).Info("stop listening to logs")
+			}
+		} else {
+			conn, err := appservice.New(device)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer conn.Close()
+
+			applaunch, err := conn.LaunchApp(
+				bundleID,
+				[]interface{}{},
+				map[string]interface{}{
+					"TERM": "xterm-256color",
+				},
+				map[string]interface{}{},
+				false,
+			)
+			log.WithField("pid", applaunch.Pid).Info("launched app")
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 
@@ -859,10 +884,20 @@ The commands work as following:
 		testRunnerBundleId, _ := arguments.String("--test-runner-bundle-id")
 		xctestConfig, _ := arguments.String("--xctest-config")
 
+		rawTestlog, rawTestlogErr := arguments.Bool("--raw-testlog")
 		env := arguments["--env"].([]string)
-		err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener())
-		if err != nil {
-			log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
+
+		if rawTestlogErr == nil && rawTestlog {
+			var writer io.Writer = os.Stdout
+			err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(writer, writer))
+			if err != nil {
+				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
+			}
+		} else {
+			err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(nil, nil))
+			if err != nil {
+				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
+			}
 		}
 		return
 	}
@@ -989,29 +1024,6 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("appservice")
-	if b {
-		conn, err := appservice.New(device)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer conn.Close()
-
-		// TODO : get rid of this and implement launch, kill etc under existing commands
-
-		applaunch, err := conn.LaunchApp(
-			"E66A4DED-A888-495F-A701-1C478F94DC8B", // TODO : infer from selected device
-			"com.apple.mobilesafari",
-			[]interface{}{}, map[string]interface{}{
-				"TERM": "xterm-256color",
-			},
-			map[string]interface{}{})
-		log.WithField("pid", applaunch.Pid).Info("launched app")
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
 	b, _ = arguments.Bool("start-tunnel")
 	if b {
 		startTunnel(device)
@@ -1135,7 +1147,7 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		errorChannel := make(chan error)
 		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
-			err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, testmanagerd.NewTestListener())
+			err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, testmanagerd.NewTestListener(nil, nil))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 				errorChannel <- err

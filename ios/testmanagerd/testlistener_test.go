@@ -1,6 +1,7 @@
 package testmanagerd
 
 import (
+	"os"
 	"sync"
 	"testing"
 
@@ -12,7 +13,7 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Wait for test finish with single waiter", func(t *testing.T) {
-		testListener := NewTestListener()
+		testListener := NewTestListener(os.Stdout, os.Stdout)
 
 		go func() {
 			testListener.didFinishExecutingTestPlan()
@@ -22,7 +23,7 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 	})
 
 	t.Run("Wait for test finish with multiple waiters", func(t *testing.T) {
-		testListener := NewTestListener()
+		testListener := NewTestListener(os.Stdout, os.Stdout)
 
 		var wg sync.WaitGroup
 		wg.Add(2)
@@ -43,7 +44,7 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 	})
 
 	t.Run("Check error on a failed test run", func(t *testing.T) {
-		testListener := NewTestListener()
+		testListener := NewTestListener(os.Stdout, os.Stdout)
 
 		testListener.initializationForUITestingDidFailWithError(nskeyedarchiver.NSError{
 			ErrorCode: 1, Domain: "testdomain", UserInfo: map[string]interface{}{}})
@@ -53,7 +54,7 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 	})
 
 	t.Run("Check error on a failed test run with bootstrap error", func(t *testing.T) {
-		testListener := NewTestListener()
+		testListener := NewTestListener(os.Stdout, os.Stdout)
 
 		testListener.didFailToBootstrapWithError(nskeyedarchiver.NSError{
 			ErrorCode: 1, Domain: "testdomain", UserInfo: map[string]interface{}{}})

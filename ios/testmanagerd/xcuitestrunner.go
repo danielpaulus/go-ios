@@ -170,60 +170,13 @@ type dtxproxy struct {
 	daemonConnection XCTestManager_DaemonConnectionInterface
 	IDEDaemonProxy   *dtx.Channel
 	dtxConnection    *dtx.Connection
-	proxyDispatcher  ProxyDispatcher
-}
-
-type ProxyDispatcher struct {
-	testBundleReadyChannel          chan dtx.Message
-	testRunnerReadyWithCapabilities dtx.MethodWithResponse
-	dtxConnection                   *dtx.Connection
-	id                              string
-	testListener                    *TestListener
-}
-
-func (p ProxyDispatcher) Dispatch(m dtx.Message) {
-	shouldAck := true
-	if len(m.Payload) == 1 {
-		method := m.Payload[0].(string)
-		switch method {
-		case "_XCT_testBundleReadyWithProtocolVersion:minimumVersion:":
-			p.testBundleReadyChannel <- m
-			return
-		case "_XCT_logDebugMessage:":
-			mbytes := m.Auxiliary.GetArguments()[0].([]byte)
-			data, _ := nskeyedarchiver.Unarchive(mbytes)
-			log.Debug(data)
-		case "_XCT_testRunnerReadyWithCapabilities:":
-			shouldAck = false
-			log.Debug("received testRunnerReadyWithCapabilities")
-			resp, _ := p.testRunnerReadyWithCapabilities(m)
-			payload, _ := nskeyedarchiver.ArchiveBin(resp)
-			messageBytes, _ := dtx.Encode(m.Identifier, 1, m.ChannelCode, false, dtx.ResponseWithReturnValueInPayload, payload, dtx.NewPrimitiveDictionary())
-			log.Debug("sending response for capabs")
-			p.dtxConnection.Send(messageBytes)
-		case "_XCT_didFinishExecutingTestPlan":
-			log.Info("_XCT_didFinishExecutingTestPlan received. Closing test.")
-			p.testListener.didFinishExecutingTestPlan()
-		case "_XCT_initializationForUITestingDidFailWithError:":
-			err := extractNSErrorArg(m, 0)
-			p.testListener.initializationForUITestingDidFailWithError(err)
-		case "_XCT_didFailToBootstrapWithError:":
-			err := extractNSErrorArg(m, 0)
-			p.testListener.didFailToBootstrapWithError(err)
-		default:
-			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")
-		}
-	}
-	if shouldAck {
-		dtx.SendAckIfNeeded(p.dtxConnection, m)
-	}
-	log.Tracef("dispatcher received: %s", m.String())
+	proxyDispatcher  proxyDispatcher
 }
 
 func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
-	proxyDispatcher := ProxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection}
+	proxyDispatcher := proxyDispatcher{testBundleReadyChannel: testBundleReadyChannel, dtxConnection: dtxConnection}
 	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, proxyDispatcher)
 	ideInterface := XCTestManager_IDEInterface{IDEDaemonProxy: IDEDaemonProxy, testBundleReadyChannel: testBundleReadyChannel}
 
@@ -239,7 +192,7 @@ func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
 func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration, testListener *TestListener) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
-	proxyDispatcher := ProxyDispatcher{
+	proxyDispatcher := proxyDispatcher{
 		testBundleReadyChannel:          testBundleReadyChannel,
 		dtxConnection:                   dtxConnection,
 		testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig),
@@ -407,7 +360,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 	log.Debug("control session initiated")
 
-	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(ProxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface"})
+	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(proxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface"})
 
 	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, proto)
 
@@ -416,7 +369,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		break
 	case <-ctx.Done():
 		log.Infof("Killing test runner with pid %d ...", pid)
-		err = appserviceConn.KillProcess(pid)
+		err = killTestRunner(appserviceConn, pid)
 		if err != nil {
 			return err
 		}
@@ -482,11 +435,11 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 	}
 
 	appLaunch, err := appserviceConn.LaunchApp(
-		"D8FB9E56-4394-40AC-81C1-9E50DD885AC2", // TODO : this should be inferred from the tunnel and be present in `device`
 		bundleID,
 		args,
 		env,
 		opts,
+		true,
 	)
 
 	if err != nil {
@@ -581,10 +534,4 @@ func getAppInfos(bundleID string, testRunnerBundleID string, apps []installation
 		return testInfo{}, fmt.Errorf("Did not find AppInfo for '%s' on device. Is it installed?", testRunnerBundleID)
 	}
 	return info, nil
-}
-
-func extractNSErrorArg(m dtx.Message, index int) nskeyedarchiver.NSError {
-	mbytes := m.Auxiliary.GetArguments()[index].([]byte)
-	data, _ := nskeyedarchiver.Unarchive(mbytes)
-	return data[0].(nskeyedarchiver.NSError)
 }
