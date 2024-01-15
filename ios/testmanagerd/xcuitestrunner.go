@@ -411,7 +411,38 @@ func runXUITestWithBundleIdsXcode15Ctx(
 
 	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, proto)
 
-	time.Sleep(60 * time.Second)
+	select {
+	case <-closeChan:
+		err = killTestRunner(appserviceConn, pid)
+	case <-ctx.Done():
+		err = killTestRunner(appserviceConn, pid)
+	}
+
+	if err != nil {
+		return err // formatted
+	}
+
+	var signal interface{}
+	closedChan <- signal
+	return nil
+
+	// TODO : replace nil context with context.TODO
+
+	return nil
+}
+
+type processKiller interface {
+	KillProcess(pid uint64) error
+}
+
+func killTestRunner(killer processKiller, pid uint64) error {
+
+	log.Infof("Killing test runner with pid %d ...", pid)
+	err := killer.KillProcess(pid)
+	if err != nil {
+		return err
+	}
+	log.Info("Test runner killed with success")
 
 	return nil
 }

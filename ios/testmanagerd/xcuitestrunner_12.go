@@ -75,28 +75,30 @@ func RunXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 		return err
 	}
 
-	if ctx != nil {
-		select {
-		case <-ctx.Done():
-			log.Infof("Killing WebDriverAgent with pid %d ...", pid)
-			err = pControl.KillProcess(pid)
-			if err != nil {
-				return err
-			}
-			log.Info("WDA killed with success")
-		}
-		return nil
+	select {
+	case <-closeChan:
+		err = killTestRunner(pControl, pid)
+	case <-ctx.Done():
+		err = killTestRunner(pControl, pid)
 	}
 
-	<-closeChan
-	log.Debugf("Killing UITest with pid %d ...", pid)
-	err = pControl.KillProcess(pid)
+	if err != nil {
+		return err // formatted
+	}
+
+	var signal interface{}
+	closedChan <- signal
+	return nil
+}
+
+func killTestRunner(pControl *instruments.ProcessControl, pid uint64) error {
+	log.Infof("Killing test runner with pid %d ...", pid)
+	err := pControl.KillProcess(pid)
 	if err != nil {
 		return err
 	}
-	log.Debugf("WDA killed with success")
-	var signal interface{}
-	closedChan <- signal
+	log.Info("Test runner killed with success")
+
 	return nil
 }
 

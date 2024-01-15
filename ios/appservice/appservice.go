@@ -103,7 +103,7 @@ func (c *Connection) ListProcesses() ([]Process, error) {
 	return nil, fmt.Errorf("could not parse response")
 }
 
-func (c *Connection) KillProcess(pid int) error {
+func (c *Connection) KillProcess(pid uint64) error {
 	req := buildSendSignalPayload(c.deviceId, pid, syscall.SIGKILL)
 	err := c.conn.Send(req, xpc.HeartbeatRequestFlag)
 	if err != nil {
@@ -186,7 +186,7 @@ func buildRebootPayload(deviceId string, style string) map[string]interface{} {
 	})
 }
 
-func buildSendSignalPayload(deviceId string, pid int, signal syscall.Signal) map[string]interface{} {
+func buildSendSignalPayload(deviceId string, pid uint64, signal syscall.Signal) map[string]interface{} {
 	return coredevice.BuildRequest(deviceId, "com.apple.coredevice.feature.sendsignaltoprocess", map[string]interface{}{
 		"process": map[string]interface{}{
 			"processIdentifier": int64(pid),
