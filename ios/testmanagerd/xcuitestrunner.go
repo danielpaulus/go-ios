@@ -217,12 +217,12 @@ const (
 
 const testBundleSuffix = "UITests.xctrunner"
 
-func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName string, device ios.DeviceEntry, env []string, testListener *TestListener) error {
+func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName string, device ios.DeviceEntry, env []string, testListener *TestListener) (TestSuite, error) {
 	// FIXME: this is redundant code, getting the app list twice and creating the appinfos twice
 	// just to generate the xctestConfigFileName. Should be cleaned up at some point.
 	installationProxy, err := installationproxy.New(device)
 	if err != nil {
-		return fmt.Errorf("RunXCUITest: cannot connect to installation proxy: %w", err)
+		return TestSuite{}, fmt.Errorf("RunXCUITest: cannot connect to installation proxy: %w", err)
 	}
 	defer installationProxy.Close()
 
@@ -232,11 +232,11 @@ func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName st
 
 	apps, err := installationProxy.BrowseUserApps()
 	if err != nil {
-		return fmt.Errorf("RunXCUITest: cannot browse user apps: %w", err)
+		return TestSuite{}, fmt.Errorf("RunXCUITest: cannot browse user apps: %w", err)
 	}
 	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
 	if err != nil {
-		return fmt.Errorf("RunXCUITest: cannot get app information: %w", err)
+		return TestSuite{}, fmt.Errorf("RunXCUITest: cannot get app information: %w", err)
 	}
 
 	if xctestConfigName == "" {
@@ -255,10 +255,10 @@ func RunXCUIWithBundleIdsCtx(
 	args []string,
 	env []string,
 	testListener *TestListener,
-) error {
+) (TestSuite, error) {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
-		return fmt.Errorf("RunXCUIWithBundleIdsCtx: cannot determine iOS version: %w", err)
+		return TestSuite{}, fmt.Errorf("RunXCUIWithBundleIdsCtx: cannot determine iOS version: %w", err)
 	}
 
 	if version.LessThan(ios.IOS14()) {
@@ -284,32 +284,32 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	args []string,
 	env []string,
 	testListener *TestListener,
-) error {
+) (TestSuite, error) {
 	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot create a tunnel connection to testmanagerd: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot create a tunnel connection to testmanagerd: %w", err)
 	}
 	defer conn1.Close()
 
 	conn2, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot create a tunnel connection to testmanagerd: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot create a tunnel connection to testmanagerd: %w", err)
 	}
 	defer conn2.Close()
 
 	installationProxy, err := installationproxy.New(device)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot connect to installation proxy: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot connect to installation proxy: %w", err)
 	}
 	defer installationProxy.Close()
 	apps, err := installationProxy.BrowseUserApps()
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot browse user apps: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot browse user apps: %w", err)
 	}
 
 	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot get app information: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot get app information: %w", err)
 	}
 
 	testSessionID := uuid.New()
@@ -318,19 +318,19 @@ func runXUITestWithBundleIdsXcode15Ctx(
 
 	proto, err := ideDaemonProxy1.daemonConnection.initiateSessionWithIdentifier(testSessionID, 29)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a IDE session: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a IDE session: %w", err)
 	}
 	log.WithField("proto", proto).Info("got capabilities")
 
 	appserviceConn, err := appservice.New(device)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot connect to app service: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot connect to app service: %w", err)
 	}
 	defer appserviceConn.Close()
 
 	pid, err := startTestRunner17(device, appserviceConn, "", testRunnerBundleID, strings.ToUpper(testSessionID.String()), info.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start test runner: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start test runner: %w", err)
 	}
 
 	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
@@ -349,18 +349,18 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testconfig, testListener)
 	caps, err := ideDaemonProxy1.daemonConnection.initiateControlSessionWithCapabilities(localCaps)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session with capabilities: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session with capabilities: %w", err)
 	}
 	log.WithField("caps", caps).Info("got capabilities")
 	authorized, err := ideDaemonProxy2.daemonConnection.authorizeTestSessionWithProcessID(pid)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot authorize test session: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot authorize test session: %w", err)
 	}
 	log.WithField("authorized", authorized).Info("authorized")
 
 	err = ideDaemonProxy2.daemonConnection.initiateControlSession(pid, proto)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session: %w", err)
 	}
 	log.Debug("control session initiated")
 
@@ -368,7 +368,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 
 	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, proto)
 	if err != nil {
-		return fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start executing test plan: %w", err)
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start executing test plan: %w", err)
 	}
 
 	select {
@@ -386,7 +386,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 
 	log.Debugf("Done running test")
 
-	return testListener.err // Return io.Closer
+	return *testListener.testSuite, testListener.err // Return io.Closer
 }
 
 type processKiller interface {
