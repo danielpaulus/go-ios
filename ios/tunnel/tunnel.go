@@ -47,18 +47,8 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to find device ethernet interface: %w", err)
 	}
 
-	rsdService, err := ios.NewWithAddr(addr)
+	port, err := getUntrustedTunnelServicePort(addr)
 	if err != nil {
-		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to connect to RSD service: %w", err)
-	}
-	defer rsdService.Close()
-	handshakeResponse, err := rsdService.Handshake()
-	if err != nil {
-		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to perform RSD handshake: %w", err)
-	}
-
-	port := handshakeResponse.GetPort(UntrustedTunnelServiceName)
-	if port == 0 {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: could not find port for '%s'", UntrustedTunnelServiceName)
 	}
 	h, err := ios.ConnectToHttp2WithAddr(addr, port)
@@ -85,6 +75,24 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to connect to tunnel: %w", err)
 	}
 	return t, nil
+}
+
+func getUntrustedTunnelServicePort(addr string) (int, error) {
+	rsdService, err := ios.NewWithAddr(addr)
+	if err != nil {
+		return 0, fmt.Errorf("getUntrustedTunnelServicePort: failed to connect to RSD service: %w", err)
+	}
+	defer rsdService.Close()
+	handshakeResponse, err := rsdService.Handshake()
+	if err != nil {
+		return 0, fmt.Errorf("getUntrustedTunnelServicePort: failed to perform RSD handshake: %w", err)
+	}
+
+	port := handshakeResponse.GetPort(UntrustedTunnelServiceName)
+	if port == 0 {
+		return 0, fmt.Errorf("getUntrustedTunnelServicePort: could not find port for '%s'", UntrustedTunnelServiceName)
+	}
+	return port, nil
 }
 
 func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) (Tunnel, error) {
