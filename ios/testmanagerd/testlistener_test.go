@@ -5,6 +5,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	"github.com/stretchr/testify/assert"
@@ -82,9 +83,9 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
 
-		assert.Equal(t, "2024", testListener.testSuite.StartDate.Year())
-		assert.Equal(t, "01", testListener.testSuite.StartDate.Month())
-		assert.Equal(t, "16", testListener.testSuite.StartDate.Day())
+		assert.Equal(t, 2024, testListener.testSuite.StartDate.Year())
+		assert.Equal(t, time.Month(1), testListener.testSuite.StartDate.Month())
+		assert.Equal(t, 16, testListener.testSuite.StartDate.Day())
 		assert.Equal(t, "mysuite", testListener.testSuite.Name)
 	})
 
