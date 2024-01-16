@@ -62,11 +62,11 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 	}
 	ts := NewTunnelServiceWithXpc(xpcConn, h, p)
 
-	err = ts.Pair()
+	err = ts.ManualPair()
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to pair device: %w", err)
 	}
-	tunnelInfo, err := ts.CreateTunnelListener()
+	tunnelInfo, err := ts.createTunnelListener()
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create tunnel listener: %w", err)
 	}
