@@ -93,7 +93,7 @@ func ReadMessage(reader io.Reader) (Message, error) {
 	return result, nil
 }
 
-// ReadMessage uses the reader to fully read a Message from it in non-blocking mode. User for sniffing the utun interface.
+// ReadMessage uses the reader to fully read a Message from it in non-blocking mode. Used for sniffing the utun interface.
 func ReadMessageNonBlocking(reader io.Reader) (Message, error) {
 	header := make([]byte, 32)
 	_, err := io.ReadFull(reader, header)
