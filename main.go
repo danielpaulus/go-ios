@@ -896,10 +896,12 @@ The commands work as following:
 			}
 			defer writer.Close()
 
-			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(writer, writer))
+			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(writer, writer))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
+
+			log.Info(fmt.Printf("%+v", testResults))
 		} else {
 			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(io.Discard, io.Discard))
 			if err != nil {
