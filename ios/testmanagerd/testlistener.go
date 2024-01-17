@@ -10,13 +10,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Realtime test callbacks and test results
+// TestListener collects test results from the test execution
 type TestListener struct {
-	testFinishedChannel chan struct{}
-	err                 error
-	logWriter           io.Writer
-	debugLogWriter      io.Writer
-	testSuite           *TestSuite
+	executionFinished chan struct{}
+	err               error
+	logWriter         io.Writer
+	debugLogWriter    io.Writer
+	TestSuite         *TestSuite
 }
 
 type TestSuite struct {
@@ -31,10 +31,13 @@ type TestSuite struct {
 type TestCase struct {
 	ClassName  string
 	MethodName string
-	Status     TestStatus
+	Status     TestCaseStatus
+	Err        TestError
 	Duration   time.Duration
 	// TODO : add attachments from xcActivityRecord
 }
+
+type TestCaseStatus string
 
 const (
 	StatusFailed          = "failed"           // Defined by Apple
@@ -46,11 +49,6 @@ const (
 	UnknownCount uint64 = 0
 )
 
-type TestStatus struct {
-	Status string
-	Err    TestError
-}
-
 type TestError struct {
 	Message string
 	File    string
@@ -59,120 +57,112 @@ type TestError struct {
 
 func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer) *TestListener {
 	return &TestListener{
-		testFinishedChannel: make(chan struct{}),
-		logWriter:           logWriter,
-		debugLogWriter:      debugLogWriter,
+		executionFinished: make(chan struct{}),
+		logWriter:         logWriter,
+		debugLogWriter:    debugLogWriter,
 	}
 }
 
 func (t *TestListener) didFinishExecutingTestPlan() {
-	close(t.testFinishedChannel)
+	close(t.executionFinished)
 }
 
 func (t *TestListener) initializationForUITestingDidFailWithError(err nskeyedarchiver.NSError) {
 	t.err = err
-	close(t.testFinishedChannel)
+	close(t.executionFinished)
 }
 
 func (t *TestListener) didFailToBootstrapWithError(err nskeyedarchiver.NSError) {
 	t.err = err
-	close(t.testFinishedChannel)
+	close(t.executionFinished)
 }
 
 func (t *TestListener) testCaseStalled(testClass string, method string, file string, line uint64) {
-	log.Debug("TODO ?")
-
-	testCase := t.testSuite.findTestCase(testClass, method)
+	testCase := t.TestSuite.findTestCase(testClass, method)
 	if testCase != nil {
-		testCase.Status = TestStatus{
-			Status: StatusStalled,
-			Err: TestError{
-				Message: "Test case stalled",
-				File:    file,
-				Line:    line,
-			},
+		testCase.Status = StatusStalled
+		testCase.Err = TestError{
+			Message: "Test case stalled",
+			File:    file,
+			Line:    line,
 		}
 	}
 }
 
 func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcActivityRecord nskeyedarchiver.XCActivityRecord) {
-	log.Debug("TODO ?") // Try screenshots
+	// We'll collect screenshots here
+	log.Warn("Received testCaseFinished with activity record. Ignoring until screenshots are implemented.")
 }
 
 func (t *TestListener) testSuiteDidStart(suiteName string, date string) {
-	log.Debug("1")
-
 	d, err := time.Parse(time.DateTime+" +0000", date)
 	exitIfError("Cannot parse test suite start date", err)
 
-	t.testSuite = &TestSuite{
+	t.TestSuite = &TestSuite{
 		Name:      suiteName,
 		StartDate: d,
 	}
 }
 
 func (t *TestListener) testCaseDidStartForClass(testClass string, testMethod string) {
-	log.Debug("2")
-
-	t.testSuite.TestCases = append(t.testSuite.TestCases, TestCase{
+	t.TestSuite.TestCases = append(t.TestSuite.TestCases, TestCase{
 		ClassName:  testClass,
 		MethodName: testMethod,
 	})
 }
 
 func (t *TestListener) testCaseFailedForClass(testClass string, testMethod string, message string, file string, line uint64) {
-	log.Debug("3")
+	testCase := t.TestSuite.findTestCase(testClass, testMethod)
+	if testCase == nil {
+		log.Warn("Received failure status for an unknown test, adding it to suite")
+		t.TestSuite.TestCases = append(t.TestSuite.TestCases, TestCase{
+			ClassName:  testClass,
+			MethodName: testMethod,
+		})
+		testCase = &t.TestSuite.TestCases[len(t.TestSuite.TestCases)-1]
+	}
 
-	testCase := t.testSuite.findTestCase(testClass, testMethod)
-	if testCase != nil {
-		testCase.Status = TestStatus{
-			Status: StatusFailed,
-			Err: TestError{
-				Message: message,
-				File:    file,
-				Line:    line,
-			},
-		}
+	testCase.Status = StatusFailed
+	testCase.Err = TestError{
+		Message: message,
+		File:    file,
+		Line:    line,
 	}
 }
 
 func (t *TestListener) testCaseDidFinishForTest(testClass string, testMethod string, status string, duration float64) {
-	log.Debug("3.1")
-
-	testCase := t.testSuite.findTestCase(testClass, testMethod)
+	testCase := t.TestSuite.findTestCase(testClass, testMethod)
 	if testCase != nil {
 		// We override "failed" status for stalled tests with the value "stalled" to be able to distinguish them later
-		if testCase.Status.Status == StatusStalled {
+		if testCase.Status == StatusStalled {
 			status = StatusStalled
 		}
 
-		testCase.Status = TestStatus{
-			Status: status,
-			Err:    testCase.Status.Err,
-		}
+		testCase.Status = TestCaseStatus(status)
 
 		d, err := time.ParseDuration(fmt.Sprintf("%f", duration) + "s")
-		exitIfError("Test duration cannot be parsed", err)
+		if err != nil {
+			d = 0
+			log.WithFields(log.Fields{"error": err}).Warn("Failed parsing test case duration")
+		}
 
 		testCase.Duration = d
 	}
 }
 
 func (t *TestListener) testSuiteFinished(suiteName string, date string, testCount uint64, failures uint64, skip uint64, expectedFailure uint64, unexpectedFailure uint64, uncaughtException uint64, testDuration float64, totalDuration float64) {
-	log.Debug("4")
-
 	endDate, err := time.Parse(time.DateTime+" +0000", date)
 	exitIfError("Cannot parse test suite start date", err)
 
-	t.testSuite.EndDate = endDate
+	t.TestSuite.EndDate = endDate
 
 	d, err := time.ParseDuration(fmt.Sprintf("%f", testDuration) + "s")
 	exitIfError("Test duration cannot be parsed", err)
-	t.testSuite.TestDuration = d
+	t.TestSuite.TestDuration = d
 
 	d, err = time.ParseDuration(fmt.Sprintf("%f", totalDuration) + "s")
 	exitIfError("Test duration cannot be parsed", err)
-	t.testSuite.TotalDuration = d
+	t.TestSuite.TotalDuration = d
 }
 
 func (t *TestListener) LogMessage(msg string) {
@@ -185,11 +175,11 @@ func (t *TestListener) LogDebugMessage(msg string) {
 
 func (t *TestListener) TestRunnerKilled() {
 	t.err = errors.New("Test runner has been explicitly killed.")
-	close(t.testFinishedChannel)
+	close(t.executionFinished)
 }
 
 func (t *TestListener) Done() <-chan struct{} {
-	return t.testFinishedChannel
+	return t.executionFinished
 }
 
 func (ts *TestSuite) findTestCase(className string, methodName string) *TestCase {

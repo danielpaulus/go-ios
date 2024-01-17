@@ -90,7 +90,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 
 	log.Debugf("Done running test")
 
-	return *testListener.testSuite, testListener.err
+	return *testListener.TestSuite, testListener.err
 }
 
 func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
