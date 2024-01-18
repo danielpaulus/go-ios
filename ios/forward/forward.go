@@ -38,6 +38,7 @@ func Forward(device ios.DeviceEntry, hostPort uint16, phonePort uint16) (*ConnLi
 	return cl, nil
 }
 
+// Close stops listening on the host port for the forwarded connection
 func (cl *ConnListener) Close() error {
 	close(cl.quit)
 
