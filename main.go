@@ -1014,7 +1014,7 @@ The commands work as following:
 
 	b, _ = arguments.Bool("start-tunnel")
 	if b {
-		startTunnel(device)
+		startTunnel(context.TODO(), device)
 	}
 
 	b, _ = arguments.Bool("deviceinfo")
@@ -1957,37 +1957,19 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
 
-func startTunnel(device ios.DeviceEntry) {
+func startTunnel(ctx context.Context, device ios.DeviceEntry) {
 	pm, err := tunnel.NewPairRecordManager("/var/db/lockdown/RemotePairing/user_501")
 	exitIfError("could not creat pair record manager", err)
-	ctx := context.Background()
-	findCtx, _ := context.WithTimeout(ctx, 10*time.Second)
-	addr, err := ios.FindDeviceInterfaceAddress(findCtx, device)
-	exitIfError("could not find device address", err)
-
-	rsdService, err := ios.NewWithAddr(addr)
-	exitIfError("could not connect to RSD", err)
-	defer rsdService.Close()
-	handshakeResponse, err := rsdService.Handshake()
-	exitIfError("could not execute RSD handshake", err)
-
-	port := handshakeResponse.GetPort(tunnel.UntrustedTunnelServiceName)
-	if port == 0 {
-		log.Fatal("could net get port for untrusted tunnel service")
-	}
-	h, err := ios.ConnectToHttp2WithAddr(addr, port)
-	exitIfError("failed to connect to device", err)
-
-	xpcConn, err := ios.CreateXpcConnection(h)
+	startTunnelCtx, _ := context.WithTimeout(ctx, 10*time.Second)
+	t, err := tunnel.ManualPairAndConnectToTunnel(startTunnelCtx, device, pm)
 	exitIfError("", err)
-	ts, err := tunnel.NewTunnelServiceWithXpc(xpcConn, h, pm)
-
-	err = ts.Pair()
-	exitIfError("", err)
-	tunnelInfo, err := ts.CreateTunnelListener()
-	exitIfError("", err)
-	err = tunnel.ConnectToTunnel(ctx, tunnelInfo, addr)
-	exitIfError("", err)
+	log.WithField("address", t.Address).
+		WithField("rsd-port", t.RsdPort).
+		WithField("cli-args", fmt.Sprintf("--address=%s --rsd-port=%d", t.Address, t.RsdPort)).
+		Info("tunnel started")
+	<-ctx.Done()
+	log.Info("closing tunnel")
+	t.Close()
 }
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {

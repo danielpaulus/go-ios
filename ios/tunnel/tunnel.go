@@ -9,7 +9,9 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios"
 	"io"
 	"math/big"
 	"os/exec"
@@ -21,12 +23,84 @@ import (
 	"github.com/songgao/water"
 )
 
-func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) error {
+type Tunnel struct {
+	Address string
+	RsdPort int
+
+	quicConn   quic.Connection
+	utunCloser io.Closer
+	ctxCancel  context.CancelFunc
+}
+
+func (t Tunnel) Close() error {
+	t.ctxCancel()
+	quicErr := t.quicConn.CloseWithError(0, "")
+	utunErr := t.utunCloser.Close()
+	return errors.Join(quicErr, utunErr)
+}
+
+// ManualPairAndConnectToTunnel tries to verify an existing pairing, and if this fails it triggers a new manual pairing process.
+// After a successful pairing a tunnel for this device gets started and the tunnel information is returned
+func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager) (Tunnel, error) {
+	addr, err := ios.FindDeviceInterfaceAddress(ctx, device)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to find device ethernet interface: %w", err)
+	}
+
+	port, err := getUntrustedTunnelServicePort(addr)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: could not find port for '%s'", UntrustedTunnelServiceName)
+	}
+	h, err := ios.ConnectToHttp2WithAddr(addr, port)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create HTTP2 connection: %w", err)
+	}
+
+	xpcConn, err := ios.CreateXpcConnection(h)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create RemoteXPC connection: %w", err)
+	}
+	ts := NewTunnelServiceWithXpc(xpcConn, h, p)
+
+	err = ts.ManualPair()
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to pair device: %w", err)
+	}
+	tunnelInfo, err := ts.createTunnelListener()
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create tunnel listener: %w", err)
+	}
+	t, err := ConnectToTunnel(ctx, tunnelInfo, addr)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to connect to tunnel: %w", err)
+	}
+	return t, nil
+}
+
+func getUntrustedTunnelServicePort(addr string) (int, error) {
+	rsdService, err := ios.NewWithAddr(addr)
+	if err != nil {
+		return 0, fmt.Errorf("getUntrustedTunnelServicePort: failed to connect to RSD service: %w", err)
+	}
+	defer rsdService.Close()
+	handshakeResponse, err := rsdService.Handshake()
+	if err != nil {
+		return 0, fmt.Errorf("getUntrustedTunnelServicePort: failed to perform RSD handshake: %w", err)
+	}
+
+	port := handshakeResponse.GetPort(UntrustedTunnelServiceName)
+	if port == 0 {
+		return 0, fmt.Errorf("getUntrustedTunnelServicePort: could not find port for '%s'", UntrustedTunnelServiceName)
+	}
+	return port, nil
+}
+
+func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) (Tunnel, error) {
 	logrus.WithField("address", addr).WithField("port", info.TunnelPort).Info("connect to tunnel endpoint on device")
 
 	conf, err := createTlsConfig(info)
 	if err != nil {
-		return err
+		return Tunnel{}, err
 	}
 
 	conn, err := quic.DialAddr(ctx, fmt.Sprintf("[%s]:%d", addr, info.TunnelPort), conf, &quic.Config{
@@ -34,51 +108,49 @@ func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) erro
 		KeepAlivePeriod: 1 * time.Second,
 	})
 	if err != nil {
-		return err
+		return Tunnel{}, err
 	}
-	defer conn.CloseWithError(0, "")
 
 	err = conn.SendDatagram(make([]byte, 1))
 	if err != nil {
-		return err
+		return Tunnel{}, err
 	}
 
 	tunnelInfo, err := exchangeCoreTunnelParameters(conn)
 	if err != nil {
-		return fmt.Errorf("could not exchange tunnel parameters. %w", err)
+		return Tunnel{}, fmt.Errorf("could not exchange tunnel parameters. %w", err)
 	}
 
 	utunIface, err := setupTunnelInterface(err, tunnelInfo)
 	if err != nil {
-		return fmt.Errorf("could not setup tunnel interface. %w", err)
+		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
 	}
 
+	// we want a copy of the parent ctx here, but it shouldn't time out/be cancelled at the same time.
+	// doing it like this allows us to have a context with a timeout for the tunnel creation, but the tunnel itself
+	tunnelCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+
 	go func() {
-		err := forwardDataToInterface(ctx, conn, utunIface)
+		err := forwardDataToInterface(tunnelCtx, conn, utunIface)
 		if err != nil {
 			logrus.WithError(err).Error("failed to forward data to tunnel interface")
 		}
 	}()
 
 	go func() {
-		err := forwardDataToDevice(tunnelInfo.ClientParameters.Mtu, utunIface, conn)
+		err := forwardDataToDevice(tunnelCtx, tunnelInfo.ClientParameters.Mtu, utunIface, conn)
 		if err != nil {
 			logrus.WithError(err).Error("failed to forward data to the device")
 		}
 	}()
 
-	logrus.WithField("address", tunnelInfo.ServerAddress).
-		WithField("rsd-port", tunnelInfo.ServerRSDPort).
-		WithField("cli-args", "--address="+tunnelInfo.ServerAddress+" --rsd-port="+fmt.Sprint(tunnelInfo.ServerRSDPort)).
-		Info("tunnel started")
-
-	select {
-	case <-ctx.Done():
-		logrus.Info("closing tunnel")
-		break
-	}
-
-	return nil
+	return Tunnel{
+		Address:    tunnelInfo.ServerAddress,
+		RsdPort:    int(tunnelInfo.ServerRSDPort),
+		quicConn:   conn,
+		utunCloser: utunIface,
+		ctxCancel:  cancel,
+	}, nil
 }
 
 func setupTunnelInterface(err error, tunnelInfo TunnelInfo) (*water.Interface, error) {
@@ -147,29 +219,39 @@ func createTlsConfig(info TunnelListener) (*tls.Config, error) {
 	return conf, nil
 }
 
-func forwardDataToDevice(mtu uint64, r io.Reader, conn quic.Connection) error {
+func forwardDataToDevice(ctx context.Context, mtu uint64, r io.Reader, conn quic.Connection) error {
 	packet := make([]byte, mtu)
 	for {
-		n, err := r.Read(packet)
-		if err != nil {
-			return fmt.Errorf("could not read packet. %w", err)
-		}
-		err = conn.SendDatagram(packet[:n])
-		if err != nil {
-			return fmt.Errorf("could not write packet. %w", err)
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			n, err := r.Read(packet)
+			if err != nil {
+				return fmt.Errorf("could not read packet. %w", err)
+			}
+			err = conn.SendDatagram(packet[:n])
+			if err != nil {
+				return fmt.Errorf("could not write packet. %w", err)
+			}
 		}
 	}
 }
 
 func forwardDataToInterface(ctx context.Context, conn quic.Connection, w io.Writer) error {
 	for {
-		b, err := conn.ReceiveDatagram(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to read datagram. %w", err)
-		}
-		_, err = w.Write(b)
-		if err != nil {
-			return fmt.Errorf("failed to forward data. %w", err)
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			b, err := conn.ReceiveDatagram(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to read datagram. %w", err)
+			}
+			_, err = w.Write(b)
+			if err != nil {
+				return fmt.Errorf("failed to forward data. %w", err)
+			}
 		}
 	}
 }

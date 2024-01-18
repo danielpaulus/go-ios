@@ -21,13 +21,13 @@ import (
 
 const UntrustedTunnelServiceName = "com.apple.internal.dt.coredevice.untrusted.tunnelservice"
 
-func NewTunnelServiceWithXpc(xpcConn *xpc.Connection, c io.Closer, pairRecords PairRecordManager) (*TunnelService, error) {
+func NewTunnelServiceWithXpc(xpcConn *xpc.Connection, c io.Closer, pairRecords PairRecordManager) *TunnelService {
 	return &TunnelService{
 		xpcConn:        xpcConn,
 		c:              c,
 		controlChannel: newControlChannelReadWriter(xpcConn),
 		pairRecords:    pairRecords,
-	}, nil
+	}
 }
 
 type TunnelService struct {
@@ -44,7 +44,11 @@ func (t *TunnelService) Close() error {
 	return t.c.Close()
 }
 
-func (t *TunnelService) Pair() error {
+// ManualPair triggers a device pairing that requires the user to press the 'Trust' button on the device that appears
+// when this operation is triggered
+// If there is already an active pairing with the credentials stored in PairRecordManager this call does not trigger
+// anything on the device and returns with an error
+func (t *TunnelService) ManualPair() error {
 	err := t.controlChannel.writeRequest(map[string]interface{}{
 		"handshake": map[string]interface{}{
 			"_0": map[string]interface{}{
@@ -99,7 +103,7 @@ func (t *TunnelService) Pair() error {
 	return nil
 }
 
-func (t *TunnelService) CreateTunnelListener() (TunnelListener, error) {
+func (t *TunnelService) createTunnelListener() (TunnelListener, error) {
 	log.Info("create tunnel listener")
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 
