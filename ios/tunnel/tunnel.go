@@ -15,7 +15,6 @@ import (
 	"io"
 	"math/big"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -162,24 +161,32 @@ func setupTunnelInterface(err error, tunnelInfo TunnelInfo) (*water.Interface, e
 	}
 
 	const prefixLength = 64 // TODO: this could be calculated from the netmask provided by the device
-	cmd := exec.Command("ifconfig", ifce.Name(), "inet6", "add", fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength))
-	stderr, err := cmd.StderrPipe()
+	setIpAddr := exec.Command("ifconfig", ifce.Name(), "inet6", "add", fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength))
+	err = runCmd(setIpAddr)
 	if err != nil {
-		return nil, fmt.Errorf("could not get stderr. %w", err)
+		return nil, fmt.Errorf("setupTunnelInterface: failed to set IP address for interface: %w", err)
 	}
-	stdErrOutput := &strings.Builder{}
-	go func() {
-		_, _ = io.Copy(stdErrOutput, stderr)
-	}()
-	err = cmd.Start()
+
+	// FIXME: we need to reduce the tunnel interface MTU so that the OS takes care of splitting the payloads into
+	// smaller packets. If we use a larger number here, the QUIC tunnel won't send the packets properly
+	ifceMtu := tunnelInfo.ClientParameters.Mtu - 78
+	setMtu := exec.Command("ifconfig", ifce.Name(), "mtu", fmt.Sprintf("%d", ifceMtu), "up")
+	err = runCmd(setMtu)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("setupTunnelInterface: failed to configure MTU: %w", err)
 	}
-	err = cmd.Wait()
-	if err != nil {
-		return nil, fmt.Errorf("cmd failed: '%s'", stdErrOutput.String())
-	}
+
 	return ifce, nil
+}
+
+func runCmd(cmd *exec.Cmd) error {
+	buf := new(bytes.Buffer)
+	cmd.Stderr = buf
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("runCmd: failed to exeute command (stderr: %s): %w", buf.String(), err)
+	}
+	return nil
 }
 
 func createTlsConfig(info TunnelListener) (*tls.Config, error) {
