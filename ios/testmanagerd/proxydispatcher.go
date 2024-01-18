@@ -136,10 +136,10 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				finishAt,
 				runCount,
 				failures,
-				UnknownCount, // skip count
-				UnknownCount, // expected failure count
+				unknownCount, // skip count
+				unknownCount, // expected failure count
 				unexpectedFailureCount,
-				UnknownCount, // uncaught exception count
+				unknownCount, // uncaught exception count
 				testDuration,
 				totalDuration,
 			)
@@ -162,7 +162,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 					failureCount,
 					skipCount,
 					expectedFailureCount,
-					UnknownCount, // unexpected failure count
+					unknownCount, // unexpected failure count
 					uncaughtExceptionCount,
 					testDuration,
 					totalDuration,

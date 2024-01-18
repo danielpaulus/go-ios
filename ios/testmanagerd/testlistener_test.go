@@ -102,6 +102,19 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		}, testListener.TestSuite.TestCases[0])
 	})
 
+	t.Run("Check test start invalid date", func(t *testing.T) {
+		testListener := NewTestListener(io.Discard, io.Discard)
+
+		testListener.testSuiteDidStart("mysuite", "INVALIDDATE")
+		testListener.testCaseDidStartForClass("myclass", "mymethod")
+
+		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, TestCase{
+			ClassName:  "myclass",
+			MethodName: "mymethod",
+		}, testListener.TestSuite.TestCases[0])
+	})
+
 	t.Run("Check test case failure", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard)
 

@@ -40,13 +40,13 @@ type TestCase struct {
 type TestCaseStatus string
 
 const (
-	StatusFailed          = "failed"           // Defined by Apple
-	StatusPassed          = "passed"           // Defined by Apple
-	StatusExpectedFailure = "expected failure" // Defined by Apple
-	StatusStalled         = "stalled"          // Defined by us
+	StatusFailed          = TestCaseStatus("failed")           // Defined by Apple
+	StatusPassed          = TestCaseStatus("passed")           // Defined by Apple
+	StatusExpectedFailure = TestCaseStatus("expected failure") // Defined by Apple
+	StatusStalled         = TestCaseStatus("stalled")          // Defined by us
 
 	// Test suite counter constants
-	UnknownCount uint64 = 0
+	unknownCount uint64 = 0
 )
 
 type TestError struct {
@@ -96,7 +96,10 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 
 func (t *TestListener) testSuiteDidStart(suiteName string, date string) {
 	d, err := time.Parse(time.DateTime+" +0000", date)
-	exitIfError("Cannot parse test suite start date", err)
+	if err != nil {
+		log.WithFields(log.Fields{"error": err}).Warn("Cannot parse test suite start date")
+		d = time.Now()
+	}
 
 	t.TestSuite = &TestSuite{
 		Name:      suiteName,
@@ -134,11 +137,9 @@ func (t *TestListener) testCaseDidFinishForTest(testClass string, testMethod str
 	testCase := t.TestSuite.findTestCase(testClass, testMethod)
 	if testCase != nil {
 		// We override "failed" status for stalled tests with the value "stalled" to be able to distinguish them later
-		if testCase.Status == StatusStalled {
-			status = StatusStalled
+		if testCase.Status != StatusStalled {
+			testCase.Status = TestCaseStatus(status)
 		}
-
-		testCase.Status = TestCaseStatus(status)
 
 		d, err := time.ParseDuration(fmt.Sprintf("%f", duration) + "s")
 		if err != nil {
@@ -152,16 +153,25 @@ func (t *TestListener) testCaseDidFinishForTest(testClass string, testMethod str
 
 func (t *TestListener) testSuiteFinished(suiteName string, date string, testCount uint64, failures uint64, skip uint64, expectedFailure uint64, unexpectedFailure uint64, uncaughtException uint64, testDuration float64, totalDuration float64) {
 	endDate, err := time.Parse(time.DateTime+" +0000", date)
-	exitIfError("Cannot parse test suite start date", err)
+	if err != nil {
+		log.WithFields(log.Fields{"error": err}).Warn("Cannot parse test suite start date")
+		endDate = time.Now()
+	}
 
 	t.TestSuite.EndDate = endDate
 
 	d, err := time.ParseDuration(fmt.Sprintf("%f", testDuration) + "s")
-	exitIfError("Test duration cannot be parsed", err)
+	if err != nil {
+		log.WithFields(log.Fields{"error": err}).Warn("Test duration cannot be parsed")
+		d = 0
+	}
 	t.TestSuite.TestDuration = d
 
 	d, err = time.ParseDuration(fmt.Sprintf("%f", totalDuration) + "s")
-	exitIfError("Test duration cannot be parsed", err)
+	if err != nil {
+		log.WithFields(log.Fields{"error": err}).Warn("Total duration cannot be parsed")
+		d = 0
+	}
 	t.TestSuite.TotalDuration = d
 }
 
@@ -191,10 +201,4 @@ func (ts *TestSuite) findTestCase(className string, methodName string) *TestCase
 	}
 
 	return nil
-}
-
-func exitIfError(msg string, err error) {
-	if err != nil {
-		log.WithFields(log.Fields{"err": err}).Fatalf(msg)
-	}
 }
