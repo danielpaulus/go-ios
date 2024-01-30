@@ -32,7 +32,9 @@ func runXCUIWithBundleIdsXcode11Ctx(
 		return TestSuite{}, fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
 	defer conn.Close()
-	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
+	activityFinishedChannel := make(chan struct{})
+	attachmentFinalizedChannel := make(chan struct{})
+	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener, activityFinishedChannel, attachmentFinalizedChannel)
 
 	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
 	if err != nil {
@@ -40,7 +42,7 @@ func runXCUIWithBundleIdsXcode11Ctx(
 	}
 	defer conn2.Close()
 	log.Debug("connections ready")
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig, testListener)
+	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig, testListener, activityFinishedChannel, attachmentFinalizedChannel)
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 	// TODO: fixme
 	protocolVersion := uint64(25)

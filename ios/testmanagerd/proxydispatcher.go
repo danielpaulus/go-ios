@@ -1,6 +1,8 @@
 package testmanagerd
 
 import (
+	"strings"
+
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
@@ -12,6 +14,8 @@ type proxyDispatcher struct {
 	dtxConnection                   *dtx.Connection
 	id                              string
 	testListener                    *TestListener
+	activityFinishedChannel         chan struct{}
+	attachmentFinalizedChannel      chan struct{}
 }
 
 func (p proxyDispatcher) Dispatch(m dtx.Message) {
@@ -19,7 +23,9 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 	if len(m.Payload) == 1 {
 		method := m.Payload[0].(string)
 
-		log.Debug("Method: " + method)
+		if !strings.Contains(method, "logDebugMessage") {
+			log.Debug("Method: " + method)
+		}
 
 		switch method {
 		case "_XCT_testBundleReadyWithProtocolVersion:minimumVersion:":
@@ -65,16 +71,16 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 			testMethod := extractStringArg(m, 1)
 			activityRecord := extractActivityRecordArg(m, 2)
 
-			if testCase != "none" && testMethod != "none" {
-				p.testListener.testCaseFinished(testCase, testMethod, activityRecord)
-			}
+			// if testCase != "none" && testMethod != "none" {
+			p.testListener.testCaseFinished(testCase, testMethod, activityRecord)
+			// }
 		case "_XCT_testCaseWithIdentifier:didFinishActivity:":
 			testIdentifier := extractTestIdentifierArg(m, 0)
 			activityRecord := extractActivityRecordArg(m, 1)
 
-			if testIdentifier.C[0] != "none" && testIdentifier.C[1] != "none" {
-				p.testListener.testCaseFinished(testIdentifier.C[0], testIdentifier.C[1], activityRecord)
-			}
+			// if testIdentifier.C[0] != "none" && testIdentifier.C[1] != "none" {
+			p.testListener.testCaseFinished(testIdentifier.C[0], testIdentifier.C[1], activityRecord)
+			// }
 		case "_XCT_testCase:method:didStallOnMainThreadInFile:line:":
 			testCase := extractStringArg(m, 0)
 			testMethod := extractStringArg(m, 1)
@@ -93,6 +99,9 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 			file := extractStringArg(m, 3)
 			line := extractUint64Arg(m, 4)
 
+			p.activityFinishedChannel <- struct{}{}
+			<-p.attachmentFinalizedChannel
+
 			p.testListener.testCaseFailedForClass(testCase, testMethod, message, file, line)
 		case "_XCT_testCaseWithIdentifier:didRecordIssue:":
 			testIdentifier := extractTestIdentifierArg(m, 0)
@@ -104,11 +113,17 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 			status := extractStringArg(m, 2)
 			duration := extractFloat64Arg(m, 3)
 
+			p.activityFinishedChannel <- struct{}{}
+			<-p.attachmentFinalizedChannel
+
 			p.testListener.testCaseDidFinishForTest(testCase, testMethod, status, duration)
 		case "_XCT_testCaseWithIdentifier:didFinishWithStatus:duration:":
 			testIdentifier := extractTestIdentifierArg(m, 0)
 			status := extractStringArg(m, 1)
 			duration := extractFloat64Arg(m, 2)
+
+			p.activityFinishedChannel <- struct{}{}
+			<-p.attachmentFinalizedChannel
 
 			p.testListener.testCaseDidFinishForTest(testIdentifier.C[0], testIdentifier.C[1], status, duration)
 		case "_XCT_testCaseDidStartForTestClass:method:":
@@ -180,6 +195,12 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				date := extractStringArg(m, 1)
 				p.testListener.testSuiteDidStart(testIdentifier.C[0], date)
 			}
+		case "_XCT_didFinishWritingAttachmentWithMetadata:":
+			log.Debug("DIEGO 1")
+			break
+		case "_IDE_finalizeAttachmentsWithMetadata:":
+			log.Debug("DIEGO 2")
+			break
 		default:
 			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")
 		}

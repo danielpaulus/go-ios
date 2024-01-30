@@ -101,6 +101,24 @@ func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, 
 	return objects, plist.UID(arrayObjectIndex)
 }
 
+func serializeSet(set []interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	setDict := map[string]interface{}{}
+	setObjectIndex := len(objects)
+	objects = append(objects, setDict)
+
+	classDefinitionIndex := len(objects)
+	objects = append(objects, buildClassDict("NSSet", "NSObject"))
+	setDict["$class"] = plist.UID(classDefinitionIndex)
+	itemRefs := make([]plist.UID, len(set))
+	for index, item := range set {
+		var uid plist.UID
+		objects, uid = archive(item, objects)
+		itemRefs[index] = uid
+	}
+	setDict["NS.objects"] = itemRefs
+	return objects, plist.UID(setObjectIndex)
+}
+
 func serializeMap(mapObject map[string]interface{}, objects []interface{}, classDict map[string]interface{}) ([]interface{}, plist.UID) {
 	dictDict := map[string]interface{}{}
 	dictionaryRef := len(objects)
