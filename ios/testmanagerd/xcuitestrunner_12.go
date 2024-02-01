@@ -26,9 +26,8 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 		return TestSuite{}, fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot setup test config: %w", err)
 	}
 	defer conn.Close()
-	activityFinishedChannel := make(chan struct{})
-	attachmentFinalizedChannel := make(chan struct{})
-	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener, activityFinishedChannel, attachmentFinalizedChannel)
+
+	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
 
 	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
 	if err != nil {
@@ -36,7 +35,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	}
 	defer conn2.Close()
 	log.Debug("connections ready")
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig, testListener, activityFinishedChannel, attachmentFinalizedChannel)
+	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig, testListener)
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 	caps, err := ideDaemonProxy.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{})
 	if err != nil {

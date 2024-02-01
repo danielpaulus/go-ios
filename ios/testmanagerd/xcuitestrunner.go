@@ -198,7 +198,7 @@ func newDtxProxy(dtxConnection *dtx.Connection) dtxproxy {
 	}
 }
 
-func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration, testListener *TestListener, activityFinishedChannel chan struct{}, attachmentFinalizedChannel chan struct{}) dtxproxy {
+func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarchiver.XCTestConfiguration, testListener *TestListener) dtxproxy {
 	testBundleReadyChannel := make(chan dtx.Message, 1)
 	//(xide XCTestManager_IDEInterface)
 	proxyDispatcher := proxyDispatcher{
@@ -206,8 +206,6 @@ func newDtxProxyWithConfig(dtxConnection *dtx.Connection, testConfig nskeyedarch
 		dtxConnection:                   dtxConnection,
 		testRunnerReadyWithCapabilities: testRunnerReadyWithCapabilitiesConfig(testConfig),
 		testListener:                    testListener,
-		activityFinishedChannel:         activityFinishedChannel,
-		attachmentFinalizedChannel:      attachmentFinalizedChannel,
 	}
 	IDEDaemonProxy := dtxConnection.RequestChannelIdentifier(ideToDaemonProxyChannelName, proxyDispatcher)
 	ideInterface := XCTestManager_IDEInterface{IDEDaemonProxy: IDEDaemonProxy, testConfig: testConfig, testBundleReadyChannel: testBundleReadyChannel}
@@ -324,11 +322,9 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot get app information: %w", err)
 	}
 
-	activityFinishedChannel := make(chan struct{})
-	attachmentFinalizedChannel := make(chan struct{})
 	testSessionID := uuid.New()
 	testconfig := createTestConfig(info, testSessionID, xctestConfigFileName)
-	ideDaemonProxy1 := newDtxProxyWithConfig(conn1, testconfig, testListener, activityFinishedChannel, attachmentFinalizedChannel)
+	ideDaemonProxy1 := newDtxProxyWithConfig(conn1, testconfig, testListener)
 
 	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
 		"XCTIssue capability":                      uint64(1),
@@ -343,7 +339,6 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		"ubiquitous test identifiers":              uint64(1),
 	}}
 	receivedCaps, err := ideDaemonProxy1.daemonConnection.initiateSessionWithIdentifierAndCaps(testSessionID, localCaps)
-	// proto, err := ideDaemonProxy1.daemonConnection.initiateSessionWithIdentifier(testSessionID, 29)
 	if err != nil {
 		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a IDE session: %w", err)
 	}
@@ -360,7 +355,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start test runner: %w", err)
 	}
 
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testconfig, testListener, activityFinishedChannel, attachmentFinalizedChannel)
+	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testconfig, testListener)
 	caps, err := ideDaemonProxy2.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{}})
 	if err != nil {
 		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session with capabilities: %w", err)
@@ -372,50 +367,13 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 	log.WithField("authorized", authorized).Info("authorized")
 
-	// err = ideDaemonProxy2.daemonConnection.initiateControlSession(pid, proto)
-	// if err != nil {
-	// 	return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session: %w", err)
-	// }
-	// log.Debug("control session initiated")
-
 	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(proxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface"})
 
-	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 36)
+	proto := uint64(36)
+	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, proto)
 	if err != nil {
 		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start executing test plan: %w", err)
 	}
-
-	go func() {
-		for {
-			select {
-			case <-activityFinishedChannel:
-				finalized, err := ideDaemonProxy2.daemonConnection.finalizeAttachmentsWithMetadata(nskeyedarchiver.XCTAttachmentFutureMetadata{
-					AdditionalMetadata: map[string]interface{}{
-						"Metadata": map[string]interface{}{
-							"XCTImageMetadataSerializationScaleKey": uint64(3),
-						},
-						"Orientation": uint64(1),
-						"Encoding": map[string]interface{}{
-							"XCTImageEncodingCompressionQualityKey":    float64(0.7),
-							"XCTImageEncodingUniformTypeIdentifierKey": "public.heic",
-						},
-					},
-					DataContainerRelativePath:   "Attachments/9C34DB9F-DAFD-4544-85CA-40A046AC0165",
-					DataContainerURLPrefix:      "file:///private/var/mobile/Containers/Data/InternalDaemon/83A02422-1183-4DDD-94B5-A1B0F4A7E098/",
-					FinalizationState:           1,
-					UniformTypeIdentifierString: "public.heic",
-					URLPrefix:                   "Attachments/9C34DB9F-DAFD-4544-85CA-40A046AC0165",
-					UserName:                    "mobile",
-					UUID:                        uuid.New(),
-				})
-				if err != nil {
-					_ = fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot finalize attachments in test session: %w", err)
-				}
-				log.WithField("finalized", finalized).Info("finalized")
-				attachmentFinalizedChannel <- struct{}{}
-			}
-		}
-	}()
 
 	select {
 	case <-testListener.Done():

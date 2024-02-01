@@ -24,22 +24,45 @@ func ReadMessage(reader io.Reader) (Message, error) {
 	result := readHeader(header)
 
 	if result.IsFragment() {
-
 		// the first part of a fragmented message is only a header indicating the total length of
 		// the defragmented message
 		if result.IsFirstFragment() {
 			// put in the header as bytes here
-			result.fragmentBytes = header
-			return result, nil
+			// result.fragmentBytes = header
+			// return result, nil
 		}
-		// 32 offset is correct, the binary starts with a payload header
-		messageBytes := make([]byte, result.MessageLength)
-		_, err := io.ReadFull(reader, messageBytes)
-		if err != nil {
-			return Message{}, err
+
+		for i := 0; i < int(result.Fragments); i++ {
+			h := make([]byte, 32)
+			_, err := io.ReadFull(reader, h)
+			if err != nil {
+				return Message{}, err
+			}
+			if binary.BigEndian.Uint32(h) != DtxMessageMagic {
+				return Message{}, NewOutOfSync(fmt.Sprintf("Wrong Magic: %x", h[0:4]))
+			}
+			res := readHeader(h)
+			messageBytes := make([]byte, res.MessageLength)
+			_, err = io.ReadFull(reader, messageBytes)
+			if err != nil {
+				return Message{}, err
+			}
+
+			result.fragmentBytes = append(result.fragmentBytes, messageBytes...)
 		}
-		result.fragmentBytes = messageBytes
-		return result, nil
+
+		// h := make([]byte, 32)
+		// _, err := io.ReadFull(reader, h)
+
+		// // 32 offset is correct, the binary starts with a payload header
+		// messageBytes := make([]byte, result.MessageLength)
+		// _, err = io.ReadFull(reader, messageBytes)
+		// if err != nil {
+		// 	return Message{}, err
+		// }
+		// result.fragmentBytes = messageBytes
+		// return ReadMessage(bytes.NewReader(result.fragmentBytes))
+		reader = bytes.NewReader(result.fragmentBytes)
 	}
 
 	payloadHeaderBytes := make([]byte, 16)
