@@ -66,16 +66,6 @@ func (xdc XCTestManager_DaemonConnectionInterface) authorizeTestSessionWithProce
 	return val, err
 }
 
-func (xdc XCTestManager_DaemonConnectionInterface) finalizeAttachmentsWithMetadata(metadata nskeyedarchiver.XCTAttachmentFutureMetadata) (bool, error) {
-	_, err := xdc.IDEDaemonProxy.MethodCall("_IDE_finalizeAttachmentsWithMetadata:", nskeyedarchiver.NSSet{Objects: []interface{}{metadata}})
-	if err != nil {
-		log.Errorf("finalizeAttachmentsWithMetadata failed: %v, err:%v", metadata, err)
-		return false, err
-	}
-
-	return true, nil
-}
-
 func (xdc XCTestManager_DaemonConnectionInterface) initiateSessionWithIdentifierAndCaps(uuid uuid.UUID, caps nskeyedarchiver.XCTCapabilities) (nskeyedarchiver.XCTCapabilities, error) {
 	var val nskeyedarchiver.XCTCapabilities
 	var ok bool
