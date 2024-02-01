@@ -174,6 +174,7 @@ func TestFragmentedMessage(t *testing.T) {
 	}
 
 	assert.Equal(t, msg.Payload, nonBlockingDecodedMsg.Payload)
+	assert.Equal(t, msg.Auxiliary, nonBlockingDecodedMsg.Auxiliary)
 }
 
 func TestDecoder(t *testing.T) {
