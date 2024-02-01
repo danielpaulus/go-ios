@@ -26,12 +26,11 @@ func ReadMessage(reader io.Reader) (Message, error) {
 	if result.IsFragment() {
 		// the first part of a fragmented message is only a header indicating the total length of
 		// the defragmented message
-		if result.IsFirstFragment() {
-			// put in the header as bytes here
-			// result.fragmentBytes = header
-			// return result, nil
+		if !result.IsFirstFragment() {
+			return Message{}, NewOutOfSync(fmt.Sprintf("Wrong Fragment Index: %d/%d", result.FragmentIndex, result.Fragments))
 		}
 
+		// Read all fragments and merge payloads under result.fragmentBytes
 		for i := 0; i < int(result.Fragments); i++ {
 			h := make([]byte, 32)
 			_, err := io.ReadFull(reader, h)
@@ -48,20 +47,11 @@ func ReadMessage(reader io.Reader) (Message, error) {
 				return Message{}, err
 			}
 
+			// WARN : All these bytes are in memory. We may want to consider backing them with a file.
 			result.fragmentBytes = append(result.fragmentBytes, messageBytes...)
 		}
 
-		// h := make([]byte, 32)
-		// _, err := io.ReadFull(reader, h)
-
-		// // 32 offset is correct, the binary starts with a payload header
-		// messageBytes := make([]byte, result.MessageLength)
-		// _, err = io.ReadFull(reader, messageBytes)
-		// if err != nil {
-		// 	return Message{}, err
-		// }
-		// result.fragmentBytes = messageBytes
-		// return ReadMessage(bytes.NewReader(result.fragmentBytes))
+		// Replace top level reader with a new one, repeating merged payload bytes for a proper parse
 		reader = bytes.NewReader(result.fragmentBytes)
 	}
 

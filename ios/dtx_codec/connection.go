@@ -157,9 +157,6 @@ func reader(dtxConn *Connection) {
 			log.Errorf("error reading dtx connection %+v", err)
 			return
 		}
-		if msg.Fragments > 1 {
-			log.Debug("Diego")
-		}
 		if _channel, ok := dtxConn.activeChannels.Load(msg.ChannelCode); ok {
 			channel := _channel.(*Channel)
 			channel.Dispatch(msg)
