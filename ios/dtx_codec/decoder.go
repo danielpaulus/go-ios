@@ -47,7 +47,6 @@ func ReadMessage(reader io.Reader) (Message, error) {
 				return Message{}, err
 			}
 
-			// WARN : All these bytes are in memory. We may want to consider backing them with a file.
 			result.fragmentBytes = append(result.fragmentBytes, messageBytes...)
 		}
 
