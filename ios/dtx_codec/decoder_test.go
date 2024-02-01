@@ -159,6 +159,8 @@ func TestFragmentedMessage(t *testing.T) {
 	defragmenter.AddFragment(msg)
 	assert.True(t, defragmenter.HasFinished())
 	nonblockingFullMessage := defragmenter.Extract()
+	nonBlockingDecodedMsg, err := dtx.ReadMessage(bytes.NewReader(nonblockingFullMessage))
+	assert.NoError(t, err)
 
 	// now test that the blocking decoder creates the same message and that it is decodeable
 	dtxReader := bytes.NewReader(dat)
@@ -166,30 +168,12 @@ func TestFragmentedMessage(t *testing.T) {
 	if assert.NoError(t, err) {
 		assert.Equal(t, uint16(3), msg.Fragments)
 		assert.Equal(t, uint16(0), msg.FragmentIndex)
-		assert.Equal(t, false, msg.HasPayload())
+		assert.Equal(t, true, msg.HasPayload())
+		assert.Equal(t, 79627, msg.PayloadLength())
 		assert.Equal(t, true, msg.IsFirstFragment())
 	}
-	defragmenter = dtx.NewFragmentDecoder(msg)
-	msg, err = dtx.ReadMessage(dtxReader)
-	if assert.NoError(t, err) {
-		assert.Equal(t, uint16(3), msg.Fragments)
-		assert.Equal(t, uint16(1), msg.FragmentIndex)
-		assert.Equal(t, true, msg.IsFragment())
-	}
-	defragmenter.AddFragment(msg)
-	msg, err = dtx.ReadMessage(dtxReader)
-	if assert.NoError(t, err) {
-		assert.Equal(t, uint16(3), msg.Fragments)
-		assert.Equal(t, uint16(2), msg.FragmentIndex)
-		assert.Equal(t, true, msg.IsLastFragment())
-	}
-	defragmenter.AddFragment(msg)
-	assert.Equal(t, true, defragmenter.HasFinished())
-	defraggedMessage := defragmenter.Extract()
-	assert.Equal(t, defraggedMessage, nonblockingFullMessage)
-	dtxReader = bytes.NewReader(defraggedMessage)
-	_, err = dtx.ReadMessage(dtxReader)
-	assert.NoError(t, err)
+
+	assert.Equal(t, msg.Payload, nonBlockingDecodedMsg.Payload)
 }
 
 func TestDecoder(t *testing.T) {
