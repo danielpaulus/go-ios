@@ -64,10 +64,7 @@ func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer) *TestListene
 }
 
 func (t *TestListener) didFinishExecutingTestPlan() {
-	go func() {
-		// time.Sleep(60 * time.Second)
-		close(t.executionFinished)
-	}()
+	close(t.executionFinished)
 }
 
 func (t *TestListener) initializationForUITestingDidFailWithError(err nskeyedarchiver.NSError) {
