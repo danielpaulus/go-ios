@@ -207,7 +207,7 @@ func NewXCActivityRecord(object map[string]interface{}, objects []interface{}) i
 }
 
 func NewXCTAttachment(object map[string]interface{}, objects []interface{}) interface{} {
-	panic("diego")
+	panic("TODO")
 	return nil
 }
 
@@ -388,6 +388,7 @@ func NewNSArray(object map[string]interface{}, objects []interface{}) interface{
 	// array := objects[ref]
 	// array = array
 	ref = ref
+	// panic("TODO")
 	return nil
 }
 

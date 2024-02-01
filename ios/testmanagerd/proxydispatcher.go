@@ -180,12 +180,6 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				date := extractStringArg(m, 1)
 				p.testListener.testSuiteDidStart(testIdentifier.C[0], date)
 			}
-		case "_XCT_didFinishWritingAttachmentWithMetadata:":
-			log.Debug("DIEGO 1")
-			break
-		case "_IDE_finalizeAttachmentsWithMetadata:":
-			log.Debug("DIEGO 2")
-			break
 		default:
 			log.WithFields(log.Fields{"sel": method}).Infof("device called local method")
 		}
