@@ -31,7 +31,7 @@ func ReadMessage(reader io.Reader) (Message, error) {
 		}
 
 		// Read all fragments and merge payloads under result.fragmentBytes
-		for i := 0; i < int(result.Fragments); i++ {
+		for i := 1; i < int(result.Fragments); i++ {
 			h := make([]byte, 32)
 			_, err := io.ReadFull(reader, h)
 			if err != nil {
@@ -47,7 +47,6 @@ func ReadMessage(reader io.Reader) (Message, error) {
 				return Message{}, err
 			}
 
-			// WARN : All these bytes are in memory. We may want to consider backing them with a file.
 			result.fragmentBytes = append(result.fragmentBytes, messageBytes...)
 		}
 
