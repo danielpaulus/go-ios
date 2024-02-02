@@ -17,16 +17,22 @@ import (
 	"howett.net/plist"
 )
 
+// Connection represents a connection to the appservice on an iOS device for iOS17+.
+// It is used to launch and kill apps and to list processes.
 type Connection struct {
 	conn     *xpc.Connection
 	deviceId string
 }
 
 const (
-	RebootFull      = "full"
+	// RebootFull is the style for a full reboot of the device.
+	RebootFull = "full"
+	// RebootUserspace is the style for a reboot of the userspace of the device.
 	RebootUserspace = "userspace"
 )
 
+// New creates a new connection to the appservice on the device for iOS17+.
+// It returns an error if the connection could not be established.
 func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
 	xpcConn, err := ios.ConnectToXpcServiceTunnelIface(deviceEntry, "com.apple.coredevice.appservice")
 	if err != nil {
@@ -36,10 +42,14 @@ func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
 	return &Connection{conn: xpcConn, deviceId: uuid.New().String()}, nil
 }
 
+// AppLaunch represents the result of launching an app on the device for iOS17+.
+// It contains the PID of the launched app.
 type AppLaunch struct {
 	Pid int64
 }
 
+// Process represents a process running on the device for iOS17+.
+// It contains the PID and the path of the process.
 type Process struct {
 	Pid  uint64
 	Path string
