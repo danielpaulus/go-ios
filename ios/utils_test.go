@@ -36,10 +36,10 @@ func TestGenericSliceToType(t *testing.T) {
 func TestGetFromMap(t *testing.T) {
 	m := map[string]interface{}{"s": 3}
 
-	v, err := ios.GetFromMap[int]("s", m)
+	v, err := ios.ValueFromMap[int](m, "s")
 	assert.Equal(t, 3, v)
 	assert.Nil(t, err)
-	v, err = ios.GetFromMap[int]("sd", m)
+	v, err = ios.ValueFromMap[int](m, "sd")
 	assert.NotNil(t, err)
 }
 
