@@ -24,6 +24,16 @@ type SampleData struct {
 	FloatValue  float64
 }
 
+func TestGetFromMap(t *testing.T) {
+	m := map[string]interface{}{"s": 3}
+
+	v, err := ios.GetFromMap[int]("s", m)
+	assert.Equal(t, 3, v)
+	assert.Nil(t, err)
+	v, err = ios.GetFromMap[int]("sd", m)
+	assert.NotNil(t, err)
+}
+
 func TestNtohs(t *testing.T) {
 	assert.Equal(t, uint16(62078), ios.Ntohs(ios.Lockdownport))
 }

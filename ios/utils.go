@@ -165,3 +165,34 @@ func InterfaceToStringSlice(intfSlice interface{}) []string {
 	}
 	return result
 }
+
+// GetFromMap tries to get a value from a map and cast it to the given type.
+// It returns an error if the conversion fails but will not panic.
+// Example: b, err := GetFromMap[bool]("key", map[string]interface{}{"key": true})
+func GetFromMap[T any](key string, m map[string]interface{}) (T, error) {
+	zero := *new(T)
+	var resultIntf interface{}
+	var ok bool
+	if resultIntf, ok = m[key]; !ok {
+		return zero, fmt.Errorf("GetFromMap: key %s not found in map", key)
+	}
+	if result, ok := resultIntf.(T); ok {
+		return result, nil
+	}
+	return zero, fmt.Errorf("GetFromMap: could not convert %v to %T", resultIntf, zero)
+}
+
+// GenericSliceToType tries to convert a slice of interfaces to a slice of the given type.
+// It returns an error if the conversion fails but will not panic.
+// Example: var b []bool; b, err = GenericSliceToType[bool]([]interface{}{true, false})
+func GenericSliceToType[T any](input []interface{}) ([]T, error) {
+	result := make([]T, len(input))
+	for i, intf := range input {
+		if t, ok := intf.(T); ok {
+			result[i] = t
+		} else {
+			return []T{}, fmt.Errorf("GenericSliceToType: could not convert %v to %T", intf, result[i])
+		}
+	}
+	return result, nil
+}
