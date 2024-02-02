@@ -5,6 +5,7 @@ BINARY_NAME=myprogram
 
 # Build the Go program
 build:
+	@go work use ./ncm
 	@go build -o $(BINARY_NAME) ./cmd/cdc-ncm/main.go
 
 # Run the Go program with sudo
