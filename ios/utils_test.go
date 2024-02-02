@@ -33,16 +33,6 @@ func TestGenericSliceToType(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestGetFromMap(t *testing.T) {
-	m := map[string]interface{}{"s": 3}
-
-	v, err := ios.ValueFromMap[int](m, "s")
-	assert.Equal(t, 3, v)
-	assert.Nil(t, err)
-	v, err = ios.ValueFromMap[int](m, "sd")
-	assert.NotNil(t, err)
-}
-
 func TestNtohs(t *testing.T) {
 	assert.Equal(t, uint16(62078), ios.Ntohs(ios.Lockdownport))
 }

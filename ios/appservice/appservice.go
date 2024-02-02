@@ -80,13 +80,13 @@ func (c *Connection) ListProcesses() ([]Process, error) {
 		return nil, fmt.Errorf("listProcesses receive: %w", err)
 	}
 
-	output, err := ios.ValueFromMap[map[string]interface{}](res, "CoreDevice.output")
-	if err != nil {
-		return nil, fmt.Errorf("listProcesses: %w", err)
+	output, ok := res["CoreDevice.output"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("listProcesses output")
 	}
-	tokens, err := ios.ValueFromMap[[]interface{}](output, "processTokens")
-	if err != nil {
-		return nil, fmt.Errorf("listProcesses: %w", err)
+	tokens, ok := output["processTokens"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("listProcesses processTokens")
 	}
 	processes := make([]Process, len(tokens))
 	tokensTyped, err := ios.GenericSliceToType[map[string]interface{}](tokens)
@@ -95,17 +95,17 @@ func (c *Connection) ListProcesses() ([]Process, error) {
 	}
 	for i, processMap := range tokensTyped {
 		var p Process
-		pid, err := ios.ValueFromMap[int64](processMap, "processIdentifier")
-		if err != nil {
-			return nil, fmt.Errorf("listProcesses: %w", err)
+		pid, ok := processMap["processIdentifier"].(int64)
+		if !ok {
+			return nil, fmt.Errorf("listProcesses processIdentifier")
 		}
-		processPathMap, err := ios.ValueFromMap[map[string]interface{}](processMap, "executableURL")
-		if err != nil {
-			return nil, fmt.Errorf("listProcesses: %w", err)
+		processPathMap, ok := processMap["executableURL"].(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("listProcesses executableURL")
 		}
-		processPath, err := ios.ValueFromMap[string](processPathMap, "relative")
-		if err != nil {
-			return nil, fmt.Errorf("listProcesses: %w", err)
+		processPath, ok := processPathMap["relative"].(string)
+		if !ok {
+			return nil, fmt.Errorf("listProcesses relative")
 		}
 
 		p.Pid = uint64(pid)
@@ -223,16 +223,16 @@ func buildSendSignalPayload(deviceId string, pid uint64, signal syscall.Signal) 
 }
 
 func pidFromResponse(response map[string]interface{}) (int64, error) {
-	output, err := ios.ValueFromMap[map[string]interface{}](response, "CoreDevice.output")
-	if err != nil {
+	output, ok := response["CoreDevice.output"].(map[string]interface{})
+	if !ok {
 		return 0, fmt.Errorf("pidFromResponse: could not get pid from response")
 	}
-	processToken, err := ios.ValueFromMap[map[string]interface{}](output, "processToken")
-	if err != nil {
+	processToken, ok := output["processToken"].(map[string]interface{})
+	if !ok {
 		return 0, fmt.Errorf("pidFromResponse: could not get processToken from response")
 	}
-	pid, err := ios.ValueFromMap[int64](processToken, "processIdentifier")
-	if err != nil {
+	pid, ok := processToken["processIdentifier"].(int64)
+	if !ok {
 		return 0, fmt.Errorf("pidFromResponse: could not get pid from processToken")
 	}
 	return pid, nil
