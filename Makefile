@@ -1,7 +1,7 @@
 # Makefile to build and run a Go program with sudo
 
 # Name of your Go binary
-BINARY_NAME=myprogram
+BINARY_NAME=go-ncm
 
 # Build the Go program
 build:
