@@ -380,7 +380,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 
 	log.Debugf("Done running test")
 
-	return *testListener.TestSuite, testListener.err // Return io.Closer
+	return *testListener.TestSuite, testListener.err
 }
 
 type processKiller interface {

@@ -44,15 +44,13 @@ func SetupDecoders() {
 func SetupEncoders() {
 	if encodableClasses == nil {
 		encodableClasses = map[string]func(object interface{}, objects []interface{}) ([]interface{}, plist.UID){
-			"XCTestConfiguration":         archiveXcTestConfiguration,
-			"NSUUID":                      archiveNSUUID,
-			"NSURL":                       archiveNSURL,
-			"NSNull":                      archiveNSNull,
-			"NSMutableDictionary":         archiveNSMutableDictionary,
-			"XCTCapabilities":             archiveXCTCapabilities,
-			"[]string":                    archiveStringSlice,
-			"NSSet":                       archiveNSSet,
-			"XCTAttachmentFutureMetadata": archiveXCTAttachmentFutureMetadata,
+			"XCTestConfiguration": archiveXcTestConfiguration,
+			"NSUUID":              archiveNSUUID,
+			"NSURL":               archiveNSURL,
+			"NSNull":              archiveNSNull,
+			"NSMutableDictionary": archiveNSMutableDictionary,
+			"XCTCapabilities":     archiveXCTCapabilities,
+			"[]string":            archiveStringSlice,
 		}
 	}
 }
@@ -171,7 +169,7 @@ type XCActivityRecord struct {
 	Title        string
 	UUID         NSUUID
 	ActivityType string
-	Attachments  interface{}
+	Attachments  []XCTAttachment
 }
 
 func NewXCActivityRecord(object map[string]interface{}, objects []interface{}) interface{} {
@@ -198,17 +196,51 @@ func NewXCActivityRecord(object map[string]interface{}, objects []interface{}) i
 
 	attachments_ref := object["attachments"].(plist.UID)
 	attachments_raw := objects[attachments_ref].(map[string]interface{})
-	_ = NewNSArray(attachments_raw, objects)
+
+	attachments := make([]XCTAttachment, 0)
+	for _, obj := range NewNSArray(attachments_raw, objects).(NSArray).Values {
+		attachments = append(attachments, obj.(XCTAttachment))
+	}
 
 	activityType_ref := object["activityType"].(plist.UID)
 	activityType := objects[activityType_ref].(string)
 
-	return XCActivityRecord{Finish: finish, Start: start, UUID: uuid, Title: title, Attachments: attachments_ref, ActivityType: activityType}
+	return XCActivityRecord{Finish: finish, Start: start, UUID: uuid, Title: title, Attachments: attachments, ActivityType: activityType}
+}
+
+const (
+	LifetimeKeepAlways      = uint64(0)
+	LifetimeDeleteOnSuccess = uint64(1)
+)
+
+type XCTAttachment struct {
+	lifetime              uint64
+	uniformTypeIdentifier string
+	fileNameOverride      string
+	Payload               []uint8
+	Timestamp             float64
+	Name                  string
+	userInfo              map[string]interface{}
 }
 
 func NewXCTAttachment(object map[string]interface{}, objects []interface{}) interface{} {
-	panic("TODO")
-	return nil
+	lifetime := object["lifetime"].(uint64)
+	uniformTypeIdentifier := objects[object["uniformTypeIdentifier"].(plist.UID)].(string)
+	fileNameOverride := objects[object["fileNameOverride"].(plist.UID)].(string)
+	payload := objects[object["payload"].(plist.UID)].([]uint8)
+	timestamp := objects[object["timestamp"].(plist.UID)].(float64)
+	name := objects[object["name"].(plist.UID)].(string)
+	userInfo, _ := extractDictionary(objects[object["userInfo"].(plist.UID)].(map[string]interface{}), objects)
+
+	return XCTAttachment{
+		lifetime:              lifetime,
+		uniformTypeIdentifier: uniformTypeIdentifier,
+		fileNameOverride:      fileNameOverride,
+		Payload:               payload,
+		Timestamp:             timestamp,
+		Name:                  name,
+		userInfo:              userInfo,
+	}
 }
 
 func NewNSUUIDFromBytes(object map[string]interface{}, objects []interface{}) interface{} {
@@ -222,70 +254,6 @@ func NewNSUUID(id uuid.UUID) NSUUID {
 		panic(fmt.Sprintf("Unexpected Error: %v", err))
 	}
 	return NSUUID{bytes}
-}
-
-type NSSet struct {
-	Objects []interface{}
-}
-
-func archiveNSSet(set interface{}, objects []interface{}) ([]interface{}, plist.UID) {
-	nsset := set.(NSSet)
-	return serializeSet(nsset.Objects, objects)
-}
-
-type XCTAttachmentFutureMetadata struct {
-	AdditionalMetadata          map[string]interface{}
-	DataContainerRelativePath   string
-	DataContainerURLPrefix      string
-	FinalizationState           uint64
-	UniformTypeIdentifierString string
-	URLPrefix                   string
-	UserName                    string
-	UUID                        uuid.UUID
-}
-
-func archiveXCTAttachmentFutureMetadata(
-	additionalMetadata interface{},
-	objects []interface{},
-) ([]interface{}, plist.UID) {
-	additionalMetadataObj := additionalMetadata.(XCTAttachmentFutureMetadata)
-	object := map[string]interface{}{}
-
-	objects, ref := serializeMap(additionalMetadataObj.AdditionalMetadata, objects, buildClassDict("NSDictionary", "NSObject"))
-	object["additionalMetadata"] = ref
-
-	objects, ref = archive(additionalMetadataObj.DataContainerRelativePath, objects)
-	object["dataContainerRelativePath"] = ref
-
-	url := NewNSURL(additionalMetadataObj.DataContainerURLPrefix)
-	objects, ref = archiveNSURL(url, objects)
-	object["dataContainerURLPrefix"] = ref
-
-	objects, ref = archive(additionalMetadataObj.FinalizationState, objects)
-	object["finalizationState"] = ref
-
-	object["hostLocalURL"] = 0 // $null
-
-	objects, ref = archive(additionalMetadataObj.UniformTypeIdentifierString, objects)
-	object["uniformTypeIdentifierString"] = ref
-
-	url = NewNSURL(additionalMetadataObj.URLPrefix)
-	objects, ref = archiveNSURL(url, objects)
-	object["URLPrefix"] = ref
-
-	objects, ref = archive(additionalMetadataObj.UserName, objects)
-	object["userName"] = ref
-
-	objects, ref = archiveNSUUID(NewNSUUID(additionalMetadataObj.UUID), objects)
-	object["UUID"] = ref
-
-	lastRef := len(objects)
-	objects = append(objects, object)
-
-	classref := lastRef + 1
-	object[class] = plist.UID(classref)
-	objects = append(objects, buildClassDict("XCTAttachmentFutureMetadata", "NSObject"))
-	return objects, plist.UID(lastRef)
 }
 
 func archiveNSUUID(uid interface{}, objects []interface{}) ([]interface{}, plist.UID) {
@@ -384,12 +352,12 @@ type NSArray struct {
 }
 
 func NewNSArray(object map[string]interface{}, objects []interface{}) interface{} {
-	ref := object["NS.objects"].([]interface{})
-	// array := objects[ref]
-	// array = array
-	ref = ref
-	// panic("TODO")
-	return nil
+	objectRefs := object["NS.objects"].([]interface{})
+
+	uidList := toUidList(objectRefs)
+	extractObjects, _ := extractObjects(uidList, objects)
+
+	return NSArray{Values: extractObjects}
 }
 
 type XCTTestIdentifier struct {

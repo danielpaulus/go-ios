@@ -900,13 +900,15 @@ The commands work as following:
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
+			defer testResults.Close()
 
 			log.Info(fmt.Printf("%+v", testResults))
 		} else {
-			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(io.Discard, io.Discard))
+			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(io.Discard, io.Discard))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
+			defer testResults.Close()
 		}
 		return
 	}
@@ -1156,11 +1158,12 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		errorChannel := make(chan error)
 		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
-			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, testmanagerd.NewTestListener(io.Discard, io.Discard))
+			testResults, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, testmanagerd.NewTestListener(io.Discard, io.Discard))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 				errorChannel <- err
 			}
+			defer testResults.Close()
 			close(errorChannel)
 		}()
 		c := make(chan os.Signal, 1)
