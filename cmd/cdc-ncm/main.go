@@ -15,12 +15,16 @@ import (
 	"github.com/songgao/water"
 )
 
-func main() {
+func checkRoot() {
 	u := os.Geteuid()
 	if u != 0 {
 		slog.Error("go-ncm needs root. run with sudo.")
 		os.Exit(1)
 	}
+}
+
+func main() {
+	checkRoot()
 
 	ctx := gousb.NewContext()
 	devices, err := ctx.OpenDevices(func(desc *gousb.DeviceDesc) bool {
