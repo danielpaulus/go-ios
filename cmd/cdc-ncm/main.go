@@ -16,6 +16,12 @@ import (
 )
 
 func main() {
+	u := os.Geteuid()
+	if u != 0 {
+		slog.Error("go-ncm needs root. run with sudo.")
+		os.Exit(1)
+	}
+
 	ctx := gousb.NewContext()
 	devices, err := ctx.OpenDevices(func(desc *gousb.DeviceDesc) bool {
 		//slog.Info("found device", slog.Int64("product", int64(desc.Product)), slog.Int64("vendor", int64(desc.Vendor)))
