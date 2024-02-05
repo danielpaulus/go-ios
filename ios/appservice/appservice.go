@@ -45,13 +45,13 @@ func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
 // AppLaunch represents the result of launching an app on the device for iOS17+.
 // It contains the PID of the launched app.
 type AppLaunch struct {
-	Pid int64
+	Pid int
 }
 
 // Process represents a process running on the device for iOS17+.
 // It contains the PID and the path of the process.
 type Process struct {
-	Pid  uint64
+	Pid  int
 	Path string
 }
 
@@ -70,7 +70,7 @@ func (c *Connection) LaunchApp(bundleId string, args []interface{}, env map[stri
 	if err != nil {
 		return AppLaunch{}, fmt.Errorf("launchApp3: %w", err)
 	}
-	return AppLaunch{Pid: pid}, nil
+	return AppLaunch{Pid: int(pid)}, nil
 }
 
 // Close closes the connection to the appservice
@@ -118,7 +118,7 @@ func (c *Connection) ListProcesses() ([]Process, error) {
 			return nil, fmt.Errorf("listProcesses relative")
 		}
 
-		p.Pid = uint64(pid)
+		p.Pid = int(pid)
 		p.Path = processPath
 
 		processes[i] = p
@@ -128,7 +128,7 @@ func (c *Connection) ListProcesses() ([]Process, error) {
 }
 
 // KillProcess kills the process with the given PID for iOS17+.
-func (c *Connection) KillProcess(pid uint64) error {
+func (c *Connection) KillProcess(pid int) error {
 	req := buildSendSignalPayload(c.deviceId, pid, syscall.SIGKILL)
 	err := c.conn.Send(req, xpc.HeartbeatRequestFlag)
 	if err != nil {
@@ -223,7 +223,7 @@ func buildRebootPayload(deviceId string, style string) map[string]interface{} {
 	})
 }
 
-func buildSendSignalPayload(deviceId string, pid uint64, signal syscall.Signal) map[string]interface{} {
+func buildSendSignalPayload(deviceId string, pid int, signal syscall.Signal) map[string]interface{} {
 	return coredevice.BuildRequest(deviceId, "com.apple.coredevice.feature.sendsignaltoprocess", map[string]interface{}{
 		"process": map[string]interface{}{
 			"processIdentifier": int64(pid),

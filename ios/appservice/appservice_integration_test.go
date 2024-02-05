@@ -74,9 +74,9 @@ func testKillInvalidPidReturnsError(t *testing.T, device ios.DeviceEntry) {
 	launched, err := as.LaunchApp("com.apple.mobilesafari", nil, nil, nil, true)
 	require.NoError(t, err)
 
-	err = as.KillProcess(uint64(launched.Pid))
+	err = as.KillProcess(launched.Pid)
 	require.NoError(t, err)
 
-	err = as.KillProcess(uint64(launched.Pid))
+	err = as.KillProcess(launched.Pid)
 	assert.Error(t, err)
 }
