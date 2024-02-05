@@ -167,6 +167,31 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
 		assert.Equal(t, TestCaseStatus("stalled"), testListener.TestSuite.TestCases[0].Status)
 	})
+
+	t.Run("Check test case with attachments", func(t *testing.T) {
+		testListener := NewTestListener(io.Discard, io.Discard)
+
+		payload := []byte("test")
+		attachments := make([]nskeyedarchiver.XCTAttachment, 1)
+		attachments[0] = nskeyedarchiver.XCTAttachment{
+			Payload: payload,
+		}
+		testListener.testCaseFinished("none", "none", nskeyedarchiver.XCActivityRecord{
+			Finish:       nskeyedarchiver.NSDate{},
+			Start:        nskeyedarchiver.NSDate{},
+			Title:        "test",
+			UUID:         nskeyedarchiver.NSUUID{},
+			ActivityType: "userDefined",
+			Attachments:  attachments,
+		})
+
+		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, 1, len(testListener.TestSuite.TestCases[0].Attachments), "Test must have 1 attachment")
+
+		attachment, err := os.ReadFile(testListener.TestSuite.TestCases[0].Attachments[0].Path)
+		assert.NoError(t, err)
+		assert.Equal(t, "test", string(attachment), "Attachment content should be put in a file")
+	})
 }
 
 type assertionWriter struct {
