@@ -60,7 +60,7 @@ func (c *Connection) LaunchApp(bundleId string, args []interface{}, env map[stri
 	msg := buildAppLaunchPayload(c.deviceId, bundleId, args, env, options, terminateExisting)
 	err := c.conn.Send(msg, xpc.HeartbeatRequestFlag)
 	if err != nil {
-		return AppLaunch{}, fmt.Errorf("launchApp: %w", err)
+		return AppLaunch{}, fmt.Errorf("LaunchApp: failed to send launch-app request: %w", err)
 	}
 	m, err := c.conn.ReceiveOnServerClientStream()
 	if err != nil {
