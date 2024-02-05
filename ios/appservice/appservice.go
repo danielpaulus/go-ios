@@ -78,7 +78,7 @@ func (c *Connection) Close() error {
 	return c.conn.Close()
 }
 
-// ListProcesses returns a list of processes with PID and Path running on the device for iOS17+.
+// ListProcesses returns a list of processes with their PID and executable path running on the device for iOS17+.
 func (c *Connection) ListProcesses() ([]Process, error) {
 	req := buildListProcessesPayload(c.deviceId)
 	err := c.conn.Send(req, xpc.HeartbeatRequestFlag)
