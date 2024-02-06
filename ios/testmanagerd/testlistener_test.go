@@ -188,8 +188,11 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
 		assert.Equal(t, 1, len(testListener.TestSuite.TestCases[0].Attachments), "Test must have 1 attachment")
 
-		attachment, err := os.ReadFile(testListener.TestSuite.TestCases[0].Attachments[0].Path)
+		path := testListener.TestSuite.TestCases[0].Attachments[0].Path
+		attachment, err := os.ReadFile(path)
 		assert.NoError(t, err)
+		defer os.RemoveAll(path)
+
 		assert.Equal(t, "test", string(attachment), "Attachment content should be put in a file")
 	})
 }
