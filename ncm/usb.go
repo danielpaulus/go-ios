@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"os/exec"
 	"time"
 )
 
@@ -159,11 +158,11 @@ func createConfig(serial string) (*water.Interface, error) {
 	if err != nil {
 		return &water.Interface{}, fmt.Errorf("createConfig: failed creating ifce %w", err)
 	}
-	out, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("sudo ip link set dev %s up", config.Name)).CombinedOutput()
+	output, err := SetInterfaceUp(config.Name)
 	if err != nil {
 		return &water.Interface{}, fmt.Errorf("createConfig: err calling interface up %w", err)
 	}
-	slog.Info("ethernet device is up:", "device", config.Name, "cmd", string(out))
+	slog.Info("ethernet device is up:", "device", config.Name, "cmd", output)
 
 	time.Sleep(10 * time.Second)
 
