@@ -1,6 +1,7 @@
 package ncm
 
 import (
+	"fmt"
 	"github.com/google/gousb"
 	"github.com/songgao/packets/ethernet"
 	"github.com/songgao/water"
@@ -131,7 +132,9 @@ func handleDevice(device *gousb.Device) error {
 	*/
 	slog.Info("created streams")
 
-	createConfig(out, inStream)
+	ifce, err := createConfig(serial)
+	rw(out, inStream)
+
 }
 
 func getEndpointDescriptions(s gousb.InterfaceSetting) (in gousb.EndpointDesc, out gousb.EndpointDesc) {
@@ -146,27 +149,29 @@ func getEndpointDescriptions(s gousb.InterfaceSetting) (in gousb.EndpointDesc, o
 	return
 }
 
-func createConfig(w io.Writer, r io.Reader) {
+func createConfig(serial string) (*water.Interface, error) {
 	config := water.Config{
 		DeviceType: water.TAP,
 	}
-	config.Name = "iphone"
-
+	config.Name = "iphone_" + serial
+	slog.Info("creating TAP device", "device", config.Name)
 	ifce, err := water.New(config)
 	if err != nil {
-		slog.Error(err)
+		return &water.Interface{}, fmt.Errorf("createConfig: failed creating ifce %w", err)
 	}
-	out, err := exec.Command("/bin/sh", "-c", "sudo ip link set dev iphone up").CombinedOutput()
+	out, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("sudo ip link set dev %s up", config.Name)).CombinedOutput()
 	if err != nil {
-		slog.Error("failed setting up ethernet device", "err", err)
+		return &water.Interface{}, fmt.Errorf("createConfig: err calling interface up %w", err)
 	}
-	slog.Info("ethernet device is up:", "cmd", string(out))
-
-	wr := NewWrapper(r, w)
+	slog.Info("ethernet device is up:", "device", config.Name, "cmd", string(out))
 
 	time.Sleep(10 * time.Second)
-	slog.Info("start copying")
 
+	return ifce, err
+}
+
+func rw(w io.Writer, r io.Reader) {
+	wr := NewWrapper(r, w)
 	go func() {
 		var frame ethernet.Frame
 		for {
