@@ -11,11 +11,12 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
 	"io"
 	"math/big"
 	"os/exec"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios"
 
 	"github.com/quic-go/quic-go"
 	"github.com/sirupsen/logrus"
@@ -25,17 +26,11 @@ import (
 type Tunnel struct {
 	Address string
 	RsdPort int
-
-	quicConn   quic.Connection
-	utunCloser io.Closer
-	ctxCancel  context.CancelFunc
+	Closer  io.Closer
 }
 
 func (t Tunnel) Close() error {
-	t.ctxCancel()
-	quicErr := t.quicConn.CloseWithError(0, "")
-	utunErr := t.utunCloser.Close()
-	return errors.Join(quicErr, utunErr)
+	return t.Closer.Close()
 }
 
 // ManualPairAndConnectToTunnel tries to verify an existing pairing, and if this fails it triggers a new manual pairing process.
@@ -144,11 +139,13 @@ func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) (Tun
 	}()
 
 	return Tunnel{
-		Address:    tunnelInfo.ServerAddress,
-		RsdPort:    int(tunnelInfo.ServerRSDPort),
-		quicConn:   conn,
-		utunCloser: utunIface,
-		ctxCancel:  cancel,
+		Address: tunnelInfo.ServerAddress,
+		RsdPort: int(tunnelInfo.ServerRSDPort),
+		Closer: tunnelCloser{
+			quicConn:   conn,
+			utunCloser: utunIface,
+			ctxCancel:  cancel,
+		},
 	}, nil
 }
 
@@ -308,4 +305,17 @@ func exchangeCoreTunnelParameters(conn quic.Connection) (TunnelInfo, error) {
 		return TunnelInfo{}, err
 	}
 	return tunnelInfo, nil
+}
+
+type tunnelCloser struct {
+	quicConn   quic.Connection
+	utunCloser io.Closer
+	ctxCancel  context.CancelFunc
+}
+
+func (t tunnelCloser) Close() error {
+	t.ctxCancel()
+	quicErr := t.quicConn.CloseWithError(0, "")
+	utunErr := t.utunCloser.Close()
+	return errors.Join(quicErr, utunErr)
 }

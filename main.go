@@ -140,6 +140,7 @@ Options:
   --pretty       		    Pretty-print JSON command output
   -h --help      		    Show this screen.
   --udid=<udid>  		    UDID of the device.
+  --tunnel-info-port=<port> When go-ios is used to manage tunnels for iOS 17+ it exposes them on an HTTP-API for localhost (default port: 28100)
   --address=<ipv6addrr>     Address of the device interface. Can be acquired by running start-tunnel in a parallel shell.
   --rsd-port=<port>         Port of the rsd service listening over the tunel. Can be acquired by running start-tunnel in a parallel shell.
   
@@ -300,14 +301,30 @@ The commands work as following:
 		return
 	}
 
+	tunnelInfoPort, err := arguments.Int("--tunnel-info-port")
+	if err != nil {
+		tunnelInfoPort = tunnelInfoDefaultHttpPort
+	}
+
+	startTunnelCommand, _ := arguments.Bool("start-tunnel")
 	udid, _ := arguments.String("--udid")
 	address, addressErr := arguments.String("--address")
 	rsdPort, rsdErr := arguments.Int("--rsd-port")
 
 	device, err := ios.GetDevice(udid)
-	exitIfError("Device not found: "+udid, err)
-	if addressErr == nil && rsdErr == nil {
-		device = deviceWithRsdProvider(device, udid, address, rsdPort)
+	// device address and rsd port are only available after the tunnel started
+	if !startTunnelCommand {
+		exitIfError("Device not found: "+udid, err)
+		if addressErr == nil && rsdErr == nil {
+			device = deviceWithRsdProvider(device, udid, address, rsdPort)
+		} else {
+			info, err := tunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoPort)
+			if err == nil {
+				device = deviceWithRsdProvider(device, udid, info.Address, info.RsdPort)
+			} else {
+				log.WithField("udid", device.Properties.SerialNumber).Warn("failed to get tunnel info")
+			}
+		}
 	}
 
 	b, _ = arguments.Bool("erase")
@@ -1034,13 +1051,12 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("start-tunnel")
-	if b {
+	if startTunnelCommand {
 		pairRecordsPath, _ := arguments.String("--pair-record-path")
 		if len(pairRecordsPath) == 0 {
 			pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
 		}
-		startTunnel(context.TODO(), device, pairRecordsPath)
+		startTunnel(context.TODO(), device, pairRecordsPath, tunnelInfoPort)
 	}
 
 	b, _ = arguments.Bool("deviceinfo")
@@ -1991,19 +2007,32 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
 
-func startTunnel(ctx context.Context, device ios.DeviceEntry, recordsPath string) {
+func startTunnel(ctx context.Context, device ios.DeviceEntry, recordsPath string, tunnelInfoPort int) {
 	pm, err := tunnel.NewPairRecordManager(recordsPath)
 	exitIfError("could not creat pair record manager", err)
-	startTunnelCtx, _ := context.WithTimeout(ctx, 10*time.Second)
-	t, err := tunnel.ManualPairAndConnectToTunnel(startTunnelCtx, device, pm)
-	exitIfError("", err)
-	log.WithField("address", t.Address).
-		WithField("rsd-port", t.RsdPort).
-		WithField("cli-args", fmt.Sprintf("--address=%s --rsd-port=%d", t.Address, t.RsdPort)).
-		Info("tunnel started")
+	tm := tunnelManager{
+		ts:      manualPairingTunnelStart{},
+		dl:      deviceList{},
+		pm:      pm,
+		tunnels: map[string]tunnelInfo{},
+	}
+	go func() {
+		for {
+			err := tm.UpdateTunnels()
+			if err != nil {
+				log.WithError(err).Warn("failed to update tunnels")
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	go func() {
+		serveTunnelInfo(tm, tunnelInfoPort)
+	}()
+
 	<-ctx.Done()
 	log.Info("closing tunnel")
-	t.Close()
+	//t.Close()
 }
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
