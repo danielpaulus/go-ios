@@ -71,7 +71,6 @@ func NewWrapper(targetReader io.Reader, targetWriter io.Writer) *NcmWrapper {
 }
 
 const EtherHeaderLength = 14
-const IPv6 = 0x86DD
 
 func EthernetParser(datagram []byte) string {
 	frame := ethernet.Frame(datagram)
@@ -87,7 +86,7 @@ func EthernetParser(datagram []byte) string {
 const UDP = 0x11
 
 // https://en.wikipedia.org/wiki/List_of_IP_protocol_numbers
-func IPv6Parser(packet []byte) string {
+func iPv6Parser(packet []byte) string {
 	length := binary.BigEndian.Uint16(packet[4:6])
 	sourceAddressB := packet[8:24]
 	destAddressB := packet[24:40]
@@ -123,24 +122,7 @@ func (r *NcmWrapper) ReadDatagrams() ([]ethernet.Frame, error) {
 		return result, err
 	}
 	if h.Signature != headerSignature {
-		fmt.Printf("%x%x%x%x%x\n", h.Signature, h.HeaderLen, h.SequenceNum, h.BlockLen, h.NdpIndex)
-		test := make([]byte, 4000)
-		n, err := r.targetReader.Read(test)
-
-		if err == nil {
-			fmt.Printf("%x\n", test)
-		} else {
-			println(err)
-		}
-		test = make([]byte, 4000)
-		n, err = r.targetReader.Read(test)
-
-		if err == nil {
-			fmt.Printf("%x\n", test)
-		} else {
-			println(err)
-		}
-		return result, fmt.Errorf("wrong header signature: %x, read %d additional", h.Signature, n)
+		return result, fmt.Errorf("wrong header signature: %x", h.Signature)
 	}
 	fmt.Printf("%s, read block: %d\n", h.String(), h.BlockLen-h.HeaderLen)
 
@@ -179,7 +161,7 @@ func (r *NcmWrapper) ReadDatagrams() ([]ethernet.Frame, error) {
 		}
 		slog.Debug("datagram", "index", dgIndex, "length", dgLen)
 		datagram := ncmTransferBlock[dgIndex : dgIndex+dgLen]
-		fmt.Printf("%s\n%s \n", IPv6Parser(datagram[EtherHeaderLength:]), EthernetParser(datagram))
+		fmt.Printf("%s\n%s \n", iPv6Parser(datagram[EtherHeaderLength:]), EthernetParser(datagram))
 		result = append(result, ethernet.Frame(datagram))
 		pointer += 4
 		if pointer > int(dh.Length-8) {
@@ -236,17 +218,6 @@ func (r *NcmWrapper) Write(p []byte) (n int, err error) {
 	buf.Write(p)
 	block = buf.Bytes()
 	n, err = r.targetWriter.Write(block)
-	fmt.Printf("%x\n", block)
-	/*
-		//just for debugging
-		var tw = NewWrapper(bytes.NewReader(buf.Bytes()), io.Discard)
-		frame, err := tw.ReadDatagrams()
-		if err != nil {
-			slog.Error("failed aprsing ", "err", err)
-		} else {
-			fmt.Print("sending:")
-			fmt.Print(EthernetParser(frame[0]))
-		}*/
 
 	return n, err
 }

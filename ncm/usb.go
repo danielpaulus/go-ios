@@ -34,13 +34,14 @@ func checkDevices(ctx *gousb.Context) {
 	}
 	slog.Info("device list", "length", len(devices))
 	for _, d := range devices {
-		handleDevice(d)
+		err := handleDevice(d)
+		if err != nil {
+			slog.Error("failed opening network adapter for device", "device", d.String(), "err", err)
+		}
 	}
 }
 
-func handleDevice(device *gousb.Device) {
-	defer device.Close()
-
+func handleDevice(device *gousb.Device) error {
 	serial, err := device.SerialNumber()
 	if err != nil {
 		slog.Info("failed to get serial")
