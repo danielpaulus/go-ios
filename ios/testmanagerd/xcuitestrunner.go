@@ -352,13 +352,13 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session with capabilities: %w", err)
 	}
 	log.WithField("caps", caps).Info("got capabilities")
-	authorized, err := ideDaemonProxy2.daemonConnection.authorizeTestSessionWithProcessID(pid)
+	authorized, err := ideDaemonProxy2.daemonConnection.authorizeTestSessionWithProcessID(uint64(pid))
 	if err != nil {
 		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot authorize test session: %w", err)
 	}
 	log.WithField("authorized", authorized).Info("authorized")
 
-	err = ideDaemonProxy2.daemonConnection.initiateControlSession(pid, proto)
+	err = ideDaemonProxy2.daemonConnection.initiateControlSession(uint64(pid), proto)
 	if err != nil {
 		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session: %w", err)
 	}
@@ -390,10 +390,10 @@ func runXUITestWithBundleIdsXcode15Ctx(
 }
 
 type processKiller interface {
-	KillProcess(pid uint64) error
+	KillProcess(pid int) error
 }
 
-func killTestRunner(killer processKiller, pid uint64) error {
+func killTestRunner(killer processKiller, pid int) error {
 	log.Infof("Killing test runner with pid %d ...", pid)
 	err := killer.KillProcess(pid)
 	if err != nil {
@@ -406,7 +406,7 @@ func killTestRunner(killer processKiller, pid uint64) error {
 
 func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connection, xctestConfigPath string, bundleID string,
 	sessionIdentifier string, testBundlePath string, testArgs []string, testEnv []string,
-) (uint64, error) {
+) (int, error) {
 	args := []interface{}{}
 	for _, arg := range testArgs {
 		args = append(args, arg)
@@ -454,7 +454,7 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 		return 0, err
 	}
 
-	return uint64(appLaunch.Pid), nil
+	return appLaunch.Pid, nil
 }
 
 func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
