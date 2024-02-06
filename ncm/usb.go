@@ -122,17 +122,10 @@ func handleDevice(device *gousb.Device) error {
 	}
 	defer inStream.Close()
 
-	/*	outStream, err := out.NewStream(outDesc.MaxPacketSize*3, 1)
-		if err != nil {
-			return
-		}
-
-		defer outStream.Close()
-	*/
 	slog.Info("created streams")
 
 	ifce, err := createConfig(serial)
-	rw(out, inStream)
+	rw(out, inStream, ifce)
 
 }
 
@@ -169,7 +162,7 @@ func createConfig(serial string) (*water.Interface, error) {
 	return ifce, err
 }
 
-func rw(w io.Writer, r io.Reader) {
+func rw(w io.Writer, r io.Reader, ifce *water.Interface) error {
 	wr := NewWrapper(r, w)
 	go func() {
 		var frame ethernet.Frame
