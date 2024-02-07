@@ -104,47 +104,47 @@ func EncodeMessage(w io.Writer, message Message) error {
 			return fmt.Errorf("EncodeMessage: failed to write empty message: %w", err)
 		}
 		return nil
-	} else {
-		buf := bytes.NewBuffer(nil)
-		err := encodeDictionary(buf, message.Body)
-		if err != nil {
-			return fmt.Errorf("EncodeMessage: failed to encode dictionary: %w", err)
-		}
-
-		wrapper := struct {
-			magic uint32
-			h     wrapperHeader
-			body  struct {
-				magic   uint32
-				version uint32
-			}
-		}{
-			magic: wrapperMagic,
-			h: wrapperHeader{
-				Flags:   message.Flags,
-				BodyLen: uint64(buf.Len() + 8),
-				MsgId:   message.Id,
-			},
-			body: struct {
-				magic   uint32
-				version uint32
-			}{
-				magic:   objectMagic,
-				version: bodyVersion,
-			},
-		}
-
-		err = binary.Write(w, binary.LittleEndian, wrapper)
-		if err != nil {
-			return fmt.Errorf("EncodeMessage: failed to write xpc wrapper: %w", err)
-		}
-
-		_, err = io.Copy(w, buf)
-		if err != nil {
-			return fmt.Errorf("EncodeMessage: failed to write message body: %w", err)
-		}
-		return nil
 	}
+	buf := bytes.NewBuffer(nil)
+	err := encodeDictionary(buf, message.Body)
+	if err != nil {
+		return fmt.Errorf("EncodeMessage: failed to encode dictionary: %w", err)
+	}
+
+	wrapper := struct {
+		magic uint32
+		h     wrapperHeader
+		body  struct {
+			magic   uint32
+			version uint32
+		}
+	}{
+		magic: wrapperMagic,
+		h: wrapperHeader{
+			Flags:   message.Flags,
+			BodyLen: uint64(buf.Len() + 8),
+			MsgId:   message.Id,
+		},
+		body: struct {
+			magic   uint32
+			version uint32
+		}{
+			magic:   objectMagic,
+			version: bodyVersion,
+		},
+	}
+
+	err = binary.Write(w, binary.LittleEndian, wrapper)
+	if err != nil {
+		return fmt.Errorf("EncodeMessage: failed to write xpc wrapper: %w", err)
+	}
+
+	_, err = io.Copy(w, buf)
+	if err != nil {
+		return fmt.Errorf("EncodeMessage: failed to write message body: %w", err)
+	}
+	return nil
+
 }
 
 func decodeWrapper(r io.Reader) (Message, error) {
