@@ -10,7 +10,7 @@ Welcome 👋
 
 `npm install -g go-ios` can be used to get going. Run `ios --help` after the installation for details. 
 
-The goal of this project is to provide a stable and production ready opensource solution to automate iOS device on Linux, Windows and Mac OS X. I am delighted to announce that a few companies including [headspin.io](https://www.headspin.io/) will use or are using go-iOS. 
+The goal of this project is to provide a stable and production ready opensource solution to automate iOS device on Linux, Windows and Mac OS X. I am delighted to announce that a few companies including [headspin.io](https://www.headspin.io/) and [Sauce Labs](https://saucelabs.com/) will use or are using go-iOS. 
 
 Follow my twitter for updates or check out my medium blog: https://daniel-paulus.medium.com/
 
