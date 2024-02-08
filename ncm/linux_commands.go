@@ -12,6 +12,13 @@ func SetInterfaceUp(interfaceName string) (string, error) {
 	return string(b), err
 }
 
+func AddInterface(interfaceName string) (string, error) {
+	//TODO: figure out if this is actually needed, if so, generate a random IP address
+	// and add this command somewhere
+	// sudo ip addr add FF:02:00:00:00:00:00:00:00:00:00:00:00:00:00:FB dev iphone
+	return "", nil
+}
+
 func GetUSBMUXVersion() (*semver.Version, error) {
 	b, err := exec.Command("/bin/sh", "-c", "usbmuxd --version").CombinedOutput()
 	if err != nil {

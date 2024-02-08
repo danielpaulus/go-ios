@@ -25,8 +25,8 @@ func checkLinux() {
 
 func main() {
 	checkLinux()
-	checkRoot()
 	checkUsbMux()
+	checkRoot()
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	err := ncm.Start(c)
@@ -44,5 +44,4 @@ func checkUsbMux() {
 		os.Exit(1)
 	}
 	print(v)
-	panic("implement")
 }
