@@ -24,6 +24,15 @@ type SampleData struct {
 	FloatValue  float64
 }
 
+func TestGenericSliceToType(t *testing.T) {
+	slice := []interface{}{5, 3, 2}
+	v, err := ios.GenericSliceToType[int](slice)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, v[1])
+	_, err = ios.GenericSliceToType[string](slice)
+	assert.NotNil(t, err)
+}
+
 func TestNtohs(t *testing.T) {
 	assert.Equal(t, uint16(62078), ios.Ntohs(ios.Lockdownport))
 }

@@ -165,3 +165,18 @@ func InterfaceToStringSlice(intfSlice interface{}) []string {
 	}
 	return result
 }
+
+// GenericSliceToType tries to convert a slice of interfaces to a slice of the given type.
+// It returns an error if the conversion fails but will not panic.
+// Example: var b []bool; b, err = GenericSliceToType[bool]([]interface{}{true, false})
+func GenericSliceToType[T any](input []interface{}) ([]T, error) {
+	result := make([]T, len(input))
+	for i, intf := range input {
+		if t, ok := intf.(T); ok {
+			result[i] = t
+		} else {
+			return []T{}, fmt.Errorf("GenericSliceToType: could not convert %v to %T", intf, result[i])
+		}
+	}
+	return result, nil
+}

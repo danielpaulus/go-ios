@@ -9,14 +9,17 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+
+	"io"
+
 	"github.com/danielpaulus/go-ios/ios/opack"
 	"github.com/danielpaulus/go-ios/ios/xpc"
+
 	//"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/hkdf"
-	"io"
 )
 
 const UntrustedTunnelServiceName = "com.apple.internal.dt.coredevice.untrusted.tunnelservice"
@@ -61,12 +64,12 @@ func (t *TunnelService) ManualPair() error {
 	})
 
 	if err != nil {
-		return err
+		return fmt.Errorf("ManualPair: failed to send 'attemptPairVerify' request: %w", err)
 	}
 	// ignore the response for now
 	_, err = t.controlChannel.read()
 	if err != nil {
-		return err
+		return fmt.Errorf("ManualPair: failed to read 'attemptPairVerify' response: %w", err)
 	}
 
 	err = t.verifyPair()
@@ -77,27 +80,27 @@ func (t *TunnelService) ManualPair() error {
 
 	err = t.setupManualPairing()
 	if err != nil {
-		return err
+		return fmt.Errorf("ManualPair: failed to initiate manual pairing: %w", err)
 	}
 
 	sessionKey, err := t.setupSessionKey()
 	if err != nil {
-		return err
+		return fmt.Errorf("ManualPair: failed to setup SRP session key: %w", err)
 	}
 
 	err = t.exchangeDeviceInfo(sessionKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("ManualPair: failed to exchange device info: %w", err)
 	}
 
 	err = t.setupCiphers(sessionKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("ManualPair: failed to setup session ciphers: %w", err)
 	}
 
 	_, err = t.createUnlockKey()
 	if err != nil {
-		return err
+		return fmt.Errorf("ManualPair: failed to create unlock key: %w", err)
 	}
 
 	return nil
@@ -365,12 +368,12 @@ type TunnelInfo struct {
 func (t *TunnelService) setupSessionKey() ([]byte, error) {
 	devicePublicKey, deviceSalt, err := t.readDeviceKey()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("setupSessionKey: failed to read device public key and salt value: %w", err)
 	}
 
-	srp, err := NewSrpInfo(deviceSalt, devicePublicKey)
+	srp, err := newSrpInfo(deviceSalt, devicePublicKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("setupSessionKey: failed to setup SRP: %w", err)
 	}
 
 	proofTlv := NewTlvBuffer()
@@ -383,22 +386,22 @@ func (t *TunnelService) setupSessionKey() ([]byte, error) {
 		kind: "setupManualPairing",
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("setupSessionKey: failed to send SRP proof: %w", err)
 	}
 
 	var proofPairingData pairingData
 	err = t.controlChannel.readEvent(&proofPairingData)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("setupSessionKey: failed to read device SRP proof: %w", err)
 	}
 
 	serverProof, err := TlvReader(proofPairingData.data).ReadCoalesced(TypeProof)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("setupSessionKey: failed to parse device proof: %w", err)
 	}
-	verified := srp.VerifyServerProof(serverProof)
+	verified := srp.verifyServerProof(serverProof)
 	if !verified {
-		return nil, fmt.Errorf("could not verify server proof")
+		return nil, fmt.Errorf("setupSessionKey: could not verify server proof")
 	}
 	return srp.SessionKey, nil
 }
