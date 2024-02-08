@@ -3,6 +3,7 @@ package dtx
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -102,6 +103,36 @@ func ReadMessage(reader io.Reader) (Message, error) {
 	}
 
 	return result, nil
+}
+
+// ReadMessage uses the reader to fully read a Message from it in non-blocking mode. Used for sniffing the utun interface.
+func ReadMessageNonBlocking(reader io.Reader) (Message, error) {
+	header := make([]byte, 32)
+	_, err := io.ReadFull(reader, header)
+	if err != nil {
+		return Message{}, err
+	}
+	if binary.BigEndian.Uint32(header) != DtxMessageMagic {
+		return Message{}, NewOutOfSync(fmt.Sprintf("Wrong Magic: %x", header[0:4]))
+	}
+	result := readHeader(header)
+
+	messageLength := result.MessageLength
+
+	remainingBytes := make([]byte, messageLength)
+	_, err = io.ReadFull(reader, remainingBytes)
+	if err != nil {
+		d, _ := json.Marshal(result)
+		log.Printf("%s", string(d))
+
+		return Message{}, err
+	}
+
+	m, _, err := DecodeNonBlocking(append(header, remainingBytes[:]...))
+	if err != nil {
+		return Message{}, err
+	}
+	return m, nil
 }
 
 // DecodeNonBlocking should only be used for the debug proxy to on the fly decode DtxMessages.
