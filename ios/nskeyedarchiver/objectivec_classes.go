@@ -2,6 +2,7 @@ package nskeyedarchiver
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,6 +52,8 @@ func SetupEncoders() {
 			"NSMutableDictionary": archiveNSMutableDictionary,
 			"XCTCapabilities":     archiveXCTCapabilities,
 			"[]string":            archiveStringSlice,
+			"NSMutableArray":      archiveNSMutableArray,
+			"NSSet":               archiveNSSet,
 		}
 	}
 }
@@ -65,6 +68,8 @@ func NewXCTestConfiguration(
 	targetApplicationBundleID string,
 	targetApplicationPath string,
 	testBundleURL string,
+	testsToRun []string,
+	testsToSkip []string,
 ) XCTestConfiguration {
 	contents := map[string]interface{}{}
 
@@ -96,8 +101,10 @@ func NewXCTestConfiguration(
 	contents["testExecutionOrdering"] = 0
 	contents["testsDrivenByIDE"] = false
 	contents["testsMustRunOnMainThread"] = true
-	contents["testsToRun"] = plist.UID(0)
-	contents["testsToSkip"] = plist.UID(0)
+	contents["testsToRun"] = createTestsSet(testsToRun)
+	contents["testsToSkip"] = createTestsSet(testsToSkip)
+	contents["testIdentifiersToRun"] = createTestIdentifierArray(productModuleName, testsToRun)
+	contents["testIdentifiersToSkip"] = createTestIdentifierArray(productModuleName, testsToSkip)
 	contents["testTimeoutsEnabled"] = false
 	contents["treatMissingBaselinesAsFailures"] = false
 	contents["userAttachmentLifetime"] = 0
@@ -115,6 +122,62 @@ func NewXCTestConfiguration(
 		"XCTIssue capability":                      true,
 	}}
 	return XCTestConfiguration{contents}
+}
+
+func createTestIdentifierArray(productModuleName string, tests []string) interface{} {
+	if tests == nil {
+		return plist.UID(0)
+	}
+
+	testsIdentifiersToRunConfig := make([]XCTTestIdentifier, 0, len(tests))
+	for _, t := range tests {
+		t = strings.Replace(t, fmt.Sprintf("%s.", productModuleName), "", -1)
+
+		var splitTest []string
+		if strings.Contains(t, ".") {
+			splitTest = strings.Split(t, ".")
+		} else if strings.Contains(t, "/") {
+			splitTest = strings.Split(t, "/")
+		} else {
+			// Skip unusable test
+			continue
+		}
+
+		testClass := splitTest[0]
+		if len(splitTest) > 1 {
+			testName := splitTest[1]
+			C := make([]string, 0, 2)
+			C = append(C, testClass)
+			C = append(C, testName)
+
+			identifier := XCTTestIdentifier{
+				C: C,
+				O: 6,
+			}
+			testsIdentifiersToRunConfig = append(testsIdentifiersToRunConfig, identifier)
+		} else {
+			C := make([]string, 0, 2)
+			C = append(C, testClass)
+
+			identifier := XCTTestIdentifier{
+				C: C,
+				O: 3,
+			}
+			testsIdentifiersToRunConfig = append(testsIdentifiersToRunConfig, identifier)
+		}
+	}
+
+	return NSMutableArray{
+		Values: toInterfaceSliceOfTests(testsIdentifiersToRunConfig),
+	}
+}
+
+func createTestsSet(tests []string) interface{} {
+	if tests == nil {
+		return plist.UID(0)
+	}
+
+	return NSSet{Objects: toInterfaceSlice(tests)}
 }
 
 func archiveXcTestConfiguration(xctestconfigInterface interface{}, objects []interface{}) ([]interface{}, plist.UID) {
@@ -151,19 +214,6 @@ func (n NSUUID) String() string {
 }
 
 type XCActivityRecord struct {
-	/*
-			finish":<interface {}(howett.net/plist.UID)>)
-		"start":<interface {}(howett.net/plist.UID)>)
-
-		"title":<interface {}(howett.net/plist.UID)>)
-
-		"uuid":<interface {}(howett.net/plist.UID)>)
-
-		"activityType":<interface {}(howett.net/plist.UID)>)
-
-		"attachments":<interface {}(howett.net/plist.UID)>)
-
-	*/
 	Finish       NSDate
 	Start        NSDate
 	Title        string
@@ -531,6 +581,24 @@ func archiveNSMutableDictionary(object interface{}, objects []interface{}) ([]in
 	return serializeMap(mut.internalDict, objects, buildClassDict("NSMutableDictionary", "NSDictionary", "NSObject"))
 }
 
+type NSMutableArray struct {
+	Values []interface{}
+}
+
+func archiveNSMutableArray(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	sl := object.(NSMutableArray)
+	return serializeMutableArray(sl.Values, objects)
+}
+
+type NSSet struct {
+	Objects []interface{}
+}
+
+func archiveNSSet(set interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	nsset := set.(NSSet)
+	return serializeSet(nsset.Objects, objects)
+}
+
 type XCTIssue struct {
 	RuntimeIssueSeverity uint64
 	DetailedDescription  string
@@ -575,4 +643,12 @@ func NewXCTSourceCodeLocation(object map[string]interface{}, objects []interface
 	lineNumber := object["line-number"].(uint64)
 
 	return XCTSourceCodeLocation{FileUrl: fileUrl, LineNumber: lineNumber}
+}
+
+func toInterfaceSliceOfTests(testSlice []XCTTestIdentifier) []interface{} {
+	result := make([]interface{}, len(testSlice))
+	for i, e := range testSlice {
+		result[i] = e
+	}
+	return result
 }
