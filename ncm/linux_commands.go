@@ -32,7 +32,7 @@ func GetUSBMUXVersion() (*semver.Version, error) {
 	version := strings.Replace(string(b), "usbmuxd ", "", -1)
 	v, err := semver.NewVersion(version)
 	if err != nil {
-		return &semver.Version{}, fmt.Errorf("GetUSBMUXVersion: could not parse usbmuxd version: %s", err.Error())
+		return &semver.Version{}, fmt.Errorf("GetUSBMUXVersion: could not parse usbmuxd version: %s from '%s'", err.Error(), string(b))
 	}
 	ok := v.Equal(supportedVersion) || v.GreaterThan(supportedVersion)
 
