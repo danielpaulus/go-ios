@@ -43,5 +43,5 @@ func checkUsbMux() {
 		slog.Error("error getting usbmuxd version", slog.Any("error", err))
 		os.Exit(1)
 	}
-	print(v)
+	slog.Info("usbmuxd version", slog.Any("version", v))
 }
