@@ -38,5 +38,11 @@ func main() {
 }
 
 func checkUsbMux() {
+	v, err := ncm.GetUSBMUXVersion()
+	if err != nil {
+		slog.Error("error getting usbmuxd version", slog.Any("error", err))
+		os.Exit(1)
+	}
+	print(v)
 	panic("implement")
 }
