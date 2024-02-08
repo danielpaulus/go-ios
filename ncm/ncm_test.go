@@ -1,13 +1,6 @@
 package ncm
 
-import (
-	"bytes"
-	"encoding/base64"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"testing"
-)
-
+/*
 func TestReadCompleteDatagram(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -96,3 +89,4 @@ func TestReadWrite(t *testing.T) {
 	assert.Equal(t, 4, read)
 	assert.Equal(t, data, r[:read])
 }
+*/

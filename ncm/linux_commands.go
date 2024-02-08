@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Masterminds/semver"
 	"os/exec"
+	"strings"
 )
 
 // works on ubuntu
@@ -19,12 +20,25 @@ func AddInterface(interfaceName string) (string, error) {
 	return "", nil
 }
 
+const usbmuxVersion = "usbmuxd 1.1.1-56-g360619c"
+
+var supportedVersion = semver.MustParse(strings.Replace(usbmuxVersion, "usbmuxd ", "", -1))
+
 func GetUSBMUXVersion() (*semver.Version, error) {
 	b, err := exec.Command("/bin/sh", "-c", "usbmuxd --version").CombinedOutput()
 	if err != nil {
 		return &semver.Version{}, err
 	}
-	v, err := semver.NewVersion(string(b))
+	version := strings.Replace(string(b), "usbmuxd ", "", -1)
+	v, err := semver.NewVersion(version)
+	if err != nil {
+		return &semver.Version{}, fmt.Errorf("GetUSBMUXVersion: could not parse usbmuxd version: %s", err.Error())
+	}
+	ok := v.Equal(supportedVersion) || v.GreaterThan(supportedVersion)
 
-	return v, err
+	if !ok {
+		return v, fmt.Errorf("usbmuxd version %s is not supported. Please use at least %s", version, supportedVersion)
+	}
+
+	return v, nil
 }
