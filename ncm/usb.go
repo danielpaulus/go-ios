@@ -1,6 +1,8 @@
 package ncm
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/google/gousb"
 	"github.com/songgao/packets/ethernet"
@@ -8,8 +10,11 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 )
+
+var allocatedDevices = sync.Map{}
 
 func Start(c chan os.Signal) error {
 	ctx := gousb.NewContext()
@@ -45,53 +50,57 @@ func handleDevice(device *gousb.Device) error {
 	serial, err := device.SerialNumber()
 	if err != nil {
 		slog.Info("failed to get serial")
-		return
+		return fmt.Errorf("handleDevice: failed to get serial for device %s with err %w", device.String(), err)
 	}
+	_, loaded := allocatedDevices.LoadOrStore(serial, true)
+	if loaded {
+		slog.Info("device already handled", "serial", serial)
+		return nil
+	}
+	defer allocatedDevices.Delete(serial)
 	slog.Info("got device", slog.String("serial", serial))
 
 	activeConfig, err := device.ActiveConfigNum()
 	if err != nil {
-		return
+		return fmt.Errorf("handleDevice: failed to get active config for device %s with err %w", serial, err)
 	}
-	slog.Info("active config", slog.Int("active", activeConfig))
+	slog.Info("active config", slog.Int("active", activeConfig), "serial", serial)
 	confLen := len(device.Desc.Configs)
-	slog.Info("available configs", "configs", device.Desc.Configs, "len", confLen)
+	slog.Info("available configs", "configs", device.Desc.Configs, "len", confLen, "serial", serial)
 
 	if confLen != 5 {
 		_, err = device.Control(0xc0, 69, 0, 0, make([]byte, 4))
 		if err != nil {
 			slog.Error("failed sending control1", slog.Any("error", err))
-			return
+			return fmt.Errorf("handleDevice: failed sending control1 for device %s with err %w", serial, err)
 		}
 
 		_, err = device.Control(0xc0, 82, 0, 3, make([]byte, 1))
 		if err != nil {
 			slog.Error("failed sending control2", slog.Any("error", err))
-			return
+			return fmt.Errorf("handleDevice: failed sending control2 for device %s with err %w", serial, err)
 		}
 	}
 
 	cfg, err := device.Config(5)
 	if err != nil {
-		slog.Error("failed activating config", "err", slog.AnyValue(err))
-		return
+		return fmt.Errorf("handleDevice: failed activating config for device %s with err %w", serial, err)
 	}
-	slog.Info("got config", slog.String("config", cfg.String()))
+	slog.Info("got config", slog.String("config", cfg.String()), "serial", serial)
 
 	for _, iface := range cfg.Desc.Interfaces {
 		for _, alt := range iface.AltSettings {
 			if alt.Class == 10 && alt.SubClass == 0 && len(alt.Endpoints) == 2 {
-				slog.Info("alt setting", slog.String("alt", alt.String()), slog.Int("class", int(alt.Class)), slog.Int("subclass", int(alt.SubClass)), slog.String("protocol", alt.Protocol.String()))
+				slog.Info("alt setting", slog.String("alt", alt.String()), slog.Int("class", int(alt.Class)), slog.Int("subclass", int(alt.SubClass)), slog.String("protocol", alt.Protocol.String()), slog.String("serial", serial))
 			}
 		}
 	}
 	iface, err := cfg.Interface(5, 1)
 	if err != nil {
-		slog.Error("failed to open interface", slog.AnyValue(err))
-		return
+		return fmt.Errorf("handleDevice: failed to claim interface for device %s. this can happen if some other process already claimed it. err %w", serial, err)
 	}
-	var inEndpoint int
-	var outEndpoint int
+	var inEndpoint = -1
+	var outEndpoint = -1
 	for endpoint, i := range iface.Setting.Endpoints {
 		slog.Info(endpoint.String())
 		if i.Direction == gousb.EndpointDirectionIn {
@@ -100,32 +109,46 @@ func handleDevice(device *gousb.Device) error {
 		if i.Direction == gousb.EndpointDirectionOut {
 			outEndpoint = i.Number
 		}
-		slog.Info(i.String())
+	}
+	if inEndpoint == -1 {
+		return fmt.Errorf("handleDevice: failed to find in-endpoint for device %s", serial)
+	}
+	if outEndpoint == -1 {
+		return fmt.Errorf("handleDevice: failed to find out-endpoint for device %s", serial)
 	}
 
 	in, err := iface.InEndpoint(inEndpoint)
 	if err != nil {
-		slog.Error("failed to get in-endpoint", slog.AnyValue(err))
+		return fmt.Errorf("handleDevice: failed to open in-endpoint for device %s with err %w", serial, err)
 	}
 
 	out, err := iface.OutEndpoint(outEndpoint)
 	if err != nil {
-		slog.Error("failed to get out-endpoint", slog.AnyValue(err))
+		return fmt.Errorf("handleDevice: failed to open out-endpoint for device %s with err %w", serial, err)
 	}
-	slog.Info("claimed interfaces")
+	slog.Info("claimed interfaces", "serial", serial)
 
 	inDesc, _ := getEndpointDescriptions(cfg.Desc.Interfaces[5].AltSettings[1])
 
 	inStream, err := in.NewStream(inDesc.MaxPacketSize*3, 1)
 	if err != nil {
-		return
+		return fmt.Errorf("handleDevice: failed to open in-stream for device %s with err %w", serial, err)
 	}
 	defer inStream.Close()
 
-	slog.Info("created streams")
+	slog.Info("created streams", "serial", serial)
 
 	ifce, err := createConfig(serial)
-	rw(out, inStream, ifce)
+	if err != nil {
+		return fmt.Errorf("handleDevice: failed to create config for device %s with err %w", serial, err)
+	}
+	err = ncmIOCopy(out, inStream, ifce, serial)
+	slog.Info("stopping interface for device", "serial", serial)
+	if err != nil {
+		slog.Error("failed to copy data", "err", err, "serial", serial)
+	}
+
+	return errors.Join(ifce.Close(), inStream.Close(), func() error { iface.Close(); return nil }(), cfg.Close(), device.Close())
 
 }
 
@@ -146,7 +169,7 @@ func createConfig(serial string) (*water.Interface, error) {
 		DeviceType: water.TAP,
 	}
 	config.Name = "iphone_" + serial
-	slog.Info("creating TAP device", "device", config.Name)
+	slog.Info("creating TAP device", "device", config.Name, "serial", serial)
 	ifce, err := water.New(config)
 	if err != nil {
 		return &water.Interface{}, fmt.Errorf("createConfig: failed creating ifce %w", err)
@@ -155,47 +178,72 @@ func createConfig(serial string) (*water.Interface, error) {
 	if err != nil {
 		return &water.Interface{}, fmt.Errorf("createConfig: err calling interface up %w", err)
 	}
-	slog.Info("ethernet device is up:", "device", config.Name, "cmd", output)
+	slog.Info("ethernet device is up:", "device", config.Name, "cmd", output, "serial", serial)
 
 	time.Sleep(10 * time.Second)
 
 	return ifce, err
 }
 
-func rw(w io.Writer, r io.Reader, ifce *water.Interface) error {
+// ncmIOCopy copies data between a USB device and a virtual network interface. It is blocking until the connection fails
+// for some reason. This happens if the device is disconnected or if the virtual network interface is removed.
+// Closing interfaces is the responsibility of the caller.
+func ncmIOCopy(w io.Writer, r io.Reader, ifce *water.Interface, serial string) error {
 	wr := NewWrapper(r, w)
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
 	go func() {
+		defer wg.Done()
 		var frame ethernet.Frame
 		for {
-			frame.Resize(1500)
-			n, err := ifce.Read([]byte(frame))
-			if err != nil {
-				slog.Fatal(err)
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				frame.Resize(1500)
+				n, err := ifce.Read([]byte(frame))
+				if err != nil {
+					slog.Error("ncmIOCopy: failed to read from iface", slog.Any("error", err), slog.String("serial", serial))
+					cancel()
+					continue
+				}
+				frame = frame[:n]
+				_, err = wr.Write(frame)
+				if err != nil {
+					slog.Error("ncmIOCopy: failed to copy from iface to usb", slog.Any("error", err), slog.String("serial", serial))
+					cancel()
+				}
 			}
-			frame = frame[:n]
-			_, err = wr.Write(frame)
-			if err != nil {
-				slog.Error("failed to copy from iface to usb", slog.Any("error", err))
-				continue
-			}
-			slog.Info("write to USB ok")
 		}
 
 	}()
 
 	go func() {
+		defer wg.Done()
 		for {
-			frames, err := wr.ReadDatagrams()
-			if err != nil {
-				slog.Error("failed reading datagrams with err", err)
-			}
-			for _, frame := range frames {
-				_, err := ifce.Write(frame)
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				frames, err := wr.ReadDatagrams()
 				if err != nil {
-					slog.Error("failed sending frame to virtual device", "err", err)
+					slog.Error("ncmIOCopy: failed to read from usb", slog.Any("error", err), slog.String("serial", serial))
+					cancel()
+					continue
+				}
+				for _, frame := range frames {
+					_, err := ifce.Write(frame)
+					if err != nil {
+						slog.Error("failed sending frame to virtual device", "err", err)
+						cancel()
+					}
 				}
 			}
 		}
 	}()
+	wg.Wait()
 
+	return nil
 }
