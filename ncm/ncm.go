@@ -3,6 +3,7 @@ package ncm
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,7 +14,7 @@ import (
 
 /*
 NCM allows device and host to efficiently transfer one or more Ethernet frames
-using a single USB trans- fer.
+using a single USB transfer.
 The USB transfer is formatted as a NCM Transfer Block (NTB).
 */
 type ntbHeader struct {
@@ -119,12 +120,13 @@ func (r *NcmWrapper) ReadDatagrams() ([]ethernet.Frame, error) {
 	var h ntbHeader
 	err := binary.Read(r.targetReader, binary.LittleEndian, &h)
 	if err != nil {
-		return result, err
+		return result, fmt.Errorf("ReadDatagrams: reading header failed %w", err)
 	}
 	if h.Signature != headerSignature {
-		return result, fmt.Errorf("wrong header signature: %x", h.Signature)
+		return result, fmt.Errorf("ReadDatagrams: wrong header signature: %x", h.Signature)
 	}
-	fmt.Printf("%s, read block: %d\n", h.String(), h.BlockLen-h.HeaderLen)
+
+	slog.Debug("read block", "ntbheader", h.String(), "length", h.BlockLen-h.HeaderLen)
 
 	//read the entire block, minus the header
 	ncmTransferBlock := make([]byte, h.BlockLen)
@@ -132,23 +134,23 @@ func (r *NcmWrapper) ReadDatagrams() ([]ethernet.Frame, error) {
 	//later we need many indexes, so we pad the header length with 0s for easier calculations
 	b, err := io.ReadFull(r.targetReader, ncmTransferBlock[h.HeaderLen:])
 	if err != nil {
-		return result, fmt.Errorf("reading block failed bytes read:%d err: %w", b, err)
+		return result, fmt.Errorf("ReadDatagrams: reading block failed bytes read:%d err: %w", b, err)
 	}
-	//fmt.Printf("block: %x\n", ncmTransferBlock)
 
 	offset := h.NdpIndex
 	var dh datagramPointerHeader
 	err = binary.Read(bytes.NewReader(ncmTransferBlock[offset:]), binary.LittleEndian, &dh)
 	if err != nil {
-		return result, err
+		return result, fmt.Errorf("ReadDatagrams: reading datagramPointerHeader failed %w", err)
 	}
 	if !dh.IsValid() {
-		return result, fmt.Errorf("datagrampointerheader invalid signature:%x", dh.Signature)
+		return result, fmt.Errorf("ReadDatagrams: datagrampointerheader invalid signature:%x", dh.Signature)
 	}
-	fmt.Printf("datagramPointerHeader: %s\n", dh.String())
+	slog.Debug("datagramPointerHeader", "header", dh.String())
 	if dh.NextNpdIndex != 0 {
 		//if this happens, we gotta create a loop here to extract all dhs, starting with the next index until
 		//nextndpindex==0
+		// so far, it seems ios devices do not use this.
 		panic("not implemented :-)")
 	}
 	datagramPointers := ncmTransferBlock[offset+8:]
@@ -161,7 +163,7 @@ func (r *NcmWrapper) ReadDatagrams() ([]ethernet.Frame, error) {
 		}
 		slog.Debug("datagram", "index", dgIndex, "length", dgLen)
 		datagram := ncmTransferBlock[dgIndex : dgIndex+dgLen]
-		fmt.Printf("%s\n%s \n", iPv6Parser(datagram[EtherHeaderLength:]), EthernetParser(datagram))
+		slog.Debug("parse ethernet frame", "ipv6", iPv6Parser(datagram[EtherHeaderLength:]), "ethernet", EthernetParser(datagram))
 		result = append(result, ethernet.Frame(datagram))
 		pointer += 4
 		if pointer > int(dh.Length-8) {
@@ -198,10 +200,6 @@ func (r *NcmWrapper) Write(p []byte) (n int, err error) {
 
 	buf := bytes.NewBuffer(block)
 	buf.Reset()
-
-	binary.Write(buf, binary.LittleEndian, h)
-	binary.Write(buf, binary.LittleEndian, dh)
-
 	d := datagram{
 		Index:  30,
 		Length: uint16(len(p)),
@@ -210,14 +208,20 @@ func (r *NcmWrapper) Write(p []byte) (n int, err error) {
 		Index:  0,
 		Length: 0,
 	}
-	binary.Write(buf, binary.LittleEndian, d)
-	binary.Write(buf, binary.LittleEndian, d0)
-	buf.WriteByte(0)
-	buf.WriteByte(0)
-
+	err = errors.Join(
+		binary.Write(buf, binary.LittleEndian, h),
+		binary.Write(buf, binary.LittleEndian, dh),
+		binary.Write(buf, binary.LittleEndian, d),
+		binary.Write(buf, binary.LittleEndian, d0),
+		buf.WriteByte(0),
+		buf.WriteByte(0),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("write: writing ncm packet to buffer failed %w", err)
+	}
 	buf.Write(p)
 	block = buf.Bytes()
 	n, err = r.targetWriter.Write(block)
 
-	return n, err
+	return n, fmt.Errorf("write: writing ncm packet to usb failed %w", err)
 }

@@ -23,10 +23,20 @@ func Start(c chan os.Signal) error {
 		select {
 		case <-time.After(5 * time.Second):
 			checkDevices(ctx)
+			printStatus()
 		case <-c:
 			return nil
 		}
 	}
+}
+
+func printStatus() {
+	var connectedDevices []string
+	allocatedDevices.Range(func(key, value interface{}) bool {
+		connectedDevices = append(connectedDevices, key.(string))
+		return true
+	})
+	slog.Info("connected devices", "devices", connectedDevices)
 }
 
 func checkDevices(ctx *gousb.Context) {
@@ -39,10 +49,12 @@ func checkDevices(ctx *gousb.Context) {
 	}
 	slog.Info("device list", "length", len(devices))
 	for _, d := range devices {
-		err := handleDevice(d)
-		if err != nil {
-			slog.Error("failed opening network adapter for device", "device", d.String(), "err", err)
-		}
+		go func() {
+			err := handleDevice(d)
+			if err != nil {
+				slog.Error("failed opening network adapter for device", "device", d.String(), "err", err)
+			}
+		}()
 	}
 }
 
