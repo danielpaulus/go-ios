@@ -11,11 +11,12 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
 	"io"
 	"math/big"
 	"os/exec"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios"
 
 	"github.com/quic-go/quic-go"
 	"github.com/sirupsen/logrus"
@@ -159,6 +160,7 @@ func setupTunnelInterface(err error, tunnelInfo TunnelInfo) (*water.Interface, e
 	if err != nil {
 		logrus.Fatal(err)
 	}
+	logrus.WithField("ifce", ifce.Name()).Info("TUN interface set up")
 
 	const prefixLength = 64 // TODO: this could be calculated from the netmask provided by the device
 	setIpAddr := exec.Command("ifconfig", ifce.Name(), "inet6", "add", fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength))
@@ -169,11 +171,17 @@ func setupTunnelInterface(err error, tunnelInfo TunnelInfo) (*water.Interface, e
 
 	// FIXME: we need to reduce the tunnel interface MTU so that the OS takes care of splitting the payloads into
 	// smaller packets. If we use a larger number here, the QUIC tunnel won't send the packets properly
-	ifceMtu := tunnelInfo.ClientParameters.Mtu - 78
-	setMtu := exec.Command("ifconfig", ifce.Name(), "mtu", fmt.Sprintf("%d", ifceMtu), "up")
-	err = runCmd(setMtu)
+	//ifceMtu := tunnelInfo.ClientParameters.Mtu - 78
+	//setMtu := exec.Command("ifconfig", ifce.Name(), "mtu", fmt.Sprintf("%d", ifceMtu), "up")
+	//err = runCmd(setMtu)
+	//if err != nil {
+	//	return nil, fmt.Errorf("setupTunnelInterface: failed to configure MTU: %w", err)
+	//}
+
+	enableIfce := exec.Command("ifconfig", ifce.Name(), "up")
+	err = runCmd(enableIfce)
 	if err != nil {
-		return nil, fmt.Errorf("setupTunnelInterface: failed to configure MTU: %w", err)
+		return nil, fmt.Errorf("setupTunnelInterface: failed to enable interface %s: %w", ifce.Name(), err)
 	}
 
 	return ifce, nil
