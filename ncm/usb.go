@@ -2,7 +2,6 @@ package ncm
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/google/gousb"
 	"github.com/songgao/packets/ethernet"
@@ -59,6 +58,7 @@ func checkDevices(ctx *gousb.Context) {
 }
 
 func handleDevice(device *gousb.Device) error {
+	defer closeWithLog("device "+device.String(), device.Close)
 	serial, err := device.SerialNumber()
 	if err != nil {
 		slog.Info("failed to get serial")
@@ -98,6 +98,7 @@ func handleDevice(device *gousb.Device) error {
 	if err != nil {
 		return fmt.Errorf("handleDevice: failed activating config for device %s with err %w", serial, err)
 	}
+	defer closeWithLog("config "+serial, cfg.Close)
 	slog.Info("got config", slog.String("config", cfg.String()), "serial", serial)
 
 	for _, iface := range cfg.Desc.Interfaces {
@@ -111,6 +112,10 @@ func handleDevice(device *gousb.Device) error {
 	if err != nil {
 		return fmt.Errorf("handleDevice: failed to claim interface for device %s. this can happen if some other process already claimed it. err %w", serial, err)
 	}
+	defer func() {
+		slog.Info("closing interface", "serial", serial)
+		iface.Close()
+	}()
 	var inEndpoint = -1
 	var outEndpoint = -1
 	for endpoint, i := range iface.Setting.Endpoints {
@@ -146,7 +151,7 @@ func handleDevice(device *gousb.Device) error {
 	if err != nil {
 		return fmt.Errorf("handleDevice: failed to open in-stream for device %s with err %w", serial, err)
 	}
-	defer inStream.Close()
+	defer closeWithLog("in stream", inStream.Close)
 
 	slog.Info("created streams", "serial", serial)
 
@@ -154,14 +159,21 @@ func handleDevice(device *gousb.Device) error {
 	if err != nil {
 		return fmt.Errorf("handleDevice: failed to create config for device %s with err %w", serial, err)
 	}
+	defer closeWithLog("virtual TUN interface", ifce.Close)
 	err = ncmIOCopy(out, inStream, ifce, serial)
 	slog.Info("stopping interface for device", "serial", serial)
 	if err != nil {
 		slog.Error("failed to copy data", "err", err, "serial", serial)
 	}
+	return err
+}
 
-	return errors.Join(ifce.Close(), inStream.Close(), func() error { iface.Close(); return nil }(), cfg.Close(), device.Close())
-
+func closeWithLog(msg string, closeable func() error) {
+	slog.Info("closing", "what", msg)
+	err := closeable()
+	if err != nil {
+		slog.Error("failed closing", "err", err)
+	}
 }
 
 func getEndpointDescriptions(s gousb.InterfaceSetting) (in gousb.EndpointDesc, out gousb.EndpointDesc) {
