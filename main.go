@@ -129,7 +129,7 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
-  ios start-tunnel [options]
+  ios start-tunnel [options] [--pair-record-path=<pairrecordpath>]
   ios deviceinfo [options] (display | lockdown)
   ios devmode (enable | get) [--enable-post-restart] [options]
 
@@ -236,7 +236,8 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
-   ios start-tunnel [options]                                         Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
+   ios start-tunnel [options] [--pair-record-path=<pairrecordpath>]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
+   >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path' is required as we can not access the default path for the pair record
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo kill -s STOP $(pgrep "^remoted")', and 'sudo kill -s CONT $(pgrep "^remoted")' to resume)
    ios deviceinfo [options] (display | lockdown)                  	  Queries device infos
@@ -909,19 +910,17 @@ The commands work as following:
 			}
 			defer writer.Close()
 
-			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(writer, writer))
+			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(writer, writer, os.TempDir()))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
-			defer testResults.Close()
 
 			log.Info(fmt.Printf("%+v", testResults))
 		} else {
-			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(io.Discard, io.Discard))
+			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
-			defer testResults.Close()
 		}
 		return
 	}
@@ -1050,7 +1049,11 @@ The commands work as following:
 
 	b, _ = arguments.Bool("start-tunnel")
 	if b {
-		startTunnel(context.TODO(), device)
+		pairRecordsPath, _ := arguments.String("--pair-record-path")
+		if len(pairRecordsPath) == 0 {
+			pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
+		}
+		startTunnel(context.TODO(), device, pairRecordsPath)
 	}
 
 	b, _ = arguments.Bool("deviceinfo")
@@ -1171,12 +1174,11 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		errorChannel := make(chan error)
 		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
-			testResults, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(io.Discard, io.Discard))
+			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 				errorChannel <- err
 			}
-			defer testResults.Close()
 			close(errorChannel)
 		}()
 		c := make(chan os.Signal, 1)
@@ -2002,8 +2004,8 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
 
-func startTunnel(ctx context.Context, device ios.DeviceEntry) {
-	pm, err := tunnel.NewPairRecordManager("/var/db/lockdown/RemotePairing/user_501")
+func startTunnel(ctx context.Context, device ios.DeviceEntry, recordsPath string) {
+	pm, err := tunnel.NewPairRecordManager(recordsPath)
 	exitIfError("could not creat pair record manager", err)
 	startTunnelCtx, _ := context.WithTimeout(ctx, 10*time.Second)
 	t, err := tunnel.ManualPairAndConnectToTunnel(startTunnelCtx, device, pm)

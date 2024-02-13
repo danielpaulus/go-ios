@@ -5,7 +5,6 @@ package appservice_test
 import (
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/appservice"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -50,7 +49,7 @@ func testLaunchAndKillApp(t *testing.T, device ios.DeviceEntry) {
 	require.NoError(t, err)
 	defer as.Close()
 
-	_, err = as.LaunchApp(uuid.New().String(), "com.apple.mobilesafari", nil, nil, nil)
+	_, err = as.LaunchApp("com.apple.mobilesafari", nil, nil, nil, true)
 	require.NoError(t, err)
 
 	processes, err := as.ListProcesses()
@@ -72,12 +71,12 @@ func testKillInvalidPidReturnsError(t *testing.T, device ios.DeviceEntry) {
 	require.NoError(t, err)
 	defer as.Close()
 
-	launched, err := as.LaunchApp(uuid.New().String(), "com.apple.mobilesafari", nil, nil, nil)
+	launched, err := as.LaunchApp("com.apple.mobilesafari", nil, nil, nil, true)
 	require.NoError(t, err)
 
-	err = as.KillProcess(int(launched.Pid))
+	err = as.KillProcess(launched.Pid)
 	require.NoError(t, err)
 
-	err = as.KillProcess(int(launched.Pid))
+	err = as.KillProcess(launched.Pid)
 	assert.Error(t, err)
 }

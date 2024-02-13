@@ -15,11 +15,12 @@ import (
 
 // TestListener collects test results from the test execution
 type TestListener struct {
-	executionFinished chan struct{}
-	err               error
-	logWriter         io.Writer
-	debugLogWriter    io.Writer
-	TestSuite         *TestSuite
+	executionFinished    chan struct{}
+	err                  error
+	logWriter            io.Writer
+	debugLogWriter       io.Writer
+	attachmentsDirectory string
+	TestSuite            *TestSuite
 }
 
 type TestSuite struct {
@@ -61,16 +62,18 @@ type TestError struct {
 type TestAttachment struct {
 	Name      string
 	Path      string
+	Type      string
 	Timestamp float64
 	Activity  string
 }
 
-func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer) *TestListener {
+func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer, attachmentsDirectory string) *TestListener {
 	return &TestListener{
-		executionFinished: make(chan struct{}),
-		logWriter:         logWriter,
-		debugLogWriter:    debugLogWriter,
-		TestSuite:         &TestSuite{},
+		executionFinished:    make(chan struct{}),
+		logWriter:            logWriter,
+		debugLogWriter:       debugLogWriter,
+		TestSuite:            &TestSuite{},
+		attachmentsDirectory: attachmentsDirectory,
 	}
 }
 
@@ -111,8 +114,8 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 			testCase = &t.TestSuite.TestCases[len(t.TestSuite.TestCases)-1]
 		}
 
-		filepath := filepath.Join(os.TempDir(), uuid.New().String())
-		file, err := os.Create(filepath)
+		attachmentsPath := filepath.Join(t.attachmentsDirectory, uuid.New().String())
+		file, err := os.Create(attachmentsPath)
 		if err != nil {
 			log.WithFields(log.Fields{"error": err, "attachment": attachment.Name}).Warn("Received testCaseFinished with activity record but failed writing attachments to disk. Ignoring attachment")
 			continue
@@ -124,7 +127,8 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 			Name:      attachment.Name,
 			Timestamp: attachment.Timestamp,
 			Activity:  xcActivityRecord.Title,
-			Path:      filepath,
+			Path:      attachmentsPath,
+			Type:      xcActivityRecord.ActivityType,
 		})
 	}
 }
@@ -225,27 +229,6 @@ func (t *TestListener) TestRunnerKilled() {
 
 func (t *TestListener) Done() <-chan struct{} {
 	return t.executionFinished
-}
-
-func (t TestSuite) Close() error {
-	for _, testCase := range t.TestCases {
-		for _, attachment := range testCase.Attachments {
-			err := attachment.Close()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (a TestAttachment) Close() error {
-	if _, err := os.Stat(a.Path); errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-
-	return os.Remove(a.Path)
 }
 
 func (ts *TestSuite) findTestCase(className string, methodName string) *TestCase {
