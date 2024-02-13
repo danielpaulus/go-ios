@@ -108,9 +108,12 @@ func (r tlvReader) readCoalesced(t tlvType) ([]byte, error) {
 		}
 		l, _ := reader.ReadByte()
 		if tlvType(chunkType) == t {
-			io.CopyN(buf, reader, int64(l))
+			_, err = io.CopyN(buf, reader, int64(l))
 		} else {
-			io.CopyN(io.Discard, reader, int64(l))
+			_, err = io.CopyN(io.Discard, reader, int64(l))
+		}
+		if err != nil {
+			return nil, fmt.Errorf("readCoalesced: failed to read bytes of length %d: %w", l, err)
 		}
 	}
 

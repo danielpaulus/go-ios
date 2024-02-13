@@ -283,9 +283,10 @@ func exchangeCoreTunnelParameters(conn quic.Connection) (tunnelParameters, error
 	}
 
 	buf := bytes.NewBuffer(nil)
-	buf.Write([]byte("CDTunnel\000"))
-	buf.WriteByte(byte(len(rq)))
-	buf.Write(rq)
+	// Write on bytes.Buffer never returns an error
+	_, _ = buf.Write([]byte("CDTunnel\000"))
+	_ = buf.WriteByte(byte(len(rq)))
+	_, _ = buf.Write(rq)
 
 	_, err = stream.Write(buf.Bytes())
 	if err != nil {

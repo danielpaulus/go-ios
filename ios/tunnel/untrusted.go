@@ -294,9 +294,10 @@ func (t *tunnelService) verifyPair() error {
 	}
 
 	signBuf := bytes.NewBuffer(nil)
-	signBuf.Write(key.PublicKey().Bytes())
-	signBuf.Write([]byte(selfId.Identifier))
-	signBuf.Write(devicePublicKeyBytes)
+	// Write on bytes.Buffer never returns an error
+	_, _ = signBuf.Write(key.PublicKey().Bytes())
+	_, _ = signBuf.Write([]byte(selfId.Identifier))
+	_, _ = signBuf.Write(devicePublicKeyBytes)
 
 	signature := ed25519.Sign(selfId.privateKey(), signBuf.Bytes())
 
@@ -410,9 +411,10 @@ func (t *tunnelService) setupSessionKey() ([]byte, error) {
 func (t *tunnelService) exchangeDeviceInfo(sessionKey []byte) error {
 	hkdfPairSetup := hkdf.New(sha512.New, sessionKey, []byte("Pair-Setup-Controller-Sign-Salt"), []byte("Pair-Setup-Controller-Sign-Info"))
 	buf := bytes.NewBuffer(nil)
-	io.CopyN(buf, hkdfPairSetup, 32)
-	buf.WriteString(t.pairRecords.selfId.Identifier)
-	buf.Write(t.pairRecords.selfId.publicKey())
+	// Write on bytes.Buffer never returns an error
+	_, _ = io.CopyN(buf, hkdfPairSetup, 32)
+	_, _ = buf.WriteString(t.pairRecords.selfId.Identifier)
+	_, _ = buf.Write(t.pairRecords.selfId.publicKey())
 
 	signature := ed25519.Sign(t.pairRecords.selfId.privateKey(), buf.Bytes())
 
