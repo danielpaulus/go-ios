@@ -96,6 +96,16 @@ type DeviceConnectionMock struct {
 	mock.Mock
 }
 
+func (mock *DeviceConnectionMock) Read(p []byte) (n int, err error) {
+	args := mock.Called(p)
+	return args.Int(0), args.Error(1)
+}
+
+func (mock *DeviceConnectionMock) Write(p []byte) (n int, err error) {
+	args := mock.Called(p)
+	return args.Int(0), args.Error(1)
+}
+
 func (mock *DeviceConnectionMock) Close() error {
 	mock.Called()
 	return nil
