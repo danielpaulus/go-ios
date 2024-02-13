@@ -2,6 +2,7 @@ package nskeyedarchiver
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -45,15 +46,17 @@ func SetupDecoders() {
 func SetupEncoders() {
 	if encodableClasses == nil {
 		encodableClasses = map[string]func(object interface{}, objects []interface{}) ([]interface{}, plist.UID){
-			"XCTestConfiguration": archiveXcTestConfiguration,
-			"NSUUID":              archiveNSUUID,
-			"NSURL":               archiveNSURL,
-			"NSNull":              archiveNSNull,
-			"NSMutableDictionary": archiveNSMutableDictionary,
-			"XCTCapabilities":     archiveXCTCapabilities,
-			"[]string":            archiveStringSlice,
-			"NSMutableArray":      archiveNSMutableArray,
-			"NSSet":               archiveNSSet,
+			"XCTestConfiguration":  archiveXcTestConfiguration,
+			"NSUUID":               archiveNSUUID,
+			"NSURL":                archiveNSURL,
+			"NSNull":               archiveNSNull,
+			"NSMutableDictionary":  archiveNSMutableDictionary,
+			"XCTCapabilities":      archiveXCTCapabilities,
+			"[]string":             archiveStringSlice,
+			"NSMutableArray":       archiveNSMutableArray,
+			"NSSet":                archiveNSSet,
+			"XCTTestIdentifier":    archiveXCTTestIdentifier,
+			"XCTTestIdentifierSet": archiveXCTTestIdentifierSet,
 		}
 	}
 }
@@ -72,6 +75,30 @@ func NewXCTestConfiguration(
 	testsToSkip []string,
 ) XCTestConfiguration {
 	contents := map[string]interface{}{}
+
+	var testsToRunEntry interface{}
+	testsToRunEntry = plist.UID(0)
+	if testsToRun != nil {
+		testsToRunEntry = createTestsSet(testsToRun)
+	}
+
+	var testsToSkipEntry interface{}
+	testsToSkipEntry = plist.UID(0)
+	if testsToSkip != nil {
+		testsToSkipEntry = createTestsSet(testsToSkip)
+	}
+
+	var testIdentifiersToRunEntry interface{}
+	testIdentifiersToRunEntry = plist.UID(0)
+	if testsToRun != nil {
+		testIdentifiersToRunEntry = createTestIdentifierSet(productModuleName, testsToRun)
+	}
+
+	var testIdentifiersToSkipEntry interface{}
+	testIdentifiersToSkipEntry = plist.UID(0)
+	if testsToSkip != nil {
+		testIdentifiersToSkipEntry = createTestIdentifierSet(productModuleName, testsToSkip)
+	}
 
 	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
 	contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
@@ -101,10 +128,10 @@ func NewXCTestConfiguration(
 	contents["testExecutionOrdering"] = 0
 	contents["testsDrivenByIDE"] = false
 	contents["testsMustRunOnMainThread"] = true
-	contents["testsToRun"] = createTestsSet(testsToRun)
-	contents["testsToSkip"] = createTestsSet(testsToSkip)
-	contents["testIdentifiersToRun"] = createTestIdentifierArray(productModuleName, testsToRun)
-	contents["testIdentifiersToSkip"] = createTestIdentifierArray(productModuleName, testsToSkip)
+	contents["testsToRun"] = testsToRunEntry
+	contents["testsToSkip"] = testsToSkipEntry
+	contents["testIdentifiersToRun"] = testIdentifiersToRunEntry
+	contents["testIdentifiersToSkip"] = testIdentifiersToSkipEntry
 	contents["testTimeoutsEnabled"] = false
 	contents["treatMissingBaselinesAsFailures"] = false
 	contents["userAttachmentLifetime"] = 0
@@ -124,28 +151,29 @@ func NewXCTestConfiguration(
 	return XCTestConfiguration{contents}
 }
 
-func createTestIdentifierArray(productModuleName string, tests []string) interface{} {
-	if tests == nil {
-		return plist.UID(0)
-	}
-
+func createTestIdentifierSet(productModuleName string, tests []string) XCTTestIdentifierSet {
 	testsIdentifiersToRunConfig := make([]XCTTestIdentifier, 0, len(tests))
 	for _, t := range tests {
+		/**
+		 * Possible string format for a single test
+		 * - target.class/method
+		 * - target.class
+		 * - class/method
+		 * - class
+		 **/
 		t = strings.Replace(t, fmt.Sprintf("%s.", productModuleName), "", -1)
 
-		var splitTest []string
-		if strings.Contains(t, ".") {
-			splitTest = strings.Split(t, ".")
-		} else if strings.Contains(t, "/") {
-			splitTest = strings.Split(t, "/")
-		} else {
-			// Skip unusable test
-			continue
-		}
+		re := regexp.MustCompile("[./]")
+		splitTest := re.Split(t, -1)
 
-		testClass := splitTest[0]
 		if len(splitTest) > 1 {
-			testName := splitTest[1]
+			classIndex := 0
+			if len(splitTest) > 2 {
+				classIndex = len(splitTest) - 2
+			}
+
+			testClass := splitTest[classIndex]
+			testName := splitTest[classIndex+1]
 			C := make([]string, 0, 2)
 			C = append(C, testClass)
 			C = append(C, testName)
@@ -156,6 +184,7 @@ func createTestIdentifierArray(productModuleName string, tests []string) interfa
 			}
 			testsIdentifiersToRunConfig = append(testsIdentifiersToRunConfig, identifier)
 		} else {
+			testClass := splitTest[0]
 			C := make([]string, 0, 2)
 			C = append(C, testClass)
 
@@ -167,16 +196,14 @@ func createTestIdentifierArray(productModuleName string, tests []string) interfa
 		}
 	}
 
-	return NSMutableArray{
+	testArray := NSMutableArray{
 		Values: toInterfaceSliceOfTests(testsIdentifiersToRunConfig),
 	}
+
+	return XCTTestIdentifierSet{Identifiers: testArray}
 }
 
-func createTestsSet(tests []string) interface{} {
-	if tests == nil {
-		return plist.UID(0)
-	}
-
+func createTestsSet(tests []string) NSSet {
 	return NSSet{Objects: toInterfaceSlice(tests)}
 }
 
@@ -191,8 +218,12 @@ func archiveXcTestConfiguration(xctestconfigInterface interface{}, objects []int
 
 	for _, key := range []string{
 		"aggregateStatisticsBeforeCrash", "automationFrameworkPath", "productModuleName", "sessionIdentifier",
-		"targetApplicationBundleID", "targetApplicationPath", "testBundleURL",
+		"targetApplicationBundleID", "targetApplicationPath", "testBundleURL", "testsToRun", "testsToSkip",
+		"testIdentifiersToRun", "testIdentifiersToSkip",
 	} {
+		if xctestconfig.contents[key] == plist.UID(0) {
+			continue
+		}
 		var ref plist.UID
 		objects, ref = archive(xctestconfig.contents[key], objects)
 		xctestconfig.contents[key] = ref
@@ -433,6 +464,47 @@ func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) 
 		O: o,
 		C: stringarray,
 	}
+}
+
+func archiveXCTTestIdentifier(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	set := object.(XCTTestIdentifier)
+	identifier := map[string]interface{}{}
+	ref := len(objects)
+
+	objects, cRef := archive(set.C, objects)
+	identifier["c"] = cRef
+
+	objects, oRef := archive(set.O, objects)
+	identifier["o"] = oRef
+
+	classRef := oRef + 1
+	objects = append(objects, identifier)
+	objects = append(objects, buildClassDict("XCTTestIdentifier", "NSObject"))
+	identifier[class] = plist.UID(classRef)
+
+	return objects, plist.UID(ref)
+}
+
+type XCTTestIdentifierSet struct {
+	Identifiers NSMutableArray
+}
+
+func archiveXCTTestIdentifierSet(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	identifierSet := object.(XCTTestIdentifierSet)
+
+	objects, arrayRef := archiveNSMutableArray(identifierSet.Identifiers, objects)
+
+	identifierSetMap := map[string]interface{}{}
+	ref := len(objects)
+	objects = append(objects, identifierSetMap)
+
+	identifierSetMap["identifiers"] = arrayRef
+
+	classRef := ref + 1
+	objects = append(objects, buildClassDict("XCTTestIdentifierSet", "NSObject"))
+	identifierSetMap[class] = plist.UID(classRef)
+
+	return objects, plist.UID(ref)
 }
 
 // TODO: make this nice, partially extracting objects is not really cool
