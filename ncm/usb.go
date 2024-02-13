@@ -195,19 +195,28 @@ func createConfig(serial string) (*water.Interface, error) {
 	config := water.Config{
 		DeviceType: water.TAP,
 	}
-	config.Name = "iphone_" + serial
+	config.Name = "iphone_1"
 	slog.Info("creating TAP device", "device", config.Name, "serial", serial)
 	ifce, err := water.New(config)
 	if err != nil {
 		return &water.Interface{}, fmt.Errorf("createConfig: failed creating ifce %w", err)
 	}
-	output, err := SetInterfaceUp(config.Name)
+	hasIp, output := InterfaceHasIP(config.Name)
+	if !hasIp {
+		slog.Info("add IP address to device", "device", config.Name, "serial", serial)
+		output, err := AddInterface(config.Name)
+		if err != nil {
+			return &water.Interface{}, fmt.Errorf("createConfig: err adding ip to interface. cmd output: '%s' err: %w", output, err)
+		}
+	} else {
+		slog.Info("ip found", "interface", config.Name, "ip", output)
+	}
+
+	output, err = SetInterfaceUp(config.Name)
 	if err != nil {
 		return &water.Interface{}, fmt.Errorf("createConfig: err calling interface up. cmd output: '%s' err: %w", output, err)
 	}
-	slog.Info("ethernet device is up:", "device", config.Name, "cmd", output, "serial", serial)
-
-	time.Sleep(10 * time.Second)
+	slog.Info("ethernet device is up:", "device", config.Name, "serial", serial)
 
 	return ifce, err
 }

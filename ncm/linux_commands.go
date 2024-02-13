@@ -2,9 +2,10 @@ package ncm
 
 import (
 	"fmt"
-	"github.com/Masterminds/semver"
 	"os/exec"
 	"strings"
+
+	"github.com/Masterminds/semver"
 )
 
 // works on ubuntu
@@ -17,7 +18,23 @@ func AddInterface(interfaceName string) (string, error) {
 	//TODO: figure out if this is actually needed, if so, generate a random IP address
 	// and add this command somewhere
 	// sudo ip addr add FF:02:00:00:00:00:00:00:00:00:00:00:00:00:00:FB dev iphone
-	return "", nil
+	cmd := fmt.Sprintf("sudo ip -6 addr add FE80:0000:0000:0000:0000:0000:0000:00FB/64 dev %s", interfaceName)
+	b, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+	return string(b), err
+}
+
+func InterfaceHasIP(interfaceName string) (bool, string) {
+	cmd := fmt.Sprintf("sudo ip -6 addr show dev %s", interfaceName)
+	b, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+	if err != nil {
+		return false, ""
+	}
+	output := string(b)
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return false, output
+	}
+	return true, output
 }
 
 const usbmuxVersion = "usbmuxd 1.1.1-56-g360619c"
