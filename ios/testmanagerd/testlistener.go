@@ -62,6 +62,7 @@ type TestError struct {
 type TestAttachment struct {
 	Name      string
 	Path      string
+	Type      string
 	Timestamp float64
 	Activity  string
 }
@@ -127,6 +128,7 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 			Timestamp: attachment.Timestamp,
 			Activity:  xcActivityRecord.Title,
 			Path:      attachmentsPath,
+			Type:      xcActivityRecord.ActivityType,
 		})
 	}
 }
