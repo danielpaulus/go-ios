@@ -222,6 +222,8 @@ func (r *NcmWrapper) Write(p []byte) (n int, err error) {
 	buf.Write(p)
 	block = buf.Bytes()
 	n, err = r.targetWriter.Write(block)
-
-	return n, fmt.Errorf("write: writing ncm packet to usb failed %w", err)
+	if err != nil {
+		return n, fmt.Errorf("write: writing ncm packet to usb failed %w", err)
+	}
+	return n, nil
 }

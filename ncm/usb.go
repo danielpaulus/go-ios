@@ -15,7 +15,17 @@ import (
 	"github.com/songgao/water"
 )
 
+const VID_APPLE = 0x5ac
+const PID_RANGE_LOW = 0x1290
+const PID_RANGE_MAX = 0x12af
+const PID_APPLE_T2_COPROCESSOR = 0x8600
+const PID_APPLE_SILICON_RESTORE_LOW = 0x1901
+const PID_APPLE_SILICON_RESTORE_MAX = 0x1905
+
 var allocatedDevices = sync.Map{}
+var serialToInterface = map[string]string{}
+var deviceLock = sync.Mutex{}
+var deviceCounter = 0
 
 func Start(c chan os.Signal) error {
 	ctx := gousb.NewContext()
@@ -26,6 +36,7 @@ func Start(c chan os.Signal) error {
 			checkDevices(ctx)
 			printStatus()
 		case <-c:
+			slog.Info("shut down complete")
 			return nil
 		}
 	}
@@ -42,31 +53,59 @@ func printStatus() {
 
 func checkDevices(ctx *gousb.Context) {
 	devices, err := ctx.OpenDevices(func(desc *gousb.DeviceDesc) bool {
-		//slog.Info("found device", slog.Int64("product", int64(desc.Product)), slog.Int64("vendor", int64(desc.Vendor)))
-		return desc.Vendor == 0x05ac && desc.Product == 0x12a8
+		if desc.Vendor != VID_APPLE {
+			return false
+		}
+		if desc.Product == PID_APPLE_T2_COPROCESSOR {
+			return false
+		}
+		if desc.Product < PID_RANGE_LOW || desc.Product > PID_RANGE_MAX {
+			return false
+		}
+		return true
 	})
 	if err != nil {
 		slog.Error("failed opening devices", "err", err)
 	}
 	slog.Info("device list", "length", len(devices))
 	for _, d := range devices {
-		go func() {
+		go func(d *gousb.Device) {
 			err := handleDevice(d)
 			if err != nil {
 				slog.Error("failed opening network adapter for device", "device", d.String(), "err", err)
 			}
-		}()
+		}(d)
 	}
+}
+
+func updateInterface(serial string) {
+	deviceLock.Lock()
+	defer deviceLock.Unlock()
+	_, ok := serialToInterface[serial]
+	if ok {
+		return
+	}
+	ifaceName := fmt.Sprintf("iphone%d", deviceCounter)
+	slog.Info("assigning interface", "iface", ifaceName, "serial", serial)
+	serialToInterface[serial] = ifaceName
+	deviceCounter++
+}
+
+func interfaceName(serial string) string {
+	deviceLock.Lock()
+	defer deviceLock.Unlock()
+	return serialToInterface[serial]
 }
 
 func handleDevice(device *gousb.Device) error {
 	defer closeWithLog("device "+device.String(), device.Close)
 	serial, err := device.SerialNumber()
 	if err != nil {
-		slog.Info("failed to get serial")
+		slog.Info("failed to get serial" + device.String())
 		return fmt.Errorf("handleDevice: failed to get serial for device %s with err %w", device.String(), err)
 	}
 	serial = strings.Trim(serial, "\x00")
+	updateInterface(serial)
 	_, loaded := allocatedDevices.LoadOrStore(serial, true)
 	if loaded {
 		slog.Info("device already handled", "serial", serial)
@@ -104,14 +143,21 @@ func handleDevice(device *gousb.Device) error {
 	defer closeWithLog("config "+serial, cfg.Close)
 	slog.Info("got config", slog.String("config", cfg.String()), "serial", serial)
 
+	var ifNumber = -1
+	var altS = -1
 	for _, iface := range cfg.Desc.Interfaces {
 		for _, alt := range iface.AltSettings {
 			if alt.Class == 10 && alt.SubClass == 0 && len(alt.Endpoints) == 2 {
 				slog.Info("alt setting", slog.String("alt", alt.String()), slog.Int("class", int(alt.Class)), slog.Int("subclass", int(alt.SubClass)), slog.String("protocol", alt.Protocol.String()), slog.String("serial", serial))
+				ifNumber = iface.Number
+				altS = alt.Alternate
 			}
 		}
 	}
-	iface, err := cfg.Interface(5, 1)
+	if ifNumber == -1 || altS == -1 {
+		return fmt.Errorf("handleDevice: could not find interface or altsetting")
+	}
+	iface, err := cfg.Interface(ifNumber, altS)
 	if err != nil {
 		return fmt.Errorf("handleDevice: failed to claim interface for device %s. this can happen if some other process already claimed it. err %w", serial, err)
 	}
@@ -195,7 +241,7 @@ func createConfig(serial string) (*water.Interface, error) {
 	config := water.Config{
 		DeviceType: water.TAP,
 	}
-	config.Name = "iphone_1"
+	config.Name = interfaceName(serial)
 	slog.Info("creating TAP device", "device", config.Name, "serial", serial)
 	ifce, err := water.New(config)
 	if err != nil {
@@ -203,8 +249,9 @@ func createConfig(serial string) (*water.Interface, error) {
 	}
 	hasIp, output := InterfaceHasIP(config.Name)
 	if !hasIp {
-		slog.Info("add IP address to device", "device", config.Name, "serial", serial)
-		output, err := AddInterface(config.Name)
+		ip := "FC00:0000:0000:0000:0000:0000:0000:00FB/64"
+		slog.Info("add IP address to device", "device", config.Name, "serial", serial, "ip", ip)
+		output, err := AddInterface(config.Name, ip)
 		if err != nil {
 			return &water.Interface{}, fmt.Errorf("createConfig: err adding ip to interface. cmd output: '%s' err: %w", output, err)
 		}

@@ -14,11 +14,8 @@ func SetInterfaceUp(interfaceName string) (string, error) {
 	return string(b), err
 }
 
-func AddInterface(interfaceName string) (string, error) {
-	//TODO: figure out if this is actually needed, if so, generate a random IP address
-	// and add this command somewhere
-	// sudo ip addr add FF:02:00:00:00:00:00:00:00:00:00:00:00:00:00:FB dev iphone
-	cmd := fmt.Sprintf("sudo ip -6 addr add FE80:0000:0000:0000:0000:0000:0000:00FB/64 dev %s", interfaceName)
+func AddInterface(interfaceName string, ipv6 string) (string, error) {
+	cmd := fmt.Sprintf("sudo ip -6 addr add %s dev %s", ipv6, interfaceName)
 	b, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 	return string(b), err
 }
