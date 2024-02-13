@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -48,6 +49,7 @@ func printStatus() {
 		connectedDevices = append(connectedDevices, key.(string))
 		return true
 	})
+	slices.Sort[[]string](connectedDevices)
 	slog.Info("connected devices", "devices", connectedDevices)
 }
 
