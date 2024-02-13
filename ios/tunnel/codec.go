@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 )
 
 type eventCodec interface {
@@ -62,7 +61,7 @@ func (p pairVerifyFailed) Encode() map[string]interface{} {
 	}
 }
 
-func (p pairVerifyFailed) Decode(e map[string]interface{}) error {
+func (p pairVerifyFailed) Decode(_ map[string]interface{}) error {
 	return nil
 }
 
@@ -70,11 +69,11 @@ func getChildMap(m map[string]interface{}, keys ...string) (map[string]interface
 	if len(keys) == 0 {
 		return m, nil
 	}
-	if c, ok := m[keys[0]].(map[string]interface{}); ok {
+	k := keys[0]
+	if c, ok := m[k].(map[string]interface{}); ok {
 		return getChildMap(c, keys[1:]...)
-	} else {
-		return nil, fmt.Errorf("something went wrong")
 	}
+	return nil, fmt.Errorf("getChildMap: could not find entry for '%s'", k)
 }
 
 type xpcConn interface {
@@ -120,20 +119,21 @@ func (c *controlChannelReadWriter) writeEvent(e eventCodec) error {
 	return c.write(encoded)
 }
 
+// readEvent unwraps an event from a 'RemotePairing.ControlChannelMessageEnvelope'
 func (c *controlChannelReadWriter) readEvent(e eventCodec) error {
 	m, err := c.read()
 	if err != nil {
-		return err
+		return fmt.Errorf("readEvent: failed to read message: %w", err)
 	}
 	event, err := getChildMap(m, "plain", "_0", "event", "_0")
 	if err != nil {
-		return err
+		return fmt.Errorf("readEvent: failed to get event payload: %w", err)
 	}
 	return e.Decode(event)
 }
 
 func (c *controlChannelReadWriter) writeRequest(req map[string]interface{}) error {
-	return c.write(map[string]interface{}{
+	err := c.write(map[string]interface{}{
 		"plain": map[string]interface{}{
 			"_0": map[string]interface{}{
 				"request": map[string]interface{}{
@@ -142,6 +142,10 @@ func (c *controlChannelReadWriter) writeRequest(req map[string]interface{}) erro
 			},
 		},
 	})
+	if err != nil {
+		return fmt.Errorf("writeRequest: failed to write message: %w", err)
+	}
+	return nil
 }
 
 func (c *controlChannelReadWriter) write(message map[string]interface{}) error {
@@ -154,8 +158,11 @@ func (c *controlChannelReadWriter) write(message map[string]interface{}) error {
 		},
 	}
 	c.seqNr += 1
-	log.WithField("seq", c.seqNr).Trace("enc: updated sequence number")
-	return c.conn.Send(e)
+	err := c.conn.Send(e)
+	if err != nil {
+		return fmt.Errorf("write: failed to send message: %w", err)
+	}
+	return nil
 }
 
 func (c *controlChannelReadWriter) read() (map[string]interface{}, error) {

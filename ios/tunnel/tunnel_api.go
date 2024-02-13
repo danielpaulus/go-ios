@@ -84,6 +84,28 @@ func TunnelInfoForDevice(udid string, tunnelInfoPort int) (Tunnel, error) {
 	return info, nil
 }
 
+func ListRunningTunnels(tunnelInfoPort int) ([]Tunnel, error) {
+	c := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	res, err := c.Get(fmt.Sprintf("http://127.0.0.1:%d/tunnels", tunnelInfoPort))
+	if err != nil {
+		return nil, fmt.Errorf("TunnelInfoForDevice: failed to get tunnel info: %w", err)
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("TunnelInfoForDevice: failed to read body: %w", err)
+	}
+	var info []Tunnel
+	err = json.Unmarshal(body, &info)
+	if err != nil {
+		return nil, fmt.Errorf("TunnelInfoForDevice: failed to parse response: %w", err)
+	}
+	return info, nil
+}
+
 // TunnelManager starts tunnels for devices when needed (if no tunnel is running yet) and stores the information
 // how those tunnels are reachable (address and remote service discovery port)
 type TunnelManager struct {
@@ -91,22 +113,24 @@ type TunnelManager struct {
 	dl deviceLister
 	pm PairRecordManager
 
-	tunnels map[string]Tunnel
+	tunnels            map[string]Tunnel
+	startTunnelTimeout time.Duration
 }
 
 // NewTunnelManager creates a new TunnelManager instance for setting up device tunnels for all connected devices
 func NewTunnelManager(pm PairRecordManager) *TunnelManager {
 	return &TunnelManager{
-		ts:      manualPairingTunnelStart{},
-		dl:      deviceList{},
-		pm:      pm,
-		tunnels: map[string]Tunnel{},
+		ts:                 manualPairingTunnelStart{},
+		dl:                 deviceList{},
+		pm:                 pm,
+		tunnels:            map[string]Tunnel{},
+		startTunnelTimeout: 10 * time.Second,
 	}
 }
 
 // UpdateTunnels checks for connected devices and starts a new tunnel if needed
 // On device disconnects the tunnel resources get cleaned up
-func (m *TunnelManager) UpdateTunnels() error {
+func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 	devices, err := m.dl.ListDevices()
 	if err != nil {
 		return fmt.Errorf("UpdateTunnels: failed to get list of devices: %w", err)
@@ -116,9 +140,11 @@ func (m *TunnelManager) UpdateTunnels() error {
 		if _, exists := m.tunnels[udid]; exists {
 			continue
 		}
-		log.WithField("udid", udid).Info("start tunnel")
-		t, err := m.ts.StartTunnel(context.TODO(), d, m.pm)
+		t, err := m.startTunnel(ctx, d)
 		if err != nil {
+			log.WithField("udid", udid).
+				WithError(err).
+				Warn("failed to start tunnel")
 			continue
 		}
 		m.tunnels[udid] = t
@@ -134,6 +160,17 @@ func (m *TunnelManager) UpdateTunnels() error {
 		}
 	}
 	return nil
+}
+
+func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry) (Tunnel, error) {
+	log.WithField("udid", device.Properties.SerialNumber).Info("start tunnel")
+	startTunnelCtx, cancel := context.WithTimeout(ctx, m.startTunnelTimeout)
+	defer cancel()
+	t, err := m.ts.StartTunnel(startTunnelCtx, device, m.pm)
+	if err != nil {
+		return Tunnel{}, err
+	}
+	return t, nil
 }
 
 // ListTunnels provides all currently running device tunnels
