@@ -3,9 +3,10 @@ package ios
 import (
 	"context"
 	"fmt"
+	"net"
+
 	"github.com/grandcat/zeroconf"
 	log "github.com/sirupsen/logrus"
-	"net"
 )
 
 // FindDeviceInterfaceAddress tries to find the address of the device by browsing through all network interfaces.
@@ -50,22 +51,28 @@ func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, e
 		case <-ctx.Done():
 			return
 		case entry := <-entries:
+			if entry == nil {
+				continue
+			}
 			for _, ip6 := range entry.AddrIPv6 {
-				log.WithField("adrr", ip6).WithField("ifce", interfaceName).Info("query addr")
-				addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
-				s, err := NewWithAddr(addr)
-				if err != nil {
-					continue
-				}
-				defer s.Close()
-				h, err := s.Handshake()
-				if err != nil {
-					continue
-				}
-				if device.Properties.SerialNumber == h.Udid {
-					result <- addr
-				}
+				tryHandshake(ip6, interfaceName, device.Properties.SerialNumber, result)
 			}
 		}
+	}
+}
+
+func tryHandshake(ip6 net.IP, interfaceName, udid string, result chan<- string) {
+	addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
+	s, err := NewWithAddr(addr)
+	if err != nil {
+		return
+	}
+	defer s.Close()
+	h, err := s.Handshake()
+	if err != nil {
+		return
+	}
+	if udid == h.Udid {
+		result <- addr
 	}
 }
