@@ -82,6 +82,17 @@ type xpcConn interface {
 	ReceiveOnClientServerStream() (map[string]interface{}, error)
 }
 
+// controlChannelReadWriter encodes messages into the 'RemotePairing.ControlChannelMessageEnvelope'
+// format for RemoteXPC connections
+// There are three types of payload put into this envelope
+//  1. Requests
+//     the only request used here is to initiate a handshake
+//  2. Events
+//     they are sent in both directions using the same format. In most cases events also carry another payload
+//     that is encoded using a type-length-value (TLV) format
+//  3. Encrypted Streams
+//     these messages contain an encrypted payload using an AEAD format.
+//     They are implemented in a separate type cipherStream here.
 type controlChannelReadWriter struct {
 	seqNr uint64
 	conn  xpcConn
@@ -94,10 +105,8 @@ func newControlChannelReadWriter(conn xpcConn) *controlChannelReadWriter {
 	}
 }
 
-func (c *controlChannelReadWriter) writeEventRaw(e map[string]interface{}) error {
-	panic(nil)
-}
-
+// writeEvent wraps an event into a 'RemotePairing.ControlChannelMessageEnvelope' and transfers it on the RemoteXPC
+// connection
 func (c *controlChannelReadWriter) writeEvent(e eventCodec) error {
 	encoded := map[string]interface{}{
 		"plain": map[string]interface{}{
@@ -162,6 +171,11 @@ func (c *controlChannelReadWriter) read() (map[string]interface{}, error) {
 	return getChildMap(value, "message")
 }
 
+// cipherStream encrypts and decrypts payloads embedded into 'RemotePairing.ControlChannelMessageEnvelope' messages
+// It uses an authenticated encryption with associated (AEAD) format where the nonce is a counter starting
+// at zero for the first message. There is always a message from the host to the device, and one from the device to
+// the host. This message pair uses the same nonce before that counter is increased for the next message from the host
+// to the device
 type cipherStream struct {
 	controlChannel *controlChannelReadWriter
 	clientCipher   cipher.AEAD

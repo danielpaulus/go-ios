@@ -84,7 +84,8 @@ func TunnelInfoForDevice(udid string, tunnelInfoPort int) (Tunnel, error) {
 	return info, nil
 }
 
-// TunnelManager
+// TunnelManager starts tunnels for devices when needed (if no tunnel is running yet) and stores the information
+// how those tunnels are reachable (address and remote service discovery port)
 type TunnelManager struct {
 	ts tunnelStarter
 	dl deviceLister

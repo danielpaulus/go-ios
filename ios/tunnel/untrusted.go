@@ -417,6 +417,9 @@ func (t *tunnelService) exchangeDeviceInfo(sessionKey []byte) error {
 
 	signature := ed25519.Sign(t.pairRecords.selfId.privateKey(), buf.Bytes())
 
+	// this represents the device info of this host that is stored on the device on a successful pairing.
+	// The only relevant field is 'accountID' as it's used earlier in the pairing process already.
+	// Everything else can be random data and is not needed later in any communication.
 	deviceInfo, err := opack.Encode(map[string]interface{}{
 		"accountID":                   t.pairRecords.selfId.Identifier,
 		"altIRK":                      []byte{0x5e, 0xca, 0x81, 0x91, 0x92, 0x02, 0x82, 0x00, 0x11, 0x22, 0x33, 0x44, 0xbb, 0xf2, 0x4a, 0xc8},
