@@ -3,14 +3,16 @@ package ncm
 import (
 	"context"
 	"fmt"
-	"github.com/google/gousb"
-	"github.com/songgao/packets/ethernet"
-	"github.com/songgao/water"
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/gousb"
+	"github.com/songgao/packets/ethernet"
+	"github.com/songgao/water"
 )
 
 var allocatedDevices = sync.Map{}
@@ -64,6 +66,7 @@ func handleDevice(device *gousb.Device) error {
 		slog.Info("failed to get serial")
 		return fmt.Errorf("handleDevice: failed to get serial for device %s with err %w", device.String(), err)
 	}
+	serial = strings.Trim(serial, "\x00")
 	_, loaded := allocatedDevices.LoadOrStore(serial, true)
 	if loaded {
 		slog.Info("device already handled", "serial", serial)
@@ -200,7 +203,7 @@ func createConfig(serial string) (*water.Interface, error) {
 	}
 	output, err := SetInterfaceUp(config.Name)
 	if err != nil {
-		return &water.Interface{}, fmt.Errorf("createConfig: err calling interface up %w", err)
+		return &water.Interface{}, fmt.Errorf("createConfig: err calling interface up. cmd output: '%s' err: %w", output, err)
 	}
 	slog.Info("ethernet device is up:", "device", config.Name, "cmd", output, "serial", serial)
 
