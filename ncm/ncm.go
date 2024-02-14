@@ -123,7 +123,6 @@ func (r *NcmWrapper) ReadDatagrams() ([]ethernet.Frame, error) {
 	if err != nil {
 		return result, fmt.Errorf("ReadDatagrams: reading header failed %w", err)
 	}
-	usbReceiveBytes.WithLabelValues(r.serial).Add(float64(12))
 	if h.Signature != headerSignature {
 		return result, fmt.Errorf("ReadDatagrams: wrong header signature: %x", h.Signature)
 	}
