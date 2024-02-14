@@ -29,6 +29,7 @@ var deviceLock = sync.Mutex{}
 var deviceCounter = 0
 
 func Start(c chan os.Signal) error {
+	go startPrometheus(13333)
 	ctx := gousb.NewContext()
 	defer ctx.Close()
 	for {
@@ -49,6 +50,7 @@ func printStatus() {
 		connectedDevices = append(connectedDevices, key.(string))
 		return true
 	})
+	deviceCount.Set(float64(len(connectedDevices)))
 	slices.Sort[[]string](connectedDevices)
 	slog.Debug("connected devices", "devices", connectedDevices)
 }
@@ -288,6 +290,7 @@ func ncmIOCopy(w io.Writer, r io.Reader, ifce *water.Interface, serial string) e
 					cancel()
 					continue
 				}
+				networkReceiveBytes.WithLabelValues(ifce.Name(), serial).Add(float64(n))
 				frame = frame[:n]
 				_, err = wr.Write(frame)
 				if err != nil {
@@ -318,6 +321,7 @@ func ncmIOCopy(w io.Writer, r io.Reader, ifce *water.Interface, serial string) e
 						slog.Error("failed sending frame to virtual device", "err", err)
 						cancel()
 					}
+					networkSendBytes.WithLabelValues(ifce.Name(), serial).Add(float64(len(frame)))
 				}
 			}
 		}
