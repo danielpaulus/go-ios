@@ -26,6 +26,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 		return TestSuite{}, fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot setup test config: %w", err)
 	}
 	defer conn.Close()
+
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
 
 	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)

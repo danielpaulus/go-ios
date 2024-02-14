@@ -1,6 +1,8 @@
 package testmanagerd
 
 import (
+	"strings"
+
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 	log "github.com/sirupsen/logrus"
@@ -19,7 +21,9 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 	if len(m.Payload) == 1 {
 		method := m.Payload[0].(string)
 
-		log.Debug("Method: " + method)
+		if !strings.Contains(method, "logDebugMessage") {
+			log.Debug("Method: " + method)
+		}
 
 		switch method {
 		case "_XCT_testBundleReadyWithProtocolVersion:minimumVersion:":
@@ -65,16 +69,12 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 			testMethod := extractStringArg(m, 1)
 			activityRecord := extractActivityRecordArg(m, 2)
 
-			if testCase != "none" && testMethod != "none" {
-				p.testListener.testCaseFinished(testCase, testMethod, activityRecord)
-			}
+			p.testListener.testCaseFinished(testCase, testMethod, activityRecord)
 		case "_XCT_testCaseWithIdentifier:didFinishActivity:":
 			testIdentifier := extractTestIdentifierArg(m, 0)
 			activityRecord := extractActivityRecordArg(m, 1)
 
-			if testIdentifier.C[0] != "none" && testIdentifier.C[1] != "none" {
-				p.testListener.testCaseFinished(testIdentifier.C[0], testIdentifier.C[1], activityRecord)
-			}
+			p.testListener.testCaseFinished(testIdentifier.C[0], testIdentifier.C[1], activityRecord)
 		case "_XCT_testCase:method:didStallOnMainThreadInFile:line:":
 			testCase := extractStringArg(m, 0)
 			testMethod := extractStringArg(m, 1)

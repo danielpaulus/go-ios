@@ -4,19 +4,23 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
 // TestListener collects test results from the test execution
 type TestListener struct {
-	executionFinished chan struct{}
-	err               error
-	logWriter         io.Writer
-	debugLogWriter    io.Writer
-	TestSuite         *TestSuite
+	executionFinished    chan struct{}
+	err                  error
+	logWriter            io.Writer
+	debugLogWriter       io.Writer
+	attachmentsDirectory string
+	TestSuite            *TestSuite
 }
 
 type TestSuite struct {
@@ -29,12 +33,12 @@ type TestSuite struct {
 }
 
 type TestCase struct {
-	ClassName  string
-	MethodName string
-	Status     TestCaseStatus
-	Err        TestError
-	Duration   time.Duration
-	// TODO : add attachments from xcActivityRecord
+	ClassName   string
+	MethodName  string
+	Status      TestCaseStatus
+	Err         TestError
+	Duration    time.Duration
+	Attachments []TestAttachment
 }
 
 type TestCaseStatus string
@@ -55,11 +59,22 @@ type TestError struct {
 	Line    uint64
 }
 
-func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer) *TestListener {
+type TestAttachment struct {
+	Name                  string
+	Path                  string
+	Type                  string
+	Timestamp             float64
+	Activity              string
+	UniformTypeIdentifier string
+}
+
+func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer, attachmentsDirectory string) *TestListener {
 	return &TestListener{
-		executionFinished: make(chan struct{}),
-		logWriter:         logWriter,
-		debugLogWriter:    debugLogWriter,
+		executionFinished:    make(chan struct{}),
+		logWriter:            logWriter,
+		debugLogWriter:       debugLogWriter,
+		TestSuite:            &TestSuite{},
+		attachmentsDirectory: attachmentsDirectory,
 	}
 }
 
@@ -90,8 +105,34 @@ func (t *TestListener) testCaseStalled(testClass string, method string, file str
 }
 
 func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcActivityRecord nskeyedarchiver.XCActivityRecord) {
-	// We'll collect screenshots here
-	log.Warn("Received testCaseFinished with activity record. Ignoring until screenshots are implemented.")
+	for _, attachment := range xcActivityRecord.Attachments {
+		testCase := t.TestSuite.findTestCase(testClass, testMethod)
+		if testCase == nil {
+			t.TestSuite.TestCases = append(t.TestSuite.TestCases, TestCase{
+				ClassName:  testClass,
+				MethodName: testMethod,
+			})
+			testCase = &t.TestSuite.TestCases[len(t.TestSuite.TestCases)-1]
+		}
+
+		attachmentsPath := filepath.Join(t.attachmentsDirectory, uuid.New().String())
+		file, err := os.Create(attachmentsPath)
+		if err != nil {
+			log.WithFields(log.Fields{"error": err, "attachment": attachment.Name}).Warn("Received testCaseFinished with activity record but failed writing attachments to disk. Ignoring attachment")
+			continue
+		}
+		defer file.Close()
+
+		file.Write(attachment.Payload)
+		testCase.Attachments = append(testCase.Attachments, TestAttachment{
+			Name:                  attachment.Name,
+			Timestamp:             attachment.Timestamp,
+			Activity:              xcActivityRecord.Title,
+			Path:                  attachmentsPath,
+			Type:                  xcActivityRecord.ActivityType,
+			UniformTypeIdentifier: attachment.UniformTypeIdentifier,
+		})
+	}
 }
 
 func (t *TestListener) testSuiteDidStart(suiteName string, date string) {

@@ -316,23 +316,6 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	testconfig := createTestConfig(info, testSessionID, xctestConfigFileName)
 	ideDaemonProxy1 := newDtxProxyWithConfig(conn1, testconfig, testListener)
 
-	proto, err := ideDaemonProxy1.daemonConnection.initiateSessionWithIdentifier(testSessionID, 29)
-	if err != nil {
-		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a IDE session: %w", err)
-	}
-	log.WithField("proto", proto).Info("got capabilities")
-
-	appserviceConn, err := appservice.New(device)
-	if err != nil {
-		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot connect to app service: %w", err)
-	}
-	defer appserviceConn.Close()
-
-	pid, err := startTestRunner17(device, appserviceConn, "", testRunnerBundleID, strings.ToUpper(testSessionID.String()), info.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
-	if err != nil {
-		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start test runner: %w", err)
-	}
-
 	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
 		"XCTIssue capability":                      uint64(1),
 		"daemon container sandbox extension":       uint64(1),
@@ -345,9 +328,25 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		"test timeout capability":                  uint64(1),
 		"ubiquitous test identifiers":              uint64(1),
 	}}
+	receivedCaps, err := ideDaemonProxy1.daemonConnection.initiateSessionWithIdentifierAndCaps(testSessionID, localCaps)
+	if err != nil {
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a IDE session: %w", err)
+	}
+	log.WithField("receivedCaps", receivedCaps).Info("got capabilities")
+
+	appserviceConn, err := appservice.New(device)
+	if err != nil {
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot connect to app service: %w", err)
+	}
+	defer appserviceConn.Close()
+
+	pid, err := startTestRunner17(device, appserviceConn, "", testRunnerBundleID, strings.ToUpper(testSessionID.String()), info.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
+	if err != nil {
+		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start test runner: %w", err)
+	}
 
 	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testconfig, testListener)
-	caps, err := ideDaemonProxy1.daemonConnection.initiateControlSessionWithCapabilities(localCaps)
+	caps, err := ideDaemonProxy2.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{}})
 	if err != nil {
 		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session with capabilities: %w", err)
 	}
@@ -358,14 +357,9 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 	log.WithField("authorized", authorized).Info("authorized")
 
-	err = ideDaemonProxy2.daemonConnection.initiateControlSession(uint64(pid), proto)
-	if err != nil {
-		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session: %w", err)
-	}
-	log.Debug("control session initiated")
-
 	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(proxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface"})
 
+	proto := uint64(36)
 	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, proto)
 	if err != nil {
 		return TestSuite{}, fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start executing test plan: %w", err)
@@ -386,7 +380,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 
 	log.Debugf("Done running test")
 
-	return *testListener.TestSuite, testListener.err // Return io.Closer
+	return *testListener.TestSuite, testListener.err
 }
 
 type processKiller interface {
