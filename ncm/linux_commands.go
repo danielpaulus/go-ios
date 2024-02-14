@@ -15,7 +15,7 @@ func SetInterfaceUp(interfaceName string) (string, error) {
 }
 
 func AddInterface(interfaceName string, ipv6 string) (string, error) {
-	cmd := fmt.Sprintf("sudo ip -6 addr add %s dev %s", ipv6, interfaceName)
+	cmd := fmt.Sprintf("ip -6 addr add %s dev %s", ipv6, interfaceName)
 	b, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 	return string(b), err
 }
