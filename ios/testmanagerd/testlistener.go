@@ -60,11 +60,12 @@ type TestError struct {
 }
 
 type TestAttachment struct {
-	Name      string
-	Path      string
-	Type      string
-	Timestamp float64
-	Activity  string
+	Name                  string
+	Path                  string
+	Type                  string
+	Timestamp             float64
+	Activity              string
+	UniformTypeIdentifier string
 }
 
 func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer, attachmentsDirectory string) *TestListener {
@@ -124,11 +125,12 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 
 		file.Write(attachment.Payload)
 		testCase.Attachments = append(testCase.Attachments, TestAttachment{
-			Name:      attachment.Name,
-			Timestamp: attachment.Timestamp,
-			Activity:  xcActivityRecord.Title,
-			Path:      attachmentsPath,
-			Type:      xcActivityRecord.ActivityType,
+			Name:                  attachment.Name,
+			Timestamp:             attachment.Timestamp,
+			Activity:              xcActivityRecord.Title,
+			Path:                  attachmentsPath,
+			Type:                  xcActivityRecord.ActivityType,
+			UniformTypeIdentifier: attachment.UniformTypeIdentifier,
 		})
 	}
 }
