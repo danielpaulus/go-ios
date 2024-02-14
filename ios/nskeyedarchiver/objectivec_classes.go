@@ -215,7 +215,7 @@ const (
 
 type XCTAttachment struct {
 	lifetime              uint64
-	uniformTypeIdentifier string
+	UniformTypeIdentifier string
 	fileNameOverride      string
 	Payload               []uint8
 	Timestamp             float64
@@ -234,7 +234,7 @@ func NewXCTAttachment(object map[string]interface{}, objects []interface{}) inte
 
 	return XCTAttachment{
 		lifetime:              lifetime,
-		uniformTypeIdentifier: uniformTypeIdentifier,
+		UniformTypeIdentifier: uniformTypeIdentifier,
 		fileNameOverride:      fileNameOverride,
 		Payload:               payload,
 		Timestamp:             timestamp,
