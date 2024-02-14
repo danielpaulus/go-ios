@@ -69,7 +69,7 @@ func checkDevices(ctx *gousb.Context) {
 	if err != nil {
 		slog.Error("failed opening devices", "err", err)
 	}
-	slog.Info("device list", "length", len(devices))
+	slog.Debug("device list", "length", len(devices))
 	for _, d := range devices {
 		go func(d *gousb.Device) {
 			err := handleDevice(d)
