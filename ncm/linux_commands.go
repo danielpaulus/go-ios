@@ -10,18 +10,18 @@ import (
 
 // works on ubuntu
 func SetInterfaceUp(interfaceName string) (string, error) {
-	b, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("sudo ip link set dev %s up", interfaceName)).CombinedOutput()
+	b, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("ip link set dev %s up", interfaceName)).CombinedOutput()
 	return string(b), err
 }
 
 func AddInterface(interfaceName string, ipv6 string) (string, error) {
-	cmd := fmt.Sprintf("sudo ip -6 addr add %s dev %s", ipv6, interfaceName)
+	cmd := fmt.Sprintf("ip -6 addr add %s dev %s", ipv6, interfaceName)
 	b, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 	return string(b), err
 }
 
 func InterfaceHasIP(interfaceName string) (bool, string) {
-	cmd := fmt.Sprintf("sudo ip -6 addr show dev %s", interfaceName)
+	cmd := fmt.Sprintf("ip -6 addr show dev %s", interfaceName)
 	b, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 	if err != nil {
 		return false, ""

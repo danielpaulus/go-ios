@@ -50,7 +50,7 @@ func printStatus() {
 		return true
 	})
 	slices.Sort[[]string](connectedDevices)
-	slog.Info("connected devices", "devices", connectedDevices)
+	slog.Debug("connected devices", "devices", connectedDevices)
 }
 
 func checkDevices(ctx *gousb.Context) {
@@ -69,7 +69,7 @@ func checkDevices(ctx *gousb.Context) {
 	if err != nil {
 		slog.Error("failed opening devices", "err", err)
 	}
-	slog.Info("device list", "length", len(devices))
+	slog.Debug("device list", "length", len(devices))
 	for _, d := range devices {
 		go func(d *gousb.Device) {
 			err := handleDevice(d)
