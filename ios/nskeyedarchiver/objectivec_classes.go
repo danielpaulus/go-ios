@@ -53,6 +53,7 @@ func SetupEncoders() {
 			"NSMutableDictionary":  archiveNSMutableDictionary,
 			"XCTCapabilities":      archiveXCTCapabilities,
 			"[]string":             archiveStringSlice,
+			"NSArray":              archiveNSArray,
 			"NSMutableArray":       archiveNSMutableArray,
 			"NSSet":                archiveNSSet,
 			"XCTTestIdentifier":    archiveXCTTestIdentifier,
@@ -155,7 +156,7 @@ func createTestIdentifierSet(productModuleName string, tests []string) XCTTestId
 	testsIdentifiersToRunConfig := make([]XCTTestIdentifier, 0, len(tests))
 	for _, t := range tests {
 		/**
-		 * Possible string format for a single test
+		 * Allowed string formats for a single test
 		 * - target.class/method
 		 * - target.class
 		 * - class/method
@@ -185,7 +186,7 @@ func createTestIdentifierSet(productModuleName string, tests []string) XCTTestId
 			testsIdentifiersToRunConfig = append(testsIdentifiersToRunConfig, identifier)
 		} else {
 			testClass := splitTest[0]
-			C := make([]string, 0, 2)
+			C := make([]string, 0, 1)
 			C = append(C, testClass)
 
 			identifier := XCTTestIdentifier{
@@ -222,7 +223,7 @@ func archiveXcTestConfiguration(xctestconfigInterface interface{}, objects []int
 		"testIdentifiersToRun", "testIdentifiersToSkip",
 	} {
 		if xctestconfig.contents[key] == plist.UID(0) {
-			continue
+			continue // No need to archive NSNull
 		}
 		var ref plist.UID
 		objects, ref = archive(xctestconfig.contents[key], objects)
@@ -441,6 +442,11 @@ func NewNSArray(object map[string]interface{}, objects []interface{}) interface{
 	return NSArray{Values: extractObjects}
 }
 
+func archiveNSArray(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	sl := object.(NSArray)
+	return serializeArray(sl.Values, objects)
+}
+
 type XCTTestIdentifier struct {
 	O uint64
 	C []string
@@ -467,20 +473,19 @@ func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) 
 }
 
 func archiveXCTTestIdentifier(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
-	set := object.(XCTTestIdentifier)
-	identifier := map[string]interface{}{}
-	ref := len(objects)
+	testIdentifier := object.(XCTTestIdentifier)
 
-	objects, cRef := archive(set.C, objects)
-	identifier["c"] = cRef
-
-	objects, oRef := archive(set.O, objects)
-	identifier["o"] = oRef
-
-	classRef := oRef + 1
-	objects = append(objects, identifier)
+	classRef := len(objects)
 	objects = append(objects, buildClassDict("XCTTestIdentifier", "NSObject"))
-	identifier[class] = plist.UID(classRef)
+
+	objects, cRef := serializeArray(toInterfaceSlice(testIdentifier.C), objects)
+
+	identifierMap := map[string]interface{}{}
+	identifierMap["c"] = cRef
+	identifierMap["o"] = testIdentifier.O
+	identifierMap[class] = plist.UID(classRef)
+	ref := len(objects)
+	objects = append(objects, identifierMap)
 
 	return objects, plist.UID(ref)
 }
@@ -496,9 +501,8 @@ func archiveXCTTestIdentifierSet(object interface{}, objects []interface{}) ([]i
 
 	identifierSetMap := map[string]interface{}{}
 	ref := len(objects)
-	objects = append(objects, identifierSetMap)
-
 	identifierSetMap["identifiers"] = arrayRef
+	objects = append(objects, identifierSetMap)
 
 	classRef := ref + 1
 	objects = append(objects, buildClassDict("XCTTestIdentifierSet", "NSObject"))
