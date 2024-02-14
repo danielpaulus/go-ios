@@ -99,6 +99,10 @@ func interfaceName(serial string) string {
 	return serialToInterface[serial]
 }
 
+// handleDevice checks if the device has 5 usb configurations.
+// USBMUXD should make sure they are already enabled. Without doing anything devices usually have 4.
+// The 5th one should be the ncm driver. Then finds endpoints for the ncm network device, starts a virtual
+// TAP network device and starts a read/write loop to send data from virtual network to USB and back
 func handleDevice(device *gousb.Device) error {
 	defer closeWithLog("device "+device.String(), device.Close)
 	serial, err := device.SerialNumber()
@@ -169,10 +173,12 @@ func handleDevice(device *gousb.Device) error {
 	}()
 	var inEndpoint = -1
 	var outEndpoint = -1
+	var inDesc gousb.EndpointDesc
 	for endpoint, i := range iface.Setting.Endpoints {
 		slog.Info(endpoint.String())
 		if i.Direction == gousb.EndpointDirectionIn {
 			inEndpoint = i.Number
+			inDesc = i
 		}
 		if i.Direction == gousb.EndpointDirectionOut {
 			outEndpoint = i.Number
@@ -196,8 +202,6 @@ func handleDevice(device *gousb.Device) error {
 	}
 	slog.Info("claimed interfaces", "serial", serial)
 
-	inDesc, _ := getEndpointDescriptions(cfg.Desc.Interfaces[5].AltSettings[1])
-
 	inStream, err := in.NewStream(inDesc.MaxPacketSize*3, 1)
 	if err != nil {
 		return fmt.Errorf("handleDevice: failed to open in-stream for device %s with err %w", serial, err)
@@ -210,7 +214,9 @@ func handleDevice(device *gousb.Device) error {
 	if err != nil {
 		return fmt.Errorf("handleDevice: failed to create config for device %s with err %w", serial, err)
 	}
-	defer closeWithLog("virtual TUN interface", ifce.Close)
+	defer closeWithLog("virtual TAP interface", ifce.Close)
+
+	//blocks until the device disconnects or the adapter fails for some reason
 	err = ncmIOCopy(out, inStream, ifce, serial)
 	slog.Info("stopping interface for device", "serial", serial)
 	if err != nil {
@@ -225,18 +231,6 @@ func closeWithLog(msg string, closeable func() error) {
 	if err != nil {
 		slog.Error("failed closing", "err", err)
 	}
-}
-
-func getEndpointDescriptions(s gousb.InterfaceSetting) (in gousb.EndpointDesc, out gousb.EndpointDesc) {
-	for _, e := range s.Endpoints {
-		if e.Direction == gousb.EndpointDirectionIn {
-			in = e
-		}
-		if e.Direction == gousb.EndpointDirectionOut {
-			out = e
-		}
-	}
-	return
 }
 
 func createConfig(serial string) (*water.Interface, error) {
