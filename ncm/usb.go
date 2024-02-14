@@ -50,7 +50,7 @@ func printStatus() {
 		return true
 	})
 	slices.Sort[[]string](connectedDevices)
-	slog.Info("connected devices", "devices", connectedDevices)
+	slog.Debug("connected devices", "devices", connectedDevices)
 }
 
 func checkDevices(ctx *gousb.Context) {
