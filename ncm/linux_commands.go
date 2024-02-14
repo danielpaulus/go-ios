@@ -21,7 +21,7 @@ func AddInterface(interfaceName string, ipv6 string) (string, error) {
 }
 
 func InterfaceHasIP(interfaceName string) (bool, string) {
-	cmd := fmt.Sprintf("sudo ip -6 addr show dev %s", interfaceName)
+	cmd := fmt.Sprintf("ip -6 addr show dev %s", interfaceName)
 	b, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 	if err != nil {
 		return false, ""
