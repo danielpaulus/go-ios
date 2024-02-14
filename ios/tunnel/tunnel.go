@@ -11,31 +11,33 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
 	"io"
 	"math/big"
 	"os/exec"
+	"runtime"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios"
 
 	"github.com/quic-go/quic-go"
 	"github.com/sirupsen/logrus"
 	"github.com/songgao/water"
 )
 
+// Tunnel describes the parameters of an established tunnel to the device
 type Tunnel struct {
-	Address string
-	RsdPort int
-
-	quicConn   quic.Connection
-	utunCloser io.Closer
-	ctxCancel  context.CancelFunc
+	// Address is the IPv6 address of the device over the tunnel
+	Address string `json:"address"`
+	// RsdPort is the port on which remote service discover is reachable
+	RsdPort int `json:"rsdPort"`
+	// Udid is the id of the device for this tunnel
+	Udid   string `json:"udid"`
+	closer io.Closer
 }
 
+// Close closes the connection to the device and removes the virtual network interface from the host
 func (t Tunnel) Close() error {
-	t.ctxCancel()
-	quicErr := t.quicConn.CloseWithError(0, "")
-	utunErr := t.utunCloser.Close()
-	return errors.Join(quicErr, utunErr)
+	return t.closer.Close()
 }
 
 // ManualPairAndConnectToTunnel tries to verify an existing pairing, and if this fails it triggers a new manual pairing process.
@@ -48,7 +50,7 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 
 	port, err := getUntrustedTunnelServicePort(addr)
 	if err != nil {
-		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: could not find port for '%s'", UntrustedTunnelServiceName)
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: could not find port for '%s'", untrustedTunnelServiceName)
 	}
 	h, err := ios.ConnectToHttp2WithAddr(addr, port)
 	if err != nil {
@@ -59,7 +61,7 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create RemoteXPC connection: %w", err)
 	}
-	ts := NewTunnelServiceWithXpc(xpcConn, h, p)
+	ts := newTunnelServiceWithXpc(xpcConn, h, p)
 
 	err = ts.ManualPair()
 	if err != nil {
@@ -69,7 +71,7 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create tunnel listener: %w", err)
 	}
-	t, err := ConnectToTunnel(ctx, tunnelInfo, addr)
+	t, err := connectToTunnel(ctx, tunnelInfo, addr, device)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to connect to tunnel: %w", err)
 	}
@@ -87,14 +89,14 @@ func getUntrustedTunnelServicePort(addr string) (int, error) {
 		return 0, fmt.Errorf("getUntrustedTunnelServicePort: failed to perform RSD handshake: %w", err)
 	}
 
-	port := handshakeResponse.GetPort(UntrustedTunnelServiceName)
+	port := handshakeResponse.GetPort(untrustedTunnelServiceName)
 	if port == 0 {
-		return 0, fmt.Errorf("getUntrustedTunnelServicePort: could not find port for '%s'", UntrustedTunnelServiceName)
+		return 0, fmt.Errorf("getUntrustedTunnelServicePort: could not find port for '%s'", untrustedTunnelServiceName)
 	}
 	return port, nil
 }
 
-func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) (Tunnel, error) {
+func connectToTunnel(ctx context.Context, info tunnelListener, addr string, device ios.DeviceEntry) (Tunnel, error) {
 	logrus.WithField("address", addr).WithField("port", info.TunnelPort).Info("connect to tunnel endpoint on device")
 
 	conf, err := createTlsConfig(info)
@@ -144,15 +146,18 @@ func ConnectToTunnel(ctx context.Context, info TunnelListener, addr string) (Tun
 	}()
 
 	return Tunnel{
-		Address:    tunnelInfo.ServerAddress,
-		RsdPort:    int(tunnelInfo.ServerRSDPort),
-		quicConn:   conn,
-		utunCloser: utunIface,
-		ctxCancel:  cancel,
+		Address: tunnelInfo.ServerAddress,
+		RsdPort: int(tunnelInfo.ServerRSDPort),
+		Udid:    device.Properties.SerialNumber,
+		closer: tunnelCloser{
+			quicConn:   conn,
+			utunCloser: utunIface,
+			ctxCancel:  cancel,
+		},
 	}, nil
 }
 
-func setupTunnelInterface(err error, tunnelInfo TunnelInfo) (*water.Interface, error) {
+func setupTunnelInterface(err error, tunnelInfo tunnelParameters) (*water.Interface, error) {
 	ifce, err := water.New(water.Config{
 		DeviceType: water.TUN,
 	})
@@ -169,11 +174,20 @@ func setupTunnelInterface(err error, tunnelInfo TunnelInfo) (*water.Interface, e
 
 	// FIXME: we need to reduce the tunnel interface MTU so that the OS takes care of splitting the payloads into
 	// smaller packets. If we use a larger number here, the QUIC tunnel won't send the packets properly
-	ifceMtu := tunnelInfo.ClientParameters.Mtu - 78
-	setMtu := exec.Command("ifconfig", ifce.Name(), "mtu", fmt.Sprintf("%d", ifceMtu), "up")
-	err = runCmd(setMtu)
+	// This is only necessary on MacOS, on Linux we can't set the MTU to a value less than 1280 (minimum for IPv6)
+	if runtime.GOOS == "darwin" {
+		ifceMtu := tunnelInfo.ClientParameters.Mtu - 78
+		setMtu := exec.Command("ifconfig", ifce.Name(), "mtu", fmt.Sprintf("%d", ifceMtu), "up")
+		err = runCmd(setMtu)
+		if err != nil {
+			return nil, fmt.Errorf("setupTunnelInterface: failed to configure MTU: %w", err)
+		}
+	}
+
+	enableIfce := exec.Command("ifconfig", ifce.Name(), "up")
+	err = runCmd(enableIfce)
 	if err != nil {
-		return nil, fmt.Errorf("setupTunnelInterface: failed to configure MTU: %w", err)
+		return nil, fmt.Errorf("setupTunnelInterface: failed to enable interface %s: %w", ifce.Name(), err)
 	}
 
 	return ifce, nil
@@ -189,7 +203,7 @@ func runCmd(cmd *exec.Cmd) error {
 	return nil
 }
 
-func createTlsConfig(info TunnelListener) (*tls.Config, error) {
+func createTlsConfig(info tunnelListener) (*tls.Config, error) {
 	template := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
 		Subject:               pkix.Name{},
@@ -263,10 +277,10 @@ func forwardDataToInterface(ctx context.Context, conn quic.Connection, w io.Writ
 	}
 }
 
-func exchangeCoreTunnelParameters(conn quic.Connection) (TunnelInfo, error) {
+func exchangeCoreTunnelParameters(conn quic.Connection) (tunnelParameters, error) {
 	stream, err := conn.OpenStream()
 	if err != nil {
-		return TunnelInfo{}, err
+		return tunnelParameters{}, err
 	}
 	defer stream.Close()
 
@@ -275,23 +289,24 @@ func exchangeCoreTunnelParameters(conn quic.Connection) (TunnelInfo, error) {
 		"mtu":  1280,
 	})
 	if err != nil {
-		return TunnelInfo{}, err
+		return tunnelParameters{}, err
 	}
 
 	buf := bytes.NewBuffer(nil)
-	buf.Write([]byte("CDTunnel\000"))
-	buf.WriteByte(byte(len(rq)))
-	buf.Write(rq)
+	// Write on bytes.Buffer never returns an error
+	_, _ = buf.Write([]byte("CDTunnel\000"))
+	_ = buf.WriteByte(byte(len(rq)))
+	_, _ = buf.Write(rq)
 
 	_, err = stream.Write(buf.Bytes())
 	if err != nil {
-		return TunnelInfo{}, err
+		return tunnelParameters{}, err
 	}
 
 	header := make([]byte, len("CDTunnel")+2)
 	n, err := stream.Read(header)
 	if err != nil {
-		return TunnelInfo{}, fmt.Errorf("could not header read from stream. %w", err)
+		return tunnelParameters{}, fmt.Errorf("could not header read from stream. %w", err)
 	}
 
 	bodyLen := header[len(header)-1]
@@ -299,13 +314,26 @@ func exchangeCoreTunnelParameters(conn quic.Connection) (TunnelInfo, error) {
 	res := make([]byte, bodyLen)
 	n, err = stream.Read(res)
 	if err != nil {
-		return TunnelInfo{}, fmt.Errorf("could not read from stream. %w", err)
+		return tunnelParameters{}, fmt.Errorf("could not read from stream. %w", err)
 	}
 
-	var tunnelInfo TunnelInfo
-	err = json.Unmarshal(res[:n], &tunnelInfo)
+	var parameters tunnelParameters
+	err = json.Unmarshal(res[:n], &parameters)
 	if err != nil {
-		return TunnelInfo{}, err
+		return tunnelParameters{}, err
 	}
-	return tunnelInfo, nil
+	return parameters, nil
+}
+
+type tunnelCloser struct {
+	quicConn   quic.Connection
+	utunCloser io.Closer
+	ctxCancel  context.CancelFunc
+}
+
+func (t tunnelCloser) Close() error {
+	t.ctxCancel()
+	quicErr := t.quicConn.CloseWithError(0, "")
+	utunErr := t.utunCloser.Close()
+	return errors.Join(quicErr, utunErr)
 }

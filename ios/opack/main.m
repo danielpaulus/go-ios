@@ -1,5 +1,11 @@
 //go:build ignore
+// This is a small helper application that takes uses the 'CoreUtils' framework from Apple to encode/decode opack data
+// and it can be used to create test data to test this implementation against.
+// Both applications expect a single argument in base64. For the 'encode' application this a base64-encoded plist that
+// gets converted into opack, and for the 'decode' application this is base64 encoded opack data that gets converted
+// into a plist.
 
+// Encoding and decoding is split into two separate binaries and they can be compiled using the commands below
 /*
 xcrun clang -DDECODE -fobjc-arc -fmodules -F /System/Library/PrivateFrameworks/ -framework CoreUtils main.m --output decode
 xcrun clang -DENCODE -fobjc-arc -fmodules -F /System/Library/PrivateFrameworks/ -framework CoreUtils main.m --output encode

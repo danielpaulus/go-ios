@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 )
 
 type eventCodec interface {
@@ -62,7 +61,7 @@ func (p pairVerifyFailed) Encode() map[string]interface{} {
 	}
 }
 
-func (p pairVerifyFailed) Decode(e map[string]interface{}) error {
+func (p pairVerifyFailed) Decode(_ map[string]interface{}) error {
 	return nil
 }
 
@@ -70,11 +69,11 @@ func getChildMap(m map[string]interface{}, keys ...string) (map[string]interface
 	if len(keys) == 0 {
 		return m, nil
 	}
-	if c, ok := m[keys[0]].(map[string]interface{}); ok {
+	k := keys[0]
+	if c, ok := m[k].(map[string]interface{}); ok {
 		return getChildMap(c, keys[1:]...)
-	} else {
-		return nil, fmt.Errorf("something went wrong")
 	}
+	return nil, fmt.Errorf("getChildMap: could not find entry for '%s'", k)
 }
 
 type xpcConn interface {
@@ -82,6 +81,17 @@ type xpcConn interface {
 	ReceiveOnClientServerStream() (map[string]interface{}, error)
 }
 
+// controlChannelReadWriter encodes messages into the 'RemotePairing.ControlChannelMessageEnvelope'
+// format for RemoteXPC connections
+// There are three types of payload put into this envelope
+//  1. Requests
+//     the only request used here is to initiate a handshake
+//  2. Events
+//     they are sent in both directions using the same format. In most cases events also carry another payload
+//     that is encoded using a type-length-value (TLV) format
+//  3. Encrypted Streams
+//     these messages contain an encrypted payload using an AEAD format.
+//     They are implemented in a separate type cipherStream here.
 type controlChannelReadWriter struct {
 	seqNr uint64
 	conn  xpcConn
@@ -94,10 +104,8 @@ func newControlChannelReadWriter(conn xpcConn) *controlChannelReadWriter {
 	}
 }
 
-func (c *controlChannelReadWriter) writeEventRaw(e map[string]interface{}) error {
-	panic(nil)
-}
-
+// writeEvent wraps an event into a 'RemotePairing.ControlChannelMessageEnvelope' and transfers it on the RemoteXPC
+// connection
 func (c *controlChannelReadWriter) writeEvent(e eventCodec) error {
 	encoded := map[string]interface{}{
 		"plain": map[string]interface{}{
@@ -111,20 +119,21 @@ func (c *controlChannelReadWriter) writeEvent(e eventCodec) error {
 	return c.write(encoded)
 }
 
+// readEvent unwraps an event from a 'RemotePairing.ControlChannelMessageEnvelope'
 func (c *controlChannelReadWriter) readEvent(e eventCodec) error {
 	m, err := c.read()
 	if err != nil {
-		return err
+		return fmt.Errorf("readEvent: failed to read message: %w", err)
 	}
 	event, err := getChildMap(m, "plain", "_0", "event", "_0")
 	if err != nil {
-		return err
+		return fmt.Errorf("readEvent: failed to get event payload: %w", err)
 	}
 	return e.Decode(event)
 }
 
 func (c *controlChannelReadWriter) writeRequest(req map[string]interface{}) error {
-	return c.write(map[string]interface{}{
+	err := c.write(map[string]interface{}{
 		"plain": map[string]interface{}{
 			"_0": map[string]interface{}{
 				"request": map[string]interface{}{
@@ -133,6 +142,10 @@ func (c *controlChannelReadWriter) writeRequest(req map[string]interface{}) erro
 			},
 		},
 	})
+	if err != nil {
+		return fmt.Errorf("writeRequest: failed to write message: %w", err)
+	}
+	return nil
 }
 
 func (c *controlChannelReadWriter) write(message map[string]interface{}) error {
@@ -145,8 +158,11 @@ func (c *controlChannelReadWriter) write(message map[string]interface{}) error {
 		},
 	}
 	c.seqNr += 1
-	log.WithField("seq", c.seqNr).Trace("enc: updated sequence number")
-	return c.conn.Send(e)
+	err := c.conn.Send(e)
+	if err != nil {
+		return fmt.Errorf("write: failed to send message: %w", err)
+	}
+	return nil
 }
 
 func (c *controlChannelReadWriter) read() (map[string]interface{}, error) {
@@ -162,6 +178,11 @@ func (c *controlChannelReadWriter) read() (map[string]interface{}, error) {
 	return getChildMap(value, "message")
 }
 
+// cipherStream encrypts and decrypts payloads embedded into 'RemotePairing.ControlChannelMessageEnvelope' messages
+// It uses an authenticated encryption with associated (AEAD) format where the nonce is a counter starting
+// at zero for the first message. There is always a message from the host to the device, and one from the device to
+// the host. This message pair uses the same nonce before that counter is increased for the next message from the host
+// to the device
 type cipherStream struct {
 	controlChannel *controlChannelReadWriter
 	clientCipher   cipher.AEAD

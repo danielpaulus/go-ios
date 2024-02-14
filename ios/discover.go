@@ -3,15 +3,19 @@ package ios
 import (
 	"context"
 	"fmt"
+	"net"
+
 	"github.com/grandcat/zeroconf"
 	log "github.com/sirupsen/logrus"
-	"net"
 )
 
+// FindDeviceInterfaceAddress tries to find the address of the device by browsing through all network interfaces.
+// It uses mDNS to discover  the "_remoted._tcp" service on the local. domain. Then tries to connect to the RemoteServiceDiscovery
+// and checks if the udid of the device matches the udid of the device we are looking for.
 func FindDeviceInterfaceAddress(ctx context.Context, device DeviceEntry) (string, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("FindDeviceInterfaceAddress: failed to get network interfaces: %w", err)
 	}
 
 	result := make(chan string)
@@ -26,7 +30,7 @@ func FindDeviceInterfaceAddress(ctx context.Context, device DeviceEntry) (string
 			continue
 		}
 		entries := make(chan *zeroconf.ServiceEntry)
-		err = resolver.Browse(ctx, "_remoted._tcp", "local.", entries)
+		resolver.Browse(ctx, "_remoted._tcp", "local.", entries)
 		go checkEntry(ctx, device, iface.Name, entries, result)
 
 	}
@@ -40,28 +44,35 @@ func FindDeviceInterfaceAddress(ctx context.Context, device DeviceEntry) (string
 	}
 }
 
+// checkEntry connects to all remote service discoveries and tests which one belongs to this device' udid.
 func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, entries chan *zeroconf.ServiceEntry, result chan<- string) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case entry := <-entries:
+			if entry == nil {
+				continue
+			}
 			for _, ip6 := range entry.AddrIPv6 {
-				log.WithField("adrr", ip6).WithField("ifce", interfaceName).Info("query addr")
-				addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
-				s, err := NewWithAddr(addr)
-				if err != nil {
-					continue
-				}
-				defer s.Close()
-				h, err := s.Handshake()
-				if err != nil {
-					continue
-				}
-				if device.Properties.SerialNumber == h.Udid {
-					result <- addr
-				}
+				tryHandshake(ip6, interfaceName, device.Properties.SerialNumber, result)
 			}
 		}
+	}
+}
+
+func tryHandshake(ip6 net.IP, interfaceName, udid string, result chan<- string) {
+	addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
+	s, err := NewWithAddr(addr)
+	if err != nil {
+		return
+	}
+	defer s.Close()
+	h, err := s.Handshake()
+	if err != nil {
+		return
+	}
+	if udid == h.Udid {
+		result <- addr
 	}
 }

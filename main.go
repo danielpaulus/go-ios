@@ -129,20 +129,24 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
-  ios start-tunnel [options] [--pair-record-path=<pairrecordpath>]
+  ios tunnel start [options] [--pair-record-path=<pairrecordpath>]
+  ios tunnel ls [options]
   ios deviceinfo [options] (display | lockdown)
   ios devmode (enable | get) [--enable-post-restart] [options]
 
 Options:
-  -v --verbose   		    Enable Debug Logging.
-  -t --trace     		    Enable Trace Logging (dump every message).
-  --nojson       		    Disable JSON output
-  --pretty       		    Pretty-print JSON command output
-  -h --help      		    Show this screen.
-  --udid=<udid>  		    UDID of the device.
-  --address=<ipv6addrr>     Address of the device interface. Can be acquired by running start-tunnel in a parallel shell.
-  --rsd-port=<port>         Port of the rsd service listening over the tunel. Can be acquired by running start-tunnel in a parallel shell.
-  
+  -v --verbose              Enable Debug Logging.
+  -t --trace                Enable Trace Logging (dump every message).
+  --nojson                  Disable JSON output
+  --pretty                  Pretty-print JSON command output
+  -h --help                 Show this screen.
+  --udid=<udid>             UDID of the device.
+  --tunnel-info-port=<port> When go-ios is used to manage tunnels for iOS 17+ it exposes them on an HTTP-API for localhost (default port: 28100)
+  --address=<ipv6addrr>     Address of the device on the interface. This parameter is optional and can be set if a tunnel created by MacOS needs to be used.
+  >                         To get this value run "log stream --debug --info --predicate 'eventMessage LIKE "*Tunnel established*" OR eventMessage LIKE "*for server port*"'",
+  >                         connect a device and open Xcode
+  --rsd-port=<port>         Port of remote service discovery on the device through the tunnel
+  >                         This parameter is similar to '--address' and can be obtained by the same log filter
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -236,10 +240,11 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
-   ios start-tunnel [options] [--pair-record-path=<pairrecordpath>]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
+   ios tunnel start [options] [--pair-record-path=<pairrecordpath>]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
    >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path' is required as we can not access the default path for the pair record
    >                                                                  This command needs to be executed with admin privileges.
-   >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo kill -s STOP $(pgrep "^remoted")', and 'sudo kill -s CONT $(pgrep "^remoted")' to resume)
+   >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
+   ios tunnel ls                                                      List currently started tunnels
    ios deviceinfo [options] (display | lockdown)                  	  Queries device infos
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
@@ -300,14 +305,31 @@ The commands work as following:
 		return
 	}
 
+	tunnelInfoPort, err := arguments.Int("--tunnel-info-port")
+	if err != nil {
+		tunnelInfoPort = tunnel.DefaultHttpApiPort
+	}
+
+	tunnelCommand, _ := arguments.Bool("tunnel")
+
 	udid, _ := arguments.String("--udid")
 	address, addressErr := arguments.String("--address")
 	rsdPort, rsdErr := arguments.Int("--rsd-port")
 
 	device, err := ios.GetDevice(udid)
-	exitIfError("Device not found: "+udid, err)
-	if addressErr == nil && rsdErr == nil {
-		device = deviceWithRsdProvider(device, udid, address, rsdPort)
+	// device address and rsd port are only available after the tunnel started
+	if !tunnelCommand {
+		exitIfError("Device not found: "+udid, err)
+		if addressErr == nil && rsdErr == nil {
+			device = deviceWithRsdProvider(device, udid, address, rsdPort)
+		} else {
+			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoPort)
+			if err == nil {
+				device = deviceWithRsdProvider(device, udid, info.Address, info.RsdPort)
+			} else {
+				log.WithField("udid", device.Properties.SerialNumber).Warn("failed to get tunnel info")
+			}
+		}
 	}
 
 	b, _ = arguments.Bool("erase")
@@ -1034,13 +1056,24 @@ The commands work as following:
 		return
 	}
 
-	b, _ = arguments.Bool("start-tunnel")
-	if b {
-		pairRecordsPath, _ := arguments.String("--pair-record-path")
-		if len(pairRecordsPath) == 0 {
-			pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
+	if tunnelCommand {
+		startCommand, _ := arguments.Bool("start")
+		listCommand, _ := arguments.Bool("ls")
+		if startCommand {
+			pairRecordsPath, _ := arguments.String("--pair-record-path")
+			if len(pairRecordsPath) == 0 {
+				pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
+			}
+			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort)
+		} else if listCommand {
+			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoPort)
+			if err != nil {
+				exitIfError("failed to get tunnel infos", err)
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			_ = enc.Encode(tunnels)
 		}
-		startTunnel(context.TODO(), device, pairRecordsPath)
 	}
 
 	b, _ = arguments.Bool("deviceinfo")
@@ -1644,11 +1677,19 @@ func handleProfileList(device ios.DeviceEntry) {
 }
 
 func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
-	err := forward.Forward(device, uint16(hostPort), uint16(targetPort))
+	cl, err := forward.Forward(device, uint16(hostPort), uint16(targetPort))
 	exitIfError("failed to forward port", err)
+	defer stopForwarding(cl)
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
+}
+
+func stopForwarding(cl *forward.ConnListener) {
+	err := cl.Close()
+	if err != nil {
+		exitIfError("failed to close forwarded port", err)
+	}
 }
 
 func printDiagnostics(device ios.DeviceEntry) {
@@ -1991,19 +2032,35 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
 
-func startTunnel(ctx context.Context, device ios.DeviceEntry, recordsPath string) {
+func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int) {
 	pm, err := tunnel.NewPairRecordManager(recordsPath)
 	exitIfError("could not creat pair record manager", err)
-	startTunnelCtx, _ := context.WithTimeout(ctx, 10*time.Second)
-	t, err := tunnel.ManualPairAndConnectToTunnel(startTunnelCtx, device, pm)
-	exitIfError("", err)
-	log.WithField("address", t.Address).
-		WithField("rsd-port", t.RsdPort).
-		WithField("cli-args", fmt.Sprintf("--address=%s --rsd-port=%d", t.Address, t.RsdPort)).
-		Info("tunnel started")
+	tm := tunnel.NewTunnelManager(pm)
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				err := tm.UpdateTunnels(ctx)
+				if err != nil {
+					log.WithError(err).Warn("failed to update tunnels")
+				}
+			}
+		}
+	}()
+
+	go func() {
+		err := tunnel.ServeTunnelInfo(tm, tunnelInfoPort)
+		if err != nil {
+			exitIfError("failed to start tunnel server", err)
+		}
+	}()
+
 	<-ctx.Done()
-	log.Info("closing tunnel")
-	t.Close()
 }
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {

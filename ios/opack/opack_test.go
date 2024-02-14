@@ -3,15 +3,18 @@ package opack
 import (
 	"bytes"
 	"encoding/base64"
-	"github.com/stretchr/testify/assert"
-	"howett.net/plist"
 	"io"
 	"os/exec"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"howett.net/plist"
 )
 
 var decoderInitialized = false
 
+// TestEncode only runs if we are able to compile the 'decode' application, which will only work on MacOS
+// The opack encoding will be compared with Apples implementation in this case
 func TestEncode(t *testing.T) {
 	if !decoderInitialized {
 		t.SkipNow()
