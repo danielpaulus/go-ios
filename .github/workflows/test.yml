@@ -30,6 +30,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: update
+        run: sudo apt-get update
+        
+      - name: install libusb
+        run: sudo apt-get install -y libusb-1.0-0-dev
 
       - name: Build executable
         run: go build
