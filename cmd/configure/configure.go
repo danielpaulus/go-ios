@@ -19,7 +19,6 @@ func main() {
 
 	checkDep("libusb-1.0-0-dev")
 	checkDep("build-essential")
-	checkDep("make")
 
 	log.Println("good to go. run 'make build'")
 	//apt-get install -y libusb-1.0-0-dev
@@ -28,9 +27,9 @@ func main() {
 
 func checkDep(dep string) {
 	log.Println("checking: " + dep)
-	if !CheckPackageInstalled("libusb-1.0-0-dev") {
+	if !CheckPackageInstalled(dep) {
 		log.Println("installing: " + dep)
-		InstallPackage("libusb-1.0-0-dev")
+		InstallPackage(dep)
 	}
 	log.Println("ok: " + dep)
 }
