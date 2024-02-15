@@ -16,28 +16,55 @@ type iosproxy struct {
 	deviceConn ios.DeviceConnectionInterface
 }
 
+type ConnListener struct {
+	listener net.Listener
+	quit     chan interface{}
+}
+
 // Forward forwards every connection made to the hostPort to whatever service runs inside an app on the device on phonePort.
-func Forward(device ios.DeviceEntry, hostPort uint16, phonePort uint16) error {
+func Forward(device ios.DeviceEntry, hostPort uint16, phonePort uint16) (*ConnListener, error) {
 	log.Infof("Start listening on port %d forwarding to port %d on device", hostPort, phonePort)
 	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", hostPort))
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("forward: failed listener with err: %w", err)
+	}
+	cl := &ConnListener{
+		listener: l,
+		quit:     make(chan interface{}),
 	}
 
-	go connectionAccept(l, device.DeviceID, phonePort)
+	go connectionAccept(cl, device.DeviceID, phonePort)
+
+	return cl, nil
+}
+
+// Close stops listening on the host port for the forwarded connection
+func (cl *ConnListener) Close() error {
+	close(cl.quit)
+
+	err := cl.listener.Close()
+	if err != nil {
+		return fmt.Errorf("forward: failed closing listener with err: %w", err)
+	}
 
 	return nil
 }
 
-func connectionAccept(l net.Listener, deviceID int, phonePort uint16) {
+func connectionAccept(cl *ConnListener, deviceID int, phonePort uint16) {
 	for {
-		clientConn, err := l.Accept()
-		if err != nil {
-			log.Errorf("Error accepting new connection %v", err)
-			continue
+		select {
+		case <-cl.quit:
+			log.WithFields(log.Fields{"phonePort": phonePort}).Info("closed listener successfully")
+			return
+		default:
+			clientConn, err := cl.listener.Accept()
+			if err != nil {
+				log.Errorf("Error accepting new connection %v", err)
+				continue
+			}
+			log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", cl)}).Info("new client connected")
+			go StartNewProxyConnection(context.TODO(), clientConn, deviceID, phonePort)
 		}
-		log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", clientConn)}).Info("new client connected")
-		go StartNewProxyConnection(context.TODO(), clientConn, deviceID, phonePort)
 	}
 }
 

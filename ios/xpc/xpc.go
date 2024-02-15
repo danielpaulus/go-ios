@@ -1,11 +1,15 @@
+// Package xpc contains a connection stuct and the codec for the xpc protocol.
+// The xpc protocol is used to communicate with services on iOS17+ devices.
 package xpc
 
 import (
+	"fmt"
 	"io"
 
 	"golang.org/x/net/http2"
 )
 
+// Connection represents a http2 based connection to an XPC service on an iOS17 device.
 type Connection struct {
 	connectionCloser io.Closer
 	framer           *http2.Framer
@@ -14,6 +18,7 @@ type Connection struct {
 	serverClient     io.ReadWriter
 }
 
+// New creates a new connection to an XPC service on an iOS17 device.
 func New(clientServer io.ReadWriter, serverClient io.ReadWriter, closer io.Closer) (*Connection, error) {
 	return &Connection{
 		connectionCloser: closer,
@@ -26,7 +31,7 @@ func New(clientServer io.ReadWriter, serverClient io.ReadWriter, closer io.Close
 func (c *Connection) ReceiveOnServerClientStream() (map[string]interface{}, error) {
 	msg, err := DecodeMessage(c.serverClient)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ReceiveOnServerClientStream: %w", err)
 	}
 	return msg.Body, nil
 }
@@ -38,7 +43,7 @@ func (c *Connection) ReceiveOnClientServerStream() (map[string]interface{}, erro
 func (c *Connection) receiveOnStream(r io.Reader) (map[string]interface{}, error) {
 	msg, err := DecodeMessage(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("receiveOnStream: %w", err)
 	}
 	return msg.Body, nil
 }

@@ -17,6 +17,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tadglines/go-pkgs v0.0.0-20210623144937-b983b20f54f9
 	golang.org/x/crypto v0.15.0
+	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db
 	golang.org/x/net v0.18.0
 	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5
 )
@@ -34,7 +35,6 @@ require (
 	github.com/quic-go/qtls-go1-20 v0.4.1 // indirect
 	github.com/stretchr/objx v0.1.0 // indirect
 	go.uber.org/mock v0.3.0 // indirect
-	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

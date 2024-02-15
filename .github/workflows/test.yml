@@ -14,11 +14,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      #- name: Install Libusb
+      #  run: choco install 
+
       - name: Build executable
         run: go build
 
-      - name: Run fast tests
-        run: go test -v -tags=fast ./...
+      #- name: Run fast tests
+      #  run: go test -v -tags=fast ./...
 
   test_on_linux:
     runs-on: ubuntu-latest
@@ -30,9 +33,14 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: update
+        run: sudo apt-get update
+
+      - name: install libusb
+        run: sudo apt-get install -y libusb-1.0-0-dev
 
       - name: Build executable
-        run: go build
+        run: make build --trace
 
       - name: Run fast tests
         run: go test -v -tags=fast ./...

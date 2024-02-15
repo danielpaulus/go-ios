@@ -104,12 +104,14 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	return muxConn.ReleaseDeviceConnection(), nil
 }
 
+// ConnectToServiceTunnelIface connects to a service on an iOS17+ device using a XPC over HTTP2 connection
+// It returns a new xpc.Connection
 func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
 	port := device.Rsd.GetPort(serviceName)
 
 	h, err := ConnectToHttp2(device, port)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ConnectToXpcServiceTunnelIface: failed to connect to http2: %w", err)
 	}
 	return CreateXpcConnection(h)
 }
@@ -119,7 +121,7 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 
 	conn, err := connectToTunnel(device, port)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ConnectToServiceTunnelIface: failed to connect to tunnel: %w", err)
 	}
 
 	return NewDeviceConnectionWithConn(conn), nil
@@ -128,22 +130,21 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
 	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ConnectToHttp2: failed to resolve address: %w", err)
 	}
 
 	conn, err := net.DialTCP("tcp", nil, addr)
-
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
 	}
 
 	err = conn.SetKeepAlive(true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive: %w", err)
 	}
 	err = conn.SetKeepAlivePeriod(1 * time.Second)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive period: %w", err)
 	}
 	return http.NewHttpConnection(conn)
 }
@@ -151,22 +152,21 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 func connectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
 	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("connectToTunnel: failed to resolve address: %w", err)
 	}
 
 	conn, err := net.DialTCP("tcp", nil, addr)
-
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("connectToTunnel: failed to dial: %w", err)
 	}
 
 	err = conn.SetKeepAlive(true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("connectToTunnel: failed to set keepalive: %w", err)
 	}
 	err = conn.SetKeepAlivePeriod(1 * time.Second)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("connectToTunnel: failed to set keepalive period: %w", err)
 	}
 
 	return conn, nil
@@ -175,22 +175,21 @@ func connectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
 func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {
 	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", a, port))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
 	}
 
 	conn, err := net.DialTCP("tcp", nil, addr)
-
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
 	}
 
 	err = conn.SetKeepAlive(true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to set keepalive: %w", err)
 	}
 	err = conn.SetKeepAlivePeriod(1 * time.Second)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to set keepalive period: %w", err)
 	}
 	return http.NewHttpConnection(conn)
 }
@@ -198,7 +197,7 @@ func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {
 func CreateXpcConnection(h *http.HttpConnection) (*xpc.Connection, error) {
 	err := initializeXpcConnection(h)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("CreateXpcConnection: failed to initialize xpc connection: %w", err)
 	}
 
 	clientServerChannel := http.NewStreamReadWriter(h, http.ClientServer)
@@ -206,7 +205,7 @@ func CreateXpcConnection(h *http.HttpConnection) (*xpc.Connection, error) {
 
 	xpcConn, err := xpc.New(clientServerChannel, serverClientChannel, h)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("CreateXpcConnection: failed to create xpc connection: %w", err)
 	}
 
 	return xpcConn, nil
@@ -269,12 +268,12 @@ func initializeXpcConnection(h *http.HttpConnection) error {
 		Id:    0,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("initializeXpcConnection: failed to encode message: %w", err)
 	}
 
 	_, err = xpc.DecodeMessage(csWriter) // TODO : figure out if need to act on this frame
 	if err != nil {
-		return err
+		return fmt.Errorf("initializeXpcConnection: failed to decode message: %w", err)
 	}
 
 	err = xpc.EncodeMessage(ssWriter, xpc.Message{
@@ -283,12 +282,12 @@ func initializeXpcConnection(h *http.HttpConnection) error {
 		Id:    0,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("initializeXpcConnection: failed to encode message 2: %w", err)
 	}
 
 	_, err = xpc.DecodeMessage(ssWriter) // TODO : figure out if need to act on this frame
 	if err != nil {
-		return err
+		return fmt.Errorf("initializeXpcConnection: failed to decode message 2: %w", err)
 	}
 
 	err = xpc.EncodeMessage(csWriter, xpc.Message{
@@ -297,12 +296,12 @@ func initializeXpcConnection(h *http.HttpConnection) error {
 		Id:    0,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("initializeXpcConnection: failed to encode message 3: %w", err)
 	}
 
 	_, err = xpc.DecodeMessage(csWriter) // TODO : figure out if need to act on this frame
 	if err != nil {
-		return err
+		return fmt.Errorf("initializeXpcConnection: failed to decode message 3: %w", err)
 	}
 
 	return nil
