@@ -13,8 +13,8 @@ func main() {
 	if !IsDebianUbuntuOrAlpine() {
 		fail("only ubuntu, debian or alpine are supported")
 	}
-	if !DpkgQueryExists() {
-		fail("dpkg-query needs to be installed to check dependencies")
+	if !DpkgExists() {
+		fail("dpkg needs to be installed to check dependencies")
 	}
 
 	checkDep("libusb-1.0-0-dev")
@@ -38,16 +38,16 @@ func fail(reason string) {
 }
 
 // CheckPackageInstalled checks if the specified package is installed.
-// It uses dpkg-query on Debian/Ubuntu and apk on Alpine.
+// It uses dpkg on Debian/Ubuntu and apk on Alpine.
 func CheckPackageInstalled(packageName string) bool {
-	if DpkgQueryExists() {
-		output := ExecuteCommand("dpkg-query", "-W", "-f='${Status}'", packageName)
-		return strings.Contains(output, "install ok installed")
+	if DpkgExists() {
+		output := ExecuteCommand("dpkg", "-l", packageName)
+		return strings.Contains(output, packageName) && !strings.Contains(output, "no packages found")
 	} else if ApkExists() {
 		output := ExecuteCommand("apk", "info", packageName)
 		return output != ""
 	}
-	log.Println("No compatible package manager found (dpkg-query or apk).")
+	log.Println("No compatible package manager found (dpkg or apk).")
 	return false
 }
 
@@ -65,9 +65,9 @@ func ExecuteCommand(command string, args ...string) string {
 	return out.String()
 }
 
-// DpkgQueryExists checks if dpkg-query exists in the system's PATH.
-func DpkgQueryExists() bool {
-	_, err := exec.LookPath("dpkg-query")
+// DpkgExists checks if dpkg exists in the system's PATH.
+func DpkgExists() bool {
+	_, err := exec.LookPath("dpkg")
 	return err == nil
 }
 
