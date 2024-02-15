@@ -72,6 +72,7 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 				InsecureSkipVerify: true,
 			},
 		},
+		Timeout: 1 * time.Minute,
 	}
 	req, err := http.NewRequest("POST", "https://gs.apple.com/TSS/controller?action=2", buf)
 	if err != nil {
