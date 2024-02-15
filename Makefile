@@ -9,12 +9,30 @@
 GO_IOS_BINARY_NAME=ios
 NCM_BINARY_NAME=go-ncm
 
+
+# Detect the system architecture
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+
+# Default GOARCH value
+GOARCH := amd64
+
+# Set GOARCH based on the detected architecture
+ifeq ($(UNAME_M),x86_64)
+    GOARCH := amd64
+else ifeq ($(UNAME_M),armv7l)
+    GOARCH := arm
+else ifeq ($(UNAME_M),aarch64)
+    GOARCH := arm64
+# Add more architecture mappings as needed
+endif
+
 # Build the Go program
 build:
 	@go work use .
-	@go build -o $(GO_IOS_BINARY_NAME) ./main.go
+	@GOARCH=$(GOARCH) go build -o $(GO_IOS_BINARY_NAME) ./main.go
 	@go work use ./ncm
-	@go build -o $(NCM_BINARY_NAME) ./cmd/cdc-ncm/main.go
+	@CGO_ENABLED=1 GOARCH=$(GOARCH) go build -o $(NCM_BINARY_NAME) ./cmd/cdc-ncm/main.go
 
 # Run the Go program with sudo
 run: build
