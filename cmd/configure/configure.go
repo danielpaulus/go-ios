@@ -60,7 +60,7 @@ func ExecuteCommand(command string, args ...string) string {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		log.Panicf("Failed to execute command: %s\nError: %v, Stderr: %v", command, err, stderr.String())
+		log.Printf("Failed to execute command: %s\nError: %v, Stderr: %v\n", command, err, stderr.String())
 	}
 	return out.String()
 }
