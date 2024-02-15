@@ -30,7 +30,7 @@ endif
 # Build the Go program
 build:
 	@go work use .
-	@go build -o $(GO_IOS_BINARY_NAME) ./main.go
+	@GOARCH=$(GOARCH) go build -o $(GO_IOS_BINARY_NAME) ./main.go
 	@go work use ./ncm
 	@CGO_ENABLED=1 GOARCH=$(GOARCH) go build -o $(NCM_BINARY_NAME) ./cmd/cdc-ncm/main.go
 
