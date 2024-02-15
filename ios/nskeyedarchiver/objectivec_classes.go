@@ -108,7 +108,7 @@ func NewXCTestConfiguration(
 	contents["defaultTestExecutionTimeAllowance"] = plist.UID(0)
 	contents["disablePerformanceMetrics"] = false
 	contents["emitOSLogs"] = false
-	// contents["formatVersion"]= 2
+	// contents["formatVersion"] = 2
 	contents["gatherLocalizableStringsData"] = false
 	contents["initializeForUITesting"] = true
 	contents["maximumTestExecutionTimeAllowance"] = plist.UID(0)
@@ -129,10 +129,6 @@ func NewXCTestConfiguration(
 	contents["testExecutionOrdering"] = 0
 	contents["testsDrivenByIDE"] = false
 	contents["testsMustRunOnMainThread"] = true
-	contents["testsToRun"] = testsToRunEntry
-	contents["testsToSkip"] = testsToSkipEntry
-	contents["testIdentifiersToRun"] = testIdentifiersToRunEntry
-	contents["testIdentifiersToSkip"] = testIdentifiersToSkipEntry
 	contents["testTimeoutsEnabled"] = false
 	contents["treatMissingBaselinesAsFailures"] = false
 	contents["userAttachmentLifetime"] = 0
@@ -149,21 +145,23 @@ func NewXCTestConfiguration(
 		"ubiquitous test identifiers":              true,
 		"XCTIssue capability":                      true,
 	}}
+
+	if testIdentifiersToRunEntry != plist.UID(0) {
+		contents["testsToRun"] = testsToRunEntry
+		contents["testIdentifiersToRun"] = testIdentifiersToRunEntry
+	}
+
+	if testIdentifiersToSkipEntry != plist.UID(0) {
+		contents["testsToSkip"] = testsToSkipEntry
+		contents["testIdentifiersToSkip"] = testIdentifiersToSkipEntry
+	}
+
 	return XCTestConfiguration{contents}
 }
 
 func createTestIdentifierSet(productModuleName string, tests []string) XCTTestIdentifierSet {
-	testsIdentifiersToRunConfig := make([]XCTTestIdentifier, 0, len(tests))
+	testsIdentifiersConfig := make([]XCTTestIdentifier, 0, len(tests))
 	for _, t := range tests {
-		/**
-		 * Allowed string formats for a single test
-		 * - target.class/method
-		 * - target.class
-		 * - class/method
-		 * - class
-		 **/
-		t = strings.Replace(t, fmt.Sprintf("%s.", productModuleName), "", -1)
-
 		re := regexp.MustCompile("[./]")
 		splitTest := re.Split(t, -1)
 
@@ -173,7 +171,7 @@ func createTestIdentifierSet(productModuleName string, tests []string) XCTTestId
 				classIndex = len(splitTest) - 2
 			}
 
-			testClass := splitTest[classIndex]
+			testClass := strings.Join(splitTest[0:classIndex+1], ".")
 			testName := splitTest[classIndex+1]
 			C := make([]string, 0, 2)
 			C = append(C, testClass)
@@ -183,7 +181,7 @@ func createTestIdentifierSet(productModuleName string, tests []string) XCTTestId
 				C: C,
 				O: 6,
 			}
-			testsIdentifiersToRunConfig = append(testsIdentifiersToRunConfig, identifier)
+			testsIdentifiersConfig = append(testsIdentifiersConfig, identifier)
 		} else {
 			testClass := splitTest[0]
 			C := make([]string, 0, 1)
@@ -193,12 +191,12 @@ func createTestIdentifierSet(productModuleName string, tests []string) XCTTestId
 				C: C,
 				O: 3,
 			}
-			testsIdentifiersToRunConfig = append(testsIdentifiersToRunConfig, identifier)
+			testsIdentifiersConfig = append(testsIdentifiersConfig, identifier)
 		}
 	}
 
 	testArray := NSMutableArray{
-		Values: toInterfaceSliceOfTests(testsIdentifiersToRunConfig),
+		Values: toInterfaceSliceOfTests(testsIdentifiersConfig),
 	}
 
 	return XCTTestIdentifierSet{Identifiers: testArray}
@@ -220,14 +218,17 @@ func archiveXcTestConfiguration(xctestconfigInterface interface{}, objects []int
 	for _, key := range []string{
 		"aggregateStatisticsBeforeCrash", "automationFrameworkPath", "productModuleName", "sessionIdentifier",
 		"targetApplicationBundleID", "targetApplicationPath", "testBundleURL", "testsToRun", "testsToSkip",
-		"testIdentifiersToRun", "testIdentifiersToSkip",
+		"testIdentifiersToRun", "testIdentifiersToSkip", "IDECapabilities",
 	} {
-		if xctestconfig.contents[key] == plist.UID(0) {
-			continue // No need to archive NSNull
+		_, ok := xctestconfig.contents[key]
+		if ok {
+			if xctestconfig.contents[key] == plist.UID(0) {
+				continue // No need to archive NSNull
+			}
+			var ref plist.UID
+			objects, ref = archive(xctestconfig.contents[key], objects)
+			xctestconfig.contents[key] = ref
 		}
-		var ref plist.UID
-		objects, ref = archive(xctestconfig.contents[key], objects)
-		xctestconfig.contents[key] = ref
 	}
 
 	return objects, xcconfigRef

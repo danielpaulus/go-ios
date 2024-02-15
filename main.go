@@ -104,7 +104,7 @@ Usage:
   ios ps [--apps] [options]
   ios ip [options]
   ios forward [options] <hostPort> <targetPort>
-  ios dproxy [options] [--binary] 
+  ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios readpair [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
@@ -209,7 +209,7 @@ The commands work as following:
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
    >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [options] [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface> --address=<ipv6addrr> --rsd-port=<port>] Starts the reverse engineering proxy server.
+   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options] Starts the reverse engineering proxy server.
    >                                                                  It dumps every communication in plain text so it can be implemented easily.
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
@@ -223,7 +223,7 @@ The commands work as following:
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config. 
    																	  If you provide '-' as log output, it prints resuts to stdout.
-																	  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=TestClass.foo --test-to-run=TestClass.bar
+																	  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=TestTarget.TestClass.foo --test-to-run=TestTarget.TestClass.bar
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--log-output=<file>] [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [options]                                                   Access accessibility inspector features.
