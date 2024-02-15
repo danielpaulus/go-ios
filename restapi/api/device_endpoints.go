@@ -40,7 +40,7 @@ func Activate(c *gin.Context) {
 
 func GetImages(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	conn, err := imagemounter.New(device)
+	conn, err := imagemounter.NewImageMounter(device)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 		return
