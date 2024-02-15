@@ -15,13 +15,52 @@ const (
 	skipSetupFilePath = "iTunes_Control/iTunes/SkipSetup"
 )
 
+// Those keys can be found in the official Apple documentation
+// here - https://developer.apple.com/documentation/devicemanagement/skipkeys
 var skipAllSetup = []string{
-	"Location", "Restore", "SIMSetup", "Android", "AppleID", "Siri", "ScreenTime",
-	"Diagnostics", "SoftwareUpdate", "Passcode", "Biometric", "Payment", "Zoom", "DisplayTone",
-	"MessagingActivationUsingPhoneNumber", "HomeButtonSensitivity", "CloudStorage", "ScreenSaver",
-	"TapToSetup", "Keyboard", "PreferredLanguage", "SpokenLanguage", "WatchMigration", "OnBoarding",
-	"TVProviderSignIn", "TVHomeScreenSync", "Privacy", "TVRoom", "iMessageAndFaceTime", "AppStore",
-	"Safety", "TermsOfAddress", "Welcome", "Appearance", "RestoreCompleted", "UpdateCompleted",
+	"Accessibility",
+	"Android",
+	"Appearance",
+	"AppleID",
+	"AppStore",
+	"Biometric",
+	"DeviceToDeviceMigration",
+	"Diagnostics",
+	"EnableLockdownMode",
+	"FileVault",
+	"iCloudDiagnostics",
+	"iCloudStorage",
+	"iMessageAndFaceTime",
+	"Location",
+	"MessagingActivationUsingPhoneNumber",
+	"Passcode",
+	"Payment",
+	"Privacy",
+	"Restore",
+	"RestoreCompleted",
+	"Safety",
+	"ScreenSaver",
+	"ScreenTime",
+	"SIMSetup",
+	"Siri",
+	"SoftwareUpdate",
+	"TapToSetup",
+	"TermsOfAddress",
+	"TVHomeScreenSync",
+	"TVProviderSignIn",
+	"TVRoom",
+	"UpdateCompleted",
+	"WatchMigration",
+	"Welcome",
+	// Deprecated keys
+	// Deprecated in iOS 15
+	"DisplayTone",
+	// Deprecated in iOS 15, was used only on iPhone 7, 7 Plus, 8, 8 Plus and SE
+	"HomeButtonSensitivity",
+	// Deprecated in iOS 14
+	"OnBoarding",
+	// Deprecated in iOS 17
+	"Zoom",
 }
 
 // GetAllSetupSkipOptions returns a list of all possible values you can skip during device preparation

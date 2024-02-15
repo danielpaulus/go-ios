@@ -4,29 +4,31 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"golang.org/x/crypto/ed25519"
-	"howett.net/plist"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/google/uuid"
+	"golang.org/x/crypto/ed25519"
+	"howett.net/plist"
 )
 
-type SelfIdentity struct {
-	Identifier string
-	Irk        []byte
-	PrivateKey ed25519.PrivateKey
-	PublicKey  ed25519.PublicKey
-}
-
-type selfIdentityInternal struct {
+type selfIdentity struct {
 	Identifier string `plist:"identifier"`
 	Irk        []byte `plist:"irk"`
 	PrivateKey []byte `plist:"privateKey"`
 	PublicKey  []byte `plist:"publicKey"`
 }
 
-type Device struct {
+func (s selfIdentity) publicKey() ed25519.PublicKey {
+	return s.PublicKey
+}
+
+func (s selfIdentity) privateKey() ed25519.PrivateKey {
+	return ed25519.NewKeyFromSeed(s.PrivateKey)
+}
+
+type device struct {
 	Identifier string `plist:"identifier"`
 	Info       []byte `plist:"info"`
 	Irk        []byte `plist:"irk"`
@@ -38,7 +40,7 @@ type Device struct {
 // PairRecordManager implements the same logic as macOS related to remote pair records. Those pair records are used
 // whenever a tunnel gets created.
 type PairRecordManager struct {
-	SelfId        SelfIdentity
+	selfId        selfIdentity
 	peersLocation string
 }
 
@@ -52,13 +54,13 @@ func NewPairRecordManager(p string) (PairRecordManager, error) {
 		return PairRecordManager{}, fmt.Errorf("NewPairRecordManager: failed to get self identity: %w", err)
 	}
 	return PairRecordManager{
-		SelfId:        selfId,
+		selfId:        selfId,
 		peersLocation: path.Join(p, "peers"),
 	}, nil
 }
 
 // StoreDeviceInfo stores the provided Device info as a plist encoded file in the `peers/` directory
-func (p PairRecordManager) StoreDeviceInfo(d Device) error {
+func (p PairRecordManager) StoreDeviceInfo(d device) error {
 	devicePath := path.Join(p.peersLocation, fmt.Sprintf("%s.plist", d.Identifier))
 	f, err := os.OpenFile(devicePath, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
@@ -74,52 +76,45 @@ func (p PairRecordManager) StoreDeviceInfo(d Device) error {
 	return nil
 }
 
-func readSelfIdentity(p string) (SelfIdentity, error) {
+func readSelfIdentity(p string) (selfIdentity, error) {
 	content, err := os.ReadFile(p)
 	if err != nil {
-		return SelfIdentity{}, fmt.Errorf("readSelfIdentity: could not read file: %w", err)
+		return selfIdentity{}, fmt.Errorf("readSelfIdentity: could not read file: %w", err)
 	}
-	var s selfIdentityInternal
+	var s selfIdentity
 	_, err = plist.Unmarshal(content, &s)
 	if err != nil {
-		return SelfIdentity{}, fmt.Errorf("readSelfIdentity: could not parse plist content: %w", err)
+		return selfIdentity{}, fmt.Errorf("readSelfIdentity: could not parse plist content: %w", err)
 	}
 
-	private := ed25519.NewKeyFromSeed(s.PrivateKey)
-
-	return SelfIdentity{
-		Identifier: s.Identifier,
-		Irk:        s.Irk,
-		PrivateKey: private,
-		PublicKey:  s.PublicKey,
-	}, nil
+	return s, nil
 }
 
-func getOrCreateSelfIdentity(p string) (SelfIdentity, error) {
+func getOrCreateSelfIdentity(p string) (selfIdentity, error) {
 	info, err := os.Stat(p)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return createSelfIdentity(p)
 		} else {
-			return SelfIdentity{}, fmt.Errorf("getOrCreateSelfIdentity: failed to get file info: %w", err)
+			return selfIdentity{}, fmt.Errorf("getOrCreateSelfIdentity: failed to get file info: %w", err)
 		}
 	}
 	if info.IsDir() {
-		return SelfIdentity{}, fmt.Errorf("getOrCreateSelfIdentity: '%s' is a directory", p)
+		return selfIdentity{}, fmt.Errorf("getOrCreateSelfIdentity: '%s' is a directory", p)
 	}
 	return readSelfIdentity(p)
 }
 
-func createSelfIdentity(p string) (SelfIdentity, error) {
+func createSelfIdentity(p string) (selfIdentity, error) {
 	irk := make([]byte, 16)
 	_, _ = rand.Read(irk)
 
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		return SelfIdentity{}, fmt.Errorf("createSelfIdentity: failed to create key pair: %w", err)
+		return selfIdentity{}, fmt.Errorf("createSelfIdentity: failed to create key pair: %w", err)
 	}
 
-	si := selfIdentityInternal{
+	si := selfIdentity{
 		Identifier: strings.ToUpper(uuid.New().String()),
 		Irk:        irk,
 		PrivateKey: priv.Seed(),
@@ -128,20 +123,15 @@ func createSelfIdentity(p string) (SelfIdentity, error) {
 
 	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
-		return SelfIdentity{}, fmt.Errorf("createSelfIdentity: failed to open file for writing: %w", err)
+		return selfIdentity{}, fmt.Errorf("createSelfIdentity: failed to open file for writing: %w", err)
 	}
 	defer f.Close()
 
 	enc := plist.NewEncoderForFormat(f, plist.BinaryFormat)
 	err = enc.Encode(si)
 	if err != nil {
-		return SelfIdentity{}, fmt.Errorf("createSelfIdentity: failed to encode self identity as plist: %w", err)
+		return selfIdentity{}, fmt.Errorf("createSelfIdentity: failed to encode self identity as plist: %w", err)
 	}
 
-	return SelfIdentity{
-		Identifier: si.Identifier,
-		Irk:        si.Irk,
-		PrivateKey: priv,
-		PublicKey:  pub,
-	}, nil
+	return si, nil
 }

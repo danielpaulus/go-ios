@@ -17,6 +17,7 @@ const (
 	ServerClient = StreamId(3)
 )
 
+// HttpConnection is a wrapper around a http2.Framer that provides a simple interface to read and write http2 streams for iOS17+.
 type HttpConnection struct {
 	framer             *http2.Framer
 	clientServerStream *bytes.Buffer
@@ -35,7 +36,7 @@ func NewHttpConnection(rw io.ReadWriteCloser) (*HttpConnection, error) {
 
 	_, err := rw.Write([]byte("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewHttpConnection: could not write PRI. %w", err)
 	}
 
 	err = framer.WriteSettings(
@@ -43,17 +44,17 @@ func NewHttpConnection(rw io.ReadWriteCloser) (*HttpConnection, error) {
 		http2.Setting{ID: http2.SettingInitialWindowSize, Val: 1048576},
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewHttpConnection: could not write settings. %w", err)
 	}
 
 	err = framer.WriteWindowUpdate(uint32(InitStream), 983041)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewHttpConnection: could not write window update. %w", err)
 	}
 	//
 	frame, err := framer.ReadFrame()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewHttpConnection: could not read frame. %w", err)
 	}
 	if frame.Header().Type == http2.FrameSettings {
 		settings := frame.(*http2.SettingsFrame)
@@ -63,7 +64,7 @@ func NewHttpConnection(rw io.ReadWriteCloser) (*HttpConnection, error) {
 		}
 		err := framer.WriteSettingsAck()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("NewHttpConnection: could not write settings ack. %w", err)
 		}
 	} else {
 		log.WithField("frame", frame.Header().String()).
@@ -84,7 +85,7 @@ func (r *HttpConnection) ReadClientServerStream(p []byte) (int, error) {
 	for r.clientServerStream.Len() < len(p) {
 		err := r.readDataFrame()
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("ReadClientServerStream: %w", err)
 		}
 	}
 	return r.clientServerStream.Read(p)
@@ -105,7 +106,7 @@ func (r *HttpConnection) write(p []byte, stream uint32, isOpen *atomic.Bool) (in
 			EndHeaders: true,
 		})
 		if err != nil {
-			return 0, fmt.Errorf("could not send headers. %w", err)
+			return 0, fmt.Errorf("write: could not send headers. %w", err)
 		}
 	}
 	return r.Write(p, stream)
@@ -114,7 +115,7 @@ func (r *HttpConnection) write(p []byte, stream uint32, isOpen *atomic.Bool) (in
 func (r *HttpConnection) Write(p []byte, streamId uint32) (int, error) {
 	err := r.framer.WriteData(streamId, false, p)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("Write: could not write data. %w", err)
 	}
 	return len(p), nil
 }
@@ -123,7 +124,7 @@ func (r *HttpConnection) readDataFrame() error {
 	for {
 		f, err := r.framer.ReadFrame()
 		if err != nil {
-			return err
+			return fmt.Errorf("readDataFrame: could not read frame. %w", err)
 		}
 		switch f.Header().Type {
 		case http2.FrameData:
@@ -134,7 +135,7 @@ func (r *HttpConnection) readDataFrame() error {
 			case 3:
 				r.serverClientStream.Write(d.Data())
 			default:
-				panic(fmt.Errorf("unknown stream id %d", d.StreamID))
+				return fmt.Errorf("readDataFrame: unknown stream id %d", d.StreamID)
 			}
 			return nil
 		case http2.FrameGoAway:
@@ -144,7 +145,7 @@ func (r *HttpConnection) readDataFrame() error {
 			if s.Flags&http2.FlagSettingsAck != http2.FlagSettingsAck {
 				err := r.framer.WriteSettingsAck()
 				if err != nil {
-					return err
+					return fmt.Errorf("readDataFrame: could not write settings ack. %w", err)
 				}
 			}
 		default:
@@ -178,17 +179,19 @@ func NewStreamReadWriter(h *HttpConnection, streamId StreamId) HttpStreamReadWri
 func (h HttpStreamReadWriter) Read(p []byte) (n int, err error) {
 	if h.streamId == 1 {
 		return h.h.ReadClientServerStream(p)
-	} else if h.streamId == 3 {
+	}
+	if h.streamId == 3 {
 		return h.h.ReadServerClientStream(p)
 	}
-	panic(nil)
+	return 0, fmt.Errorf("Read: unknown stream id %d", h.streamId)
 }
 
 func (h HttpStreamReadWriter) Write(p []byte) (n int, err error) {
 	if h.streamId == 1 {
 		return h.h.WriteClientServerStream(p)
-	} else if h.streamId == 3 {
+	}
+	if h.streamId == 3 {
 		return h.h.WriteServerClientStream(p)
 	}
-	panic("implement me")
+	return 0, fmt.Errorf("Write: unknown stream id %d", h.streamId)
 }

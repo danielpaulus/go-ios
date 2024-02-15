@@ -7,7 +7,7 @@ import (
 	"github.com/tadglines/go-pkgs/crypto/srp"
 )
 
-type SrpInfo struct {
+type srpInfo struct {
 	ClientPublic []byte
 	ClientProof  []byte
 	Salt         []byte
@@ -16,7 +16,7 @@ type SrpInfo struct {
 }
 
 // newSrpInfo initializes a new SRP session with the given public key and salt values.
-func newSrpInfo(salt, publicKey []byte) (SrpInfo, error) {
+func newSrpInfo(salt, publicKey []byte) (srpInfo, error) {
 	s, err := srp.NewSRP("rfc5054.3072", sha512.New, func(salt, password []byte) []byte {
 		h1 := sha512.New()
 		h2 := sha512.New()
@@ -26,18 +26,18 @@ func newSrpInfo(salt, publicKey []byte) (SrpInfo, error) {
 		return h1.Sum(nil)
 	})
 	if err != nil {
-		return SrpInfo{}, fmt.Errorf("newSrpInfo: failed to initialize SRP: %w", err)
+		return srpInfo{}, fmt.Errorf("newSrpInfo: failed to initialize SRP: %w", err)
 	}
 	c := s.NewClientSession([]byte("Pair-Setup"), []byte("000000"))
 	if err != nil {
-		return SrpInfo{}, fmt.Errorf("newSrpInfo: failed to create client session: %w", err)
+		return srpInfo{}, fmt.Errorf("newSrpInfo: failed to create client session: %w", err)
 	}
 	key, err := c.ComputeKey(salt, publicKey)
 	if err != nil {
-		return SrpInfo{}, fmt.Errorf("newSrpInfo: failed to compute session key: %w", err)
+		return srpInfo{}, fmt.Errorf("newSrpInfo: failed to compute session key: %w", err)
 	}
 	a := c.ComputeAuthenticator()
-	return SrpInfo{
+	return srpInfo{
 		ClientPublic: c.GetA(),
 		ClientProof:  a,
 		Salt:         salt,
@@ -46,6 +46,6 @@ func newSrpInfo(salt, publicKey []byte) (SrpInfo, error) {
 	}, nil
 }
 
-func (s SrpInfo) verifyServerProof(p []byte) bool {
+func (s srpInfo) verifyServerProof(p []byte) bool {
 	return s.c.VerifyServerAuthenticator(p)
 }

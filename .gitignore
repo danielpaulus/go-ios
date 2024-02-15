@@ -18,6 +18,7 @@ go-ios
 usbmuxd
 !ios/debugproxy/usbmuxd
 main
+go-ncm
 *.png
 !logo.png
 # Test binary, build with `go test -c`

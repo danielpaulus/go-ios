@@ -1,13 +1,14 @@
 package tunnel
 
 import (
+	"os"
+	"path"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ed25519"
 	"howett.net/plist"
-	"os"
-	"path"
-	"testing"
 )
 
 func TestPairRecordManager(t *testing.T) {
@@ -26,12 +27,12 @@ func TestPairRecordManager(t *testing.T) {
 		b, err := os.ReadFile(siPath)
 		require.NoError(t, err)
 
-		var si selfIdentityInternal
+		var si selfIdentity
 		_, err = plist.Unmarshal(b, &si)
 		require.NoError(t, err)
 
 		private := ed25519.NewKeyFromSeed(si.PrivateKey)
 
-		assert.True(t, private.Equal(pm.SelfId.PrivateKey))
+		assert.True(t, private.Equal(pm.selfId.privateKey()))
 	})
 }

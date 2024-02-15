@@ -37,46 +37,46 @@ import (
 #define kTLVType_FragmentLast			0x0D // Last fragment of data.
 */
 
-type TlvType uint8
-type PairingState uint8
+type tlvType uint8
+type pairingState uint8
 
 const (
-	PairStateStartRequest     = byte(0x01)
-	PairStateStartResponse    = 0x02
-	PairStateVerifyRequest    = 0x03
-	PairStateVerifyResponse   = 0x04
-	PairStateExchangeRequest  = 0x05
-	PairStateExchangeResponse = 0x06
-	PairStateDone             = 0x07
+	pairStateStartRequest     = byte(0x01)
+	pairStateStartResponse    = 0x02
+	pairStateVerifyRequest    = 0x03
+	pairStateVerifyResponse   = 0x04
+	pairStateExchangeRequest  = 0x05
+	pairStateExchangeResponse = 0x06
+	pairStateDone             = 0x07
 )
 
 const (
-	TypeMethod        = TlvType(0x00)
-	TypeIdentifier    = TlvType(0x01)
-	TypeSalt          = TlvType(0x02)
-	TypePublicKey     = TlvType(0x03)
-	TypeProof         = TlvType(0x04)
-	TypeEncryptedData = TlvType(0x05)
-	TypeState         = TlvType(0x06)
-	TypeError         = TlvType(0x07)
-	TypeSignature     = TlvType(0x0A)
-	TypeInfo          = TlvType(0x11)
+	typeMethod        = tlvType(0x00)
+	typeIdentifier    = tlvType(0x01)
+	typeSalt          = tlvType(0x02)
+	typePublicKey     = tlvType(0x03)
+	typeProof         = tlvType(0x04)
+	typeEncryptedData = tlvType(0x05)
+	typeState         = tlvType(0x06)
+	typeError         = tlvType(0x07)
+	typeSignature     = tlvType(0x0A)
+	typeInfo          = tlvType(0x11)
 )
 
-type TlvBuffer struct {
+type tlvBuffer struct {
 	buf *bytes.Buffer
 }
 
-func NewTlvBuffer() TlvBuffer {
-	return TlvBuffer{buf: bytes.NewBuffer(nil)}
+func newTlvBuffer() tlvBuffer {
+	return tlvBuffer{buf: bytes.NewBuffer(nil)}
 }
 
-func (b TlvBuffer) WriteData(t TlvType, data []byte) {
+func (b tlvBuffer) writeData(t tlvType, data []byte) {
 	if len(data) > math.MaxUint8 {
 		b.buf.WriteByte(byte(t))
 		b.buf.WriteByte(byte(math.MaxUint8))
 		b.buf.Write(data[:math.MaxUint8])
-		b.WriteData(t, data[math.MaxUint8:])
+		b.writeData(t, data[math.MaxUint8:])
 	} else {
 		b.buf.WriteByte(byte(t))
 		b.buf.WriteByte(byte(len(data)))
@@ -84,17 +84,17 @@ func (b TlvBuffer) WriteData(t TlvType, data []byte) {
 	}
 }
 
-func (b TlvBuffer) WriteByte(t TlvType, v uint8) {
-	b.WriteData(t, []byte{v})
+func (b tlvBuffer) writeByte(t tlvType, v uint8) {
+	b.writeData(t, []byte{v})
 }
 
-func (b TlvBuffer) Bytes() []byte {
+func (b tlvBuffer) bytes() []byte {
 	return b.buf.Bytes()
 }
 
-type TlvReader []byte
+type tlvReader []byte
 
-func (r TlvReader) ReadCoalesced(t TlvType) ([]byte, error) {
+func (r tlvReader) readCoalesced(t tlvType) ([]byte, error) {
 	reader := bytes.NewReader(r)
 	buf := bytes.NewBuffer(nil)
 
@@ -107,21 +107,24 @@ func (r TlvReader) ReadCoalesced(t TlvType) ([]byte, error) {
 			return nil, err
 		}
 		l, _ := reader.ReadByte()
-		if TlvType(chunkType) == t {
-			io.CopyN(buf, reader, int64(l))
+		if tlvType(chunkType) == t {
+			_, err = io.CopyN(buf, reader, int64(l))
 		} else {
-			io.CopyN(io.Discard, reader, int64(l))
+			_, err = io.CopyN(io.Discard, reader, int64(l))
+		}
+		if err != nil {
+			return nil, fmt.Errorf("readCoalesced: failed to read bytes of length %d: %w", l, err)
 		}
 	}
 
 	return buf.Bytes(), nil
 }
 
-type Error byte
+type tlvError byte
 
 var errorNames = [...]string{"reserved0", "unknown", "authentication", "backoff", "unknownpeer", "maxpeers", "maxtries"}
 
-func (e Error) Error() string {
+func (e tlvError) Error() string {
 	if int(e) >= 0 && int(e) < len(errorNames) {
 		return errorNames[e]
 	}
