@@ -1,0 +1,4 @@
+#!/bin/sh
+# this uses golang because I don't like shell scripts
+# if you need to fix stuff, change it in the configure.go
+go run cmd/configure/configure.go
