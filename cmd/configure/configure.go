@@ -19,6 +19,7 @@ func main() {
 
 	checkDep("libusb-1.0-0-dev")
 	checkDep("build-essential")
+	checkDep("pkg-config")
 
 	log.Println("good to go. run 'make build'")
 	//apt-get install -y libusb-1.0-0-dev
