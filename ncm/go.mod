@@ -1,4 +1,4 @@
-module go-ios-cdcncm
+module github.com/danielpaulus/go-ios/ncm
 
 go 1.21
 
