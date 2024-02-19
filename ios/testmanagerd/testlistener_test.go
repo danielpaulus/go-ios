@@ -82,11 +82,13 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
+		testListener.testSuiteDidStart("mysuite2", "2024-01-16 15:36:43 +0000")
 
-		assert.Equal(t, 2024, testListener.TestSuite.StartDate.Year())
-		assert.Equal(t, time.Month(1), testListener.TestSuite.StartDate.Month())
-		assert.Equal(t, 16, testListener.TestSuite.StartDate.Day())
-		assert.Equal(t, "mysuite", testListener.TestSuite.Name)
+		assert.Equal(t, 2, len(testListener.TestSuites))
+		assert.Equal(t, 2024, testListener.findTestSuite("mysuite").StartDate.Year())
+		assert.Equal(t, time.Month(1), testListener.findTestSuite("mysuite").StartDate.Month())
+		assert.Equal(t, 16, testListener.findTestSuite("mysuite").StartDate.Day())
+		assert.Equal(t, "mysuite", testListener.findTestSuite("mysuite").Name)
 	})
 
 	t.Run("Check test case creation", func(t *testing.T) {
@@ -95,11 +97,11 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
 		testListener.testCaseDidStartForClass("myclass", "mymethod")
 
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, 1, len(testListener.findTestSuite("mysuite").TestCases), "TestCase must be appended to list of test cases")
 		assert.Equal(t, TestCase{
 			ClassName:  "myclass",
 			MethodName: "mymethod",
-		}, testListener.TestSuite.TestCases[0])
+		}, testListener.findTestSuite("mysuite").TestCases[0])
 	})
 
 	t.Run("Check test start invalid date", func(t *testing.T) {
@@ -108,8 +110,8 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener.testSuiteDidStart("mysuite", "INVALIDDATE")
 		testListener.testSuiteFinished("mysuite", "INVALIDDATE", 0, 0, 0, 0, 0, 0, 1.0, 1.0)
 
-		assert.Equal(t, time.Now().Year(), testListener.TestSuite.StartDate.Year())
-		assert.Equal(t, time.Now().Year(), testListener.TestSuite.EndDate.Year())
+		assert.Equal(t, time.Now().Year(), testListener.findTestSuite("mysuite").StartDate.Year())
+		assert.Equal(t, time.Now().Year(), testListener.findTestSuite("mysuite").EndDate.Year())
 	})
 
 	t.Run("Check test case failure", func(t *testing.T) {
@@ -120,11 +122,11 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 
 		testListener.testCaseFailedForClass("myclass", "mymethod", "error", "file://app.swift", 123)
 
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, TestCaseStatus("failed"), testListener.TestSuite.TestCases[0].Status)
-		assert.Equal(t, "error", testListener.TestSuite.TestCases[0].Err.Message)
-		assert.Equal(t, "file://app.swift", testListener.TestSuite.TestCases[0].Err.File)
-		assert.Equal(t, uint64(123), testListener.TestSuite.TestCases[0].Err.Line)
+		assert.Equal(t, 1, len(testListener.findTestSuite("mysuite").TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, TestCaseStatus("failed"), testListener.findTestSuite("mysuite").TestCases[0].Status)
+		assert.Equal(t, "error", testListener.findTestSuite("mysuite").TestCases[0].Err.Message)
+		assert.Equal(t, "file://app.swift", testListener.findTestSuite("mysuite").TestCases[0].Err.File)
+		assert.Equal(t, uint64(123), testListener.findTestSuite("mysuite").TestCases[0].Err.Line)
 	})
 
 	t.Run("Check test case finish", func(t *testing.T) {
@@ -134,9 +136,9 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener.testCaseDidStartForClass("myclass", "mymethod")
 		testListener.testCaseDidFinishForTest("myclass", "mymethod", "passed", 1.0)
 
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, TestCaseStatus("passed"), testListener.TestSuite.TestCases[0].Status)
-		assert.Equal(t, 1.0, testListener.TestSuite.TestCases[0].Duration.Seconds())
+		assert.Equal(t, 1, len(testListener.findTestSuite("mysuite").TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, TestCaseStatus("passed"), testListener.findTestSuite("mysuite").TestCases[0].Status)
+		assert.Equal(t, 1.0, testListener.findTestSuite("mysuite").TestCases[0].Duration.Seconds())
 	})
 
 	t.Run("Check test suite finish", func(t *testing.T) {
@@ -149,11 +151,11 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener.testCaseDidFinishForTest("myclass", "mymethod2", "passed", 1.0)
 		testListener.testSuiteFinished("myclass", "2024-01-16 15:36:44 +0000", 2, 0, 0, 0, 0, 0, 1.0, 2.0)
 
-		assert.Equal(t, 2, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, TestCaseStatus("passed"), testListener.TestSuite.TestCases[0].Status)
-		assert.Equal(t, TestCaseStatus("passed"), testListener.TestSuite.TestCases[1].Status)
-		assert.Equal(t, 2.0, testListener.TestSuite.TotalDuration.Seconds())
-		assert.Equal(t, 1, testListener.TestSuite.EndDate.Second()-testListener.TestSuite.StartDate.Second())
+		assert.Equal(t, 2, len(testListener.findTestSuite("mysuite").TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, TestCaseStatus("passed"), testListener.findTestSuite("mysuite").TestCases[0].Status)
+		assert.Equal(t, TestCaseStatus("passed"), testListener.findTestSuite("mysuite").TestCases[1].Status)
+		assert.Equal(t, 2.0, testListener.findTestSuite("mysuite").TotalDuration.Seconds())
+		assert.Equal(t, 1, testListener.findTestSuite("mysuite").EndDate.Second()-testListener.findTestSuite("mysuite").StartDate.Second())
 	})
 
 	t.Run("Check test case stall", func(t *testing.T) {
@@ -164,8 +166,8 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener.testCaseStalled("myclass", "mymethod1", "file://app.swift", 123)
 		testListener.testCaseDidFinishForTest("myclass", "mymethod1", "failed", 1.0)
 
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, TestCaseStatus("stalled"), testListener.TestSuite.TestCases[0].Status)
+		assert.Equal(t, 1, len(testListener.findTestSuite("mysuite").TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, TestCaseStatus("stalled"), testListener.findTestSuite("mysuite").TestCases[0].Status)
 	})
 
 	t.Run("Check test case with attachments", func(t *testing.T) {
@@ -185,10 +187,10 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 			Attachments:  attachments,
 		})
 
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases[0].Attachments), "Test must have 1 attachment")
+		assert.Equal(t, 1, len(testListener.findTestSuite("mysuite").TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, 1, len(testListener.findTestSuite("mysuite").TestCases[0].Attachments), "Test must have 1 attachment")
 
-		path := testListener.TestSuite.TestCases[0].Attachments[0].Path
+		path := testListener.findTestSuite("mysuite").TestCases[0].Attachments[0].Path
 		attachment, err := os.ReadFile(path)
 		assert.NoError(t, err)
 		defer os.RemoveAll(path)

@@ -20,7 +20,7 @@ type TestListener struct {
 	logWriter            io.Writer
 	debugLogWriter       io.Writer
 	attachmentsDirectory string
-	TestSuite            *TestSuite
+	TestSuites           []TestSuite
 }
 
 type TestSuite struct {
@@ -73,7 +73,7 @@ func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer, attachmentsD
 		executionFinished:    make(chan struct{}),
 		logWriter:            logWriter,
 		debugLogWriter:       debugLogWriter,
-		TestSuite:            &TestSuite{},
+		TestSuites:           make([]TestSuite, 0),
 		attachmentsDirectory: attachmentsDirectory,
 	}
 }
@@ -93,7 +93,7 @@ func (t *TestListener) didFailToBootstrapWithError(err nskeyedarchiver.NSError) 
 }
 
 func (t *TestListener) testCaseStalled(testClass string, method string, file string, line uint64) {
-	testCase := t.TestSuite.findTestCase(testClass, method)
+	testCase := t.findTestCase(testClass, method)
 	if testCase != nil {
 		testCase.Status = StatusStalled
 		testCase.Err = TestError{
@@ -106,13 +106,27 @@ func (t *TestListener) testCaseStalled(testClass string, method string, file str
 
 func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcActivityRecord nskeyedarchiver.XCActivityRecord) {
 	for _, attachment := range xcActivityRecord.Attachments {
-		testCase := t.TestSuite.findTestCase(testClass, testMethod)
+		testCase := t.findTestCase(testClass, testMethod)
 		if testCase == nil {
-			t.TestSuite.TestCases = append(t.TestSuite.TestCases, TestCase{
+			ts := t.findTestSuite(testClass)
+
+			// Attachments of activity records are reported under a special test class named "none"
+			// This is a safe guard to lazily create the suite for those
+			// Otherwise this if statement will almost always evaluate to false
+			if ts == nil {
+				t.TestSuites = append(t.TestSuites, TestSuite{
+					Name:      testClass,
+					StartDate: time.Now(),
+					TestCases: make([]TestCase, 0),
+				})
+				ts = &t.TestSuites[len(t.TestSuites)-1]
+			}
+
+			ts.TestCases = append(ts.TestCases, TestCase{
 				ClassName:  testClass,
 				MethodName: testMethod,
 			})
-			testCase = &t.TestSuite.TestCases[len(t.TestSuite.TestCases)-1]
+			testCase = &ts.TestCases[len(ts.TestCases)-1]
 		}
 
 		attachmentsPath := filepath.Join(t.attachmentsDirectory, uuid.New().String())
@@ -142,28 +156,31 @@ func (t *TestListener) testSuiteDidStart(suiteName string, date string) {
 		d = time.Now()
 	}
 
-	t.TestSuite = &TestSuite{
+	t.TestSuites = append(t.TestSuites, TestSuite{
 		Name:      suiteName,
 		StartDate: d,
-	}
+		TestCases: make([]TestCase, 0),
+	})
 }
 
 func (t *TestListener) testCaseDidStartForClass(testClass string, testMethod string) {
-	t.TestSuite.TestCases = append(t.TestSuite.TestCases, TestCase{
+	ts := t.findTestSuite(testClass)
+	ts.TestCases = append(ts.TestCases, TestCase{
 		ClassName:  testClass,
 		MethodName: testMethod,
 	})
 }
 
 func (t *TestListener) testCaseFailedForClass(testClass string, testMethod string, message string, file string, line uint64) {
-	testCase := t.TestSuite.findTestCase(testClass, testMethod)
+	testCase := t.findTestCase(testClass, testMethod)
 	if testCase == nil {
 		log.Warn("Received failure status for an unknown test, adding it to suite")
-		t.TestSuite.TestCases = append(t.TestSuite.TestCases, TestCase{
+		ts := t.findTestSuite(testClass)
+		ts.TestCases = append(ts.TestCases, TestCase{
 			ClassName:  testClass,
 			MethodName: testMethod,
 		})
-		testCase = &t.TestSuite.TestCases[len(t.TestSuite.TestCases)-1]
+		testCase = &ts.TestCases[len(ts.TestCases)-1]
 	}
 
 	testCase.Status = StatusFailed
@@ -175,7 +192,7 @@ func (t *TestListener) testCaseFailedForClass(testClass string, testMethod strin
 }
 
 func (t *TestListener) testCaseDidFinishForTest(testClass string, testMethod string, status string, duration float64) {
-	testCase := t.TestSuite.findTestCase(testClass, testMethod)
+	testCase := t.findTestCase(testClass, testMethod)
 	if testCase != nil {
 		// We override "failed" status for stalled tests with the value "stalled" to be able to distinguish them later
 		if testCase.Status != StatusStalled {
@@ -199,21 +216,23 @@ func (t *TestListener) testSuiteFinished(suiteName string, date string, testCoun
 		endDate = time.Now()
 	}
 
-	t.TestSuite.EndDate = endDate
+	ts := t.findTestSuite(suiteName)
+
+	ts.EndDate = endDate
 
 	d, err := time.ParseDuration(fmt.Sprintf("%f", testDuration) + "s")
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Warn("Test duration cannot be parsed")
 		d = 0
 	}
-	t.TestSuite.TestDuration = d
+	ts.TestDuration = d
 
 	d, err = time.ParseDuration(fmt.Sprintf("%f", totalDuration) + "s")
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Warn("Total duration cannot be parsed")
 		d = 0
 	}
-	t.TestSuite.TotalDuration = d
+	ts.TotalDuration = d
 }
 
 func (t *TestListener) LogMessage(msg string) {
@@ -233,12 +252,24 @@ func (t *TestListener) Done() <-chan struct{} {
 	return t.executionFinished
 }
 
-func (ts *TestSuite) findTestCase(className string, methodName string) *TestCase {
-	for i, _ := range ts.TestCases {
-		tc := &ts.TestCases[i]
-		if tc.ClassName == className && tc.MethodName == methodName {
-			return tc
+func (t *TestListener) findTestCase(className string, methodName string) *TestCase {
+	for i, _ := range t.TestSuites {
+		ts := &t.TestSuites[i]
+		for j, _ := range ts.TestCases {
+			tc := &ts.TestCases[j]
+			if tc.ClassName == className && tc.MethodName == methodName {
+				return tc
+			}
 		}
+	}
+
+	return nil
+}
+
+func (t *TestListener) findTestSuite(className string) *TestSuite {
+	for i, _ := range t.TestSuites {
+		ts := &t.TestSuites[i]
+		return ts
 	}
 
 	return nil
