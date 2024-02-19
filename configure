@@ -1,0 +1,22 @@
+#!/bin/sh
+# this uses golang because I don't like shell scripts
+# if you need to fix stuff, change it in the configure.go
+
+GO_BIN=$(which go)
+
+# Check if Go is installed by verifying if GO_BIN is not empty
+if [ -z "$GO_BIN" ]; then
+    echo "Go is not installed or not found in the PATH."
+    exit 1
+fi
+
+check_sudo() {
+    if command -v sudo >/dev/null 2>&1; then
+        echo "sudo"
+    else
+        echo ""
+    fi
+}
+SUDO=$(check_sudo)
+
+$SUDO $GO_BIN run cmd/configure/configure.go
