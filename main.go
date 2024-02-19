@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -824,10 +825,29 @@ The commands work as following:
 		testRunnerBundleId, _ := arguments.String("--test-runner-bundle-id")
 		xctestConfig, _ := arguments.String("--xctest-config")
 
+		rawTestlog, rawTestlogErr := arguments.String("--log-output")
 		env := arguments["--env"].([]string)
-		err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env)
-		if err != nil {
-			log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
+
+		if rawTestlogErr == nil {
+			var writer *os.File = os.Stdout
+			if rawTestlog != "-" {
+				file, err := os.Create(rawTestlog)
+				exitIfError("Cannot open file "+rawTestlog, err)
+				writer = file
+			}
+			defer writer.Close()
+
+			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(writer, writer, os.TempDir()))
+			if err != nil {
+				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
+			}
+
+			log.Info(fmt.Printf("%+v", testResults))
+		} else {
+			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
+			if err != nil {
+				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
+			}
 		}
 		return
 	}
@@ -1060,22 +1080,30 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			return true
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
+
+		errorChannel := make(chan error)
+		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
-			err := testmanagerd.RunXCUIWithBundleIdsCtx(context.Background(), bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv)
+			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, testmanagerd.NewTestListener(os.Stdout, os.Stdout, os.TempDir()))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
+				errorChannel <- err
 			}
+			close(errorChannel)
 		}()
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		signal := <-c
 		log.Infof("os signal:%d received, closing..", signal)
 
-		err := testmanagerd.CloseXCUITestRunner()
+		stopWda()
+
+		err := <-errorChannel
 		if err != nil {
-			log.Error("Failed closing wda-testrunner")
+			log.Errorf("Failed running wda-testrunner: %s", err)
 			os.Exit(1)
 		}
+
 		log.Info("Done Closing")
 	}
 	return b

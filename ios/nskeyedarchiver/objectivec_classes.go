@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
@@ -26,13 +25,18 @@ func SetupDecoders() {
 			"DTTapHeartbeatMessage":     NewDTTapHeartbeatMessage,
 			"XCTCapabilities":           NewXCTCapabilities,
 			"NSUUID":                    NewNSUUIDFromBytes,
-			"XCActivityRecord":          DecodeXCActivityRecord,
+			"XCActivityRecord":          NewXCActivityRecord,
+			"XCTAttachment":             NewXCTAttachment,
 			"DTKTraceTapMessage":        NewDTKTraceTapMessage,
 			"NSValue":                   NewNSValue,
+			"NSArray":                   NewNSArray,
 			"XCTTestIdentifier":         NewXCTTestIdentifier,
 			"DTTapStatusMessage":        NewDTTapStatusMessage,
 			"DTTapMessage":              NewDTTapMessage,
 			"DTCPUClusterInfo":          NewDTCPUClusterInfo,
+			"XCTIssue":                  NewXCTIssue,
+			"XCTSourceCodeContext":      NewXCTSourceCodeContext,
+			"XCTSourceCodeLocation":     NewXCTSourceCodeLocation,
 		}
 	}
 }
@@ -80,7 +84,7 @@ func NewXCTestConfiguration(
 	contents["reportActivities"] = true
 	contents["reportResultsToIDE"] = true
 	contents["sessionIdentifier"] = NewNSUUID(sessionIdentifier)
-	contents["systemAttachmentLifetime"] = 2
+	contents["systemAttachmentLifetime"] = 0
 	// contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
 	contents["targetApplicationBundleID"] = targetApplicationBundleID
 	// contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
@@ -96,7 +100,20 @@ func NewXCTestConfiguration(
 	contents["testsToSkip"] = plist.UID(0)
 	contents["testTimeoutsEnabled"] = false
 	contents["treatMissingBaselinesAsFailures"] = false
-	contents["userAttachmentLifetime"] = 1
+	contents["userAttachmentLifetime"] = 0
+	contents["preferredScreenCaptureFormat"] = 2
+	contents["IDECapabilities"] = XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
+		"expected failure test capability":         true,
+		"test case run configurations":             true,
+		"test timeout capability":                  true,
+		"test iterations":                          true,
+		"request diagnostics for specific devices": true,
+		"delayed attachment transfer":              true,
+		"skipped test capability":                  true,
+		"daemon container sandbox extension":       true,
+		"ubiquitous test identifiers":              true,
+		"XCTIssue capability":                      true,
+	}}
 	return XCTestConfiguration{contents}
 }
 
@@ -147,20 +164,28 @@ type XCActivityRecord struct {
 		"attachments":<interface {}(howett.net/plist.UID)>)
 
 	*/
-	Finish       interface{}
-	Start        interface{}
+	Finish       NSDate
+	Start        NSDate
 	Title        string
 	UUID         NSUUID
 	ActivityType string
-	Attachments  interface{}
+	Attachments  []XCTAttachment
 }
 
-func DecodeXCActivityRecord(object map[string]interface{}, objects []interface{}) interface{} {
+func NewXCActivityRecord(object map[string]interface{}, objects []interface{}) interface{} {
 	finish_ref := object["finish"].(plist.UID)
-	finish := objects[finish_ref]
+	finish := NSDate{}
+	if _, ok := objects[finish_ref].(map[string]interface{}); ok {
+		finish_raw := objects[finish_ref].(map[string]interface{})
+		finish = NewNSDate(finish_raw, objects).(NSDate)
+	}
 
 	start_ref := object["start"].(plist.UID)
-	start := objects[start_ref]
+	start := NSDate{}
+	if _, ok := objects[start_ref].(map[string]interface{}); ok {
+		start_raw := objects[start_ref].(map[string]interface{})
+		start = NewNSDate(start_raw, objects).(NSDate)
+	}
 
 	uuid_ref := object["uuid"].(plist.UID)
 	uuid_raw := objects[uuid_ref].(map[string]interface{})
@@ -170,14 +195,52 @@ func DecodeXCActivityRecord(object map[string]interface{}, objects []interface{}
 	title := objects[title_ref].(string)
 
 	attachments_ref := object["attachments"].(plist.UID)
-	attachments := objects[attachments_ref]
+	attachments_raw := objects[attachments_ref].(map[string]interface{})
+
+	attachments := make([]XCTAttachment, 0)
+	for _, obj := range NewNSArray(attachments_raw, objects).(NSArray).Values {
+		attachments = append(attachments, obj.(XCTAttachment))
+	}
 
 	activityType_ref := object["activityType"].(plist.UID)
 	activityType := objects[activityType_ref].(string)
 
-	log.Info(objects[9])
-
 	return XCActivityRecord{Finish: finish, Start: start, UUID: uuid, Title: title, Attachments: attachments, ActivityType: activityType}
+}
+
+const (
+	LifetimeKeepAlways      = uint64(0)
+	LifetimeDeleteOnSuccess = uint64(1)
+)
+
+type XCTAttachment struct {
+	lifetime              uint64
+	UniformTypeIdentifier string
+	fileNameOverride      string
+	Payload               []uint8
+	Timestamp             float64
+	Name                  string
+	userInfo              map[string]interface{}
+}
+
+func NewXCTAttachment(object map[string]interface{}, objects []interface{}) interface{} {
+	lifetime := object["lifetime"].(uint64)
+	uniformTypeIdentifier := objects[object["uniformTypeIdentifier"].(plist.UID)].(string)
+	fileNameOverride := objects[object["fileNameOverride"].(plist.UID)].(string)
+	payload := objects[object["payload"].(plist.UID)].([]uint8)
+	timestamp := objects[object["timestamp"].(plist.UID)].(float64)
+	name := objects[object["name"].(plist.UID)].(string)
+	userInfo, _ := extractDictionary(objects[object["userInfo"].(plist.UID)].(map[string]interface{}), objects)
+
+	return XCTAttachment{
+		lifetime:              lifetime,
+		UniformTypeIdentifier: uniformTypeIdentifier,
+		fileNameOverride:      fileNameOverride,
+		Payload:               payload,
+		Timestamp:             timestamp,
+		Name:                  name,
+		userInfo:              userInfo,
+	}
 }
 
 func NewNSUUIDFromBytes(object map[string]interface{}, objects []interface{}) interface{} {
@@ -191,6 +254,21 @@ func NewNSUUID(id uuid.UUID) NSUUID {
 		panic(fmt.Sprintf("Unexpected Error: %v", err))
 	}
 	return NSUUID{bytes}
+}
+
+func archiveNSUUID(uid interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	nsuuid := uid.(NSUUID)
+	object := map[string]interface{}{}
+
+	object["NS.uuidbytes"] = nsuuid.uuidbytes
+	uuidReference := len(objects)
+	objects = append(objects, object)
+
+	classref := uuidReference + 1
+	object[class] = plist.UID(classref)
+	objects = append(objects, buildClassDict("NSUUID", "NSObject"))
+
+	return objects, plist.UID(uuidReference)
 }
 
 func archiveXCTCapabilities(capsIface interface{}, objects []interface{}) ([]interface{}, plist.UID) {
@@ -209,23 +287,8 @@ func archiveXCTCapabilities(capsIface interface{}, objects []interface{}) ([]int
 	return objects, plist.UID(capsReference)
 }
 
-func archiveNSUUID(uid interface{}, objects []interface{}) ([]interface{}, plist.UID) {
-	nsuuid := uid.(NSUUID)
-	object := map[string]interface{}{}
-
-	object["NS.uuidbytes"] = nsuuid.uuidbytes
-	uuidReference := len(objects)
-	objects = append(objects, object)
-
-	classref := uuidReference + 1
-	object[class] = plist.UID(classref)
-	objects = append(objects, buildClassDict("NSUUID", "NSObject"))
-
-	return objects, plist.UID(uuidReference)
-}
-
 type NSURL struct {
-	path string
+	Path string
 }
 
 func NewNSURL(path string) NSURL {
@@ -247,7 +310,7 @@ func archiveNSURL(nsurlInterface interface{}, objects []interface{}) ([]interfac
 
 	pathRef := classref + 1
 	object["NS.relative"] = plist.UID(pathRef)
-	objects = append(objects, fmt.Sprintf("file://%s", nsurl.path))
+	objects = append(objects, fmt.Sprintf("file://%s", nsurl.Path))
 
 	return objects, plist.UID(urlReference)
 }
@@ -282,6 +345,19 @@ func NewNSValue(object map[string]interface{}, objects []interface{}) interface{
 	rectval, _ := objects[ref].(string)
 	special := object["NS.special"].(uint64)
 	return NSValue{NSRectval: rectval, NSSpecial: special}
+}
+
+type NSArray struct {
+	Values []interface{}
+}
+
+func NewNSArray(object map[string]interface{}, objects []interface{}) interface{} {
+	objectRefs := object["NS.objects"].([]interface{})
+
+	uidList := toUidList(objectRefs)
+	extractObjects, _ := extractObjects(uidList, objects)
+
+	return NSArray{Values: extractObjects}
 }
 
 type XCTTestIdentifier struct {
@@ -342,6 +418,10 @@ func NewNSError(object map[string]interface{}, objects []interface{}) interface{
 	userinfo, _ := extractDictionary(objects[userInfo_ref].(map[string]interface{}), objects)
 
 	return NSError{ErrorCode: errorCode, Domain: domain, UserInfo: userinfo}
+}
+
+func (err NSError) Error() string {
+	return fmt.Sprintf("Error code: %d, Domain: %s, User info: %v", err.ErrorCode, err.Domain, err.UserInfo)
 }
 
 // Apples Reference Date is Jan 1st 2001 00:00
@@ -449,4 +529,50 @@ func archiveStringSlice(object interface{}, objects []interface{}) ([]interface{
 func archiveNSMutableDictionary(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
 	mut := object.(NSMutableDictionary)
 	return serializeMap(mut.internalDict, objects, buildClassDict("NSMutableDictionary", "NSDictionary", "NSObject"))
+}
+
+type XCTIssue struct {
+	RuntimeIssueSeverity uint64
+	DetailedDescription  string
+	CompactDescription   string
+	SourceCodeContext    XCTSourceCodeContext
+}
+
+func NewXCTIssue(object map[string]interface{}, objects []interface{}) interface{} {
+	runtimeIssueSeverity := object["runtimeIssueSeverity"].(uint64)
+	detailedDescriptionRef := object["detailed-description"].(plist.UID)
+	sourceCodeContextRef := object["source-code-context"].(plist.UID)
+	compactDescriptionRef := object["compact-description"].(plist.UID)
+
+	detailedDescription := objects[detailedDescriptionRef].(string)
+	compactDescription := objects[compactDescriptionRef].(string)
+	sourceCodeContext := NewXCTSourceCodeContext(objects[sourceCodeContextRef].(map[string]interface{}), objects).(XCTSourceCodeContext)
+
+	return XCTIssue{RuntimeIssueSeverity: runtimeIssueSeverity, DetailedDescription: detailedDescription, CompactDescription: compactDescription, SourceCodeContext: sourceCodeContext}
+}
+
+type XCTSourceCodeContext struct {
+	Location XCTSourceCodeLocation
+}
+
+func NewXCTSourceCodeContext(object map[string]interface{}, objects []interface{}) interface{} {
+	locationRef := object["location"].(plist.UID)
+	location := NewXCTSourceCodeLocation(objects[locationRef].(map[string]interface{}), objects).(XCTSourceCodeLocation)
+
+	return XCTSourceCodeContext{Location: location}
+}
+
+type XCTSourceCodeLocation struct {
+	FileUrl    NSURL
+	LineNumber uint64
+}
+
+func NewXCTSourceCodeLocation(object map[string]interface{}, objects []interface{}) interface{} {
+	fileUrlRef := object["file-url"].(plist.UID)
+	relativeRef := objects[fileUrlRef].(map[string]interface{})["NS.relative"].(plist.UID)
+	relativePath := objects[int(relativeRef)].(string)
+	fileUrl := NewNSURL(relativePath)
+	lineNumber := object["line-number"].(uint64)
+
+	return XCTSourceCodeLocation{FileUrl: fileUrl, LineNumber: lineNumber}
 }
