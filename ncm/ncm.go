@@ -58,16 +58,18 @@ type NcmWrapper struct {
 	targetWriter io.Writer
 	buf          *bytes.Buffer
 	sequenceNum  uint16
+	serial       string
 }
 
 const headerSignature = 0x484D434E
 
-func NewWrapper(targetReader io.Reader, targetWriter io.Writer) *NcmWrapper {
+func NewWrapper(targetReader io.Reader, targetWriter io.Writer, serial string) *NcmWrapper {
 	return &NcmWrapper{
 		targetReader: targetReader,
 		targetWriter: targetWriter,
 		buf:          bytes.NewBuffer(nil),
 		sequenceNum:  0,
+		serial:       serial,
 	}
 }
 
@@ -136,7 +138,7 @@ func (r *NcmWrapper) ReadDatagrams() ([]ethernet.Frame, error) {
 	if err != nil {
 		return result, fmt.Errorf("ReadDatagrams: reading block failed bytes read:%d err: %w", b, err)
 	}
-
+	usbReceiveBytes.WithLabelValues(r.serial).Add(float64(h.BlockLen))
 	offset := h.NdpIndex
 	var dh datagramPointerHeader
 	err = binary.Read(bytes.NewReader(ncmTransferBlock[offset:]), binary.LittleEndian, &dh)
@@ -221,6 +223,7 @@ func (r *NcmWrapper) Write(p []byte) (n int, err error) {
 	}
 	buf.Write(p)
 	block = buf.Bytes()
+	usbSendBytes.WithLabelValues(r.serial).Add(float64(len(block)))
 	n, err = r.targetWriter.Write(block)
 	if err != nil {
 		return n, fmt.Errorf("write: writing ncm packet to usb failed %w", err)
