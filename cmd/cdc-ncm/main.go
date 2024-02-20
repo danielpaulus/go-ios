@@ -24,6 +24,9 @@ func checkLinux() {
 	}
 }
 
+// accepts one cmd line argument: --prometheusport=8080
+// if specified, prometheus metrics will be available at http://0.0.0.0:prometheusport/metrics
+// if not specified, the prometheus endpoint will not be started and not be available.
 func main() {
 	checkLinux()
 	checkUsbMux()
