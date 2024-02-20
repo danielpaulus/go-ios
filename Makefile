@@ -36,7 +36,7 @@ build:
 
 # Run the Go program with sudo
 run: build
-	@sudo ./$(NCM_BINARY_NAME)
+	@sudo ./$(NCM_BINARY_NAME) --prometheusport=8080
 
 # Build and run
 up: build run
