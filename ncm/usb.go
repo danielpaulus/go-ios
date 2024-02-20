@@ -29,7 +29,6 @@ var deviceLock = sync.Mutex{}
 var deviceCounter = 0
 
 func Start(c chan os.Signal) error {
-	go startPrometheus(13333)
 	ctx := gousb.NewContext()
 	defer ctx.Close()
 	for {

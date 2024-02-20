@@ -2,10 +2,11 @@ package ncm
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log/slog"
 	"net/http"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -31,7 +32,7 @@ var (
 	}, []string{"serial"})
 )
 
-func startPrometheus(port int) {
+func StartPrometheus(port int) {
 	prometheus.MustRegister(deviceCount)
 	prometheus.MustRegister(networkReceiveBytes)
 	prometheus.MustRegister(networkSendBytes)
