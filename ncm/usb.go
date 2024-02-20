@@ -270,7 +270,7 @@ func createConfig(serial string) (*water.Interface, error) {
 // for some reason. This happens if the device is disconnected or if the virtual network interface is removed.
 // Closing interfaces is the responsibility of the caller.
 func ncmIOCopy(w io.Writer, r io.Reader, ifce *water.Interface, serial string) error {
-	wr := NewWrapper(r, w)
+	wr := NewWrapper(r, w, serial)
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 	wg.Add(2)

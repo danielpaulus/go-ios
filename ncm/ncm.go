@@ -63,12 +63,13 @@ type NcmWrapper struct {
 
 const headerSignature = 0x484D434E
 
-func NewWrapper(targetReader io.Reader, targetWriter io.Writer) *NcmWrapper {
+func NewWrapper(targetReader io.Reader, targetWriter io.Writer, serial string) *NcmWrapper {
 	return &NcmWrapper{
 		targetReader: targetReader,
 		targetWriter: targetWriter,
 		buf:          bytes.NewBuffer(nil),
 		sequenceNum:  0,
+		serial:       serial,
 	}
 }
 
