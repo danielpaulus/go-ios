@@ -101,11 +101,11 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
-		testListener.testCaseDidStartForClass("myclass", "mymethod")
+		testListener.testCaseDidStartForClass("mysuite", "mymethod")
 
 		assert.Equal(t, 1, len(testListener.findTestSuite("mysuite").TestCases), "TestCase must be appended to list of test cases")
 		assert.Equal(t, TestCase{
-			ClassName:  "myclass",
+			ClassName:  "mysuite",
 			MethodName: "mymethod",
 		}, testListener.findTestSuite("mysuite").TestCases[0])
 	})
