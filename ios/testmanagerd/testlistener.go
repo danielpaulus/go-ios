@@ -269,7 +269,10 @@ func (t *TestListener) findTestCase(className string, methodName string) *TestCa
 func (t *TestListener) findTestSuite(className string) *TestSuite {
 	for i, _ := range t.TestSuites {
 		ts := &t.TestSuites[i]
-		return ts
+		if ts.Name == className {
+			return ts
+		}
+
 	}
 
 	return nil

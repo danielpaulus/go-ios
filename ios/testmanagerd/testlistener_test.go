@@ -82,13 +82,19 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
-		testListener.testSuiteDidStart("mysuite2", "2024-01-16 15:36:43 +0000")
+		testListener.testSuiteDidStart("mysuite2", "2024-01-17 16:36:43 +0000")
 
 		assert.Equal(t, 2, len(testListener.TestSuites))
 		assert.Equal(t, 2024, testListener.findTestSuite("mysuite").StartDate.Year())
 		assert.Equal(t, time.Month(1), testListener.findTestSuite("mysuite").StartDate.Month())
 		assert.Equal(t, 16, testListener.findTestSuite("mysuite").StartDate.Day())
 		assert.Equal(t, "mysuite", testListener.findTestSuite("mysuite").Name)
+
+		assert.Equal(t, 2, len(testListener.TestSuites))
+		assert.Equal(t, 2024, testListener.findTestSuite("mysuite2").StartDate.Year())
+		assert.Equal(t, time.Month(1), testListener.findTestSuite("mysuite2").StartDate.Month())
+		assert.Equal(t, 17, testListener.findTestSuite("mysuite2").StartDate.Day())
+		assert.Equal(t, "mysuite2", testListener.findTestSuite("mysuite2").Name)
 	})
 
 	t.Run("Check test case creation", func(t *testing.T) {
