@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios/debugproxy"
+	"github.com/danielpaulus/go-ios/ios/deviceinfo"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 
 	"github.com/danielpaulus/go-ios/ios/amfi"
@@ -128,6 +129,7 @@ Usage:
   ios batterycheck [options]
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>]
   ios tunnel ls [options]
+  ios deviceinfo [options] (display | lockdown)
   ios devmode (enable | get) [--enable-post-restart] [options]
 
 Options:
@@ -239,6 +241,7 @@ The commands work as following:
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
    ios tunnel ls                                                      List currently started tunnels   
+   ios deviceinfo [options] (display | lockdown)                  	  Queries device infos
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
@@ -981,6 +984,24 @@ The commands work as following:
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			_ = enc.Encode(tunnels)
+		}
+	}
+
+	b, _ = arguments.Bool("deviceinfo")
+	if b {
+		if display, _ := arguments.Bool("display"); display {
+			deviceInfo, err := deviceinfo.NewDeviceInfo(device)
+			exitIfError("Can't connect to deviceinfo service", err)
+			defer deviceInfo.Close()
+
+			info, err := deviceInfo.GetDisplayInfo()
+			exitIfError("Can't fetch dispaly info", err)
+
+			log.WithField("display", info).Info("Got display info")
+		} else if lockdown, _ := arguments.Bool("lockdown"); lockdown {
+			printDeviceInfo(device)
+		} else {
+			log.Fatal("unknown sub-command")
 		}
 	}
 
