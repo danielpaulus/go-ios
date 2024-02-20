@@ -82,7 +82,9 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
-		testListener.testSuiteDidStart("mysuite2", "2024-01-17 16:36:43 +0000")
+		testListener.testSuiteFinished("mysuite", "2024-01-16 15:36:44 +0000", 0, 0, 0, 0, 0, 0, 1.0, 1.0)
+		testListener.testSuiteDidStart("mysuite2", "2024-01-17 16:36:45 +0000")
+		testListener.testSuiteFinished("mysuite2", "2024-01-17 16:36:46 +0000", 0, 0, 0, 0, 0, 0, 1.0, 1.0)
 
 		assert.Equal(t, 2, len(testListener.TestSuites))
 		assert.Equal(t, 2024, testListener.findTestSuite("mysuite").StartDate.Year())
@@ -184,6 +186,18 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		attachments[0] = nskeyedarchiver.XCTAttachment{
 			Payload: payload,
 		}
+
+		// Suite start
+		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
+
+		// Test with 0 attachments
+		testListener.testCaseDidStartForClass("mysuite", "mymethod1")
+		testListener.testCaseDidFinishForTest("mysuite", "mymethod1", "failed", 1.0)
+
+		// Test with 1 attachment
+		testListener.testCaseDidStartForClass("mysuite", "mymethod2")
+		// Attachments of activity records are reported under a special test class named "none". This is the default behavior defined by Apple.
+		// We have a safe guard to auto correct the test case information by keeping track of the active test case
 		testListener.testCaseFinished("none", "none", nskeyedarchiver.XCActivityRecord{
 			Finish:       nskeyedarchiver.NSDate{},
 			Start:        nskeyedarchiver.NSDate{},
@@ -192,11 +206,16 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 			ActivityType: "userDefined",
 			Attachments:  attachments,
 		})
+		testListener.testCaseDidFinishForTest("mysuite", "mymethod2", "failed", 1.0)
 
-		assert.Equal(t, 1, len(testListener.findTestSuite("none").TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, 1, len(testListener.findTestSuite("none").TestCases[0].Attachments), "Test must have 1 attachment")
+		// Suite end
+		testListener.testSuiteFinished("mysuite", "2024-01-16 15:36:44 +0000", 0, 0, 0, 0, 0, 0, 1.0, 1.0)
 
-		path := testListener.findTestSuite("none").TestCases[0].Attachments[0].Path
+		assert.Equal(t, 2, len(testListener.findTestSuite("mysuite").TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, 0, len(testListener.findTestSuite("mysuite").TestCases[0].Attachments), "First test must have 0 attachments")
+		assert.Equal(t, 1, len(testListener.findTestSuite("mysuite").TestCases[1].Attachments), "Second test must have 1 attachment")
+
+		path := testListener.findTestSuite("mysuite").TestCases[1].Attachments[0].Path
 		attachment, err := os.ReadFile(path)
 		assert.NoError(t, err)
 		defer os.RemoveAll(path)

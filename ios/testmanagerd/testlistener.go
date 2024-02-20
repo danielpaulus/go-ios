@@ -21,6 +21,7 @@ type TestListener struct {
 	debugLogWriter       io.Writer
 	attachmentsDirectory string
 	TestSuites           []TestSuite
+	runningTestSuite     *TestSuite
 }
 
 type TestSuite struct {
@@ -106,26 +107,13 @@ func (t *TestListener) testCaseStalled(testClass string, method string, file str
 
 func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcActivityRecord nskeyedarchiver.XCActivityRecord) {
 	for _, attachment := range xcActivityRecord.Attachments {
+		ts := t.findTestSuite(testClass)
 		testCase := t.findTestCase(testClass, testMethod)
-		if testCase == nil {
-			ts := t.findTestSuite(testClass)
-
+		if ts == nil || testCase == nil || testClass == "none" || testMethod == "none" {
 			// Attachments of activity records are reported under a special test class named "none"
-			// This is a safe guard to lazily create the suite for those
-			// Otherwise this if statement will almost always evaluate to false
-			if ts == nil {
-				t.TestSuites = append(t.TestSuites, TestSuite{
-					Name:      testClass,
-					StartDate: time.Now(),
-					TestCases: make([]TestCase, 0),
-				})
-				ts = &t.TestSuites[len(t.TestSuites)-1]
-			}
-
-			ts.TestCases = append(ts.TestCases, TestCase{
-				ClassName:  testClass,
-				MethodName: testMethod,
-			})
+			// That's unfortunately the default behavior defined by Apple.
+			// This if block is a safe guard to auto correct the test case information
+			ts = t.runningTestSuite
 			testCase = &ts.TestCases[len(ts.TestCases)-1]
 		}
 
@@ -156,11 +144,16 @@ func (t *TestListener) testSuiteDidStart(suiteName string, date string) {
 		d = time.Now()
 	}
 
-	t.TestSuites = append(t.TestSuites, TestSuite{
+	if t.runningTestSuite != nil {
+		log.Warn("A new test suite starts running while another one is in progress, finalizing the previous one")
+		t.TestSuites = append(t.TestSuites, *t.runningTestSuite)
+	}
+
+	t.runningTestSuite = &TestSuite{
 		Name:      suiteName,
 		StartDate: d,
 		TestCases: make([]TestCase, 0),
-	})
+	}
 }
 
 func (t *TestListener) testCaseDidStartForClass(testClass string, testMethod string) {
@@ -233,6 +226,9 @@ func (t *TestListener) testSuiteFinished(suiteName string, date string, testCoun
 		d = 0
 	}
 	ts.TotalDuration = d
+
+	t.TestSuites = append(t.TestSuites, *t.runningTestSuite)
+	t.runningTestSuite = nil
 }
 
 func (t *TestListener) LogMessage(msg string) {
@@ -253,8 +249,9 @@ func (t *TestListener) Done() <-chan struct{} {
 }
 
 func (t *TestListener) findTestCase(className string, methodName string) *TestCase {
-	for i, _ := range t.TestSuites {
-		ts := &t.TestSuites[i]
+	ts := t.findTestSuite(className)
+
+	if ts != nil {
 		for j, _ := range ts.TestCases {
 			tc := &ts.TestCases[j]
 			if tc.ClassName == className && tc.MethodName == methodName {
@@ -267,6 +264,10 @@ func (t *TestListener) findTestCase(className string, methodName string) *TestCa
 }
 
 func (t *TestListener) findTestSuite(className string) *TestSuite {
+	if t.runningTestSuite != nil && t.runningTestSuite.Name == className {
+		return t.runningTestSuite
+	}
+
 	for i, _ := range t.TestSuites {
 		ts := &t.TestSuites[i]
 		if ts.Name == className {
