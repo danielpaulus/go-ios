@@ -49,6 +49,7 @@ func printStatus() {
 		connectedDevices = append(connectedDevices, key.(string))
 		return true
 	})
+	deviceCount.Set(float64(len(connectedDevices)))
 	slices.Sort[[]string](connectedDevices)
 	slog.Debug("connected devices", "devices", connectedDevices)
 }
@@ -268,7 +269,7 @@ func createConfig(serial string) (*water.Interface, error) {
 // for some reason. This happens if the device is disconnected or if the virtual network interface is removed.
 // Closing interfaces is the responsibility of the caller.
 func ncmIOCopy(w io.Writer, r io.Reader, ifce *water.Interface, serial string) error {
-	wr := NewWrapper(r, w)
+	wr := NewWrapper(r, w, serial)
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 	wg.Add(2)
@@ -288,6 +289,7 @@ func ncmIOCopy(w io.Writer, r io.Reader, ifce *water.Interface, serial string) e
 					cancel()
 					continue
 				}
+				networkReceiveBytes.WithLabelValues(ifce.Name(), serial).Add(float64(n))
 				frame = frame[:n]
 				_, err = wr.Write(frame)
 				if err != nil {
@@ -318,6 +320,7 @@ func ncmIOCopy(w io.Writer, r io.Reader, ifce *water.Interface, serial string) e
 						slog.Error("failed sending frame to virtual device", "err", err)
 						cancel()
 					}
+					networkSendBytes.WithLabelValues(ifce.Name(), serial).Add(float64(len(frame)))
 				}
 			}
 		}
