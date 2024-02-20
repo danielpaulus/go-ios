@@ -124,9 +124,9 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
-		testListener.testCaseDidStartForClass("myclass", "mymethod")
+		testListener.testCaseDidStartForClass("mysuite", "mymethod")
 
-		testListener.testCaseFailedForClass("myclass", "mymethod", "error", "file://app.swift", 123)
+		testListener.testCaseFailedForClass("mysuite", "mymethod", "error", "file://app.swift", 123)
 
 		assert.Equal(t, 1, len(testListener.findTestSuite("mysuite").TestCases), "TestCase must be appended to list of test cases")
 		assert.Equal(t, TestCaseStatus("failed"), testListener.findTestSuite("mysuite").TestCases[0].Status)
