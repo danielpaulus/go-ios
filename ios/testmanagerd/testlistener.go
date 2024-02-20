@@ -106,17 +106,17 @@ func (t *TestListener) testCaseStalled(testClass string, method string, file str
 }
 
 func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcActivityRecord nskeyedarchiver.XCActivityRecord) {
-	for _, attachment := range xcActivityRecord.Attachments {
-		ts := t.findTestSuite(testClass)
-		testCase := t.findTestCase(testClass, testMethod)
-		if ts == nil || testCase == nil || testClass == "none" || testMethod == "none" {
-			// Attachments of activity records are reported under a special test class named "none"
-			// That's unfortunately the default behavior defined by Apple.
-			// This if block is a safe guard to auto correct the test case information
-			ts = t.runningTestSuite
-			testCase = &ts.TestCases[len(ts.TestCases)-1]
-		}
+	ts := t.findTestSuite(testClass)
+	testCase := t.findTestCase(testClass, testMethod)
+	if ts == nil || testCase == nil || testClass == "none" || testMethod == "none" {
+		// Attachments of activity records are reported under a special test class named "none"
+		// That's unfortunately the default behavior defined by Apple.
+		// This if block is a safe guard to auto correct the test case information
+		ts = t.runningTestSuite
+		testCase = &ts.TestCases[len(ts.TestCases)-1]
+	}
 
+	for _, attachment := range xcActivityRecord.Attachments {
 		attachmentsPath := filepath.Join(t.attachmentsDirectory, uuid.New().String())
 		file, err := os.Create(attachmentsPath)
 		if err != nil {
