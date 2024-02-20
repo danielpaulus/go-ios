@@ -251,12 +251,10 @@ func (t *TestListener) Done() <-chan struct{} {
 func (t *TestListener) findTestCase(className string, methodName string) *TestCase {
 	ts := t.findTestSuite(className)
 
-	if ts != nil {
-		for j, _ := range ts.TestCases {
-			tc := &ts.TestCases[j]
-			if tc.ClassName == className && tc.MethodName == methodName {
-				return tc
-			}
+	if ts != nil && len(ts.TestCases) > 0 {
+		tc := &ts.TestCases[len(ts.TestCases)-1]
+		if tc.ClassName == className && tc.MethodName == methodName {
+			return tc
 		}
 	}
 
@@ -266,14 +264,6 @@ func (t *TestListener) findTestCase(className string, methodName string) *TestCa
 func (t *TestListener) findTestSuite(className string) *TestSuite {
 	if t.runningTestSuite != nil && t.runningTestSuite.Name == className {
 		return t.runningTestSuite
-	}
-
-	for i, _ := range t.TestSuites {
-		ts := &t.TestSuites[i]
-		if ts.Name == className {
-			return ts
-		}
-
 	}
 
 	return nil
