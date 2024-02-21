@@ -104,6 +104,22 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	return muxConn.ReleaseDeviceConnection(), nil
 }
 
+// ConnectToShimService opens a new connection of the tunnel interface of the provided device
+// to the provided service.
+// The 'RSDCheckin' required by shim services is also executed before returning the connection to the caller
+func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionInterface, error) {
+	port := device.Rsd.GetPort(service)
+	conn, err := connectToTunnel(device, port)
+	if err != nil {
+		return nil, err
+	}
+	err = RsdCheckin(conn)
+	if err != nil {
+		return nil, err
+	}
+	return NewDeviceConnectionWithConn(conn), nil
+}
+
 // ConnectToServiceTunnelIface connects to a service on an iOS17+ device using a XPC over HTTP2 connection
 // It returns a new xpc.Connection
 func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
