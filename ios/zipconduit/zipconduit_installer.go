@@ -38,17 +38,42 @@ This is why I had to hack my own "zip" encoding together. Here is how zip_condui
  5. Send the standard central directory header but not a central directory (obviously)
  6. wait for a bunch of PLISTs to be received that indicate progress and completion of installation
 */
-const serviceName string = "com.apple.streaming_zip_conduit"
+const (
+	usbmuxdServiceName string = "com.apple.streaming_zip_conduit"
+	shimServiceName    string = "com.apple.streaming_zip_conduit.shim.remote"
+)
 
 // Connection exposes functions to interoperate with zipconduit
 type Connection struct {
-	deviceConn ios.DeviceConnectionInterface
+	deviceConn io.ReadWriteCloser
 	plistCodec ios.PlistCodec
 }
 
 // New returns a new ZipConduit Connection for the given DeviceID and Udid
 func New(device ios.DeviceEntry) (*Connection, error) {
-	deviceConn, err := ios.ConnectToService(device, serviceName)
+	if device.Rsd == nil {
+		return NewWithUsbmuxdConnection(device)
+	}
+	return NewWithShimConnection(device)
+}
+
+// NewWithUsbmuxdConnection connects to the streaming_zip_conduit service on the device over the usbmuxd socket
+func NewWithUsbmuxdConnection(device ios.DeviceEntry) (*Connection, error) {
+	deviceConn, err := ios.ConnectToService(device, usbmuxdServiceName)
+	if err != nil {
+		return &Connection{}, err
+	}
+
+	return &Connection{
+		deviceConn: deviceConn,
+		plistCodec: ios.NewPlistCodec(),
+	}, nil
+}
+
+// NewWithShimConnection connects to the streaming_zip_conduit service over a tunnel interface and the service port
+// is obtained from remote service discovery
+func NewWithShimConnection(device ios.DeviceEntry) (*Connection, error) {
+	deviceConn, err := ios.ConnectToShimService(device, shimServiceName)
 	if err != nil {
 		return &Connection{}, err
 	}
@@ -123,19 +148,17 @@ func (conn Connection) sendDirectory(dir string) error {
 		return err
 	}
 
-	err = conn.deviceConn.Send(bytes)
+	_, err = conn.deviceConn.Write(bytes)
 	if err != nil {
 		return err
 	}
-
-	deviceStream := conn.deviceConn.Writer()
 
 	log.Debug("writing meta inf")
-	err = AddFileToZip(deviceStream, metainfFolder, tmpDir)
+	err = AddFileToZip(conn.deviceConn, metainfFolder, tmpDir)
 	if err != nil {
 		return err
 	}
-	err = AddFileToZip(deviceStream, metainfFile, tmpDir)
+	err = AddFileToZip(conn.deviceConn, metainfFile, tmpDir)
 	if err != nil {
 		return err
 	}
@@ -144,13 +167,13 @@ func (conn Connection) sendDirectory(dir string) error {
 	log.Debug("sending files....")
 
 	for _, file := range unzippedFiles {
-		err := AddFileToZip(deviceStream, file, dir)
+		err := AddFileToZip(conn.deviceConn, file, dir)
 		if err != nil {
 			return err
 		}
 	}
 	log.Debug("files sent, sending central header....")
-	_, err = conn.deviceConn.Writer().Write(centralDirectoryHeader)
+	_, err = conn.deviceConn.Write(centralDirectoryHeader)
 	if err != nil {
 		return err
 	}
@@ -188,19 +211,17 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		return err
 	}
 
-	err = conn.deviceConn.Send(bytes)
+	_, err = conn.deviceConn.Write(bytes)
 	if err != nil {
 		return err
 	}
-
-	deviceStream := conn.deviceConn.Writer()
 
 	log.Debug("writing meta inf")
-	err = AddFileToZip(deviceStream, metainfFolder, tmpDir)
+	err = AddFileToZip(conn.deviceConn, metainfFolder, tmpDir)
 	if err != nil {
 		return err
 	}
-	err = AddFileToZip(deviceStream, metainfFile, tmpDir)
+	err = AddFileToZip(conn.deviceConn, metainfFile, tmpDir)
 	if err != nil {
 		return err
 	}
@@ -209,13 +230,13 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 	log.Debug("sending files....")
 
 	for _, file := range unzippedFiles {
-		err := AddFileToZip(deviceStream, file, tmpDir)
+		err := AddFileToZip(conn.deviceConn, file, tmpDir)
 		if err != nil {
 			return err
 		}
 	}
 	log.Debug("files sent, sending central header....")
-	_, err = conn.deviceConn.Writer().Write(centralDirectoryHeader)
+	_, err = conn.deviceConn.Write(centralDirectoryHeader)
 	if err != nil {
 		return err
 	}
@@ -225,7 +246,7 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 
 func (conn Connection) waitForInstallation() error {
 	for {
-		msg, _ := conn.plistCodec.Decode(conn.deviceConn.Reader())
+		msg, _ := conn.plistCodec.Decode(conn.deviceConn)
 		plist, _ := ios.ParsePlist(msg)
 		log.Debugf("%+v", plist)
 		done, percent, status, err := evaluateProgress(plist)
