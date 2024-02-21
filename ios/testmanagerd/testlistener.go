@@ -113,6 +113,10 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 		// That's unfortunately the default behavior defined by Apple.
 		// This if block is a safe guard to auto correct the test case information
 		ts = t.runningTestSuite
+		if len(ts.TestCases) == 0 {
+			log.Warn(fmt.Sprintf("Received testCaseFinished for %s:%s without initialization", testClass, testMethod))
+			return
+		}
 		testCase = &ts.TestCases[len(ts.TestCases)-1]
 	}
 
