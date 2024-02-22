@@ -82,24 +82,37 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
+		testListener.testSuiteFinished("mysuite", "2024-01-16 15:36:44 +0000", 0, 0, 0, 0, 0, 0, 1.0, 1.0)
+		testListener.testSuiteDidStart("mysuite2", "2024-01-17 16:36:45 +0000")
+		testListener.testSuiteFinished("mysuite2", "2024-01-17 16:36:46 +0000", 0, 0, 0, 0, 0, 0, 1.0, 1.0)
 
-		assert.Equal(t, 2024, testListener.TestSuite.StartDate.Year())
-		assert.Equal(t, time.Month(1), testListener.TestSuite.StartDate.Month())
-		assert.Equal(t, 16, testListener.TestSuite.StartDate.Day())
-		assert.Equal(t, "mysuite", testListener.TestSuite.Name)
+		firstSuite := testListener.TestSuites[0]
+		secondSuite := testListener.TestSuites[1]
+
+		assert.Equal(t, 2, len(testListener.TestSuites))
+		assert.Equal(t, 2024, firstSuite.StartDate.Year())
+		assert.Equal(t, time.Month(1), firstSuite.StartDate.Month())
+		assert.Equal(t, 16, firstSuite.StartDate.Day())
+		assert.Equal(t, "mysuite", firstSuite.Name)
+
+		assert.Equal(t, 2, len(testListener.TestSuites))
+		assert.Equal(t, 2024, secondSuite.StartDate.Year())
+		assert.Equal(t, time.Month(1), secondSuite.StartDate.Month())
+		assert.Equal(t, 17, secondSuite.StartDate.Day())
+		assert.Equal(t, "mysuite2", secondSuite.Name)
 	})
 
 	t.Run("Check test case creation", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
-		testListener.testCaseDidStartForClass("myclass", "mymethod")
+		testListener.testCaseDidStartForClass("mysuite", "mymethod")
 
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, 1, len(testListener.runningTestSuite.TestCases), "TestCase must be appended to list of test cases")
 		assert.Equal(t, TestCase{
-			ClassName:  "myclass",
+			ClassName:  "mysuite",
 			MethodName: "mymethod",
-		}, testListener.TestSuite.TestCases[0])
+		}, testListener.runningTestSuite.TestCases[0])
 	})
 
 	t.Run("Check test start invalid date", func(t *testing.T) {
@@ -108,64 +121,65 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener.testSuiteDidStart("mysuite", "INVALIDDATE")
 		testListener.testSuiteFinished("mysuite", "INVALIDDATE", 0, 0, 0, 0, 0, 0, 1.0, 1.0)
 
-		assert.Equal(t, time.Now().Year(), testListener.TestSuite.StartDate.Year())
-		assert.Equal(t, time.Now().Year(), testListener.TestSuite.EndDate.Year())
+		assert.Equal(t, time.Now().Year(), testListener.TestSuites[0].StartDate.Year())
+		assert.Equal(t, time.Now().Year(), testListener.TestSuites[0].EndDate.Year())
 	})
 
 	t.Run("Check test case failure", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
-		testListener.testCaseDidStartForClass("myclass", "mymethod")
+		testListener.testCaseDidStartForClass("mysuite", "mymethod")
 
-		testListener.testCaseFailedForClass("myclass", "mymethod", "error", "file://app.swift", 123)
+		testListener.testCaseFailedForClass("mysuite", "mymethod", "error", "file://app.swift", 123)
+		testListener.testSuiteFinished("mysuite", "2024-01-16 15:37:43 +0000", 0, 0, 0, 0, 0, 0, 1.0, 1.0)
 
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, TestCaseStatus("failed"), testListener.TestSuite.TestCases[0].Status)
-		assert.Equal(t, "error", testListener.TestSuite.TestCases[0].Err.Message)
-		assert.Equal(t, "file://app.swift", testListener.TestSuite.TestCases[0].Err.File)
-		assert.Equal(t, uint64(123), testListener.TestSuite.TestCases[0].Err.Line)
+		assert.Equal(t, 1, len(testListener.TestSuites[0].TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, TestCaseStatus("failed"), testListener.TestSuites[0].TestCases[0].Status)
+		assert.Equal(t, "error", testListener.TestSuites[0].TestCases[0].Err.Message)
+		assert.Equal(t, "file://app.swift", testListener.TestSuites[0].TestCases[0].Err.File)
+		assert.Equal(t, uint64(123), testListener.TestSuites[0].TestCases[0].Err.Line)
 	})
 
 	t.Run("Check test case finish", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
-		testListener.testCaseDidStartForClass("myclass", "mymethod")
-		testListener.testCaseDidFinishForTest("myclass", "mymethod", "passed", 1.0)
+		testListener.testCaseDidStartForClass("mysuite", "mymethod")
+		testListener.testCaseDidFinishForTest("mysuite", "mymethod", "passed", 1.0)
 
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, TestCaseStatus("passed"), testListener.TestSuite.TestCases[0].Status)
-		assert.Equal(t, 1.0, testListener.TestSuite.TestCases[0].Duration.Seconds())
+		assert.Equal(t, 1, len(testListener.runningTestSuite.TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, TestCaseStatus("passed"), testListener.runningTestSuite.TestCases[0].Status)
+		assert.Equal(t, 1.0, testListener.runningTestSuite.TestCases[0].Duration.Seconds())
 	})
 
 	t.Run("Check test suite finish", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
-		testListener.testCaseDidStartForClass("myclass", "mymethod1")
-		testListener.testCaseDidFinishForTest("myclass", "mymethod1", "passed", 1.0)
-		testListener.testCaseDidStartForClass("myclass", "mymethod2")
-		testListener.testCaseDidFinishForTest("myclass", "mymethod2", "passed", 1.0)
-		testListener.testSuiteFinished("myclass", "2024-01-16 15:36:44 +0000", 2, 0, 0, 0, 0, 0, 1.0, 2.0)
+		testListener.testCaseDidStartForClass("mysuite", "mymethod1")
+		testListener.testCaseDidFinishForTest("mysuite", "mymethod1", "passed", 1.0)
+		testListener.testCaseDidStartForClass("mysuite", "mymethod2")
+		testListener.testCaseDidFinishForTest("mysuite", "mymethod2", "passed", 1.0)
+		testListener.testSuiteFinished("mysuite", "2024-01-16 15:36:44 +0000", 2, 0, 0, 0, 0, 0, 1.0, 2.0)
 
-		assert.Equal(t, 2, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, TestCaseStatus("passed"), testListener.TestSuite.TestCases[0].Status)
-		assert.Equal(t, TestCaseStatus("passed"), testListener.TestSuite.TestCases[1].Status)
-		assert.Equal(t, 2.0, testListener.TestSuite.TotalDuration.Seconds())
-		assert.Equal(t, 1, testListener.TestSuite.EndDate.Second()-testListener.TestSuite.StartDate.Second())
+		assert.Equal(t, 2, len(testListener.TestSuites[0].TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, TestCaseStatus("passed"), testListener.TestSuites[0].TestCases[0].Status)
+		assert.Equal(t, TestCaseStatus("passed"), testListener.TestSuites[0].TestCases[1].Status)
+		assert.Equal(t, 2.0, testListener.TestSuites[0].TotalDuration.Seconds())
+		assert.Equal(t, 1, testListener.TestSuites[0].EndDate.Second()-testListener.TestSuites[0].StartDate.Second())
 	})
 
 	t.Run("Check test case stall", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
-		testListener.testCaseDidStartForClass("myclass", "mymethod1")
-		testListener.testCaseStalled("myclass", "mymethod1", "file://app.swift", 123)
-		testListener.testCaseDidFinishForTest("myclass", "mymethod1", "failed", 1.0)
+		testListener.testCaseDidStartForClass("mysuite", "mymethod1")
+		testListener.testCaseStalled("mysuite", "mymethod1", "file://app.swift", 123)
+		testListener.testCaseDidFinishForTest("mysuite", "mymethod1", "failed", 1.0)
 
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, TestCaseStatus("stalled"), testListener.TestSuite.TestCases[0].Status)
+		assert.Equal(t, 1, len(testListener.runningTestSuite.TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, TestCaseStatus("stalled"), testListener.runningTestSuite.TestCases[0].Status)
 	})
 
 	t.Run("Check test case with attachments", func(t *testing.T) {
@@ -176,6 +190,18 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		attachments[0] = nskeyedarchiver.XCTAttachment{
 			Payload: payload,
 		}
+
+		// Suite start
+		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
+
+		// Test with 0 attachments
+		testListener.testCaseDidStartForClass("mysuite", "mymethod1")
+		testListener.testCaseDidFinishForTest("mysuite", "mymethod1", "failed", 1.0)
+
+		// Test with 1 attachment
+		testListener.testCaseDidStartForClass("mysuite", "mymethod2")
+		// Attachments of activity records are reported under a special test class named "none". This is the default behavior defined by Apple.
+		// We have a safe guard to auto correct the test case information by keeping track of the active test case
 		testListener.testCaseFinished("none", "none", nskeyedarchiver.XCActivityRecord{
 			Finish:       nskeyedarchiver.NSDate{},
 			Start:        nskeyedarchiver.NSDate{},
@@ -184,11 +210,16 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 			ActivityType: "userDefined",
 			Attachments:  attachments,
 		})
+		testListener.testCaseDidFinishForTest("mysuite", "mymethod2", "failed", 1.0)
 
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases), "TestCase must be appended to list of test cases")
-		assert.Equal(t, 1, len(testListener.TestSuite.TestCases[0].Attachments), "Test must have 1 attachment")
+		// Suite end
+		testListener.testSuiteFinished("mysuite", "2024-01-16 15:36:44 +0000", 0, 0, 0, 0, 0, 0, 1.0, 1.0)
 
-		path := testListener.TestSuite.TestCases[0].Attachments[0].Path
+		assert.Equal(t, 2, len(testListener.TestSuites[0].TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, 0, len(testListener.TestSuites[0].TestCases[0].Attachments), "First test must have 0 attachments")
+		assert.Equal(t, 1, len(testListener.TestSuites[0].TestCases[1].Attachments), "Second test must have 1 attachment")
+
+		path := testListener.TestSuites[0].TestCases[1].Attachments[0].Path
 		attachment, err := os.ReadFile(path)
 		assert.NoError(t, err)
 		defer os.RemoveAll(path)
