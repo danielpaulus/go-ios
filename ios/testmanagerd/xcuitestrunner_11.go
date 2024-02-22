@@ -19,10 +19,12 @@ func runXCUIWithBundleIdsXcode11Ctx(
 	device ios.DeviceEntry,
 	args []string,
 	env []string,
+	testsToRun []string,
+	testsToSkip []string,
 	testListener *TestListener,
 ) ([]TestSuite, error) {
 	log.Debugf("set up xcuitest")
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName, testsToRun, testsToSkip)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create test config: %w", err)
 	}

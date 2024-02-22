@@ -72,8 +72,34 @@ func NewXCTestConfiguration(
 	targetApplicationBundleID string,
 	targetApplicationPath string,
 	testBundleURL string,
+	testsToRun []string,
+	testsToSkip []string,
 ) XCTestConfiguration {
 	contents := map[string]interface{}{}
+
+	var testsToRunEntry interface{}
+	testsToRunEntry = plist.UID(0)
+	if testsToRun != nil {
+		testsToRunEntry = createTestsSet(testsToRun)
+	}
+
+	var testsToSkipEntry interface{}
+	testsToSkipEntry = plist.UID(0)
+	if testsToSkip != nil {
+		testsToSkipEntry = createTestsSet(testsToSkip)
+	}
+
+	var testIdentifiersToRunEntry interface{}
+	testIdentifiersToRunEntry = plist.UID(0)
+	if testsToRun != nil {
+		testIdentifiersToRunEntry = createTestIdentifierSet(productModuleName, testsToRun)
+	}
+
+	var testIdentifiersToSkipEntry interface{}
+	testIdentifiersToSkipEntry = plist.UID(0)
+	if testsToSkip != nil {
+		testIdentifiersToSkipEntry = createTestIdentifierSet(productModuleName, testsToSkip)
+	}
 
 	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
 	contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
@@ -119,6 +145,16 @@ func NewXCTestConfiguration(
 		"ubiquitous test identifiers":              true,
 		"XCTIssue capability":                      true,
 	}}
+
+	if testIdentifiersToRunEntry != plist.UID(0) {
+		contents["testsToRun"] = testsToRunEntry
+		contents["testIdentifiersToRun"] = testIdentifiersToRunEntry
+	}
+
+	if testIdentifiersToSkipEntry != plist.UID(0) {
+		contents["testsToSkip"] = testsToSkipEntry
+		contents["testIdentifiersToSkip"] = testIdentifiersToSkipEntry
+	}
 
 	return XCTestConfiguration{contents}
 }
