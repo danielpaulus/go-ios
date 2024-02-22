@@ -67,26 +67,34 @@ func (r RsdPortProviderJson) GetService(p int) string {
 	return ""
 }
 
+// RsdCheckin sends a plist encoded message with the request 'RSDCheckin' to the device.
+// The device is expected to reply with two plist encoded messages. The first message is the response for the
+// checkin itself, and the second message contains a 'StartService' request, which does not need any action
+// from the host side
 func RsdCheckin(rw io.ReadWriter) error {
 	req := map[string]interface{}{
 		"Label":           "go-ios",
 		"ProtocolVersion": "2",
 		"Request":         "RSDCheckin",
 	}
-	codec := NewPlistCodec()
-	b, err := codec.Encode(req)
+
+	prw := NewPlistCodecReadWriter(rw, rw)
+
+	err := prw.Write(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("RsdCheckin: failed to send checkin request: %w", err)
 	}
-	_, err = rw.Write(b)
+
+	var checkinResponse map[string]any
+	err = prw.Read(&checkinResponse)
 	if err != nil {
-		return err
+		return fmt.Errorf("RsdCheckin: failed to read checkin response: %w", err)
 	}
-	res, err := codec.Decode(rw)
+	var startService map[string]any
+	err = prw.Read(&startService)
 	if err != nil {
-		return err
+		return fmt.Errorf("RsdCheckin: failed to read start service message: %w", err)
 	}
-	log.Debugf("got rsd checkin response: %v", res)
 	return nil
 }
 
