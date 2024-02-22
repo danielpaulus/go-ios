@@ -214,6 +214,10 @@ func (t *TestListener) testSuiteFinished(suiteName string, date string, testCoun
 	}
 
 	ts := t.findTestSuite(suiteName)
+	if ts == nil {
+		log.Debug(fmt.Sprintf("Received testSuiteFinished for %s without initialization", suiteName))
+		return
+	}
 
 	ts.EndDate = endDate
 
