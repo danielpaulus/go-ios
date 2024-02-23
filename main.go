@@ -102,7 +102,7 @@ Usage:
   ios ps [--apps] [options]
   ios ip [options]
   ios forward [options] <hostPort> <targetPort>
-  ios dproxy [--binary]
+  ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios readpair [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
@@ -110,7 +110,7 @@ Usage:
   ios apps [--system] [--all] [--list] [--filesharing] [options]
   ios launch <bundleID> [--wait] [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
-  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--env=<e>]... [options]
+  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [options]
   ios debug [options] [--stop-at-entry] <app_path>
@@ -206,7 +206,7 @@ The commands work as following:
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
    >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [--binary]                                              Starts the reverse engineering proxy server.
+   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options] Starts the reverse engineering proxy server.
    >                                                                  It dumps every communication in plain text so it can be implemented easily.
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
@@ -217,7 +217,9 @@ The commands work as following:
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
    ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
-   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config. If you provide '-' as log output, it prints resuts to stdout.
+   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config. 
+   																	  If you provide '-' as log output, it prints resuts to stdout.
+																	  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=TestTarget.TestClass.foo --test-to-run=TestTarget.TestClass.bar
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [options]                                                   Access accessibility inspector features.
@@ -828,6 +830,19 @@ The commands work as following:
 		testRunnerBundleId, _ := arguments.String("--test-runner-bundle-id")
 		xctestConfig, _ := arguments.String("--xctest-config")
 
+		testsToRunArg := arguments["--test-to-run"]
+		var testsToRun []string
+		if testsToRunArg != nil && len(testsToRunArg.([]string)) > 0 {
+			testsToRun = testsToRunArg.([]string)
+		}
+
+		testsToSkipArg := arguments["--test-to-skip"]
+		var testsToSkip []string
+		testsToSkip = nil
+		if testsToSkipArg != nil && len(testsToSkipArg.([]string)) > 0 {
+			testsToSkip = testsToSkipArg.([]string)
+		}
+
 		rawTestlog, rawTestlogErr := arguments.String("--log-output")
 		env := arguments["--env"].([]string)
 
@@ -840,14 +855,14 @@ The commands work as following:
 			}
 			defer writer.Close()
 
-			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(writer, writer, os.TempDir()))
+			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(writer, writer, os.TempDir()))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
 
 			log.Info(fmt.Printf("%+v", testResults))
 		} else {
-			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
+			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
@@ -1105,7 +1120,7 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		errorChannel := make(chan error)
 		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
-			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, testmanagerd.NewTestListener(os.Stdout, os.Stdout, os.TempDir()))
+			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 				errorChannel <- err

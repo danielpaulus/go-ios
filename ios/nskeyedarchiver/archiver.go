@@ -35,7 +35,8 @@ func archiveObject(object interface{}) (interface{}, error) {
 	archiverSkeleton := createSkeleton(true)
 	objects := make([]interface{}, 1)
 	objects[0] = null
-	objects, _ = archive(object, objects)
+	objects, pid := archive(object, objects)
+	archiverSkeleton[topKey] = map[string]interface{}{"root": pid}
 
 	archiverSkeleton[objectsKey] = objects
 	return archiverSkeleton, nil
@@ -98,6 +99,42 @@ func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, 
 	}
 	arrayDict["NS.objects"] = itemRefs
 	return objects, plist.UID(arrayObjectIndex)
+}
+
+func serializeMutableArray(array []interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	arrayDict := map[string]interface{}{}
+	arrayObjectIndex := len(objects)
+	objects = append(objects, arrayDict)
+
+	classDefinitionIndex := len(objects)
+	objects = append(objects, buildClassDict("NSMutableArray", "NSArray", "NSObject"))
+	arrayDict["$class"] = plist.UID(classDefinitionIndex)
+	itemRefs := make([]plist.UID, len(array))
+	for index, item := range array {
+		var uid plist.UID
+		objects, uid = archive(item, objects)
+		itemRefs[index] = uid
+	}
+	arrayDict["NS.objects"] = itemRefs
+	return objects, plist.UID(arrayObjectIndex)
+}
+
+func serializeSet(set []interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	setDict := map[string]interface{}{}
+	setObjectIndex := len(objects)
+	objects = append(objects, setDict)
+
+	classDefinitionIndex := len(objects)
+	objects = append(objects, buildClassDict("NSSet", "NSObject"))
+	setDict["$class"] = plist.UID(classDefinitionIndex)
+	itemRefs := make([]plist.UID, len(set))
+	for index, item := range set {
+		var uid plist.UID
+		objects, uid = archive(item, objects)
+		itemRefs[index] = uid
+	}
+	setDict["NS.objects"] = itemRefs
+	return objects, plist.UID(setObjectIndex)
 }
 
 func serializeMap(mapObject map[string]interface{}, objects []interface{}, classDict map[string]interface{}) ([]interface{}, plist.UID) {
