@@ -571,7 +571,7 @@ The commands work as following:
 			info, err := deviceInfo.GetDisplayInfo()
 			exitIfError("Can't fetch dispaly info", err)
 
-			log.WithField("display", info).Info("Got display info")
+			fmt.Println(convertToJSONString(info))
 		} else if lockdown, _ := arguments.Bool("lockdown"); lockdown {
 			printDeviceInfo(device)
 		} else {
