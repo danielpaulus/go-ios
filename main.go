@@ -71,7 +71,7 @@ Usage:
   ios activate [options]
   ios listen [options]
   ios list [options] [--details]
-  ios info [options]
+  ios info [display | lockdown] [options]
   ios image list [options]
   ios image mount [--path=<imagepath>] [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
@@ -129,7 +129,6 @@ Usage:
   ios batterycheck [options]
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>]
   ios tunnel ls [options]
-  ios deviceinfo [options] (display | lockdown)
   ios devmode (enable | get) [--enable-post-restart] [options]
 
 Options:
@@ -154,7 +153,7 @@ The commands work as following:
    ios activate [options]                                             Activate a device
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
-   ios info [options]                                                 Prints a dump of Lockdown getValues.
+   ios info [display | lockdown] [options]                            Prints a dump of device information from the given source.
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
    >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk 
@@ -243,7 +242,6 @@ The commands work as following:
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
    ios tunnel ls                                                      List currently started tunnels   
-   ios deviceinfo [options] (display | lockdown)                  	  Queries device infos
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
@@ -560,7 +558,27 @@ The commands work as following:
 
 	b, _ = arguments.Bool("info")
 	if b {
-		printDeviceInfo(device)
+		if display, _ := arguments.Bool("display"); display {
+			if address == "" || rsdPort == 0 {
+				log.Fatal("Please provide --address and --rsd-port to retreive display information")
+				return
+			}
+
+			deviceInfo, err := deviceinfo.NewDeviceInfo(device)
+			exitIfError("Can't connect to deviceinfo service", err)
+			defer deviceInfo.Close()
+
+			info, err := deviceInfo.GetDisplayInfo()
+			exitIfError("Can't fetch dispaly info", err)
+
+			log.WithField("display", info).Info("Got display info")
+		} else if lockdown, _ := arguments.Bool("lockdown"); lockdown {
+			printDeviceInfo(device)
+		} else {
+			// When subcommand is missing, it defaults to lockdown.
+			// Unknown subcommands don't reach this line and quit early.
+			printDeviceInfo(device)
+		}
 		return
 	}
 
@@ -999,24 +1017,6 @@ The commands work as following:
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			_ = enc.Encode(tunnels)
-		}
-	}
-
-	b, _ = arguments.Bool("deviceinfo")
-	if b {
-		if display, _ := arguments.Bool("display"); display {
-			deviceInfo, err := deviceinfo.NewDeviceInfo(device)
-			exitIfError("Can't connect to deviceinfo service", err)
-			defer deviceInfo.Close()
-
-			info, err := deviceInfo.GetDisplayInfo()
-			exitIfError("Can't fetch dispaly info", err)
-
-			log.WithField("display", info).Info("Got display info")
-		} else if lockdown, _ := arguments.Bool("lockdown"); lockdown {
-			printDeviceInfo(device)
-		} else {
-			log.Fatal("unknown sub-command")
 		}
 	}
 
