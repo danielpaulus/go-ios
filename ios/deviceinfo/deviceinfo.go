@@ -2,6 +2,7 @@ package deviceinfo
 
 import (
 	"fmt"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/coredevice"
 	"github.com/danielpaulus/go-ios/ios/xpc"

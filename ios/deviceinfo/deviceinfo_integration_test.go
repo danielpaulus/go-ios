@@ -3,12 +3,13 @@
 package deviceinfo
 
 import (
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"os"
 	"strconv"
 	"testing"
+
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetDisplayInfos(t *testing.T) {
