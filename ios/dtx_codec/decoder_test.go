@@ -159,6 +159,8 @@ func TestFragmentedMessage(t *testing.T) {
 	defragmenter.AddFragment(msg)
 	assert.True(t, defragmenter.HasFinished())
 	nonblockingFullMessage := defragmenter.Extract()
+	nonBlockingDecodedMsg, err := dtx.ReadMessage(bytes.NewReader(nonblockingFullMessage))
+	assert.NoError(t, err)
 
 	// now test that the blocking decoder creates the same message and that it is decodeable
 	dtxReader := bytes.NewReader(dat)
@@ -166,30 +168,13 @@ func TestFragmentedMessage(t *testing.T) {
 	if assert.NoError(t, err) {
 		assert.Equal(t, uint16(3), msg.Fragments)
 		assert.Equal(t, uint16(0), msg.FragmentIndex)
-		assert.Equal(t, false, msg.HasPayload())
+		assert.Equal(t, true, msg.HasPayload())
+		assert.Equal(t, 79627, msg.PayloadLength())
 		assert.Equal(t, true, msg.IsFirstFragment())
 	}
-	defragmenter = dtx.NewFragmentDecoder(msg)
-	msg, err = dtx.ReadMessage(dtxReader)
-	if assert.NoError(t, err) {
-		assert.Equal(t, uint16(3), msg.Fragments)
-		assert.Equal(t, uint16(1), msg.FragmentIndex)
-		assert.Equal(t, true, msg.IsFragment())
-	}
-	defragmenter.AddFragment(msg)
-	msg, err = dtx.ReadMessage(dtxReader)
-	if assert.NoError(t, err) {
-		assert.Equal(t, uint16(3), msg.Fragments)
-		assert.Equal(t, uint16(2), msg.FragmentIndex)
-		assert.Equal(t, true, msg.IsLastFragment())
-	}
-	defragmenter.AddFragment(msg)
-	assert.Equal(t, true, defragmenter.HasFinished())
-	defraggedMessage := defragmenter.Extract()
-	assert.Equal(t, defraggedMessage, nonblockingFullMessage)
-	dtxReader = bytes.NewReader(defraggedMessage)
-	_, err = dtx.ReadMessage(dtxReader)
-	assert.NoError(t, err)
+
+	assert.Equal(t, msg.Payload, nonBlockingDecodedMsg.Payload)
+	assert.Equal(t, msg.Auxiliary, nonBlockingDecodedMsg.Auxiliary)
 }
 
 func TestDecoder(t *testing.T) {
@@ -208,7 +193,7 @@ func TestDecoder(t *testing.T) {
 		assert.Equal(t, 2, msg.Identifier)
 		assert.Equal(t, 0, msg.ChannelCode)
 
-		assert.Equal(t, 2, msg.PayloadHeader.MessageType)
+		assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
 		assert.Equal(t, 425, msg.PayloadHeader.AuxiliaryLength)
 		assert.Equal(t, 596, msg.PayloadHeader.TotalPayloadLength)
 		assert.Equal(t, 0, msg.PayloadHeader.Flags)
@@ -226,7 +211,7 @@ func TestDecoder(t *testing.T) {
 		assert.Equal(t, 2, msg.Identifier)
 		assert.Equal(t, 0, msg.ChannelCode)
 
-		assert.Equal(t, 2, msg.PayloadHeader.MessageType)
+		assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
 		assert.Equal(t, 425, msg.PayloadHeader.AuxiliaryLength)
 		assert.Equal(t, 596, msg.PayloadHeader.TotalPayloadLength)
 		assert.Equal(t, 0, msg.PayloadHeader.Flags)

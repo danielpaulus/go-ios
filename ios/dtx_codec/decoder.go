@@ -24,22 +24,34 @@ func ReadMessage(reader io.Reader) (Message, error) {
 	result := readHeader(header)
 
 	if result.IsFragment() {
-
 		// the first part of a fragmented message is only a header indicating the total length of
 		// the defragmented message
-		if result.IsFirstFragment() {
-			// put in the header as bytes here
-			result.fragmentBytes = header
-			return result, nil
+		if !result.IsFirstFragment() {
+			return Message{}, NewOutOfSync(fmt.Sprintf("Wrong Fragment Index: %d/%d", result.FragmentIndex, result.Fragments))
 		}
-		// 32 offset is correct, the binary starts with a payload header
-		messageBytes := make([]byte, result.MessageLength)
-		_, err := io.ReadFull(reader, messageBytes)
-		if err != nil {
-			return Message{}, err
+
+		// Read all fragments and merge payloads under result.fragmentBytes
+		for i := 1; i < int(result.Fragments); i++ {
+			h := make([]byte, 32)
+			_, err := io.ReadFull(reader, h)
+			if err != nil {
+				return Message{}, err
+			}
+			if binary.BigEndian.Uint32(h) != DtxMessageMagic {
+				return Message{}, NewOutOfSync(fmt.Sprintf("Wrong Magic: %x", h[0:4]))
+			}
+			res := readHeader(h)
+			messageBytes := make([]byte, res.MessageLength)
+			_, err = io.ReadFull(reader, messageBytes)
+			if err != nil {
+				return Message{}, err
+			}
+
+			result.fragmentBytes = append(result.fragmentBytes, messageBytes...)
 		}
-		result.fragmentBytes = messageBytes
-		return result, nil
+
+		// Replace top level reader with a new one, repeating merged payload bytes for a proper parse
+		reader = bytes.NewReader(result.fragmentBytes)
 	}
 
 	payloadHeaderBytes := make([]byte, 16)
@@ -195,7 +207,7 @@ func parseAuxiliaryHeader(headerBytes []byte) (AuxiliaryHeader, error) {
 
 func parsePayloadHeader(messageBytes []byte) (PayloadHeader, error) {
 	result := PayloadHeader{}
-	result.MessageType = int(binary.LittleEndian.Uint32(messageBytes))
+	result.MessageType = MessageType(binary.LittleEndian.Uint32(messageBytes))
 	result.AuxiliaryLength = int(binary.LittleEndian.Uint32(messageBytes[4:]))
 	result.TotalPayloadLength = int(binary.LittleEndian.Uint32(messageBytes[8:]))
 	result.Flags = int(binary.LittleEndian.Uint32(messageBytes[12:]))

@@ -3,6 +3,7 @@ package dtx
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 const (
@@ -50,10 +51,14 @@ type Message struct {
 
 // PayloadHeader contains the message type and Payload length
 type PayloadHeader struct {
-	MessageType        int
+	MessageType        MessageType
 	AuxiliaryLength    int
 	TotalPayloadLength int
 	Flags              int
+}
+
+func (p PayloadHeader) String() string {
+	return fmt.Sprintf("[PayloadHeader MessageType: %s AuxilaryLength: %d, TotalPayloadLength: %d, Flags 0x%X]", p.MessageType, p.AuxiliaryLength, p.TotalPayloadLength, p.Flags)
 }
 
 // The AuxiliaryHeader can actually be completely ignored. We do not need to care about the buffer size
@@ -66,23 +71,32 @@ type AuxiliaryHeader struct {
 	Unknown2      uint32
 }
 
+type MessageType int
+
+func (m MessageType) String() string {
+	if s, ok := messageTypeLookup[m]; ok {
+		return s
+	}
+	return fmt.Sprintf("unknown type %d", m)
+}
+
 // All the known MessageTypes
 const (
 	// Ack is the messagetype for a 16 byte long acknowleding DtxMessage.
-	Ack = 0x0
+	Ack MessageType = 0x0
 	// Unknown
-	UnknownTypeOne = 0x1
+	UnknownTypeOne MessageType = 0x1
 	// Methodinvocation is the messagetype for a remote procedure call style DtxMessage.
-	Methodinvocation = 0x2
+	Methodinvocation MessageType = 0x2
 	// ResponseWithReturnValueInPayload is the response for a method call that has a return value
-	ResponseWithReturnValueInPayload = 0x3
+	ResponseWithReturnValueInPayload MessageType = 0x3
 	// DtxTypeError is the messagetype for a DtxMessage containing an error
-	DtxTypeError         = 0x4
-	LZ4CompressedMessage = 0x0707
+	DtxTypeError         MessageType = 0x4
+	LZ4CompressedMessage MessageType = 0x0707
 )
 
 // This is only used for creating nice String() output
-var messageTypeLookup = map[int]string{
+var messageTypeLookup = map[MessageType]string{
 	ResponseWithReturnValueInPayload: `ResponseWithReturnValueInPayload`,
 	Methodinvocation:                 `Methodinvocation`,
 	Ack:                              `Ack`,
@@ -107,18 +121,20 @@ func (d Message) String() string {
 
 // StringDebug prints the Message and its Payload/Auxiliary
 func (d Message) StringDebug() string {
-	if Ack == d.PayloadHeader.MessageType {
-		return d.String()
-	}
-	payload := "none"
+	blocks := make([]string, 0, 4)
+
+	blocks = append(blocks, fmt.Sprintf("[MessageHeader ChannelCode: %d Identifier: %d ConversationIndex %d]", d.ChannelCode, d.Identifier, d.ConversationIndex))
+	blocks = append(blocks, d.PayloadHeader.String())
 	if d.HasPayload() {
 		b, _ := json.Marshal(d.Payload[0])
-		payload = string(b)
+		blocks = append(blocks, fmt.Sprintf("[Payload: %s]", string(b)))
 	}
 	if d.HasAuxiliary() {
-		return fmt.Sprintf("auxheader:%s\naux:%s\npayload: %s \nrawbytes:%x", d.AuxiliaryHeader, d.Auxiliary.String(), payload, d.RawBytes)
+		blocks = append(blocks, d.AuxiliaryHeader.String())
+		blocks = append(blocks, d.Auxiliary.String())
+
 	}
-	return fmt.Sprintf("no aux,payload: %s \nrawbytes:%x", payload, d.RawBytes)
+	return strings.Join(blocks, ", ")
 }
 
 // HasError returns true when the MessageType in this message's PayloadHeader equals 0x4 and false otherwise.
