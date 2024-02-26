@@ -559,11 +559,6 @@ The commands work as following:
 	b, _ = arguments.Bool("info")
 	if b {
 		if display, _ := arguments.Bool("display"); display {
-			if address == "" || rsdPort == 0 {
-				log.Fatal("Please provide --address and --rsd-port to retreive display information")
-				return
-			}
-
 			deviceInfo, err := deviceinfo.NewDeviceInfo(device)
 			exitIfError("Can't connect to deviceinfo service", err)
 			defer deviceInfo.Close()
