@@ -11,7 +11,13 @@ import (
 // Primitives will be extracted just like regular Plist primitives (string, float64, int64, []uint8 etc.).
 // NSArray, NSMutableArray, NSSet and NSMutableSet will transformed into []interface{}
 // NSDictionary and NSMutableDictionary will be transformed into map[string] interface{}. I might add non string keys later.
-func Unarchive(xml []byte) ([]interface{}, error) {
+func Unarchive(xml []byte) (result []interface{}, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("Unarchive: %s", r)
+		}
+	}()
+
 	SetupDecoders()
 	plist, err := plistFromBytes(xml)
 	if err != nil {

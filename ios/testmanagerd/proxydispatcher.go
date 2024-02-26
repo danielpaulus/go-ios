@@ -1,6 +1,7 @@
 package testmanagerd
 
 import (
+	"fmt"
 	"strings"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -17,6 +18,13 @@ type proxyDispatcher struct {
 }
 
 func (p proxyDispatcher) Dispatch(m dtx.Message) {
+	defer func() {
+		if r := recover(); r != nil {
+			p.testListener.err = fmt.Errorf("Dispatch: %s", r)
+			p.testListener.TestRunnerKilled()
+		}
+	}()
+
 	shouldAck := true
 	if len(m.Payload) == 1 {
 		method := m.Payload[0].(string)
