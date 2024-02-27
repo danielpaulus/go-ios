@@ -24,7 +24,6 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		if r := recover(); r != nil {
 			stacktrace := string(debug.Stack())
 			dispatcher.testListener.err = fmt.Errorf("Dispatch: %s\n%s", r, stacktrace)
-			dispatcher.testListener.TestRunnerKilled()
 		}
 	}()
 
