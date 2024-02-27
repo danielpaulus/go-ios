@@ -27,7 +27,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		}
 	}()
 
-	var decoderErr *error
+	var decoderErr error
 	shouldAck := true
 	if len(m.Payload) == 1 {
 		method := m.Payload[0].(string)
@@ -61,7 +61,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_initializationForUITestingDidFailWithError:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 1)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -74,7 +74,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_didFailToBootstrapWithError:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 1)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -86,7 +86,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_logMessage:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 1)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -97,7 +97,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_logDebugMessage:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 1)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -115,7 +115,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testCase:method:didFinishActivity:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 3)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -136,7 +136,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testCaseWithIdentifier:didFinishActivity:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 2)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -153,7 +153,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testCase:method:didStallOnMainThreadInFile:line:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 4)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -182,7 +182,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testCaseDidFailForTestClass:method:withMessage:file:line:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 5)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -211,7 +211,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testCaseWithIdentifier:didRecordIssue:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 2)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -228,7 +228,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testCaseDidFinishForTestClass:method:withStatus:duration:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 4)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -253,7 +253,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testCaseWithIdentifier:didFinishWithStatus:duration:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 3)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -274,7 +274,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testCaseDidStartForTestClass:method:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 2)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -291,7 +291,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testCaseDidStartWithIdentifier:testCaseRunConfiguration:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 2)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -306,7 +306,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testSuite:didFinishAt:runCount:withFailures:unexpected:testDuration:totalDuration:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 7)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -354,7 +354,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testSuiteWithIdentifier:didFinishAt:runCount:skipCount:failureCount:expectedFailureCount:uncaughtExceptionCount:testDuration:totalDuration:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 9)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -412,7 +412,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testSuite:didStartAt:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 2)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -429,7 +429,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 		case "_XCT_testSuiteWithIdentifier:didStartAt:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 2)
 			if argumentLengthErr != nil {
-				decoderErr = &argumentLengthErr
+				decoderErr = argumentLengthErr
 				break
 			}
 
@@ -451,7 +451,7 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 	}
 
 	if decoderErr != nil {
-		dispatcher.testListener.err = *decoderErr
+		dispatcher.testListener.err = decoderErr
 	}
 
 	if shouldAck {
