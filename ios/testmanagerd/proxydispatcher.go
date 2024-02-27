@@ -2,6 +2,7 @@ package testmanagerd
 
 import (
 	"fmt"
+	"runtime/debug"
 	"strings"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -18,10 +19,12 @@ type proxyDispatcher struct {
 }
 
 func (p proxyDispatcher) Dispatch(m dtx.Message) {
+	var dispatcher = &p
 	defer func() {
 		if r := recover(); r != nil {
-			p.testListener.err = fmt.Errorf("Dispatch: %s", r)
-			p.testListener.TestRunnerKilled()
+			stacktrace := string(debug.Stack())
+			dispatcher.testListener.err = fmt.Errorf("Dispatch: %s\n%s", r, stacktrace)
+			dispatcher.testListener.TestRunnerKilled()
 		}
 	}()
 

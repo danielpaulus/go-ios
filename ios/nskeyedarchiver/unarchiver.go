@@ -2,6 +2,7 @@ package nskeyedarchiver
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -14,7 +15,8 @@ import (
 func Unarchive(xml []byte) (result []interface{}, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("Unarchive: %s", r)
+			stacktrace := string(debug.Stack())
+			err = fmt.Errorf("Unarchive: %s\n%s", r, stacktrace)
 		}
 	}()
 
