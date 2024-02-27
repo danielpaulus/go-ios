@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios/debugproxy"
+	"github.com/danielpaulus/go-ios/ios/deviceinfo"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 
 	"github.com/danielpaulus/go-ios/ios/amfi"
@@ -70,7 +71,7 @@ Usage:
   ios activate [options]
   ios listen [options]
   ios list [options] [--details]
-  ios info [options]
+  ios info [display | lockdown] [options]
   ios image list [options]
   ios image mount [--path=<imagepath>] [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
@@ -152,7 +153,7 @@ The commands work as following:
    ios activate [options]                                             Activate a device
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
-   ios info [options]                                                 Prints a dump of Lockdown getValues.
+   ios info [display | lockdown] [options]                            Prints a dump of device information from the given source.
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
    >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk 
@@ -557,7 +558,22 @@ The commands work as following:
 
 	b, _ = arguments.Bool("info")
 	if b {
-		printDeviceInfo(device)
+		if display, _ := arguments.Bool("display"); display {
+			deviceInfo, err := deviceinfo.NewDeviceInfo(device)
+			exitIfError("Can't connect to deviceinfo service", err)
+			defer deviceInfo.Close()
+
+			info, err := deviceInfo.GetDisplayInfo()
+			exitIfError("Can't fetch dispaly info", err)
+
+			fmt.Println(convertToJSONString(info))
+		} else if lockdown, _ := arguments.Bool("lockdown"); lockdown {
+			printDeviceInfo(device)
+		} else {
+			// When subcommand is missing, it defaults to lockdown.
+			// Unknown subcommands don't reach this line and quit early.
+			printDeviceInfo(device)
+		}
 		return
 	}
 
