@@ -1,6 +1,7 @@
 package dtx
 
 import (
+	"encoding/json"
 	"io"
 	"math"
 	"strings"
@@ -84,6 +85,15 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 				}).Info("outputReceived:fromProcess:atTime:")
 			}
 			return
+		}
+	}
+	// network
+	v := msg.Payload[0]
+	if s, ok := v.([]interface{}); ok && len(s) == 2 {
+		_type := s[0].(uint64)
+		if _type == 2 {
+			s1, _ := json.Marshal(s[1])
+			println("network:" + string(s1))
 		}
 	}
 	log.Tracef("Global Dispatcher Received: %s %s", msg.Payload, msg.Auxiliary)
