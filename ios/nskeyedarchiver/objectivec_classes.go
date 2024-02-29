@@ -10,6 +10,12 @@ import (
 	"howett.net/plist"
 )
 
+const (
+	attachmentLifetimeKeepAlways      = 0
+	attachmentLifetimeDeleteOnSuccess = 1
+	attachmentLifetimeDeleteAlways    = 2
+)
+
 var (
 	decodableClasses map[string]func(map[string]interface{}, []interface{}) interface{}
 	encodableClasses map[string]func(object interface{}, objects []interface{}) ([]interface{}, plist.UID)
@@ -117,7 +123,7 @@ func NewXCTestConfiguration(
 	contents["reportActivities"] = true
 	contents["reportResultsToIDE"] = true
 	contents["sessionIdentifier"] = NewNSUUID(sessionIdentifier)
-	contents["systemAttachmentLifetime"] = 0
+	contents["systemAttachmentLifetime"] = attachmentLifetimeDeleteAlways
 	// contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
 	contents["targetApplicationBundleID"] = targetApplicationBundleID
 	// contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
@@ -131,7 +137,7 @@ func NewXCTestConfiguration(
 	contents["testsMustRunOnMainThread"] = true
 	contents["testTimeoutsEnabled"] = false
 	contents["treatMissingBaselinesAsFailures"] = false
-	contents["userAttachmentLifetime"] = 0
+	contents["userAttachmentLifetime"] = attachmentLifetimeKeepAlways
 	contents["preferredScreenCaptureFormat"] = 2
 	contents["IDECapabilities"] = XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
 		"expected failure test capability":         true,
