@@ -117,7 +117,7 @@ func NewXCTestConfiguration(
 	contents["reportActivities"] = true
 	contents["reportResultsToIDE"] = true
 	contents["sessionIdentifier"] = NewNSUUID(sessionIdentifier)
-	contents["systemAttachmentLifetime"] = 0
+	contents["systemAttachmentLifetime"] = 2
 	// contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
 	contents["targetApplicationBundleID"] = targetApplicationBundleID
 	// contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
