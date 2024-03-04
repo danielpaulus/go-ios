@@ -3,7 +3,6 @@ package nskeyedarchiver
 import (
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -166,39 +165,39 @@ func NewXCTestConfiguration(
 }
 
 func createTestIdentifierSet(productModuleName string, tests []string) XCTTestIdentifierSet {
+	exp := regexp.MustCompile(`((?P<module>[^#]+)#)?(?P<class>[^\.]+)(\.(?P<method>[^\.]+))?`)
 	testsIdentifiersConfig := make([]XCTTestIdentifier, 0, len(tests))
 	for _, t := range tests {
-		re := regexp.MustCompile("[./]")
-		splitTest := re.Split(t, -1)
 
-		if len(splitTest) > 1 {
-			classIndex := 0
-			if len(splitTest) > 2 {
-				classIndex = len(splitTest) - 2
+		match := exp.FindStringSubmatch(t)
+		result := make(map[string]string)
+		for i, name := range exp.SubexpNames() {
+			if i != 0 && name != "" {
+				result[name] = match[i]
 			}
-
-			testClass := strings.Join(splitTest[0:classIndex+1], ".")
-			testName := splitTest[classIndex+1]
-			C := make([]string, 0, 2)
-			C = append(C, testClass)
-			C = append(C, testName)
-
-			identifier := XCTTestIdentifier{
-				C: C,
-				O: 6,
-			}
-			testsIdentifiersConfig = append(testsIdentifiersConfig, identifier)
-		} else {
-			testClass := splitTest[0]
-			C := make([]string, 0, 1)
-			C = append(C, testClass)
-
-			identifier := XCTTestIdentifier{
-				C: C,
-				O: 3,
-			}
-			testsIdentifiersConfig = append(testsIdentifiersConfig, identifier)
 		}
+
+		components := make([]string, 0, 3)
+
+		module := result["module"]
+		class := result["class"]
+		method := result["method"]
+
+		options := uint64(3)
+		if len(module) > 0 {
+			class = fmt.Sprintf("%s.%s", productModuleName, class)
+		}
+		components = append(components, class)
+		if len(method) > 0 {
+			options = 6
+			components = append(components, method)
+		}
+
+		testsIdentifiersConfig = append(testsIdentifiersConfig, XCTTestIdentifier{
+			O: options,
+			C: components,
+		})
+
 	}
 
 	testArray := NSMutableArray{
