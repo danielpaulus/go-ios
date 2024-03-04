@@ -217,8 +217,9 @@ The commands work as following:
    ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config. 
-   																	  If you provide '-' as log output, it prints resuts to stdout.
-																	  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=(TestTarget#)TestClass.foo --test-to-run=(TestTarget#)TestClass.bar (the value for 'TestTarget' is optional)
+   >                                                                  If you provide '-' as log output, it prints resuts to stdout.
+   >                                                                  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=(TestTarget.)TestClass/testMethod --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
+   >                                                                  The method name can also be omitted and in this case all tests of the specified class are run
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [options]                                                   Access accessibility inspector features.

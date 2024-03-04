@@ -20,6 +20,8 @@ var (
 	encodableClasses map[string]func(object interface{}, objects []interface{}) ([]interface{}, plist.UID)
 )
 
+var testIdentifierRegex = regexp.MustCompile(`((?P<module>[^\.]+)\.)?(?P<class>[^\/]+)(\/(?P<method>[^\.]+))?`)
+
 func SetupDecoders() {
 	if decodableClasses == nil {
 		decodableClasses = map[string]func(map[string]interface{}, []interface{}) interface{}{
@@ -165,29 +167,27 @@ func NewXCTestConfiguration(
 }
 
 func createTestIdentifierSet(productModuleName string, tests []string) XCTTestIdentifierSet {
-	exp := regexp.MustCompile(`((?P<module>[^#]+)#)?(?P<class>[^\.]+)(\.(?P<method>[^\.]+))?`)
 	testsIdentifiersConfig := make([]XCTTestIdentifier, 0, len(tests))
 	for _, t := range tests {
-
-		match := exp.FindStringSubmatch(t)
-		result := make(map[string]string)
-		for i, name := range exp.SubexpNames() {
+		match := testIdentifierRegex.FindStringSubmatch(t)
+		matchedGroups := make(map[string]string)
+		for i, name := range testIdentifierRegex.SubexpNames() {
 			if i != 0 && name != "" {
-				result[name] = match[i]
+				matchedGroups[name] = match[i]
 			}
 		}
 
 		components := make([]string, 0, 3)
 
-		module := result["module"]
-		class := result["class"]
-		method := result["method"]
+		module := matchedGroups["module"]
+		clazz := matchedGroups["class"]
+		method := matchedGroups["method"]
 
 		options := uint64(3)
 		if len(module) > 0 {
-			class = fmt.Sprintf("%s.%s", productModuleName, class)
+			clazz = fmt.Sprintf("%s.%s", productModuleName, clazz)
 		}
-		components = append(components, class)
+		components = append(components, clazz)
 		if len(method) > 0 {
 			options = 6
 			components = append(components, method)
