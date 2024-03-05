@@ -137,7 +137,7 @@ func (d *Channel) Dispatch(msg Message) {
 		}
 	}
 	d.mutex.Unlock()
-	if msg.ConversationIndex > 0 {
+	if msg.ConversationIndex > 0 || msg.IsFragment() {
 		d.mutex.Lock()
 		defer d.mutex.Unlock()
 		if msg.IsFirstFragment() {
@@ -155,14 +155,19 @@ func (d *Channel) Dispatch(msg Message) {
 						log.Error("Decoding fragmented message failed")
 					}
 					if err != nil {
-						log.Error("decoding framente")
+						log.Error("Decoding fragment")
 					}
-					d.responseWaiters[msg.Identifier] <- msg
+
+					if msg.ConversationIndex > 0 {
+						d.responseWaiters[msg.Identifier] <- msg
+					} else {
+						d.messageDispatcher.Dispatch(msg)
+					}
 					delete(d.responseWaiters, msg.Identifier)
 				}
 				return
 			}
-			log.Warn("received message fragment without first message, dropping it")
+			log.Warn("Received message fragment without first message, dropping it")
 			delete(d.responseWaiters, msg.Identifier)
 			return
 		}
