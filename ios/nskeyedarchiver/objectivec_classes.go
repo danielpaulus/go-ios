@@ -108,6 +108,15 @@ func NewXCTestConfiguration(
 		testIdentifiersToSkipEntry = createTestIdentifierSet(productModuleName, testsToSkip)
 	}
 
+	var appUnderTestExists = targetApplicationPath != "" && targetApplicationBundleID != ""
+	if appUnderTestExists {
+		contents["productModuleName"] = productModuleName
+		// contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
+		contents["targetApplicationBundleID"] = targetApplicationBundleID
+		// contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
+		contents["targetApplicationPath"] = targetApplicationPath
+	}
+
 	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
 	contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
 	contents["baselineFileRelativePath"] = plist.UID(0)
@@ -119,16 +128,11 @@ func NewXCTestConfiguration(
 	contents["gatherLocalizableStringsData"] = false
 	contents["initializeForUITesting"] = true
 	contents["maximumTestExecutionTimeAllowance"] = plist.UID(0)
-	contents["productModuleName"] = productModuleName
 	contents["randomExecutionOrderingSeed"] = plist.UID(0)
 	contents["reportActivities"] = true
 	contents["reportResultsToIDE"] = true
 	contents["sessionIdentifier"] = NewNSUUID(sessionIdentifier)
 	contents["systemAttachmentLifetime"] = attachmentLifetimeDeleteAlways
-	// contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
-	contents["targetApplicationBundleID"] = targetApplicationBundleID
-	// contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
-	contents["targetApplicationPath"] = targetApplicationPath
 	// testApplicationDependencies
 	contents["testApplicationUserOverrides"] = plist.UID(0)
 	contents["testBundleRelativePath"] = plist.UID(0)

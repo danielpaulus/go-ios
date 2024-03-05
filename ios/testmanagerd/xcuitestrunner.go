@@ -236,7 +236,7 @@ func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName st
 	}
 	info, err := getAppInfos(bundleID, testRunnerBundleID, apps)
 	if err != nil {
-		return make([]TestSuite, 0), fmt.Errorf("RunXCUITest: cannot get app information: %w", err)
+		bundleID = ""
 	}
 
 	if xctestConfigName == "" {
@@ -535,7 +535,7 @@ func getAppInfos(bundleID string, testRunnerBundleID string, apps []installation
 		}
 	}
 
-	if info.targetAppPath == "" {
+	if info.targetAppPath == "" && bundleID != "" {
 		return testInfo{}, fmt.Errorf("Did not find AppInfo for '%s' on device. Is it installed?", bundleID)
 	}
 	if info.testRunnerHomePath == "" || info.testrunnerAppPath == "" {
