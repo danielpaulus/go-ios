@@ -112,7 +112,7 @@ func connectToTunnel(ctx context.Context, info tunnelListener, addr string, devi
 		return Tunnel{}, err
 	}
 
-	err = conn.SendDatagram(make([]byte, 1))
+	err = conn.SendDatagram(make([]byte, 1024))
 	if err != nil {
 		return Tunnel{}, err
 	}
@@ -176,7 +176,7 @@ func setupTunnelInterface(err error, tunnelInfo tunnelParameters) (*water.Interf
 	// smaller packets. If we use a larger number here, the QUIC tunnel won't send the packets properly
 	// This is only necessary on MacOS, on Linux we can't set the MTU to a value less than 1280 (minimum for IPv6)
 	if runtime.GOOS == "darwin" {
-		ifceMtu := tunnelInfo.ClientParameters.Mtu - 78
+		ifceMtu := 1202
 		setMtu := exec.Command("ifconfig", ifce.Name(), "mtu", fmt.Sprintf("%d", ifceMtu), "up")
 		err = runCmd(setMtu)
 		if err != nil {
