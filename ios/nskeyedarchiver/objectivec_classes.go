@@ -3,17 +3,24 @@ package nskeyedarchiver
 import (
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"howett.net/plist"
 )
 
+const (
+	attachmentLifetimeKeepAlways      = 0
+	attachmentLifetimeDeleteOnSuccess = 1
+	attachmentLifetimeDeleteAlways    = 2
+)
+
 var (
 	decodableClasses map[string]func(map[string]interface{}, []interface{}) interface{}
 	encodableClasses map[string]func(object interface{}, objects []interface{}) ([]interface{}, plist.UID)
 )
+
+var testIdentifierRegex = regexp.MustCompile(`((?P<module>[^\.]+)\.)?(?P<class>[^\/]+)(\/(?P<method>[^\.]+))?`)
 
 func SetupDecoders() {
 	if decodableClasses == nil {
@@ -117,7 +124,7 @@ func NewXCTestConfiguration(
 	contents["reportActivities"] = true
 	contents["reportResultsToIDE"] = true
 	contents["sessionIdentifier"] = NewNSUUID(sessionIdentifier)
-	contents["systemAttachmentLifetime"] = 0
+	contents["systemAttachmentLifetime"] = attachmentLifetimeDeleteAlways
 	// contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
 	contents["targetApplicationBundleID"] = targetApplicationBundleID
 	// contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
@@ -131,7 +138,7 @@ func NewXCTestConfiguration(
 	contents["testsMustRunOnMainThread"] = true
 	contents["testTimeoutsEnabled"] = false
 	contents["treatMissingBaselinesAsFailures"] = false
-	contents["userAttachmentLifetime"] = 0
+	contents["userAttachmentLifetime"] = attachmentLifetimeKeepAlways
 	contents["preferredScreenCaptureFormat"] = 2
 	contents["IDECapabilities"] = XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
 		"expected failure test capability":         true,
@@ -162,37 +169,35 @@ func NewXCTestConfiguration(
 func createTestIdentifierSet(productModuleName string, tests []string) XCTTestIdentifierSet {
 	testsIdentifiersConfig := make([]XCTTestIdentifier, 0, len(tests))
 	for _, t := range tests {
-		re := regexp.MustCompile("[./]")
-		splitTest := re.Split(t, -1)
-
-		if len(splitTest) > 1 {
-			classIndex := 0
-			if len(splitTest) > 2 {
-				classIndex = len(splitTest) - 2
+		match := testIdentifierRegex.FindStringSubmatch(t)
+		matchedGroups := make(map[string]string)
+		for i, name := range testIdentifierRegex.SubexpNames() {
+			if i != 0 && name != "" {
+				matchedGroups[name] = match[i]
 			}
-
-			testClass := strings.Join(splitTest[0:classIndex+1], ".")
-			testName := splitTest[classIndex+1]
-			C := make([]string, 0, 2)
-			C = append(C, testClass)
-			C = append(C, testName)
-
-			identifier := XCTTestIdentifier{
-				C: C,
-				O: 6,
-			}
-			testsIdentifiersConfig = append(testsIdentifiersConfig, identifier)
-		} else {
-			testClass := splitTest[0]
-			C := make([]string, 0, 1)
-			C = append(C, testClass)
-
-			identifier := XCTTestIdentifier{
-				C: C,
-				O: 3,
-			}
-			testsIdentifiersConfig = append(testsIdentifiersConfig, identifier)
 		}
+
+		components := make([]string, 0, 3)
+
+		module := matchedGroups["module"]
+		clazz := matchedGroups["class"]
+		method := matchedGroups["method"]
+
+		options := uint64(3)
+		if len(module) > 0 {
+			clazz = fmt.Sprintf("%s.%s", productModuleName, clazz)
+		}
+		components = append(components, clazz)
+		if len(method) > 0 {
+			options = 6
+			components = append(components, method)
+		}
+
+		testsIdentifiersConfig = append(testsIdentifiersConfig, XCTTestIdentifier{
+			O: options,
+			C: components,
+		})
+
 	}
 
 	testArray := NSMutableArray{
