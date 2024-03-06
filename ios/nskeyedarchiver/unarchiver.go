@@ -2,6 +2,7 @@ package nskeyedarchiver
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
@@ -11,7 +12,14 @@ import (
 // Primitives will be extracted just like regular Plist primitives (string, float64, int64, []uint8 etc.).
 // NSArray, NSMutableArray, NSSet and NSMutableSet will transformed into []interface{}
 // NSDictionary and NSMutableDictionary will be transformed into map[string] interface{}. I might add non string keys later.
-func Unarchive(xml []byte) ([]interface{}, error) {
+func Unarchive(xml []byte) (result []interface{}, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			stacktrace := string(debug.Stack())
+			err = fmt.Errorf("Unarchive: %s\n%s", r, stacktrace)
+		}
+	}()
+
 	SetupDecoders()
 	plist, err := plistFromBytes(xml)
 	if err != nil {

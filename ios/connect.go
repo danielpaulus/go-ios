@@ -104,9 +104,32 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	return muxConn.ReleaseDeviceConnection(), nil
 }
 
+// ConnectToShimService opens a new connection of the tunnel interface of the provided device
+// to the provided service.
+// The 'RSDCheckin' required by shim services is also executed before returning the connection to the caller
+func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionInterface, error) {
+	if device.Rsd == nil {
+		return nil, fmt.Errorf("ConnectToShimService: Cannot connect to %s, missing tunnel address and RSD port.  To start the tunnel, run `ios tunnel start`", service)
+	}
+
+	port := device.Rsd.GetPort(service)
+	conn, err := connectToTunnel(device, port)
+	if err != nil {
+		return nil, err
+	}
+	err = RsdCheckin(conn)
+	if err != nil {
+		return nil, err
+	}
+	return NewDeviceConnectionWithConn(conn), nil
+}
+
 // ConnectToServiceTunnelIface connects to a service on an iOS17+ device using a XPC over HTTP2 connection
 // It returns a new xpc.Connection
 func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
+	if device.Rsd == nil {
+		return nil, fmt.Errorf("ConnectToXpcServiceTunnelIface: Cannot connect to %s, missing tunnel address and RSD port. To start the tunnel, run `ios tunnel start`", serviceName)
+	}
 	port := device.Rsd.GetPort(serviceName)
 
 	h, err := ConnectToHttp2(device, port)
@@ -117,6 +140,9 @@ func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xp
 }
 
 func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
+	if device.Rsd == nil {
+		return nil, fmt.Errorf("ConnectToServiceTunnelIface: Cannot connect to %s, missing tunnel address and RSD port", serviceName)
+	}
 	port := device.Rsd.GetPort(serviceName)
 
 	conn, err := connectToTunnel(device, port)
