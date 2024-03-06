@@ -58,7 +58,7 @@ func runXCUIWithBundleIdsXcode11Ctx(
 	}
 	defer pControl.Close()
 
-	pid, err := startTestRunner11(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testrunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
+	pid, err := startTestRunner11(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testApp.testRunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot start the test runner: %w", err)
 	}
