@@ -52,9 +52,9 @@ type Message struct {
 // PayloadHeader contains the message type and Payload length
 type PayloadHeader struct {
 	MessageType        MessageType
-	AuxiliaryLength    int
-	TotalPayloadLength int
-	Flags              int
+	AuxiliaryLength    uint32
+	TotalPayloadLength uint32
+	Flags              uint32
 }
 
 func (p PayloadHeader) String() string {
@@ -71,7 +71,7 @@ type AuxiliaryHeader struct {
 	Unknown2      uint32
 }
 
-type MessageType int
+type MessageType uint32
 
 func (m MessageType) String() string {
 	if s, ok := messageTypeLookup[m]; ok {
