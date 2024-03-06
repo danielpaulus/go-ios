@@ -74,8 +74,8 @@ func writeHeader(messageBytes []byte, messageLength uint32, Identifier int, Conv
 	binary.LittleEndian.PutUint32(messageBytes[28:], expectsReplyUint32)
 }
 
-func writePayloadHeader(messageBytes []byte, MessageType MessageType, payloadLength int, auxLength int) {
-	binary.LittleEndian.PutUint32(messageBytes, uint32(MessageType))
+func writePayloadHeader(messageBytes []byte, messageType MessageType, payloadLength int, auxLength int) {
+	binary.LittleEndian.PutUint32(messageBytes, uint32(messageType))
 	auxLengthWithHeader := uint32(auxLength)
 	if auxLength > 0 {
 		auxLengthWithHeader += 16
