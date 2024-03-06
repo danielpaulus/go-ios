@@ -111,9 +111,7 @@ func NewXCTestConfiguration(
 	var appUnderTestExists = targetApplicationPath != "" && targetApplicationBundleID != ""
 	if appUnderTestExists {
 		contents["productModuleName"] = productModuleName
-		// contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
 		contents["targetApplicationBundleID"] = targetApplicationBundleID
-		// contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
 		contents["targetApplicationPath"] = targetApplicationPath
 	}
 
