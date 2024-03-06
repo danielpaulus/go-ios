@@ -44,8 +44,10 @@ func SetupDecoders() {
 			"DTTapMessage":              NewDTTapMessage,
 			"DTCPUClusterInfo":          NewDTCPUClusterInfo,
 			"XCTIssue":                  NewXCTIssue,
+			"XCTMutableIssue":           NewXCTIssue,
 			"XCTSourceCodeContext":      NewXCTSourceCodeContext,
 			"XCTSourceCodeLocation":     NewXCTSourceCodeLocation,
+			"NSMutableData":             NewNSMutableData,
 		}
 	}
 }
@@ -317,10 +319,12 @@ func NewXCTAttachment(object map[string]interface{}, objects []interface{}) inte
 	lifetime := object["lifetime"].(uint64)
 	uniformTypeIdentifier := objects[object["uniformTypeIdentifier"].(plist.UID)].(string)
 	fileNameOverride := objects[object["fileNameOverride"].(plist.UID)].(string)
-	payload := objects[object["payload"].(plist.UID)].([]uint8)
 	timestamp := objects[object["timestamp"].(plist.UID)].(float64)
 	name := objects[object["name"].(plist.UID)].(string)
 	userInfo, _ := extractDictionary(objects[object["userInfo"].(plist.UID)].(map[string]interface{}), objects)
+
+	payloadRaw := objects[object["payload"].(plist.UID)]
+	payload := extractAttachmentPayload(payloadRaw, objects)
 
 	return XCTAttachment{
 		lifetime:              lifetime,
@@ -331,6 +335,26 @@ func NewXCTAttachment(object map[string]interface{}, objects []interface{}) inte
 		Name:                  name,
 		userInfo:              userInfo,
 	}
+}
+
+func extractAttachmentPayload(payloadRaw interface{}, objects []interface{}) []uint8 {
+	payload, byteSliceOk := payloadRaw.([]uint8)
+	if !byteSliceOk {
+		mapPayload, mapOk := payloadRaw.(map[string]interface{})
+		if mapOk {
+			payloadClassMap, classOk := objects[mapPayload["$class"].(plist.UID)].(map[string]interface{})
+			if classOk {
+				payloadClass := payloadClassMap["$classname"]
+				if payloadClass == "NSMutableData" || payloadClass == "NSData" {
+					payload = NewNSMutableData(mapPayload, objects).([]uint8)
+				}
+			}
+		} else {
+			payload = make([]uint8, 0)
+		}
+	}
+
+	return payload
 }
 
 func NewNSUUIDFromBytes(object map[string]interface{}, objects []interface{}) interface{} {
@@ -701,6 +725,15 @@ func NewXCTIssue(object map[string]interface{}, objects []interface{}) interface
 	sourceCodeContext := NewXCTSourceCodeContext(objects[sourceCodeContextRef].(map[string]interface{}), objects).(XCTSourceCodeContext)
 
 	return XCTIssue{RuntimeIssueSeverity: runtimeIssueSeverity, DetailedDescription: detailedDescription, CompactDescription: compactDescription, SourceCodeContext: sourceCodeContext}
+}
+
+func NewNSMutableData(object map[string]interface{}, objects []interface{}) interface{} {
+	data, ok := object["NS.data"].([]uint8)
+	if ok {
+		return data
+	}
+
+	return make([]uint8, 0)
 }
 
 type XCTSourceCodeContext struct {

@@ -208,10 +208,10 @@ func TestDecoder(t *testing.T) {
 		assert.Equal(t, 2, msg.Identifier)
 		assert.Equal(t, 0, msg.ChannelCode)
 
-		assert.Equal(t, 2, msg.PayloadHeader.MessageType)
-		assert.Equal(t, 425, msg.PayloadHeader.AuxiliaryLength)
-		assert.Equal(t, 596, msg.PayloadHeader.TotalPayloadLength)
-		assert.Equal(t, 0, msg.PayloadHeader.Flags)
+		assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
+		assert.Equal(t, uint32(425), msg.PayloadHeader.AuxiliaryLength)
+		assert.Equal(t, uint32(596), msg.PayloadHeader.TotalPayloadLength)
+		assert.Equal(t, uint32(0), msg.PayloadHeader.Flags)
 
 	}
 
@@ -226,10 +226,10 @@ func TestDecoder(t *testing.T) {
 		assert.Equal(t, 2, msg.Identifier)
 		assert.Equal(t, 0, msg.ChannelCode)
 
-		assert.Equal(t, 2, msg.PayloadHeader.MessageType)
-		assert.Equal(t, 425, msg.PayloadHeader.AuxiliaryLength)
-		assert.Equal(t, 596, msg.PayloadHeader.TotalPayloadLength)
-		assert.Equal(t, 0, msg.PayloadHeader.Flags)
+		assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
+		assert.Equal(t, uint32(425), msg.PayloadHeader.AuxiliaryLength)
+		assert.Equal(t, uint32(596), msg.PayloadHeader.TotalPayloadLength)
+		assert.Equal(t, uint32(0), msg.PayloadHeader.Flags)
 
 	}
 }
