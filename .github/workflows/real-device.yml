@@ -2,13 +2,13 @@ on:
   workflow_dispatch:
     inputs:
       ngrok:
-        description: 'ngrok host:port'
+        description: "ngrok host:port"
         required: true
-        default: ''
+        default: ""
       udid:
-        description: 'device udid'
+        description: "device udid"
         required: true
-        default: ''
+        default: ""
 # run this locally to get a device exposed on ngrok
 # ngrok tcp 9999
 # socat TCP-LISTEN:9999,reuseaddr,fork UNIX-CONNECT:/var/run/usbmuxd
@@ -18,7 +18,8 @@ jobs:
   sign_app_on_mac:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
       - name: create profile
         run: |
           echo "$P12_FILE" | base64 --decode > testdata/test1.p12
@@ -53,16 +54,16 @@ jobs:
     env:
       UDID: ${{ github.event.inputs.udid }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
 
       - name: compile
         run: go build
+
       - name: Download mac signed wda from previous job
         uses: actions/download-artifact@v3
         with:
@@ -95,13 +96,12 @@ jobs:
       - sign_app_on_mac
       - test_on_windows
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
 
       - name: Download mac release from previous job
         uses: actions/download-artifact@v3
