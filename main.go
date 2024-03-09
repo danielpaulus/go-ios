@@ -1366,7 +1366,6 @@ func voiceOver(device ios.DeviceEntry, operation string, force bool) {
 	}
 
 	wasEnabled, err := ios.GetVoiceOver(device)
-
 	if err != nil {
 		if force && (operation == "enable" || operation == "disable") {
 			log.WithFields(log.Fields{"error": err}).Warn("Failed getting current VoiceOver status. Continuing anyway.")
@@ -1412,7 +1411,6 @@ func zoomTouch(device ios.DeviceEntry, operation string, force bool) {
 	}
 
 	wasEnabled, err := ios.GetZoomTouch(device)
-
 	if err != nil {
 		if force && (operation == "enable" || operation == "disable") {
 			log.WithFields(log.Fields{"error": err}).Warn("Failed getting current VoiceOver status. Continuing anyway.")
@@ -1458,7 +1456,6 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 	}
 
 	wasEnabled, err := ios.GetUses24HourClock(device)
-
 	if err != nil {
 		if force && (operation == "24h" || operation == "12h") {
 			log.WithFields(log.Fields{"error": err}).Warn("Failed getting current TimeFormat value. Continuing anyway.")
