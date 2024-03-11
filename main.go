@@ -79,6 +79,7 @@ Usage:
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
   ios instruments notifications [options]
   ios network [options]
+  ios sysmontap [options]
   ios crash ls [<pattern>] [options]
   ios crash cp <srcpattern> <target> [options]
   ios crash rm <cwd> <pattern> [options]
@@ -440,6 +441,10 @@ The commands work as following:
 	}
 
 	if networkCommand(device, arguments) {
+		return
+	}
+
+	if sysmontapCommand(device, arguments) {
 		return
 	}
 
@@ -1184,6 +1189,14 @@ func networkCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 	b, _ := arguments.Bool("network")
 	if b {
 		instruments.ListenNetwork(device)
+		fmt.Println("over")
+	}
+	return b
+}
+func sysmontapCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
+	b, _ := arguments.Bool("sysmontap")
+	if b {
+		instruments.ListenSysmontap(device)
 		fmt.Println("over")
 	}
 	return b

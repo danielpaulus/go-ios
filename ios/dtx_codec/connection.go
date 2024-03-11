@@ -96,6 +96,19 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 			println("network:" + string(s1))
 		}
 	}
+	// sysmontap,cpu,meme
+	dataArray, ok := v.([]interface{})
+	if ok && len(dataArray) > 0 {
+		for _, ele := range dataArray {
+			if m, ok := ele.(map[string]interface{}); ok {
+				if _, ok2 := m["SystemCPUUsage"]; ok2 {
+					s1, _ := json.Marshal(m)
+					println("sysmontap:" + string(s1))
+				}
+			}
+		}
+	}
+
 	log.Tracef("Global Dispatcher Received: %s %s", msg.Payload, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
