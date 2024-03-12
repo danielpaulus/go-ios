@@ -234,13 +234,14 @@ func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName st
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUITest: cannot browse user apps: %w", err)
 	}
-	info, err := getTargetAppInfo(bundleID, apps)
-	if err != nil {
-		bundleID = ""
-	}
 
-	if xctestConfigName == "" {
-		xctestConfigName = info.targetAppBundleName + "UITests.xctest"
+	if bundleID != "" && xctestConfigName == "" {
+		info, err := getappInfo(bundleID, apps)
+		if err != nil {
+			return make([]TestSuite, 0), fmt.Errorf("RunXCUITest: cannot get app information: %w", err)
+		}
+
+		xctestConfigName = info.bundleName + "UITests.xctest"
 	}
 
 	return RunXCUIWithBundleIdsCtx(context.TODO(), bundleID, testRunnerBundleID, xctestConfigName, device, nil, env, testsToRun, testsToSkip, testListener)
@@ -311,7 +312,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot browse user apps: %w", err)
 	}
 
-	testAppInfo, err := getTestAppInfo(testRunnerBundleID, apps)
+	testAppInfo, err := getappInfo(testRunnerBundleID, apps)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot get test app information: %w", err)
 	}
@@ -321,7 +322,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 
 	if bundleID != "" {
-		appInfo, err := getTargetAppInfo(bundleID, apps)
+		appInfo, err := getappInfo(bundleID, apps)
 		if err != nil {
 			return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot get app information: %w", err)
 		}
@@ -357,7 +358,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 	defer appserviceConn.Close()
 
-	pid, err := startTestRunner17(device, appserviceConn, "", testRunnerBundleID, strings.ToUpper(testSessionID.String()), info.testApp.testRunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
+	pid, err := startTestRunner17(device, appserviceConn, "", testRunnerBundleID, strings.ToUpper(testSessionID.String()), info.testApp.path+"/PlugIns/"+xctestConfigFileName, args, env)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start test runner: %w", err)
 	}
@@ -481,7 +482,7 @@ func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID s
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
 
-	testAppInfo, err := getTestAppInfo(testRunnerBundleID, apps)
+	testAppInfo, err := getappInfo(testRunnerBundleID, apps)
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
@@ -491,7 +492,7 @@ func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID s
 	}
 
 	if bundleID != "" {
-		appInfo, err := getTargetAppInfo(bundleID, apps)
+		appInfo, err := getappInfo(bundleID, apps)
 		if err != nil {
 			return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 		}
@@ -516,11 +517,11 @@ func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID s
 
 func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *house_arrest.Connection, xctestConfigFileName string, testsToRun []string, testsToSkip []string) (string, nskeyedarchiver.XCTestConfiguration, error) {
 	relativeXcTestConfigPath := path.Join("tmp", testSessionID.String()+".xctestconfiguration")
-	xctestConfigPath := path.Join(info.testApp.testRunnerHomePath, relativeXcTestConfigPath)
+	xctestConfigPath := path.Join(info.testApp.homePath, relativeXcTestConfigPath)
 
-	testBundleURL := path.Join(info.testApp.testRunnerAppPath, "PlugIns", xctestConfigFileName)
+	testBundleURL := path.Join(info.testApp.path, "PlugIns", xctestConfigFileName)
 
-	config := nskeyedarchiver.NewXCTestConfiguration(info.targetApp.targetAppBundleName, testSessionID, info.targetApp.targetAppBundleID, info.targetApp.targetAppPath, testBundleURL, testsToRun, testsToSkip)
+	config := nskeyedarchiver.NewXCTestConfiguration(info.targetApp.bundleName, testSessionID, info.targetApp.bundleID, info.targetApp.path, testBundleURL, testsToRun, testsToSkip)
 	result, err := nskeyedarchiver.ArchiveXML(config)
 	if err != nil {
 		return "", nskeyedarchiver.XCTestConfiguration{}, err
@@ -530,60 +531,41 @@ func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArres
 	if err != nil {
 		return "", nskeyedarchiver.XCTestConfiguration{}, err
 	}
-	return xctestConfigPath, nskeyedarchiver.NewXCTestConfiguration(info.targetApp.targetAppBundleName, testSessionID, info.targetApp.targetAppBundleID, info.targetApp.targetAppPath, testBundleURL, testsToRun, testsToSkip), nil
+	return xctestConfigPath, nskeyedarchiver.NewXCTestConfiguration(info.targetApp.bundleName, testSessionID, info.targetApp.bundleID, info.targetApp.path, testBundleURL, testsToRun, testsToSkip), nil
 }
 
 func createTestConfig(info testInfo, testSessionID uuid.UUID, xctestConfigFileName string, testsToRun []string, testsToSkip []string) nskeyedarchiver.XCTestConfiguration {
 	// the default value for this generated by Xcode is the target name, and the same name is used for the '.xctest' bundle name per default
 	productModuleName := strings.ReplaceAll(xctestConfigFileName, ".xctest", "")
-	return nskeyedarchiver.NewXCTestConfiguration(productModuleName, testSessionID, info.targetApp.targetAppBundleID, info.targetApp.targetAppPath, "PlugIns/"+xctestConfigFileName, testsToRun, testsToSkip)
+	return nskeyedarchiver.NewXCTestConfiguration(productModuleName, testSessionID, info.targetApp.bundleID, info.targetApp.path, "PlugIns/"+xctestConfigFileName, testsToRun, testsToSkip)
 }
 
 type testInfo struct {
-	testApp   testAppInfo
-	targetApp targetAppInfo // Optional
+	testApp   appInfo
+	targetApp appInfo // Optional
 }
 
-type testAppInfo struct {
-	testRunnerAppPath  string
-	testRunnerHomePath string
+type appInfo struct {
+	path       string
+	bundleName string
+	bundleID   string
+	homePath   string
 }
 
-type targetAppInfo struct {
-	targetAppPath       string
-	targetAppBundleName string
-	targetAppBundleID   string
-}
-
-func getTestAppInfo(testRunnerBundleID string, apps []installationproxy.AppInfo) (testAppInfo, error) {
-	info := testAppInfo{}
-	for _, app := range apps {
-		if app.CFBundleIdentifier == testRunnerBundleID {
-			info.testRunnerAppPath = app.Path
-			info.testRunnerHomePath = app.EnvironmentVariables["HOME"].(string)
-		}
-	}
-
-	if info.testRunnerHomePath == "" || info.testRunnerAppPath == "" {
-		return testAppInfo{}, fmt.Errorf("Did not find test app for '%s' on device. Is it installed?", testRunnerBundleID)
-	}
-
-	return info, nil
-}
-
-func getTargetAppInfo(bundleID string, apps []installationproxy.AppInfo) (targetAppInfo, error) {
-	info := targetAppInfo{}
+func getappInfo(bundleID string, apps []installationproxy.AppInfo) (appInfo, error) {
 	for _, app := range apps {
 		if app.CFBundleIdentifier == bundleID {
-			info.targetAppPath = app.Path
-			info.targetAppBundleName = app.CFBundleName
-			info.targetAppBundleID = app.CFBundleIdentifier
+			info := appInfo{
+				path:       app.Path,
+				bundleName: app.CFBundleName,
+				bundleID:   app.CFBundleIdentifier,
+			}
+			if home, ok := app.EnvironmentVariables["HOME"].(string); ok {
+				info.homePath = home
+			}
+			return info, nil
 		}
 	}
 
-	if info.targetAppPath == "" && bundleID != "" {
-		return targetAppInfo{}, fmt.Errorf("Did not find target app for '%s' on device. Is it installed?", bundleID)
-	}
-
-	return info, nil
+	return appInfo{}, fmt.Errorf("Did not find test app for '%s' on device. Is it installed?", bundleID)
 }

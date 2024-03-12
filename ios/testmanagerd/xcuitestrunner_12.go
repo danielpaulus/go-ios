@@ -59,7 +59,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	}
 	defer pControl.Close()
 
-	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testApp.testRunnerAppPath+"/PlugIns/"+xctestConfigFileName, args, env)
+	pid, err := startTestRunner12(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testApp.path+"/PlugIns/"+xctestConfigFileName, args, env)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot start test runner: %w", err)
 	}
