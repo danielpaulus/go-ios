@@ -140,6 +140,16 @@ func (a ControlInterface) GetElement() {
 	log.Info("item changed", resp)
 }
 
+func (a ControlInterface) UpdateAccessibilitySetting(name string, val interface{}) {
+	log.Info("Updating Accessibility Setting")
+
+	resp, err := a.updateAccessibilitySetting(name, val)
+	if err != nil {
+		panic(fmt.Sprintf("Failed setting: %s", err))
+	}
+	log.Info("Setting Updated", resp)
+}
+
 func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
 	msg := a.channel.ReceiveMethodCall("hostInspectorCurrentElementChanged:")
 	log.Info("received hostInspectorCurrentElementChanged")
@@ -233,6 +243,47 @@ func (a ControlInterface) deviceSetAppMonitoringEnabled(val bool) error {
 		return err
 	}
 	return nil
+}
+
+func (a ControlInterface) updateAccessibilitySetting(settingName string, val interface{}) (string, error) {
+	setting := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditDeviceSetting_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"CurrentValueNumber_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough",
+					"Value":      true}),
+				"EnabledValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough",
+					"Value":      true,
+				}),
+				"IdentiifierValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough",
+					"Value":      settingName,
+				}),
+				"SettingTypeValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough",
+					"Value":      0,
+				}),
+				"SliderTickMarksValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough",
+					"Value":      0,
+				}),
+			}),
+		}),
+	})
+
+	value := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "passthrough",
+		"Value":      val,
+	})
+
+	response, err := a.channel.MethodCall("deviceUpdateAccessibilitySetting:withValue:", setting, value)
+	if err != nil {
+		return "", err
+	}
+	return response.PayloadHeader.String(), nil
 }
 
 func (a ControlInterface) deviceHumanReadableDescriptionForAuditCaseID(auditCaseID string) (string, error) {

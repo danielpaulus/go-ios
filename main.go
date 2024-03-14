@@ -112,7 +112,7 @@ Usage:
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
-  ios ax [options]
+  ios ax [--font=<fontSize>] [options]
   ios debug [options] [--stop-at-entry] <app_path>
   ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>
   ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
@@ -222,7 +222,7 @@ The commands work as following:
    >                                                                  The method name can also be omitted and in this case all tests of the specified class are run
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
-   ios ax [options]                                                   Access accessibility inspector features.
+   ios ax [--font=<fontSize>] [options]                               Access accessibility inspector features.
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
    ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
@@ -890,7 +890,7 @@ The commands work as following:
 
 	b, _ = arguments.Bool("ax")
 	if b {
-		startAx(device)
+		startAx(device, arguments)
 		return
 	}
 
@@ -1494,19 +1494,19 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 	}
 }
 
-func startAx(device ios.DeviceEntry) {
+func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 	go func() {
-		deviceList, err := ios.ListDevices()
-		exitIfError("failed converting to json", err)
-
-		device := deviceList.DeviceList[0]
-
 		conn, err := accessibility.New(device)
 		exitIfError("failed starting ax", err)
 
 		conn.SwitchToDevice()
 
 		conn.EnableSelectionMode()
+
+		size, _ := arguments.Float64("--font")
+		if size != 0 {
+			conn.UpdateAccessibilitySetting("DYNAMIC_TYPE", size)
+		}
 
 		for i := 0; i < 3; i++ {
 			conn.GetElement()
