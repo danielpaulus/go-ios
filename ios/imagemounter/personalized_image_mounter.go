@@ -2,12 +2,14 @@ package imagemounter
 
 import (
 	"fmt"
-	"github.com/Masterminds/semver"
-	"github.com/danielpaulus/go-ios/ios"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path"
+	"strings"
+
+	"github.com/Masterminds/semver"
+	"github.com/danielpaulus/go-ios/ios"
+	log "github.com/sirupsen/logrus"
 )
 
 // PersonalizedDeveloperDiskImageMounter allows mounting personalized developer disk images
@@ -163,17 +165,25 @@ func (p PersonalizedDeveloperDiskImageMounter) queryIdentifiers() (personalizati
 		return personalizationIdentifiers{}, fmt.Errorf("queryIdentifiers: failed to read response for 'QueryPersonalizationIdentifiers': %w", err)
 	}
 
-	x := resp["PersonalizationIdentifiers"].(map[string]interface{})
+	persIdentifiers := resp["PersonalizationIdentifiers"].(map[string]interface{})
 
-	var identifiers personalizationIdentifiers
+	identifiers := personalizationIdentifiers{
+		AdditionalIdentifiers: map[string]interface{}{},
+	}
 
-	if board, ok := x["BoardId"].(uint64); ok {
+	for k, v := range persIdentifiers {
+		if strings.HasPrefix(k, "Ap,") {
+			identifiers.AdditionalIdentifiers[k] = v
+		}
+	}
+
+	if board, ok := persIdentifiers["BoardId"].(uint64); ok {
 		identifiers.BoardId = int(board)
 	}
-	if chip, ok := x["ChipID"].(uint64); ok {
+	if chip, ok := persIdentifiers["ChipID"].(uint64); ok {
 		identifiers.ChipID = int(chip)
 	}
-	if secDom, ok := x["SecurityDomain"].(uint64); ok {
+	if secDom, ok := persIdentifiers["SecurityDomain"].(uint64); ok {
 		identifiers.SecurityDomain = int(secDom)
 	}
 
