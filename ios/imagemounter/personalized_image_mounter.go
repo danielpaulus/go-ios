@@ -165,7 +165,11 @@ func (p PersonalizedDeveloperDiskImageMounter) queryIdentifiers() (personalizati
 		return personalizationIdentifiers{}, fmt.Errorf("queryIdentifiers: failed to read response for 'QueryPersonalizationIdentifiers': %w", err)
 	}
 
-	persIdentifiers := resp["PersonalizationIdentifiers"].(map[string]interface{})
+	var persIdentifiers map[string]interface{}
+	var ok bool
+	if persIdentifiers, ok = resp["PersonalizationIdentifiers"].(map[string]interface{}); !ok {
+		return personalizationIdentifiers{}, fmt.Errorf("queryIdentifiers: response has no 'PersonalizationIdentifiers' entry: %+v", resp)
+	}
 
 	identifiers := personalizationIdentifiers{
 		AdditionalIdentifiers: map[string]interface{}{},
