@@ -20,8 +20,9 @@ const DefaultHttpApiPort = 28100
 
 // ServeTunnelInfo starts a simple http serve that exposes the tunnel information about the running tunnel.
 // The API has two endpoints:
-// 1. localhost:{PORT}/tunnel/{UDID}	to get the tunnel info for a specific device
-// 2. localhost:{PORT}/tunnels			to get a list of all tunnels
+// 1. GET    localhost:{PORT}/tunnel/{UDID} to get the tunnel info for a specific device
+// 2. DELETE localhost:{PORT}/tunnel/{UDID} to stop a device tunnel
+// 3. GET    localhost:{PORT}/tunnels       to get a list of all tunnels
 func ServeTunnelInfo(tm *TunnelManager, port int) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/tunnel/", func(writer http.ResponseWriter, request *http.Request) {
@@ -29,30 +30,41 @@ func ServeTunnelInfo(tm *TunnelManager, port int) error {
 		if len(udid) == 0 {
 			return
 		}
-		tunnels, err := tm.ListTunnels()
-		idx := slices.IndexFunc(tunnels, func(info Tunnel) bool {
-			return info.Udid == udid
-		})
-		if idx < 0 {
+
+		t, err := tm.FindTunnel(udid)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if len(t.Udid) == 0 {
 			http.Error(writer, "", http.StatusNotFound)
 			return
 		}
-		t := tunnels[idx]
 
-		writer.Header().Add("Content-Type", "application/json")
-		enc := json.NewEncoder(writer)
-		err = enc.Encode(t)
+		if request.Method == "GET" {
+			writer.Header().Add("Content-Type", "application/json")
+			enc := json.NewEncoder(writer)
+			err = enc.Encode(t)
+		} else if request.Method == "DELETE" {
+			err = tm.stopTunnel(t)
+		}
 		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	})
 	mux.HandleFunc("/tunnels", func(writer http.ResponseWriter, request *http.Request) {
 		tunnels, err := tm.ListTunnels()
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		writer.Header().Add("Content-Type", "application/json")
 		enc := json.NewEncoder(writer)
 		err = enc.Encode(tunnels)
 		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	})
@@ -154,12 +166,17 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 			return entry.Properties.SerialNumber == udid
 		})
 		if !idx {
-			log.WithField("udid", udid).Info("stopping tunnel")
-			_ = tun.Close()
-			delete(m.tunnels, udid)
+			_ = m.stopTunnel(tun)
 		}
 	}
 	return nil
+}
+
+func (m *TunnelManager) stopTunnel(t Tunnel) error {
+	log.WithField("udid", t.Udid).Info("stopping tunnel")
+	delete(m.tunnels, t.Udid)
+
+	return t.Close()
 }
 
 func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry) (Tunnel, error) {
@@ -176,6 +193,21 @@ func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry)
 // ListTunnels provides all currently running device tunnels
 func (m *TunnelManager) ListTunnels() ([]Tunnel, error) {
 	return maps.Values(m.tunnels), nil
+}
+
+func (m *TunnelManager) FindTunnel(udid string) (Tunnel, error) {
+	tunnels, err := m.ListTunnels()
+	if err != nil {
+		return Tunnel{}, err
+	}
+
+	for _, t := range tunnels {
+		if t.Udid == udid {
+			return t, nil
+		}
+	}
+
+	return Tunnel{}, nil
 }
 
 type tunnelStarter interface {
