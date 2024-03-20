@@ -78,6 +78,8 @@ Usage:
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
   ios instruments notifications [options]
+  ios network [options]
+  ios sysmontap [options]
   ios crash ls [<pattern>] [options]
   ios crash cp <srcpattern> <target> [options]
   ios crash rm <cwd> <pattern> [options]
@@ -127,6 +129,7 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
+  ios battery [options]
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>]
   ios tunnel ls [options]
   ios devmode (enable | get) [--enable-post-restart] [options]
@@ -435,6 +438,14 @@ The commands work as following:
 		return
 	}
 	if instrumentsCommand(device, arguments) {
+		return
+	}
+
+	if networkCommand(device, arguments) {
+		return
+	}
+
+	if sysmontapCommand(device, arguments) {
 		return
 	}
 
@@ -995,6 +1006,11 @@ The commands work as following:
 		printBatteryDiagnostics(device)
 		return
 	}
+	b, _ = arguments.Bool("battery")
+	if b {
+		printBattery(device)
+		return
+	}
 
 	if tunnelCommand {
 		startCommand, _ := arguments.Bool("start")
@@ -1166,6 +1182,23 @@ func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		if err != nil {
 			log.Warnf("timeout during close %v", err)
 		}
+	}
+	return b
+}
+
+func networkCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
+	b, _ := arguments.Bool("network")
+	if b {
+		instruments.ListenNetwork(device)
+		fmt.Println("over")
+	}
+	return b
+}
+func sysmontapCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
+	b, _ := arguments.Bool("sysmontap")
+	if b {
+		instruments.ListenSysmontap(device)
+		fmt.Println("over")
 	}
 	return b
 }
@@ -1623,6 +1656,12 @@ func printDiagnostics(device ios.DeviceEntry) {
 	exitIfError("getting valued failed", err)
 
 	fmt.Println(convertToJSONString(values))
+}
+
+func printBattery(device ios.DeviceEntry) {
+	resp, _ := diagnostics.Battery(device)
+	jb, _ := marshalJSON(resp)
+	fmt.Printf("battery:%s\n", jb)
 }
 
 func printBatteryDiagnostics(device ios.DeviceEntry) {

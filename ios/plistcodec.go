@@ -58,6 +58,20 @@ func (plistCodec PlistCodec) Decode(r io.Reader) ([]byte, error) {
 	return payloadBytes, nil
 }
 
+func (p *PlistCodec) RecvBytes(r io.Reader) ([]byte, error) {
+	size := uint32(0)
+	if err := binary.Read(r, binary.BigEndian, &size); err != nil {
+		return nil, err
+	}
+
+	data := make([]byte, size)
+	if _, err := io.ReadFull(r, data); err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 // PlistCodecReadWriter handles length encoded plist messages
 // Each message starts with an uint32 value representing the length of the encoded payload
 // followed by the binary encoded plist data
