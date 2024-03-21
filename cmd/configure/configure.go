@@ -51,7 +51,7 @@ func CheckPackageInstalled(packageName string) bool {
 	}
 	log.Println("No compatible package manager found (dpkg or apk).")
 	return false
-}
+} 
 
 // ExecuteCommand runs the specified shell command and returns its output or panics if there's an error.
 func ExecuteCommand(command string, args ...string) string {
