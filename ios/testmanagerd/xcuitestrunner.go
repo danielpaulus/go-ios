@@ -291,13 +291,14 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	testsToSkip []string,
 	testListener *TestListener,
 ) ([]TestSuite, error) {
-	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
+	ctx, cancelCtx := context.WithCancel(ctx)
+	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17, dtx.WithBreakdownCallback(cancelCtx))
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot create a tunnel connection to testmanagerd: %w", err)
 	}
 	defer conn1.Close()
 
-	conn2, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
+	conn2, err := dtx.NewTunnelConnection(device, testmanagerdiOS17, dtx.WithBreakdownCallback(cancelCtx))
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot create a tunnel connection to testmanagerd: %w", err)
 	}

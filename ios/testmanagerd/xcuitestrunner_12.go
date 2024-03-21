@@ -16,7 +16,8 @@ import (
 func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, testRunnerBundleID string, xctestConfigFileName string,
 	device ios.DeviceEntry, args []string, env []string, testsToRun []string, testsToSkip []string, testListener *TestListener,
 ) ([]TestSuite, error) {
-	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
+	ctx, cancelCtx := context.WithCancel(ctx)
+	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14, dtx.WithBreakdownCallback(cancelCtx))
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
@@ -29,7 +30,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
 
-	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
+	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14, dtx.WithBreakdownCallback(cancelCtx))
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}

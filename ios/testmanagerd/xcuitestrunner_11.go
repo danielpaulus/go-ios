@@ -29,7 +29,8 @@ func runXCUIWithBundleIdsXcode11Ctx(
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create test config: %w", err)
 	}
 	log.Debugf("test session setup ok")
-	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
+	ctx, cancelCtx := context.WithCancel(ctx)
+	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerd, dtx.WithBreakdownCallback(cancelCtx))
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
@@ -37,7 +38,7 @@ func runXCUIWithBundleIdsXcode11Ctx(
 
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
 
-	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
+	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerd, dtx.WithBreakdownCallback(cancelCtx))
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
