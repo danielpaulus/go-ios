@@ -2,7 +2,7 @@ package ios_test
 
 import (
 	"flag"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -52,13 +52,13 @@ func TestPlistConversion(t *testing.T) {
 
 		golden := filepath.Join("test-fixture", tc.fileName+".plist")
 		if *update {
-			err := ioutil.WriteFile(golden, []byte(actual), 0o644)
+			err := os.WriteFile(golden, []byte(actual), 0o644)
 			if err != nil {
 				log.Error(err)
 				t.FailNow()
 			}
 		}
-		expected, _ := ioutil.ReadFile(golden)
+		expected, _ := os.ReadFile(golden)
 		assert.Equal(t, removeLineBreaks(string(expected)), removeLineBreaks(actual))
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -184,7 +183,7 @@ func getPacket(buf []byte) (iph IOSPacketHeader, packet []byte, err error) {
 	}
 
 	// log.Info("IOSPacketHeader: ", iph.ToString())
-	packet, err = ioutil.ReadAll(preader)
+	packet, err = io.ReadAll(preader)
 	if err != nil {
 		return iph, packet, err
 	}

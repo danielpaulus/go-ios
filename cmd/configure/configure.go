@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -75,7 +74,7 @@ func DpkgExists() bool {
 
 // IsDebianUbuntuOrAlpine checks if the operating system is Debian, Ubuntu, or Alpine.
 func IsDebianUbuntuOrAlpine() bool {
-	content, err := ioutil.ReadFile("/etc/os-release")
+	content, err := os.ReadFile("/etc/os-release")
 	if err != nil {
 		log.Printf("Failed to read /etc/os-release: %v", err)
 		return false

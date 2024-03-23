@@ -6,7 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strconv"
 	"time"
@@ -117,7 +117,7 @@ func SetLocationGPX(device ios.DeviceEntry, filePath string) error {
 	defer gpxFile.Close()
 
 	// Read the gpx file
-	byteData, err := ioutil.ReadAll(gpxFile)
+	byteData, err := io.ReadAll(gpxFile)
 	if err != nil {
 		return err
 	}
