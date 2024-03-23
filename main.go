@@ -1493,7 +1493,7 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 	}
 }
 
-func startAx() {
+func startAx(device ios.DeviceEntry) {
 	go func() {
 		deviceList, err := ios.ListDevices()
 		exitIfError("failed converting to json", err)
