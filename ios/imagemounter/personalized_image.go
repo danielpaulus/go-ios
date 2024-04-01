@@ -2,10 +2,11 @@ package imagemounter
 
 import (
 	"fmt"
-	"howett.net/plist"
 	"os"
 	"strconv"
 	"strings"
+
+	"howett.net/plist"
 )
 
 type buildManifest struct {
@@ -64,9 +65,10 @@ func (b buildIdentity) ApChipID() int {
 }
 
 type personalizationIdentifiers struct {
-	BoardId        int
-	ChipID         int
-	SecurityDomain int
+	BoardId               int
+	ChipID                int
+	SecurityDomain        int
+	AdditionalIdentifiers map[string]interface{}
 }
 
 func hexToInt(s string) int {
