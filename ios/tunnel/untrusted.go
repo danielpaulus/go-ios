@@ -272,6 +272,10 @@ func (t *tunnelService) verifyPair() error {
 		return err
 	}
 
+	if devicePublicKeyBytes == nil {
+		_ = t.controlChannel.writeEvent(pairVerifyFailed{})
+		return fmt.Errorf("verifyPair: did not get public key from device. Can not verify pairing")
+	}
 	devicePublicKey, err := ecdh.X25519().NewPublicKey(devicePublicKeyBytes)
 	if err != nil {
 		return err

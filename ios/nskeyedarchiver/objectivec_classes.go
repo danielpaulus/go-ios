@@ -44,8 +44,10 @@ func SetupDecoders() {
 			"DTTapMessage":              NewDTTapMessage,
 			"DTCPUClusterInfo":          NewDTCPUClusterInfo,
 			"XCTIssue":                  NewXCTIssue,
+			"XCTMutableIssue":           NewXCTIssue,
 			"XCTSourceCodeContext":      NewXCTSourceCodeContext,
 			"XCTSourceCodeLocation":     NewXCTSourceCodeLocation,
+			"NSMutableData":             NewNSMutableData,
 		}
 	}
 }
@@ -108,6 +110,13 @@ func NewXCTestConfiguration(
 		testIdentifiersToSkipEntry = createTestIdentifierSet(productModuleName, testsToSkip)
 	}
 
+	var appUnderTestExists = targetApplicationPath != "" && targetApplicationBundleID != ""
+	if appUnderTestExists {
+		contents["productModuleName"] = productModuleName
+		contents["targetApplicationBundleID"] = targetApplicationBundleID
+		contents["targetApplicationPath"] = targetApplicationPath
+	}
+
 	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
 	contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
 	contents["baselineFileRelativePath"] = plist.UID(0)
@@ -119,16 +128,11 @@ func NewXCTestConfiguration(
 	contents["gatherLocalizableStringsData"] = false
 	contents["initializeForUITesting"] = true
 	contents["maximumTestExecutionTimeAllowance"] = plist.UID(0)
-	contents["productModuleName"] = productModuleName
 	contents["randomExecutionOrderingSeed"] = plist.UID(0)
 	contents["reportActivities"] = true
 	contents["reportResultsToIDE"] = true
 	contents["sessionIdentifier"] = NewNSUUID(sessionIdentifier)
 	contents["systemAttachmentLifetime"] = attachmentLifetimeDeleteAlways
-	// contents["targetApplicationArguments"] = []interface{}{} //TODO: triggers a bug
-	contents["targetApplicationBundleID"] = targetApplicationBundleID
-	// contents["targetApplicationEnvironment"] = //TODO: triggers a bug map[string]interface{}{}
-	contents["targetApplicationPath"] = targetApplicationPath
 	// testApplicationDependencies
 	contents["testApplicationUserOverrides"] = plist.UID(0)
 	contents["testBundleRelativePath"] = plist.UID(0)
@@ -315,10 +319,12 @@ func NewXCTAttachment(object map[string]interface{}, objects []interface{}) inte
 	lifetime := object["lifetime"].(uint64)
 	uniformTypeIdentifier := objects[object["uniformTypeIdentifier"].(plist.UID)].(string)
 	fileNameOverride := objects[object["fileNameOverride"].(plist.UID)].(string)
-	payload := objects[object["payload"].(plist.UID)].([]uint8)
 	timestamp := objects[object["timestamp"].(plist.UID)].(float64)
 	name := objects[object["name"].(plist.UID)].(string)
 	userInfo, _ := extractDictionary(objects[object["userInfo"].(plist.UID)].(map[string]interface{}), objects)
+
+	payloadRaw := objects[object["payload"].(plist.UID)]
+	payload := extractAttachmentPayload(payloadRaw, objects)
 
 	return XCTAttachment{
 		lifetime:              lifetime,
@@ -329,6 +335,26 @@ func NewXCTAttachment(object map[string]interface{}, objects []interface{}) inte
 		Name:                  name,
 		userInfo:              userInfo,
 	}
+}
+
+func extractAttachmentPayload(payloadRaw interface{}, objects []interface{}) []uint8 {
+	payload, byteSliceOk := payloadRaw.([]uint8)
+	if !byteSliceOk {
+		mapPayload, mapOk := payloadRaw.(map[string]interface{})
+		if mapOk {
+			payloadClassMap, classOk := objects[mapPayload["$class"].(plist.UID)].(map[string]interface{})
+			if classOk {
+				payloadClass := payloadClassMap["$classname"]
+				if payloadClass == "NSMutableData" || payloadClass == "NSData" {
+					payload = NewNSMutableData(mapPayload, objects).([]uint8)
+				}
+			}
+		} else {
+			payload = make([]uint8, 0)
+		}
+	}
+
+	return payload
 }
 
 func NewNSUUIDFromBytes(object map[string]interface{}, objects []interface{}) interface{} {
@@ -699,6 +725,15 @@ func NewXCTIssue(object map[string]interface{}, objects []interface{}) interface
 	sourceCodeContext := NewXCTSourceCodeContext(objects[sourceCodeContextRef].(map[string]interface{}), objects).(XCTSourceCodeContext)
 
 	return XCTIssue{RuntimeIssueSeverity: runtimeIssueSeverity, DetailedDescription: detailedDescription, CompactDescription: compactDescription, SourceCodeContext: sourceCodeContext}
+}
+
+func NewNSMutableData(object map[string]interface{}, objects []interface{}) interface{} {
+	data, ok := object["NS.data"].([]uint8)
+	if ok {
+		return data
+	}
+
+	return make([]uint8, 0)
 }
 
 type XCTSourceCodeContext struct {
