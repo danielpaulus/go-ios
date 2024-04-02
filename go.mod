@@ -17,6 +17,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tadglines/go-pkgs v0.0.0-20210623144937-b983b20f54f9
 	golang.org/x/crypto v0.15.0
+	software.sslmate.com/src/go-pkcs12 v0.2.0
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db
 	golang.org/x/net v0.18.0
 	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5
