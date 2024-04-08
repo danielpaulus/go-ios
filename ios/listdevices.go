@@ -82,6 +82,10 @@ func NewReadDevices() ReadDevicesType {
 	return data
 }
 
+func (device *DeviceEntry) SupportsRsd() bool {
+	return device.Rsd != nil
+}
+
 // ListDevices returns a DeviceList containing data about all
 // currently connected iOS devices
 func (muxConn *UsbMuxConnection) ListDevices() (DeviceList, error) {
