@@ -31,7 +31,7 @@ export async function findGoIosBinary() {
   }
 
   const binaryName = `ios${process.platform === 'win32' ? '.exe' : ''}`;
-  const binaryRoot = path.join(process.cwd(), 'dist');
+  const binaryRoot = path.join(__dirname, 'dist');
   const goPlatform = PLATFORM_MAPPING[process.platform];
   const goArch = goPlatform === PLATFORM_MACOS ? GO_ARCH_FAT : ARCH_MAPPING[process.arch];
   if (goPlatform && goArch) {
