@@ -21,7 +21,7 @@ type Connection struct {
 // New returns a new SysLog Connection for the given DeviceID and Udid
 // It will create LogReader as a buffered Channel because Syslog is very verbose.
 func New(device ios.DeviceEntry) (*Connection, error) {
-	if device.Rsd == nil {
+	if !device.SupportsRsd() {
 		return NewWithUsbmuxdConnection(device)
 	}
 	return NewWithShimConnection(device)
