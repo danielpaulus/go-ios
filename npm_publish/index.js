@@ -69,5 +69,5 @@ async function main() {
 
 
 if (require.main === module) {
-  (async () => main())();
+  (async () => await main())();
 }
