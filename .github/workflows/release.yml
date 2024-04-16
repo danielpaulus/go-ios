@@ -26,7 +26,7 @@ jobs:
 
       - name: Build
         run: |
-          ((Get-Content -path main.go -Raw) -replace "local-build","${{ steps.create_release.outputs.current_tag }}") | Set-Content -Path main.go  
+          ((Get-Content -path main.go -Raw) -replace "local-build","${{ steps.create_release.outputs.current_tag }}") | Set-Content -Path main.go
           mkdir bin
           go build -ldflags="-s -w" -o bin/ios.exe
           "${{ steps.create_release.outputs.current_tag }}" | Out-File -Encoding utf8NoBOM release_tag -NoNewline
@@ -69,7 +69,9 @@ jobs:
           alias sed=gsed
           gsed -i 's/version \= \"local-build\"/version = \"${{ env.release_tag }}\"/' main.go
           mkdir bin
-          go build -ldflags="-s -w" -o bin/ios
+          GOARCH=arm64 go build -ldflags="-s -w" -o bin/ios-arm64
+          GOARCH=amd64 go build -ldflags="-s -w" -o bin/ios-amd64
+          lipo bin/ios-amd64 bin/ios-arm64 -create -output bin/ios
           zip -j go-ios-mac.zip bin/ios
 
       - name: upload the macos build
@@ -141,9 +143,10 @@ jobs:
           mkdir ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64
           mkdir ./npm_publish/dist/go-ios-linux-amd64_linux_amd64
           mkdir ./npm_publish/dist/go-ios-windows-amd64_windows_amd64
-          cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64/ios
+          cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-fat_darwin_fat/ios
           cp ./win-bin/ios.exe ./npm_publish/dist/go-ios-windows-amd64_windows_amd64/ios.exe
           cp ./bin/ios ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
+          cp README.md ./npm_publish/README.md
           echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" >> ~/.npmrc
           cd npm_publish
           sed -i 's/\"local-build\"/\"${{ env.release_tag }}\"/' package.json
