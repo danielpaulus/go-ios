@@ -291,14 +291,13 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	testsToSkip []string,
 	testListener *TestListener,
 ) ([]TestSuite, error) {
-	ctx, cancelCtx := context.WithCancel(ctx)
-	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17, dtx.WithBreakdownCallback(cancelCtx))
+	conn1, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot create a tunnel connection to testmanagerd: %w", err)
 	}
 	defer conn1.Close()
 
-	conn2, err := dtx.NewTunnelConnection(device, testmanagerdiOS17, dtx.WithBreakdownCallback(cancelCtx))
+	conn2, err := dtx.NewTunnelConnection(device, testmanagerdiOS17)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot create a tunnel connection to testmanagerd: %w", err)
 	}
@@ -394,16 +393,27 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 
 	select {
+	case <-conn1.Ctx.Done():
+		if context.Cause(conn1.Ctx) != nil {
+			log.WithError(context.Cause(conn1.Ctx)).Error("conn1 ended unexpectedly")
+		}
+		break
+	case <-conn2.Ctx.Done():
+		if context.Cause(conn2.Ctx) != nil {
+			log.WithError(context.Cause(conn2.Ctx)).Error("conn2 ended unexpectedly")
+		}
+		break
 	case <-testListener.Done():
 		break
 	case <-ctx.Done():
-		log.Infof("Killing test runner with pid %d ...", testRunnerLaunch.Pid)
-		err = killTestRunner(appserviceConn, testRunnerLaunch.Pid)
-		if err != nil {
-			log.Infof("Nothing to kill, process with pid %d is already dead", testRunnerLaunch.Pid)
-		} else {
-			log.Info("Test runner killed with success")
-		}
+		break
+	}
+	log.Infof("Killing test runner with pid %d ...", testRunnerLaunch.Pid)
+	err = killTestRunner(appserviceConn, testRunnerLaunch.Pid)
+	if err != nil {
+		log.Infof("Nothing to kill, process with pid %d is already dead", testRunnerLaunch.Pid)
+	} else {
+		log.Info("Test runner killed with success")
 	}
 
 	log.Debugf("Done running test")

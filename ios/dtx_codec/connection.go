@@ -1,6 +1,7 @@
 package dtx
 
 import (
+	"context"
 	"io"
 	"math"
 	"strings"
@@ -25,7 +26,9 @@ type Connection struct {
 	capabilities           map[string]interface{}
 	mutex                  sync.Mutex
 	requestChannelMessages chan Message
-	onConnectionBreakdown  func()
+
+	Ctx       context.Context
+	cancelCtx context.CancelCauseFunc
 }
 
 // Dispatcher is a simple interface containing a Dispatch func to receive dtx.Messages
@@ -45,8 +48,11 @@ const requestChannel = "_requestChannelWithCode:identifier:"
 // Close closes the underlying deviceConnection
 func (dtxConn *Connection) Close() error {
 	if dtxConn.deviceConnection != nil {
-		return dtxConn.deviceConnection.Close()
+		err := dtxConn.deviceConnection.Close()
+		dtxConn.cancelCtx(err)
+		return err
 	}
+	dtxConn.cancelCtx(nil)
 	return nil
 }
 
@@ -98,35 +104,31 @@ func notifyOfPublishedCapabilities(msg Message) {
 }
 
 // NewUsbmuxdConnection connects and starts reading from a Dtx based service on the device
-func NewUsbmuxdConnection(device ios.DeviceEntry, serviceName string, dtxConnectionOptions ...func(*Connection)) (*Connection, error) {
+func NewUsbmuxdConnection(device ios.DeviceEntry, serviceName string) (*Connection, error) {
 	conn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
 
-	return newDtxConnection(conn, dtxConnectionOptions...)
+	return newDtxConnection(conn)
 }
 
 // NewTunnelConnection connects and starts reading from a Dtx based service on the device, using tunnel interface instead of usbmuxd
-func NewTunnelConnection(device ios.DeviceEntry, serviceName string, dtxConnectionOptions ...func(*Connection)) (*Connection, error) {
+func NewTunnelConnection(device ios.DeviceEntry, serviceName string) (*Connection, error) {
 	conn, err := ios.ConnectToServiceTunnelIface(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
 
-	return newDtxConnection(conn, dtxConnectionOptions...)
+	return newDtxConnection(conn)
 }
 
-func newDtxConnection(conn ios.DeviceConnectionInterface, options ...func(*Connection)) (*Connection, error) {
+func newDtxConnection(conn ios.DeviceConnectionInterface) (*Connection, error) {
 	requestChannelMessages := make(chan Message, 5)
 
 	// The global channel has channelCode 0, so we need to start with channelCodeCounter==1
 	dtxConnection := &Connection{deviceConnection: conn, channelCodeCounter: 1, requestChannelMessages: requestChannelMessages}
-
-	// handle optional parameters
-	for _, o := range options {
-		o(dtxConnection)
-	}
+	dtxConnection.Ctx, dtxConnection.cancelCtx = context.WithCancelCause(context.Background())
 
 	// The global channel is automatically present and used for requesting other channels and some other methods like notifyPublishedCapabilities
 	globalChannel := Channel{
@@ -144,13 +146,6 @@ func newDtxConnection(conn ios.DeviceConnectionInterface, options ...func(*Conne
 	return dtxConnection, nil
 }
 
-// WithConnectionBreakdownCallback is a functional option to set the Connection breakdown callback
-func WithBreakdownCallback(callback func()) func(*Connection) {
-	return func(c *Connection) {
-		c.onConnectionBreakdown = callback
-	}
-}
-
 // Send sends the byte slice directly to the device using the underlying DeviceConnectionInterface
 func (dtxConn *Connection) Send(message []byte) error {
 	return dtxConn.deviceConnection.Send(message)
@@ -162,9 +157,7 @@ func reader(dtxConn *Connection) {
 		reader := dtxConn.deviceConnection.Reader()
 		msg, err := ReadMessage(reader)
 		if err != nil {
-			if dtxConn.onConnectionBreakdown != nil {
-				defer dtxConn.onConnectionBreakdown()
-			}
+			defer dtxConn.cancelCtx(err)
 			errText := err.Error()
 			if err == io.EOF || strings.Contains(errText, "use of closed network") {
 				log.Debug("DTX Connection with EOF")

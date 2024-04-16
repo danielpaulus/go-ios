@@ -16,8 +16,7 @@ import (
 func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, testRunnerBundleID string, xctestConfigFileName string,
 	device ios.DeviceEntry, args []string, env []string, testsToRun []string, testsToSkip []string, testListener *TestListener,
 ) ([]TestSuite, error) {
-	ctx, cancelCtx := context.WithCancel(ctx)
-	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14, dtx.WithBreakdownCallback(cancelCtx))
+	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
@@ -30,7 +29,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
 
-	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14, dtx.WithBreakdownCallback(cancelCtx))
+	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
@@ -78,16 +77,29 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	}
 
 	select {
+	case <-conn.Ctx.Done():
+		log.Info("conn.Ctx.Done()")
+		if context.Cause(conn.Ctx) != context.Canceled {
+			log.WithError(context.Cause(conn.Ctx)).Error("conn ended unexpectedly")
+		}
+		break
+	case <-conn2.Ctx.Done():
+		log.Info("conn2.Ctx.Done()")
+		if context.Cause(conn2.Ctx) != context.Canceled {
+			log.WithError(context.Cause(conn2.Ctx)).Error("conn2 ended unexpectedly")
+		}
+		break
 	case <-testListener.Done():
 		break
 	case <-ctx.Done():
-		log.Infof("Killing test runner with pid %d ...", pid)
-		err = pControl.KillProcess(pid)
-		if err != nil {
-			log.Infof("Nothing to kill, process with pid %d is already dead", pid)
-		} else {
-			log.Info("Test runner killed with success")
-		}
+		break
+	}
+	log.Infof("Killing test runner with pid %d ...", pid)
+	err = pControl.KillProcess(pid)
+	if err != nil {
+		log.Infof("Nothing to kill, process with pid %d is already dead", pid)
+	} else {
+		log.Info("Test runner killed with success")
 	}
 
 	log.Debugf("Done running test")

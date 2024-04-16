@@ -29,8 +29,7 @@ func runXCUIWithBundleIdsXcode11Ctx(
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create test config: %w", err)
 	}
 	log.Debugf("test session setup ok")
-	ctx, cancelCtx := context.WithCancel(ctx)
-	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerd, dtx.WithBreakdownCallback(cancelCtx))
+	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
@@ -38,7 +37,7 @@ func runXCUIWithBundleIdsXcode11Ctx(
 
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
 
-	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerd, dtx.WithBreakdownCallback(cancelCtx))
+	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
@@ -79,16 +78,27 @@ func runXCUIWithBundleIdsXcode11Ctx(
 	}
 
 	select {
+	case <-conn.Ctx.Done():
+		if context.Cause(conn.Ctx) != nil {
+			log.WithError(context.Cause(conn.Ctx)).Error("conn ended unexpectedly")
+		}
+		break
+	case <-conn2.Ctx.Done():
+		if context.Cause(conn2.Ctx) != nil {
+			log.WithError(context.Cause(conn2.Ctx)).Error("conn2 ended unexpectedly")
+		}
+		break
 	case <-testListener.Done():
 		break
 	case <-ctx.Done():
-		log.Infof("Killing test runner with pid %d ...", pid)
-		err = pControl.KillProcess(pid)
-		if err != nil {
-			log.Infof("Nothing to kill, process with pid %d is already dead", pid)
-		} else {
-			log.Info("Test runner killed with success")
-		}
+		break
+	}
+	log.Infof("Killing test runner with pid %d ...", pid)
+	err = pControl.KillProcess(pid)
+	if err != nil {
+		log.Infof("Nothing to kill, process with pid %d is already dead", pid)
+	} else {
+		log.Info("Test runner killed with success")
 	}
 
 	log.Debugf("Done running test")
