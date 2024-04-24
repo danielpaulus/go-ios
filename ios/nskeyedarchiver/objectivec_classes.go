@@ -181,19 +181,19 @@ func createTestIdentifierSet(productModuleName string, tests []string) XCTTestId
 			}
 		}
 
-		components := make([]string, 0, 3)
+		components := make([]string, 0, 2)
 
-		module := matchedGroups["module"]
+		// the `module` parameter is ingored here as it only works reliably with `testIdentifiersToRun`
+		// adding the `module` parameter to `testIdentifiersToSkip` won't skip the specified tests there
+		// this was verified with Xcode 15
+		_ = matchedGroups["module"]
 		clazz := matchedGroups["class"]
 		method := matchedGroups["method"]
 
 		options := uint64(3)
-		if len(module) > 0 {
-			clazz = fmt.Sprintf("%s.%s", productModuleName, clazz)
-		}
 		components = append(components, clazz)
 		if len(method) > 0 {
-			options = 6
+			options = 2
 			components = append(components, method)
 		}
 
