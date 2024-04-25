@@ -44,30 +44,24 @@ func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
 	return &Connection{conn: xpcConn, deviceId: uuid.New().String(), device: deviceEntry}, nil
 }
 
-// AppLaunch represents the result of launching an app on the device for iOS17+.
-// It contains the PID of the launched app.
-type AppLaunch struct {
-	Pid int
-}
-
-// AppWithStdIo is the launched app with a connection to the stdio-socket
-type AppWithStdIo struct {
+// LaunchedAppWithStdIo is the launched app with a connection to the stdio-socket
+type LaunchedAppWithStdIo struct {
 	stdIoConnection openstdio.Connection
-	AppLaunch
+	Pid             int
 }
 
 // Read reads from the stdio socket of the launched app
-func (a AppWithStdIo) Read(p []byte) (n int, err error) {
+func (a LaunchedAppWithStdIo) Read(p []byte) (n int, err error) {
 	return a.stdIoConnection.Read(p)
 }
 
 // Write reads from the stdio socket of the launched app
-func (a AppWithStdIo) Write(p []byte) (n int, err error) {
+func (a LaunchedAppWithStdIo) Write(p []byte) (n int, err error) {
 	return a.stdIoConnection.Write(p)
 }
 
 // Close closes the connection to stdio-socket of the launched app
-func (a AppWithStdIo) Close() error {
+func (a LaunchedAppWithStdIo) Close() error {
 	return a.stdIoConnection.Close()
 }
 
@@ -79,20 +73,21 @@ type Process struct {
 }
 
 // LaunchApp launches an app on the device with the given bundleId and arguments for iOS17+.
-func (c *Connection) LaunchApp(bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool) (AppLaunch, error) {
+// On a successful launch it returns the PID of the launched process.
+func (c *Connection) LaunchApp(bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool) (int, error) {
 	pid, err := c.launchApp(bundleId, args, env, options, terminateExisting, map[string]any{})
 	if err != nil {
-		return AppLaunch{}, fmt.Errorf("LaunchApp: failed to launch app: %w", err)
+		return 0, fmt.Errorf("LaunchApp: failed to launch app: %w", err)
 	}
-	return AppLaunch{Pid: pid}, nil
+	return pid, nil
 }
 
 // LaunchAppWithStdIo launches an app and connects to the stdio-socket
 // the returned value implements the io.ReadWriteCloser interface and needs to be closed when finished using the stdio-socket
-func (c *Connection) LaunchAppWithStdIo(bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool) (AppWithStdIo, error) {
+func (c *Connection) LaunchAppWithStdIo(bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool) (LaunchedAppWithStdIo, error) {
 	stdio, err := openstdio.NewOpenStdIoSocket(c.device)
 	if err != nil {
-		return AppWithStdIo{}, fmt.Errorf("LaunchAppWithStdIo: failed to open stdio socket: %w", err)
+		return LaunchedAppWithStdIo{}, fmt.Errorf("LaunchAppWithStdIo: failed to open stdio socket: %w", err)
 	}
 
 	// this is also how Xcode handles it. It uses the same socket for stdOut/stdErr/stdIn
@@ -104,11 +99,11 @@ func (c *Connection) LaunchAppWithStdIo(bundleId string, args []interface{}, env
 
 	pid, err := c.launchApp(bundleId, args, env, options, terminateExisting, stdIoConfig)
 	if err != nil {
-		return AppWithStdIo{}, fmt.Errorf("LaunchAppWithStdIo: failed to launch app: %w", err)
+		return LaunchedAppWithStdIo{}, fmt.Errorf("LaunchAppWithStdIo: failed to launch app: %w", err)
 	}
-	return AppWithStdIo{
+	return LaunchedAppWithStdIo{
 		stdIoConnection: stdio,
-		AppLaunch:       AppLaunch{Pid: int(pid)},
+		Pid:             pid,
 	}, nil
 }
 

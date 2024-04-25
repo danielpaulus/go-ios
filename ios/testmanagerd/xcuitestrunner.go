@@ -425,7 +425,7 @@ func killTestRunner(killer processKiller, pid int) error {
 	return nil
 }
 
-func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connection, xctestConfigPath string, bundleID string, sessionIdentifier string, testBundlePath string, testArgs []string, testEnv []string) (appservice.AppWithStdIo, error) {
+func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connection, xctestConfigPath string, bundleID string, sessionIdentifier string, testBundlePath string, testArgs []string, testEnv []string) (appservice.LaunchedAppWithStdIo, error) {
 	args := []interface{}{}
 	for _, arg := range testArgs {
 		args = append(args, arg)
@@ -470,7 +470,7 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 	)
 
 	if err != nil {
-		return appservice.AppWithStdIo{}, err
+		return appservice.LaunchedAppWithStdIo{}, err
 	}
 
 	return appLaunch, nil
