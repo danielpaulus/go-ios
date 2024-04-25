@@ -72,7 +72,7 @@ func ListenSysmontap(device ios.DeviceEntry) (func() (map[string]interface{}, er
 		return nil, nil, err
 	}
 
-	channel := conn.RequestChannelIdentifier(Sysmontap, channelDispatcher{})
+	channel := conn.RequestChannelIdentifier(SysmontapChannel, channelDispatcher{})
 	options := defaulPerfOption()
 	// interval := time.Millisecond * time.Duration(options.OutputInterval)
 	// config := map[string]interface{}{
