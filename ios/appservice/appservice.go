@@ -108,7 +108,7 @@ func (c *Connection) LaunchAppWithStdIo(bundleId string, args []interface{}, env
 }
 
 func (c *Connection) launchApp(bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool, stdio map[string]any) (int, error) {
-	msg := buildAppLaunchPayload(c.deviceId, bundleId, args, env, options, terminateExisting, map[string]any{})
+	msg := buildAppLaunchPayload(c.deviceId, bundleId, args, env, options, terminateExisting, stdio)
 	err := c.conn.Send(msg, xpc.HeartbeatRequestFlag)
 	if err != nil {
 		return 0, fmt.Errorf("launchApp: failed to send launch-app request: %w", err)
