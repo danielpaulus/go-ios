@@ -12,6 +12,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/coredevice"
+	"github.com/danielpaulus/go-ios/ios/openstdio"
 	"github.com/danielpaulus/go-ios/ios/xpc"
 	"github.com/google/uuid"
 	"howett.net/plist"
@@ -22,6 +23,7 @@ import (
 type Connection struct {
 	conn     *xpc.Connection
 	deviceId string
+	device   ios.DeviceEntry
 }
 
 const (
@@ -39,13 +41,28 @@ func New(deviceEntry ios.DeviceEntry) (*Connection, error) {
 		return nil, fmt.Errorf("new: %w", err)
 	}
 
-	return &Connection{conn: xpcConn, deviceId: uuid.New().String()}, nil
+	return &Connection{conn: xpcConn, deviceId: uuid.New().String(), device: deviceEntry}, nil
 }
 
-// AppLaunch represents the result of launching an app on the device for iOS17+.
-// It contains the PID of the launched app.
-type AppLaunch struct {
-	Pid int
+// LaunchedAppWithStdIo is the launched app with a connection to the stdio-socket
+type LaunchedAppWithStdIo struct {
+	stdIoConnection openstdio.Connection
+	Pid             int
+}
+
+// Read reads from the stdio socket of the launched app
+func (a LaunchedAppWithStdIo) Read(p []byte) (n int, err error) {
+	return a.stdIoConnection.Read(p)
+}
+
+// Write reads from the stdio socket of the launched app
+func (a LaunchedAppWithStdIo) Write(p []byte) (n int, err error) {
+	return a.stdIoConnection.Write(p)
+}
+
+// Close closes the connection to stdio-socket of the launched app
+func (a LaunchedAppWithStdIo) Close() error {
+	return a.stdIoConnection.Close()
 }
 
 // Process represents a process running on the device for iOS17+.
@@ -56,21 +73,55 @@ type Process struct {
 }
 
 // LaunchApp launches an app on the device with the given bundleId and arguments for iOS17+.
-func (c *Connection) LaunchApp(bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool) (AppLaunch, error) {
-	msg := buildAppLaunchPayload(c.deviceId, bundleId, args, env, options, terminateExisting)
+// On a successful launch it returns the PID of the launched process.
+func (c *Connection) LaunchApp(bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool) (int, error) {
+	pid, err := c.launchApp(bundleId, args, env, options, terminateExisting, map[string]any{})
+	if err != nil {
+		return 0, fmt.Errorf("LaunchApp: failed to launch app: %w", err)
+	}
+	return pid, nil
+}
+
+// LaunchAppWithStdIo launches an app and connects to the stdio-socket
+// the returned value implements the io.ReadWriteCloser interface and needs to be closed when finished using the stdio-socket
+func (c *Connection) LaunchAppWithStdIo(bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool) (LaunchedAppWithStdIo, error) {
+	stdio, err := openstdio.NewOpenStdIoSocket(c.device)
+	if err != nil {
+		return LaunchedAppWithStdIo{}, fmt.Errorf("LaunchAppWithStdIo: failed to open stdio socket: %w", err)
+	}
+
+	// this is also how Xcode handles it. It uses the same socket for stdOut/stdErr/stdIn
+	stdIoConfig := map[string]any{
+		"standardInput":  stdio.ID,
+		"standardOutput": stdio.ID,
+		"standardError":  stdio.ID,
+	}
+
+	pid, err := c.launchApp(bundleId, args, env, options, terminateExisting, stdIoConfig)
+	if err != nil {
+		return LaunchedAppWithStdIo{}, fmt.Errorf("LaunchAppWithStdIo: failed to launch app: %w", err)
+	}
+	return LaunchedAppWithStdIo{
+		stdIoConnection: stdio,
+		Pid:             pid,
+	}, nil
+}
+
+func (c *Connection) launchApp(bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool, stdio map[string]any) (int, error) {
+	msg := buildAppLaunchPayload(c.deviceId, bundleId, args, env, options, terminateExisting, stdio)
 	err := c.conn.Send(msg, xpc.HeartbeatRequestFlag)
 	if err != nil {
-		return AppLaunch{}, fmt.Errorf("LaunchApp: failed to send launch-app request: %w", err)
+		return 0, fmt.Errorf("launchApp: failed to send launch-app request: %w", err)
 	}
 	m, err := c.conn.ReceiveOnServerClientStream()
 	if err != nil {
-		return AppLaunch{}, fmt.Errorf("launchApp2: %w", err)
+		return 0, fmt.Errorf("launchApp: failed to read response: %w", err)
 	}
 	pid, err := pidFromResponse(m)
 	if err != nil {
-		return AppLaunch{}, fmt.Errorf("launchApp3: %w", err)
+		return 0, fmt.Errorf("launchApp: failed to get PID: %w", err)
 	}
-	return AppLaunch{Pid: int(pid)}, nil
+	return int(pid), nil
 }
 
 // Close closes the connection to the appservice
@@ -181,7 +232,7 @@ func (p Process) ExecutableName() string {
 	return file
 }
 
-func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool) map[string]interface{} {
+func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{}, env map[string]interface{}, options map[string]interface{}, terminateExisting bool, stdIo map[string]any) map[string]interface{} {
 	platformSpecificOptions := bytes.NewBuffer(nil)
 	plistEncoder := plist.NewBinaryEncoder(platformSpecificOptions)
 	err := plistEncoder.Encode(options)
@@ -207,7 +258,7 @@ func buildAppLaunchPayload(deviceId string, bundleId string, args []interface{},
 			},
 			"workingDirectory": nil,
 		},
-		"standardIOIdentifiers": map[string]interface{}{},
+		"standardIOIdentifiers": stdIo,
 	})
 }
 
