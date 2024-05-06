@@ -77,16 +77,16 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 	}
 
 	select {
-	case <-conn.Ctx.Done():
-		log.Info("conn.Ctx.Done()")
-		if context.Cause(conn.Ctx) != context.Canceled {
-			log.WithError(context.Cause(conn.Ctx)).Error("conn ended unexpectedly")
+	case <-conn.Closed():
+		log.Debug("conn closed")
+		if conn.Err() != dtx.ErrConnectionClosed {
+			log.WithError(conn.Err()).Error("conn closed unexpectedly")
 		}
 		break
-	case <-conn2.Ctx.Done():
-		log.Info("conn2.Ctx.Done()")
-		if context.Cause(conn2.Ctx) != context.Canceled {
-			log.WithError(context.Cause(conn2.Ctx)).Error("conn2 ended unexpectedly")
+	case <-conn2.Closed():
+		log.Debug("conn2 closed")
+		if conn2.Err() != dtx.ErrConnectionClosed {
+			log.WithError(conn2.Err()).Error("conn2 closed unexpectedly")
 		}
 		break
 	case <-testListener.Done():

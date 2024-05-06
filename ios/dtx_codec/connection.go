@@ -1,7 +1,7 @@
 package dtx
 
 import (
-	"context"
+	"errors"
 	"io"
 	"math"
 	"strings"
@@ -16,6 +16,8 @@ import (
 
 type MethodWithResponse func(msg Message) (interface{}, error)
 
+var ErrConnectionClosed = errors.New("Connection closed")
+
 // Connection manages channels, including the GlobalChannel, for a DtxConnection and dispatches received messages
 // to the right channel.
 type Connection struct {
@@ -27,8 +29,9 @@ type Connection struct {
 	mutex                  sync.Mutex
 	requestChannelMessages chan Message
 
-	Ctx       context.Context
-	cancelCtx context.CancelCauseFunc
+	closed    chan struct{}
+	err       error
+	closeOnce sync.Once
 }
 
 // Dispatcher is a simple interface containing a Dispatch func to receive dtx.Messages
@@ -45,14 +48,24 @@ type GlobalDispatcher struct {
 
 const requestChannel = "_requestChannelWithCode:identifier:"
 
+// Closed is closed when the underlying DTX connection was closed for any reason (either initiated by calling Close() or due to an error)
+func (dtxConn *Connection) Closed() <-chan struct{} {
+	return dtxConn.closed
+}
+
+// Err is non-nil when the connection was closed (when Close was called this will be ErrConnectionClosed)
+func (dtxConn *Connection) Err() error {
+	return dtxConn.err
+}
+
 // Close closes the underlying deviceConnection
 func (dtxConn *Connection) Close() error {
 	if dtxConn.deviceConnection != nil {
 		err := dtxConn.deviceConnection.Close()
-		dtxConn.cancelCtx(err)
+		dtxConn.close(err)
 		return err
 	}
-	dtxConn.cancelCtx(nil)
+	dtxConn.close(ErrConnectionClosed)
 	return nil
 }
 
@@ -128,7 +141,7 @@ func newDtxConnection(conn ios.DeviceConnectionInterface) (*Connection, error) {
 
 	// The global channel has channelCode 0, so we need to start with channelCodeCounter==1
 	dtxConnection := &Connection{deviceConnection: conn, channelCodeCounter: 1, requestChannelMessages: requestChannelMessages}
-	dtxConnection.Ctx, dtxConnection.cancelCtx = context.WithCancelCause(context.Background())
+	dtxConnection.closed = make(chan struct{})
 
 	// The global channel is automatically present and used for requesting other channels and some other methods like notifyPublishedCapabilities
 	globalChannel := Channel{
@@ -157,7 +170,7 @@ func reader(dtxConn *Connection) {
 		reader := dtxConn.deviceConnection.Reader()
 		msg, err := ReadMessage(reader)
 		if err != nil {
-			defer dtxConn.cancelCtx(err)
+			defer dtxConn.close(err)
 			errText := err.Error()
 			if err == io.EOF || strings.Contains(errText, "use of closed network") {
 				log.Debug("DTX Connection with EOF")
@@ -236,4 +249,11 @@ func (dtxConn *Connection) RequestChannelIdentifier(identifier string, messageDi
 	}
 
 	return channel
+}
+
+func (dtxConn *Connection) close(err error) {
+	dtxConn.closeOnce.Do(func() {
+		dtxConn.err = err
+		close(dtxConn.closed)
+	})
 }
