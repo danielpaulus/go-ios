@@ -9,11 +9,13 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	plist "howett.net/plist"
 )
 
 // DeviceConnectionInterface contains a physical network connection to a usbmuxd socket.
 type DeviceConnectionInterface interface {
 	Close() error
+	SendAny(message any) error
 	Send(message []byte) error
 	Reader() io.Reader
 	Writer() io.Writer
@@ -87,6 +89,19 @@ func (conn *DeviceConnection) Send(bytes []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (conn *DeviceConnection) SendAny(req any) error {
+	data, err := plist.Marshal(req, plist.XMLFormat)
+	if err != nil {
+		return err
+	}
+
+	if err := binary.Write(conn.c, binary.BigEndian, uint32(len(data))); err != nil {
+		return err
+	}
+
+	return binary.Write(conn.c, binary.BigEndian, data)
 }
 
 // Reader exposes the underlying net.Conn as io.Reader
