@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -156,7 +157,7 @@ The commands work as following:
    ios info [display | lockdown] [options]                            Prints a dump of device information from the given source.
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
-   >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk 
+   >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
@@ -216,7 +217,7 @@ The commands work as following:
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
    ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
-   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config. 
+   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
    >                                                                  If you provide '-' as log output, it prints resuts to stdout.
    >                                                                  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=(TestTarget.)TestClass/testMethod --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
    >                                                                  The method name can also be omitted and in this case all tests of the specified class are run
@@ -242,7 +243,7 @@ The commands work as following:
    >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path' is required as we can not access the default path for the pair record
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
-   ios tunnel ls                                                      List currently started tunnels   
+   ios tunnel ls                                                      List currently started tunnels
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
@@ -605,6 +606,15 @@ The commands work as following:
 	if b {
 		lat, _ := arguments.String("--lat")
 		lon, _ := arguments.String("--lon")
+
+		if device.SupportsRsd() {
+			server, err := instruments.NewLocationSimulationService(device)
+			exitIfError("failed to create location simulation service:", err)
+
+			startLocationSimulation(server, lat, lon)
+			return
+		}
+
 		setLocation(device, lat, lon)
 		return
 	}
@@ -1728,6 +1738,29 @@ func setLocation(device ios.DeviceEntry, lat string, lon string) {
 func setLocationGPX(device ios.DeviceEntry, gpxFilePath string) {
 	err := simlocation.SetLocationGPX(device, gpxFilePath)
 	exitIfError("Setting location failed with", err)
+}
+
+func startLocationSimulation(service *instruments.LocationSimulationService, lat string, lon string) {
+	latitude, err := strconv.ParseFloat(lat, 64)
+	exitIfError("location simulation failed to parse lat", err)
+
+	longitude, err := strconv.ParseFloat(lon, 64)
+	exitIfError("location simulation failed to parse lon", err)
+
+	err = service.StartSimulateLocation(latitude, longitude)
+	exitIfError("location simulation failed to start with", err)
+
+	defer stopLocationSimulation(service)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+}
+
+func stopLocationSimulation(service *instruments.LocationSimulationService) {
+	err := service.StopSimulateLocation()
+	if err != nil {
+		exitIfError("location simulation failed to stop with", err)
+	}
 }
 
 func resetLocation(device ios.DeviceEntry) {
