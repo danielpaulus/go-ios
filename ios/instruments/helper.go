@@ -12,6 +12,7 @@ import (
 const (
 	serviceName      string = "com.apple.instruments.remoteserver"
 	serviceNameiOS14 string = "com.apple.instruments.remoteserver.DVTSecureSocketProxy"
+	serviceNameRsd   string = "com.apple.instruments.dtservicehub"
 )
 
 type loggingDispatcher struct {
@@ -24,6 +25,10 @@ func (p loggingDispatcher) Dispatch(m dtx.Message) {
 }
 
 func connectInstruments(device ios.DeviceEntry) (*dtx.Connection, error) {
+	if device.SupportsRsd() {
+		log.Debugf("Connecting to %s", serviceNameRsd)
+		return dtx.NewTunnelConnection(device, serviceNameRsd)
+	}
 	dtxConn, err := dtx.NewUsbmuxdConnection(device, serviceName)
 	if err != nil {
 		log.Debugf("Failed connecting to %s, trying %s", serviceName, serviceNameiOS14)
