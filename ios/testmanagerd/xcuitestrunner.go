@@ -3,6 +3,7 @@ package testmanagerd
 import (
 	"context"
 	"fmt"
+	"io"
 	"path"
 	"strings"
 
@@ -358,10 +359,18 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 	defer appserviceConn.Close()
 
-	pid, err := startTestRunner17(device, appserviceConn, "", testRunnerBundleID, strings.ToUpper(testSessionID.String()), info.testApp.path+"/PlugIns/"+xctestConfigFileName, args, env)
+	testRunnerLaunch, err := startTestRunner17(device, appserviceConn, "", testRunnerBundleID, strings.ToUpper(testSessionID.String()), info.testApp.path+"/PlugIns/"+xctestConfigFileName, args, env)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot start test runner: %w", err)
 	}
+
+	defer testRunnerLaunch.Close()
+	go func() {
+		_, err := io.Copy(testListener.logWriter, testRunnerLaunch)
+		if err != nil {
+			log.Warn("copying stdout failed", log.WithError(err))
+		}
+	}()
 
 	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testconfig, testListener)
 	caps, err := ideDaemonProxy2.daemonConnection.initiateControlSessionWithCapabilities(nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{}})
@@ -369,7 +378,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot initiate a control session with capabilities: %w", err)
 	}
 	log.WithField("caps", caps).Info("got capabilities")
-	authorized, err := ideDaemonProxy2.daemonConnection.authorizeTestSessionWithProcessID(uint64(pid))
+	authorized, err := ideDaemonProxy2.daemonConnection.authorizeTestSessionWithProcessID(uint64(testRunnerLaunch.Pid))
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot authorize test session: %w", err)
 	}
@@ -387,10 +396,10 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	case <-testListener.Done():
 		break
 	case <-ctx.Done():
-		log.Infof("Killing test runner with pid %d ...", pid)
-		err = killTestRunner(appserviceConn, pid)
+		log.Infof("Killing test runner with pid %d ...", testRunnerLaunch.Pid)
+		err = killTestRunner(appserviceConn, testRunnerLaunch.Pid)
 		if err != nil {
-			log.Infof("Nothing to kill, process with pid %d is already dead", pid)
+			log.Infof("Nothing to kill, process with pid %d is already dead", testRunnerLaunch.Pid)
 		} else {
 			log.Info("Test runner killed with success")
 		}
@@ -416,9 +425,7 @@ func killTestRunner(killer processKiller, pid int) error {
 	return nil
 }
 
-func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connection, xctestConfigPath string, bundleID string,
-	sessionIdentifier string, testBundlePath string, testArgs []string, testEnv []string,
-) (int, error) {
+func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connection, xctestConfigPath string, bundleID string, sessionIdentifier string, testBundlePath string, testArgs []string, testEnv []string) (appservice.LaunchedAppWithStdIo, error) {
 	args := []interface{}{}
 	for _, arg := range testArgs {
 		args = append(args, arg)
@@ -454,7 +461,7 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 		"StartSuspendedKey": uint64(0),
 	}
 
-	appLaunch, err := appserviceConn.LaunchApp(
+	appLaunch, err := appserviceConn.LaunchAppWithStdIo(
 		bundleID,
 		args,
 		env,
@@ -463,10 +470,10 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 	)
 
 	if err != nil {
-		return 0, err
+		return appservice.LaunchedAppWithStdIo{}, err
 	}
 
-	return appLaunch.Pid, nil
+	return appLaunch, nil
 }
 
 func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string, testsToRun []string, testsToSkip []string) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
