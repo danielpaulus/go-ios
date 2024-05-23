@@ -20,7 +20,10 @@ func FindDeviceInterfaceAddress(ctx context.Context, device DeviceEntry) (string
 	}
 
 	result := make(chan string)
-	defer close(result)
+
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	defer cancel()
 
 	for _, iface := range ifaces {
 		resolver, err := zeroconf.NewResolver(zeroconf.SelectIfaces([]net.Interface{iface}), zeroconf.SelectIPTraffic(zeroconf.IPv6))
@@ -57,13 +60,13 @@ func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, e
 			}
 			print(entry.ServiceInstanceName())
 			for _, ip6 := range entry.AddrIPv6 {
-				tryHandshake(ip6, entry.Port, interfaceName, device, result)
+				tryHandshake(ctx, ip6, entry.Port, interfaceName, device, result)
 			}
 		}
 	}
 }
 
-func tryHandshake(ip6 net.IP, port int, interfaceName string, device DeviceEntry, result chan<- string) {
+func tryHandshake(ctx context.Context, ip6 net.IP, port int, interfaceName string, device DeviceEntry, result chan<- string) {
 	addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
 	s, err := NewWithAddrPortDevice(addr, port, device)
 	udid := device.Properties.SerialNumber
@@ -77,6 +80,10 @@ func tryHandshake(ip6 net.IP, port int, interfaceName string, device DeviceEntry
 		return
 	}
 	if udid == h.Udid {
-		result <- addr
+		select {
+		case <-ctx.Done():
+			slog.Error("failed sending handshake result", "error", ctx.Err())
+		case result <- addr:
+		}
 	}
 }
