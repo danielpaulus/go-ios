@@ -7,13 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -112,7 +112,7 @@ Usage:
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
-  ios ax [options]
+  ios ax [--font=<fontSize>] [options]
   ios debug [options] [--stop-at-entry] <app_path>
   ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>
   ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
@@ -156,7 +156,7 @@ The commands work as following:
    ios info [display | lockdown] [options]                            Prints a dump of device information from the given source.
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
-   >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk 
+   >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
@@ -216,13 +216,13 @@ The commands work as following:
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
    ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
-   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config. 
+   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
    >                                                                  If you provide '-' as log output, it prints resuts to stdout.
    >                                                                  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=(TestTarget.)TestClass/testMethod --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
    >                                                                  The method name can also be omitted and in this case all tests of the specified class are run
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
-   ios ax [options]                                                   Access accessibility inspector features.
+   ios ax [--font=<fontSize>] [options]                               Access accessibility inspector features.
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
    ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
@@ -242,7 +242,7 @@ The commands work as following:
    >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path' is required as we can not access the default path for the pair record
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
-   ios tunnel ls                                                      List currently started tunnels   
+   ios tunnel ls                                                      List currently started tunnels
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
@@ -605,6 +605,15 @@ The commands work as following:
 	if b {
 		lat, _ := arguments.String("--lat")
 		lon, _ := arguments.String("--lon")
+
+		if device.SupportsRsd() {
+			server, err := instruments.NewLocationSimulationService(device)
+			exitIfError("failed to create location simulation service:", err)
+
+			startLocationSimulation(server, lat, lon)
+			return
+		}
+
 		setLocation(device, lat, lon)
 		return
 	}
@@ -709,7 +718,7 @@ The commands work as following:
 		if p12password == "" {
 			p12password = os.Getenv("P12_PASSWORD")
 		}
-		p12bytes, err := ioutil.ReadFile(p12file)
+		p12bytes, err := os.ReadFile(p12file)
 		exitIfError("could not read p12-file", err)
 
 		err = mcinstall.SetHttpProxy(device, host, port, user, pass, p12bytes, p12password)
@@ -890,7 +899,7 @@ The commands work as following:
 
 	b, _ = arguments.Bool("ax")
 	if b {
-		startAx(device)
+		startAx(device, arguments)
 		return
 	}
 
@@ -1114,28 +1123,30 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 
 		errorChannel := make(chan error)
+		defer close(errorChannel)
 		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
 			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
 			if err != nil {
-				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 				errorChannel <- err
 			}
-			close(errorChannel)
+			stopWda()
 		}()
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		signal := <-c
-		log.Infof("os signal:%d received, closing..", signal)
 
-		stopWda()
-
-		err := <-errorChannel
-		if err != nil {
-			log.Errorf("Failed running wda-testrunner: %s", err)
+		select {
+		case err := <-errorChannel:
+			log.WithError(err).Error("Failed running WDA")
+			stopWda()
 			os.Exit(1)
+		case <-ctx.Done():
+			log.Error("WDA process ended unexpectedly")
+			os.Exit(1)
+		case signal := <-c:
+			log.Infof("os signal:%d received, closing...", signal)
+			stopWda()
 		}
-
 		log.Info("Done Closing")
 	}
 	return b
@@ -1494,19 +1505,19 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 	}
 }
 
-func startAx(device ios.DeviceEntry) {
+func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 	go func() {
-		deviceList, err := ios.ListDevices()
-		exitIfError("failed converting to json", err)
-
-		device := deviceList.DeviceList[0]
-
 		conn, err := accessibility.New(device)
 		exitIfError("failed starting ax", err)
 
 		conn.SwitchToDevice()
 
 		conn.EnableSelectionMode()
+
+		size, _ := arguments.Float64("--font")
+		if size != 0 {
+			conn.UpdateAccessibilitySetting("DYNAMIC_TYPE", size)
+		}
 
 		for i := 0; i < 3; i++ {
 			conn.GetElement()
@@ -1571,7 +1582,7 @@ func handleProfileRemove(device ios.DeviceEntry, identifier string) {
 func handleProfileAdd(device ios.DeviceEntry, file string) {
 	profileService, err := mcinstall.New(device)
 	exitIfError("Starting mcInstall failed with", err)
-	filebytes, err := ioutil.ReadFile(file)
+	filebytes, err := os.ReadFile(file)
 	exitIfError("could not read profile-file", err)
 	err = profileService.AddProfile(filebytes)
 	exitIfError("failed adding profile", err)
@@ -1581,9 +1592,9 @@ func handleProfileAdd(device ios.DeviceEntry, file string) {
 func handleProfileAddSupervised(device ios.DeviceEntry, file string, p12file string, p12password string) {
 	profileService, err := mcinstall.New(device)
 	exitIfError("Starting mcInstall failed with", err)
-	filebytes, err := ioutil.ReadFile(file)
+	filebytes, err := os.ReadFile(file)
 	exitIfError("could not read profile-file", err)
-	p12bytes, err := ioutil.ReadFile(p12file)
+	p12bytes, err := os.ReadFile(p12file)
 	exitIfError("could not read p12-file", err)
 	err = profileService.AddProfileSupervised(filebytes, p12bytes, p12password)
 	exitIfError("failed adding profile", err)
@@ -1710,7 +1721,7 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 		outputPath, err = filepath.Abs("./screenshot" + timestamp + ".png")
 		exitIfError("getting filepath failed", err)
 	}
-	err = ioutil.WriteFile(outputPath, imageBytes, 0o777)
+	err = os.WriteFile(outputPath, imageBytes, 0o777)
 	exitIfError("write file failed", err)
 
 	if JSONdisabled {
@@ -1728,6 +1739,29 @@ func setLocation(device ios.DeviceEntry, lat string, lon string) {
 func setLocationGPX(device ios.DeviceEntry, gpxFilePath string) {
 	err := simlocation.SetLocationGPX(device, gpxFilePath)
 	exitIfError("Setting location failed with", err)
+}
+
+func startLocationSimulation(service *instruments.LocationSimulationService, lat string, lon string) {
+	latitude, err := strconv.ParseFloat(lat, 64)
+	exitIfError("location simulation failed to parse lat", err)
+
+	longitude, err := strconv.ParseFloat(lon, 64)
+	exitIfError("location simulation failed to parse lon", err)
+
+	err = service.StartSimulateLocation(latitude, longitude)
+	exitIfError("location simulation failed to start with", err)
+
+	defer stopLocationSimulation(service)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+}
+
+func stopLocationSimulation(service *instruments.LocationSimulationService) {
+	err := service.StopSimulateLocation()
+	if err != nil {
+		exitIfError("location simulation failed to stop with", err)
+	}
 }
 
 func resetLocation(device ios.DeviceEntry) {

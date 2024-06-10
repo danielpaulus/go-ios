@@ -82,6 +82,12 @@ func NewReadDevices() ReadDevicesType {
 	return data
 }
 
+// SupportsRsd checks if the device supports RSD (Remote Service Discovery).
+// It returns true if the device has RSD capability, otherwise false.
+func (device *DeviceEntry) SupportsRsd() bool {
+	return device.Rsd != nil
+}
+
 // ListDevices returns a DeviceList containing data about all
 // currently connected iOS devices
 func (muxConn *UsbMuxConnection) ListDevices() (DeviceList, error) {

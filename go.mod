@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
-	github.com/fullsailor/pkcs7 v0.0.0-20190404230743-d7302db945fa
+	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.1.2
 	github.com/grandcat/zeroconf v1.0.0
@@ -17,6 +17,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tadglines/go-pkgs v0.0.0-20210623144937-b983b20f54f9
 	golang.org/x/crypto v0.15.0
+	software.sslmate.com/src/go-pkcs12 v0.2.0
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db
 	golang.org/x/net v0.18.0
 	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5

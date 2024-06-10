@@ -60,6 +60,10 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 		"UID_MODE": false,
 	}
 
+	for k, v := range identifiers.AdditionalIdentifiers {
+		params[k] = v
+	}
+
 	buf := bytes.NewBuffer(nil)
 	enc := plist.NewEncoderForFormat(buf, plist.XMLFormat)
 	err := enc.Encode(params)

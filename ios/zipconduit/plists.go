@@ -52,7 +52,7 @@ func evaluateProgress(progressUpdate map[string]interface{}) (bool, int, string,
 
 	errorMessage, ok := installProgressDict["Error"]
 	if ok {
-		description, _ := installProgressDict["ErrorDescription"]
+		description := installProgressDict["ErrorDescription"]
 		if signingError == errorMessage {
 			return false, 0, "", fmt.Errorf("your app is not properly signed for this device, check your codesigning and provisioningprofile. original error: '%s' errorDescription:'%s'", errorMessage, description)
 		}

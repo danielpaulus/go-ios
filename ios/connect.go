@@ -108,12 +108,12 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 // to the provided service.
 // The 'RSDCheckin' required by shim services is also executed before returning the connection to the caller
 func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionInterface, error) {
-	if device.Rsd == nil {
+	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToShimService: Cannot connect to %s, missing tunnel address and RSD port.  To start the tunnel, run `ios tunnel start`", service)
 	}
 
 	port := device.Rsd.GetPort(service)
-	conn, err := connectToTunnel(device, port)
+	conn, err := ConnectToTunnel(device, port)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionI
 // ConnectToServiceTunnelIface connects to a service on an iOS17+ device using a XPC over HTTP2 connection
 // It returns a new xpc.Connection
 func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
-	if device.Rsd == nil {
+	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToXpcServiceTunnelIface: Cannot connect to %s, missing tunnel address and RSD port. To start the tunnel, run `ios tunnel start`", serviceName)
 	}
 	port := device.Rsd.GetPort(serviceName)
@@ -140,12 +140,12 @@ func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xp
 }
 
 func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
-	if device.Rsd == nil {
+	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToServiceTunnelIface: Cannot connect to %s, missing tunnel address and RSD port", serviceName)
 	}
 	port := device.Rsd.GetPort(serviceName)
 
-	conn, err := connectToTunnel(device, port)
+	conn, err := ConnectToTunnel(device, port)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToServiceTunnelIface: failed to connect to tunnel: %w", err)
 	}
@@ -175,24 +175,25 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 	return http.NewHttpConnection(conn)
 }
 
-func connectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
+// ConnectToTunnel opens a new connection to the tunnel interface of the specified device and on the specified port
+func ConnectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
 	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
 	if err != nil {
-		return nil, fmt.Errorf("connectToTunnel: failed to resolve address: %w", err)
+		return nil, fmt.Errorf("ConnectToTunnel: failed to resolve address: %w", err)
 	}
 
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
-		return nil, fmt.Errorf("connectToTunnel: failed to dial: %w", err)
+		return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
 	}
 
 	err = conn.SetKeepAlive(true)
 	if err != nil {
-		return nil, fmt.Errorf("connectToTunnel: failed to set keepalive: %w", err)
+		return nil, fmt.Errorf("ConnectToTunnel: failed to set keepalive: %w", err)
 	}
 	err = conn.SetKeepAlivePeriod(1 * time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("connectToTunnel: failed to set keepalive period: %w", err)
+		return nil, fmt.Errorf("ConnectToTunnel: failed to set keepalive period: %w", err)
 	}
 
 	return conn, nil
