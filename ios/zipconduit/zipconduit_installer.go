@@ -51,7 +51,7 @@ type Connection struct {
 
 // New returns a new ZipConduit Connection for the given DeviceID and Udid
 func New(device ios.DeviceEntry) (*Connection, error) {
-	if device.Rsd == nil {
+	if !device.SupportsRsd() {
 		return NewWithUsbmuxdConnection(device)
 	}
 	return NewWithShimConnection(device)

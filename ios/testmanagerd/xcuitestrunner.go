@@ -393,16 +393,29 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 
 	select {
+	case <-conn1.Closed():
+		log.Debug("conn1 closed")
+		if conn1.Err() != dtx.ErrConnectionClosed {
+			log.WithError(conn1.Err()).Error("conn1 closed unexpectedly")
+		}
+		break
+	case <-conn2.Closed():
+		log.Debug("conn2 closed")
+		if conn2.Err() != dtx.ErrConnectionClosed {
+			log.WithError(conn2.Err()).Error("conn2 closed unexpectedly")
+		}
+		break
 	case <-testListener.Done():
 		break
 	case <-ctx.Done():
-		log.Infof("Killing test runner with pid %d ...", testRunnerLaunch.Pid)
-		err = killTestRunner(appserviceConn, testRunnerLaunch.Pid)
-		if err != nil {
-			log.Infof("Nothing to kill, process with pid %d is already dead", testRunnerLaunch.Pid)
-		} else {
-			log.Info("Test runner killed with success")
-		}
+		break
+	}
+	log.Infof("Killing test runner with pid %d ...", testRunnerLaunch.Pid)
+	err = killTestRunner(appserviceConn, testRunnerLaunch.Pid)
+	if err != nil {
+		log.Infof("Nothing to kill, process with pid %d is already dead", testRunnerLaunch.Pid)
+	} else {
+		log.Info("Test runner killed with success")
 	}
 
 	log.Debugf("Done running test")
