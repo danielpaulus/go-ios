@@ -14,7 +14,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/fullsailor/pkcs7"
+	"go.mozilla.org/pkcs7"
 )
 
 const bitSize = 2048
