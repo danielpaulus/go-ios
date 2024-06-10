@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path"
@@ -719,7 +718,7 @@ The commands work as following:
 		if p12password == "" {
 			p12password = os.Getenv("P12_PASSWORD")
 		}
-		p12bytes, err := ioutil.ReadFile(p12file)
+		p12bytes, err := os.ReadFile(p12file)
 		exitIfError("could not read p12-file", err)
 
 		err = mcinstall.SetHttpProxy(device, host, port, user, pass, p12bytes, p12password)
@@ -1124,28 +1123,30 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 
 		errorChannel := make(chan error)
+		defer close(errorChannel)
 		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
 			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
 			if err != nil {
-				log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 				errorChannel <- err
 			}
-			close(errorChannel)
+			stopWda()
 		}()
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		signal := <-c
-		log.Infof("os signal:%d received, closing..", signal)
 
-		stopWda()
-
-		err := <-errorChannel
-		if err != nil {
-			log.Errorf("Failed running wda-testrunner: %s", err)
+		select {
+		case err := <-errorChannel:
+			log.WithError(err).Error("Failed running WDA")
+			stopWda()
 			os.Exit(1)
+		case <-ctx.Done():
+			log.Error("WDA process ended unexpectedly")
+			os.Exit(1)
+		case signal := <-c:
+			log.Infof("os signal:%d received, closing...", signal)
+			stopWda()
 		}
-
 		log.Info("Done Closing")
 	}
 	return b
@@ -1581,7 +1582,7 @@ func handleProfileRemove(device ios.DeviceEntry, identifier string) {
 func handleProfileAdd(device ios.DeviceEntry, file string) {
 	profileService, err := mcinstall.New(device)
 	exitIfError("Starting mcInstall failed with", err)
-	filebytes, err := ioutil.ReadFile(file)
+	filebytes, err := os.ReadFile(file)
 	exitIfError("could not read profile-file", err)
 	err = profileService.AddProfile(filebytes)
 	exitIfError("failed adding profile", err)
@@ -1591,9 +1592,9 @@ func handleProfileAdd(device ios.DeviceEntry, file string) {
 func handleProfileAddSupervised(device ios.DeviceEntry, file string, p12file string, p12password string) {
 	profileService, err := mcinstall.New(device)
 	exitIfError("Starting mcInstall failed with", err)
-	filebytes, err := ioutil.ReadFile(file)
+	filebytes, err := os.ReadFile(file)
 	exitIfError("could not read profile-file", err)
-	p12bytes, err := ioutil.ReadFile(p12file)
+	p12bytes, err := os.ReadFile(p12file)
 	exitIfError("could not read p12-file", err)
 	err = profileService.AddProfileSupervised(filebytes, p12bytes, p12password)
 	exitIfError("failed adding profile", err)
@@ -1720,7 +1721,7 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 		outputPath, err = filepath.Abs("./screenshot" + timestamp + ".png")
 		exitIfError("getting filepath failed", err)
 	}
-	err = ioutil.WriteFile(outputPath, imageBytes, 0o777)
+	err = os.WriteFile(outputPath, imageBytes, 0o777)
 	exitIfError("write file failed", err)
 
 	if JSONdisabled {
