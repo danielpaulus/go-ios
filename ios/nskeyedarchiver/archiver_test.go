@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
 
@@ -48,7 +48,7 @@ func TestXCTestconfig(t *testing.T) {
 	assert.NoError(t, err)
 	log.Info(res)
 
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/xctestconfiguration.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/xctestconfiguration.bin")
 	if err != nil {
 		log.Error(err)
 		t.Fatal()
@@ -60,7 +60,7 @@ func TestXCTestconfig(t *testing.T) {
 }
 
 func TestXCTCaps(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/XCTCapabilities.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/XCTCapabilities.bin")
 	if err != nil {
 
 		log.Error(err)
@@ -73,7 +73,7 @@ func TestXCTCaps(t *testing.T) {
 }
 
 func TestDTCPUClusterInfo(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/dtcpuclusterinfo.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/dtcpuclusterinfo.bin")
 	if err != nil {
 		log.Error(err)
 		t.Fatal()
@@ -84,7 +84,7 @@ func TestDTCPUClusterInfo(t *testing.T) {
 }
 
 func TestDTTapMessage(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/dttapmessage.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/dttapmessage.bin")
 	if err != nil {
 		log.Error(err)
 		t.Fatal()
@@ -95,7 +95,7 @@ func TestDTTapMessage(t *testing.T) {
 }
 
 func TestDTSysmonTap(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/DTSysmonTapMessage.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/DTSysmonTapMessage.bin")
 	if err != nil {
 
 		log.Error(err)
@@ -108,7 +108,7 @@ func TestDTSysmonTap(t *testing.T) {
 }
 
 func TestNSUUID(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/nsuuid.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/nsuuid.bin")
 	if err != nil {
 		log.Error(err)
 		t.Fatal()
@@ -120,7 +120,7 @@ func TestNSUUID(t *testing.T) {
 }
 
 func TestXCTestIdentifier(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/xctestidentifier.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/xctestidentifier.bin")
 	if err != nil {
 		log.Error(err)
 		t.Fatal()
@@ -132,7 +132,7 @@ func TestXCTestIdentifier(t *testing.T) {
 }
 
 func TestNSValue(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/nsvalue.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/nsvalue.bin")
 	if err != nil {
 		log.Error(err)
 		t.Fatal()
@@ -143,7 +143,7 @@ func TestNSValue(t *testing.T) {
 }
 
 func TestWTF(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/int64-value-in-nskeyedarchive.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/int64-value-in-nskeyedarchive.bin")
 	if err != nil {
 		log.Error(err)
 		t.Fatal()
@@ -155,7 +155,7 @@ func TestWTF(t *testing.T) {
 }
 
 func TestXCActivityRecord(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/XCActivityRecord.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/XCActivityRecord.bin")
 	if err != nil {
 		log.Error(err)
 		t.Fatal()
@@ -167,7 +167,7 @@ func TestXCActivityRecord(t *testing.T) {
 }
 
 func TestDTTapHeartbeatMessage(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/DTTapHeartbeatMessage.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/DTTapHeartbeatMessage.bin")
 	if err != nil {
 		log.Error(err)
 		t.Fatal()
@@ -179,7 +179,7 @@ func TestDTTapHeartbeatMessage(t *testing.T) {
 }
 
 func TestDTTapstatusmessage(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/dttapstatusmessage.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/dttapstatusmessage.bin")
 	if err != nil {
 		log.Error(err)
 		t.Fatal()
@@ -192,7 +192,7 @@ func TestDTTapstatusmessage(t *testing.T) {
 
 // TODO currently uint64 dicts are decoded by converting the keys to strings, might wanna fix this later
 func TestIntKeyDictionary(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/uint64-key-dictionary.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/uint64-key-dictionary.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestArchiverEmptyArray(t *testing.T) {
 }
 
 func TestNSDate(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/ax_statechange.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/ax_statechange.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestNSDate(t *testing.T) {
 }
 
 func TestNSNull(t *testing.T) {
-	nskeyedBytes, err := ioutil.ReadFile("fixtures/ax_focus_on_element.bin")
+	nskeyedBytes, err := os.ReadFile("fixtures/ax_focus_on_element.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +252,7 @@ func TestNSNull(t *testing.T) {
 }
 
 func TestArchiver3(t *testing.T) {
-	dat, err := ioutil.ReadFile("fixtures/payload_dump.json")
+	dat, err := os.ReadFile("fixtures/payload_dump.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,7 +278,7 @@ func TestArchiver3(t *testing.T) {
 
 // TestDecoderJson tests if real DTX nsKeyedArchived plists can be decoded without error
 func TestArchiver(t *testing.T) {
-	dat, err := ioutil.ReadFile("fixtures/payload_dump.json")
+	dat, err := os.ReadFile("fixtures/payload_dump.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,7 +305,7 @@ func TestArchiver(t *testing.T) {
 
 // TestDecoderJson tests if real DTX nsKeyedArchived plists can be decoded without error
 func TestDecoderJson(t *testing.T) {
-	dat, err := ioutil.ReadFile("fixtures/payload_dump.json")
+	dat, err := os.ReadFile("fixtures/payload_dump.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +334,7 @@ func TestDecoder(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		dat, err := ioutil.ReadFile("fixtures/" + tc.filename + ".xml")
+		dat, err := os.ReadFile("fixtures/" + tc.filename + ".xml")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -342,7 +342,7 @@ func TestDecoder(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, tc.expected, convertToJSON(objects))
 
-		dat, err = ioutil.ReadFile("fixtures/" + tc.filename + ".bin")
+		dat, err = os.ReadFile("fixtures/" + tc.filename + ".bin")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -365,7 +365,7 @@ func TestValidation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		dat, err := ioutil.ReadFile("fixtures/" + tc.filename + ".xml")
+		dat, err := os.ReadFile("fixtures/" + tc.filename + ".xml")
 		if err != nil {
 			t.Fatal(err)
 		}

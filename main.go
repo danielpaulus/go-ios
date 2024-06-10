@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path"
@@ -719,7 +718,7 @@ The commands work as following:
 		if p12password == "" {
 			p12password = os.Getenv("P12_PASSWORD")
 		}
-		p12bytes, err := ioutil.ReadFile(p12file)
+		p12bytes, err := os.ReadFile(p12file)
 		exitIfError("could not read p12-file", err)
 
 		err = mcinstall.SetHttpProxy(device, host, port, user, pass, p12bytes, p12password)
@@ -1583,7 +1582,7 @@ func handleProfileRemove(device ios.DeviceEntry, identifier string) {
 func handleProfileAdd(device ios.DeviceEntry, file string) {
 	profileService, err := mcinstall.New(device)
 	exitIfError("Starting mcInstall failed with", err)
-	filebytes, err := ioutil.ReadFile(file)
+	filebytes, err := os.ReadFile(file)
 	exitIfError("could not read profile-file", err)
 	err = profileService.AddProfile(filebytes)
 	exitIfError("failed adding profile", err)
@@ -1593,9 +1592,9 @@ func handleProfileAdd(device ios.DeviceEntry, file string) {
 func handleProfileAddSupervised(device ios.DeviceEntry, file string, p12file string, p12password string) {
 	profileService, err := mcinstall.New(device)
 	exitIfError("Starting mcInstall failed with", err)
-	filebytes, err := ioutil.ReadFile(file)
+	filebytes, err := os.ReadFile(file)
 	exitIfError("could not read profile-file", err)
-	p12bytes, err := ioutil.ReadFile(p12file)
+	p12bytes, err := os.ReadFile(p12file)
 	exitIfError("could not read p12-file", err)
 	err = profileService.AddProfileSupervised(filebytes, p12bytes, p12password)
 	exitIfError("failed adding profile", err)
@@ -1722,7 +1721,7 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 		outputPath, err = filepath.Abs("./screenshot" + timestamp + ".png")
 		exitIfError("getting filepath failed", err)
 	}
-	err = ioutil.WriteFile(outputPath, imageBytes, 0o777)
+	err = os.WriteFile(outputPath, imageBytes, 0o777)
 	exitIfError("write file failed", err)
 
 	if JSONdisabled {
