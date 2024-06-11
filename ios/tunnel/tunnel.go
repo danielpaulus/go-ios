@@ -174,7 +174,17 @@ func setupTunnelInterface(err error, tunnelInfo tunnelParameters) (*water.Interf
 	}
 
 	const prefixLength = 64 // TODO: this could be calculated from the netmask provided by the device
-	setIpAddr := exec.Command("ifconfig", ifce.Name(), "inet6", "add", fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength))
+	var command []string
+
+	switch runtime.GOOS {
+	case "windows":
+		command = []string{"netsh", "interface", "ipv6", "add", "address", ifce.Name(), fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength)}
+		log.Info("windows cmd")
+		log.Info(command)
+	default:
+		command = []string{"ifconfig", ifce.Name(), "inet6", "add", fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength)}
+	}
+	setIpAddr := exec.Command(command[0], command[1:]...)
 	err = runCmd(setIpAddr)
 	if err != nil {
 		return nil, fmt.Errorf("setupTunnelInterface: failed to set IP address for interface: %w", err)
