@@ -222,7 +222,8 @@ type manualPairingTunnelStart struct {
 }
 
 func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager) (Tunnel, error) {
-	return ManualPairAndConnectToTunnel(ctx, device, p)
+	return ConnectTunnelLockdown(device)
+	//return ManualPairAndConnectToTunnel(ctx, device, p)
 }
 
 type deviceList struct {
