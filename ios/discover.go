@@ -3,6 +3,7 @@ package ios
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 
 	"github.com/grandcat/zeroconf"
@@ -55,16 +56,18 @@ func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, e
 				continue
 			}
 			for _, ip6 := range entry.AddrIPv6 {
-				tryHandshake(ip6, interfaceName, device.Properties.SerialNumber, result)
+				tryHandshake(ip6, entry.Port, interfaceName, device.Properties.SerialNumber, result)
 			}
 		}
 	}
 }
 
-func tryHandshake(ip6 net.IP, interfaceName, udid string, result chan<- string) {
+func tryHandshake(ip6 net.IP, port int, interfaceName, udid string, result chan<- string) {
 	addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
-	s, err := NewWithAddr(addr)
+	s, err := NewWithAddrPort(addr, port)
+
 	if err != nil {
+		slog.Error("failed to connect to remote service discovery", "error", err, "address", addr)
 		return
 	}
 	defer s.Close()
