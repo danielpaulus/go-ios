@@ -44,7 +44,7 @@ func connectToTunnelLockdown(ctx context.Context, info tunnelListener, addr stri
 	}()
 
 	go func() {
-		err := forwardTCPToDevice(tunnelCtx, tunnelInfo.ClientParameters.Mtu, utunIface, connToDevice)
+		err := forwardTUNToDevice(tunnelCtx, tunnelInfo.ClientParameters.Mtu, utunIface, connToDevice)
 		if err != nil {
 			logrus.WithError(err).Error("failed to forward data to the device")
 		}
@@ -58,40 +58,47 @@ func connectToTunnelLockdown(ctx context.Context, info tunnelListener, addr stri
 	}, nil
 }
 
-func forwardTCPToDevice(ctx context.Context, mtu uint64, r io.Reader, conn io.Writer) error {
+func forwardTUNToDevice(ctx context.Context, mtu uint64, tun io.Reader, deviceConn io.Writer) error {
 	packet := make([]byte, mtu)
 	for {
+
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
-			n, err := r.Read(packet)
+
+			n, err := tun.Read(packet)
+
 			if err != nil {
 				return fmt.Errorf("could not read packet. %w", err)
 			}
-			_, err = conn.Write(packet[:n])
+
+			_, err = deviceConn.Write(packet[:n])
 			if err != nil {
 				return fmt.Errorf("could not write packet. %w", err)
 			}
 		}
+
 	}
 }
 
-func forwardTCPToInterface(ctx context.Context, conn io.Reader, w io.Writer) error {
+func forwardTCPToInterface(ctx context.Context, deviceConn io.Reader, tun io.Writer) error {
+	b := make([]byte, 20000)
 	for {
+
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
-			b := make([]byte, 20000)
-			n, err := conn.Read(b)
+			n, err := deviceConn.Read(b)
 			if err != nil {
 				return fmt.Errorf("failed to read datagram. %w", err)
 			}
-			_, err = w.Write(b[:n])
+			_, err = tun.Write(b[:n])
 			if err != nil {
 				return fmt.Errorf("failed to forward data. %w", err)
 			}
 		}
+
 	}
 }
