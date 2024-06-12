@@ -5,7 +5,6 @@ go 1.21
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
-	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.1.2
 	github.com/grandcat/zeroconf v1.0.0
@@ -16,11 +15,12 @@ require (
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/stretchr/testify v1.6.1
 	github.com/tadglines/go-pkgs v0.0.0-20210623144937-b983b20f54f9
-	golang.org/x/crypto v0.15.0
-	software.sslmate.com/src/go-pkcs12 v0.2.0
+	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
+	golang.org/x/crypto v0.24.0
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db
-	golang.org/x/net v0.18.0
+	golang.org/x/net v0.26.0
 	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5
+	software.sslmate.com/src/go-pkcs12 v0.2.0
 )
 
 require (
@@ -36,9 +36,13 @@ require (
 	github.com/quic-go/qtls-go1-20 v0.4.1 // indirect
 	github.com/stretchr/objx v0.1.0 // indirect
 	go.uber.org/mock v0.3.0 // indirect
-	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/sys v0.14.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
-	golang.org/x/tools v0.15.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
+	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
+	golang.zx2c4.com/wireguard v0.0.0-20231211153847-12269c276173 // indirect
+	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
+	golang.zx2c4.com/wireguard/windows v0.5.3
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
