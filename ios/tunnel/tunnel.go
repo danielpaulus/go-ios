@@ -165,7 +165,10 @@ func connectToTunnel(ctx context.Context, info tunnelListener, addr string, devi
 	}, nil
 }
 
-func setupTunnelInterface(tunnelInfo tunnelParameters) (*water.Interface, error) {
+func setupTunnelInterface(tunnelInfo tunnelParameters) (io.ReadWriteCloser, error) {
+	if runtime.GOOS == "windows" {
+		return setupWindowsTUN(tunnelInfo)
+	}
 	ifce, err := water.New(water.Config{
 		DeviceType: water.TUN,
 	})
@@ -174,17 +177,8 @@ func setupTunnelInterface(tunnelInfo tunnelParameters) (*water.Interface, error)
 	}
 
 	const prefixLength = 64 // TODO: this could be calculated from the netmask provided by the device
-	var command []string
 
-	switch runtime.GOOS {
-	case "windows":
-		command = []string{"netsh", "interface", "ipv6", "add", "address", ifce.Name(), fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength)}
-		log.Info("windows cmd")
-		log.Info(command)
-	default:
-		command = []string{"ifconfig", ifce.Name(), "inet6", "add", fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength)}
-	}
-	setIpAddr := exec.Command(command[0], command[1:]...)
+	setIpAddr := exec.Command("ifconfig", ifce.Name(), "inet6", "add", fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength))
 	err = runCmd(setIpAddr)
 	if err != nil {
 		return nil, fmt.Errorf("setupTunnelInterface: failed to set IP address for interface: %w", err)

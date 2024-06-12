@@ -19,6 +19,7 @@ require (
 	golang.org/x/crypto v0.24.0
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db
 	golang.org/x/net v0.26.0
+	golang.zx2c4.com/wireguard v0.0.0-20231211153847-12269c276173
 	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5
 	software.sslmate.com/src/go-pkcs12 v0.2.0
 )
@@ -37,12 +38,10 @@ require (
 	github.com/stretchr/objx v0.1.0 // indirect
 	go.uber.org/mock v0.3.0 // indirect
 	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
-	golang.zx2c4.com/wireguard v0.0.0-20231211153847-12269c276173 // indirect
-	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
-	golang.zx2c4.com/wireguard/windows v0.5.3
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

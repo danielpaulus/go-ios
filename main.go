@@ -65,6 +65,7 @@ const version = "local-build"
 
 // Main Exports main for testing
 func Main() {
+
 	usage := fmt.Sprintf(`go-ios %s
 
 Usage:
