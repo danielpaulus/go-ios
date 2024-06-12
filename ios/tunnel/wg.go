@@ -2,7 +2,8 @@
  *
  * Copyright (C) 2017-2023 WireGuard LLC. All Rights Reserved.
  */
-
+// taken from package wireguard-go/tun/tun_windows.go to minimize useless dependencies and transparently drop
+// ipv4 packets
 package tunnel
 
 import (
