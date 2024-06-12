@@ -125,3 +125,5 @@ ios listen [options]                                               Keeps a persi
    ios diskspace [options]											  Prints disk space info.
 
 ```
+For Windows install: https://build.openvpn.net/downloads/releases
+use wireguard-go

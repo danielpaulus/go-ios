@@ -27,7 +27,7 @@ func connectToTunnelLockdown(ctx context.Context, info tunnelListener, addr stri
 		return Tunnel{}, fmt.Errorf("could not exchange tunnel parameters. %w", err)
 	}
 
-	utunIface, err := setupTunnelInterface(err, tunnelInfo)
+	utunIface, err := setupTunnelInterface(tunnelInfo)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
 	}

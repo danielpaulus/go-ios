@@ -130,7 +130,7 @@ func connectToTunnel(ctx context.Context, info tunnelListener, addr string, devi
 		return Tunnel{}, fmt.Errorf("could not exchange tunnel parameters. %w", err)
 	}
 
-	utunIface, err := setupTunnelInterface(err, tunnelInfo)
+	utunIface, err := setupTunnelInterface(tunnelInfo)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
 	}
@@ -165,12 +165,12 @@ func connectToTunnel(ctx context.Context, info tunnelListener, addr string, devi
 	}, nil
 }
 
-func setupTunnelInterface(err error, tunnelInfo tunnelParameters) (*water.Interface, error) {
+func setupTunnelInterface(tunnelInfo tunnelParameters) (*water.Interface, error) {
 	ifce, err := water.New(water.Config{
 		DeviceType: water.TUN,
 	})
 	if err != nil {
-		logrus.Fatal(err)
+		return nil, fmt.Errorf("setupTunnelInterface: failed creating TUN device %w", err)
 	}
 
 	const prefixLength = 64 // TODO: this could be calculated from the netmask provided by the device
