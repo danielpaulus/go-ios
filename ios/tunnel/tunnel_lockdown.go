@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -16,11 +17,11 @@ func ConnectTunnelLockdown(device ios.DeviceEntry) (Tunnel, error) {
 	if err != nil {
 		return Tunnel{}, err
 	}
-	return connectToTunnelLockdown(context.TODO(), tunnelListener{}, "", device, conn)
+	return connectToTunnelLockdown(context.TODO(), device, conn)
 }
 
-func connectToTunnelLockdown(ctx context.Context, info tunnelListener, addr string, device ios.DeviceEntry, connToDevice io.ReadWriteCloser) (Tunnel, error) {
-	logrus.WithField("address", addr).WithField("port", info.TunnelPort).Info("connect to tunnel endpoint on device")
+func connectToTunnelLockdown(ctx context.Context, device ios.DeviceEntry, connToDevice io.ReadWriteCloser) (Tunnel, error) {
+	logrus.Info("connect to lockdown tunnel endpoint on device")
 
 	tunnelInfo, err := exchangeCoreTunnelParameters(connToDevice)
 	if err != nil {
@@ -34,7 +35,7 @@ func connectToTunnelLockdown(ctx context.Context, info tunnelListener, addr stri
 
 	// we want a copy of the parent ctx here, but it shouldn't time out/be cancelled at the same time.
 	// doing it like this allows us to have a context with a timeout for the tunnel creation, but the tunnel itself
-	tunnelCtx, _ := context.WithCancel(context.WithoutCancel(ctx))
+	tunnelCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	go func() {
 		err := forwardTCPToInterface(tunnelCtx, connToDevice, utunIface)
@@ -50,11 +51,15 @@ func connectToTunnelLockdown(ctx context.Context, info tunnelListener, addr stri
 		}
 	}()
 
+	closeFunc := func() error {
+		cancel()
+		return errors.Join(utunIface.Close(), connToDevice.Close())
+	}
 	return Tunnel{
 		Address: tunnelInfo.ServerAddress,
 		RsdPort: int(tunnelInfo.ServerRSDPort),
 		Udid:    device.Properties.SerialNumber,
-		closer:  nil,
+		closer:  closeFunc,
 	}, nil
 }
 

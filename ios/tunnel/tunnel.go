@@ -33,12 +33,12 @@ type Tunnel struct {
 	RsdPort int `json:"rsdPort"`
 	// Udid is the id of the device for this tunnel
 	Udid   string `json:"udid"`
-	closer io.Closer
+	closer func() error
 }
 
 // Close closes the connection to the device and removes the virtual network interface from the host
 func (t Tunnel) Close() error {
-	return t.closer.Close()
+	return t.closer()
 }
 
 // ManualPairAndConnectToTunnel tries to verify an existing pairing, and if this fails it triggers a new manual pairing process.
@@ -153,15 +153,18 @@ func connectToTunnel(ctx context.Context, info tunnelListener, addr string, devi
 		}
 	}()
 
+	closeFunc := func() error {
+		cancel()
+		quicErr := conn.CloseWithError(0, "")
+		utunErr := utunIface.Close()
+		return errors.Join(quicErr, utunErr)
+	}
+
 	return Tunnel{
 		Address: tunnelInfo.ServerAddress,
 		RsdPort: int(tunnelInfo.ServerRSDPort),
 		Udid:    device.Properties.SerialNumber,
-		closer: tunnelCloser{
-			quicConn:   conn,
-			utunCloser: utunIface,
-			ctxCancel:  cancel,
-		},
+		closer:  closeFunc,
 	}, nil
 }
 
@@ -329,17 +332,4 @@ func exchangeCoreTunnelParameters(stream io.ReadWriteCloser) (tunnelParameters, 
 		return tunnelParameters{}, err
 	}
 	return parameters, nil
-}
-
-type tunnelCloser struct {
-	quicConn   quic.Connection
-	utunCloser io.Closer
-	ctxCancel  context.CancelFunc
-}
-
-func (t tunnelCloser) Close() error {
-	t.ctxCancel()
-	quicErr := t.quicConn.CloseWithError(0, "")
-	utunErr := t.utunCloser.Close()
-	return errors.Join(quicErr, utunErr)
 }

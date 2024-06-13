@@ -55,6 +55,7 @@ func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, e
 			if entry == nil {
 				continue
 			}
+			print(entry.ServiceInstanceName())
 			for _, ip6 := range entry.AddrIPv6 {
 				tryHandshake(ip6, entry.Port, interfaceName, device.Properties.SerialNumber, result)
 			}

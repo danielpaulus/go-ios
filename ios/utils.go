@@ -4,7 +4,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -12,6 +14,25 @@ import (
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
+
+// CheckRoot checks if the current user is root or has elevated privileges on Windows.
+func CheckRoot() error {
+	// On Windows, check if the process has elevated privileges
+	if runtime.GOOS == "windows" {
+		slog.Info("This program needs elevated privileges. Make sure you are in an administrator shell.")
+		_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
+		if err != nil {
+			return fmt.Errorf("this program needs elevated privileges. Run as administrator.")
+		}
+	} else {
+		// Non-Windows platforms, check if the user is root
+		u := os.Geteuid()
+		if u != 0 {
+			return fmt.Errorf("this program needs root privileges. Run with sudo.")
+		}
+	}
+	return nil
+}
 
 // ToPlist converts a given struct to a Plist using the
 // github.com/DHowett/go-plist library. Make sure your struct is exported.
