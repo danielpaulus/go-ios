@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"runtime"
 	"strings"
@@ -19,7 +18,6 @@ import (
 func CheckRoot() error {
 	// On Windows, check if the process has elevated privileges
 	if runtime.GOOS == "windows" {
-		slog.Info("This program needs elevated privileges. Make sure you are in an administrator shell.")
 		_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
 		if err != nil {
 			return fmt.Errorf("this program needs elevated privileges. Run as administrator.")
