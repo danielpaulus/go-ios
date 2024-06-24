@@ -65,6 +65,7 @@ const version = "local-build"
 
 // Main Exports main for testing
 func Main() {
+
 	usage := fmt.Sprintf(`go-ios %s
 
 Usage:
@@ -239,7 +240,8 @@ The commands work as following:
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
    ios tunnel start [options] [--pair-record-path=<pairrecordpath>]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
-   >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path' is required as we can not access the default path for the pair record
+   >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path=default' can be used to point to /var/db/lockdown/RemotePairing/user_501.
+   >                                                                  If nothing is specified, the current dir is used for the pair record.
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
    ios tunnel ls                                                      List currently started tunnels
@@ -1007,10 +1009,21 @@ The commands work as following:
 
 	if tunnelCommand {
 		startCommand, _ := arguments.Bool("start")
+
+		if startCommand {
+			err := ios.CheckRoot()
+			if err != nil {
+				log.Warn("Run this with 'sudo' or in as admin on windows")
+			}
+		}
+
 		listCommand, _ := arguments.Bool("ls")
 		if startCommand {
 			pairRecordsPath, _ := arguments.String("--pair-record-path")
 			if len(pairRecordsPath) == 0 {
+				pairRecordsPath = "."
+			}
+			if strings.ToLower(pairRecordsPath) == "default" {
 				pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
 			}
 			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort)
@@ -2015,7 +2028,7 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int) {
 			exitIfError("failed to start tunnel server", err)
 		}
 	}()
-
+	log.Info("Tunnel server started")
 	<-ctx.Done()
 }
 

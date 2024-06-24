@@ -21,6 +21,7 @@ import (
 
 	"github.com/quic-go/quic-go"
 	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/songgao/water"
 )
 
@@ -32,17 +33,18 @@ type Tunnel struct {
 	RsdPort int `json:"rsdPort"`
 	// Udid is the id of the device for this tunnel
 	Udid   string `json:"udid"`
-	closer io.Closer
+	closer func() error
 }
 
 // Close closes the connection to the device and removes the virtual network interface from the host
 func (t Tunnel) Close() error {
-	return t.closer.Close()
+	return t.closer()
 }
 
 // ManualPairAndConnectToTunnel tries to verify an existing pairing, and if this fails it triggers a new manual pairing process.
 // After a successful pairing a tunnel for this device gets started and the tunnel information is returned
 func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager) (Tunnel, error) {
+	log.Info("ManualPairAndConnectToTunnel: starting manual pairing and tunnel connection, dont forget to stop remoted first with 'sudo pkill -SIGSTOP remoted' and run this with sudo.")
 	addr, err := ios.FindDeviceInterfaceAddress(ctx, device)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to find device ethernet interface: %w", err)
@@ -117,12 +119,18 @@ func connectToTunnel(ctx context.Context, info tunnelListener, addr string, devi
 		return Tunnel{}, err
 	}
 
-	tunnelInfo, err := exchangeCoreTunnelParameters(conn)
+	stream, err := conn.OpenStream()
+	if err != nil {
+		return Tunnel{}, err
+	}
+
+	tunnelInfo, err := exchangeCoreTunnelParameters(stream)
+	stream.Close()
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not exchange tunnel parameters. %w", err)
 	}
 
-	utunIface, err := setupTunnelInterface(err, tunnelInfo)
+	utunIface, err := setupTunnelInterface(tunnelInfo)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
 	}
@@ -145,27 +153,34 @@ func connectToTunnel(ctx context.Context, info tunnelListener, addr string, devi
 		}
 	}()
 
+	closeFunc := func() error {
+		cancel()
+		quicErr := conn.CloseWithError(0, "")
+		utunErr := utunIface.Close()
+		return errors.Join(quicErr, utunErr)
+	}
+
 	return Tunnel{
 		Address: tunnelInfo.ServerAddress,
 		RsdPort: int(tunnelInfo.ServerRSDPort),
 		Udid:    device.Properties.SerialNumber,
-		closer: tunnelCloser{
-			quicConn:   conn,
-			utunCloser: utunIface,
-			ctxCancel:  cancel,
-		},
+		closer:  closeFunc,
 	}, nil
 }
 
-func setupTunnelInterface(err error, tunnelInfo tunnelParameters) (*water.Interface, error) {
+func setupTunnelInterface(tunnelInfo tunnelParameters) (io.ReadWriteCloser, error) {
+	if runtime.GOOS == "windows" {
+		return setupWindowsTUN(tunnelInfo)
+	}
 	ifce, err := water.New(water.Config{
 		DeviceType: water.TUN,
 	})
 	if err != nil {
-		logrus.Fatal(err)
+		return nil, fmt.Errorf("setupTunnelInterface: failed creating TUN device %w", err)
 	}
 
 	const prefixLength = 64 // TODO: this could be calculated from the netmask provided by the device
+
 	setIpAddr := exec.Command("ifconfig", ifce.Name(), "inet6", "add", fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength))
 	err = runCmd(setIpAddr)
 	if err != nil {
@@ -277,13 +292,7 @@ func forwardDataToInterface(ctx context.Context, conn quic.Connection, w io.Writ
 	}
 }
 
-func exchangeCoreTunnelParameters(conn quic.Connection) (tunnelParameters, error) {
-	stream, err := conn.OpenStream()
-	if err != nil {
-		return tunnelParameters{}, err
-	}
-	defer stream.Close()
-
+func exchangeCoreTunnelParameters(stream io.ReadWriteCloser) (tunnelParameters, error) {
 	rq, err := json.Marshal(map[string]interface{}{
 		"type": "clientHandshakeRequest",
 		"mtu":  1280,
@@ -323,17 +332,4 @@ func exchangeCoreTunnelParameters(conn quic.Connection) (tunnelParameters, error
 		return tunnelParameters{}, err
 	}
 	return parameters, nil
-}
-
-type tunnelCloser struct {
-	quicConn   quic.Connection
-	utunCloser io.Closer
-	ctxCancel  context.CancelFunc
-}
-
-func (t tunnelCloser) Close() error {
-	t.ctxCancel()
-	quicErr := t.quicConn.CloseWithError(0, "")
-	utunErr := t.utunCloser.Close()
-	return errors.Join(quicErr, utunErr)
 }
