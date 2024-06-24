@@ -1012,7 +1012,9 @@ The commands work as following:
 
 		if startCommand {
 			err := ios.CheckRoot()
-			exitIfError("Run this with 'sudo' or in as admin on windows", err)
+			if err != nil {
+				log.Warn("Run this with 'sudo' or in as admin on windows")
+			}
 		}
 
 		listCommand, _ := arguments.Bool("ls")
