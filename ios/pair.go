@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"software.sslmate.com/src/go-pkcs12"
 	plist "howett.net/plist"
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 // PairSupervised uses an organization id from apple configurator so you can pair
