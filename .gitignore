@@ -1,3 +1,6 @@
+__debug_bin*
+selfIdentity.plist
+cmd/cdc-ncm/cdc-ncm
 node_modules
 *.mobileprovision
 *.p12

@@ -2,6 +2,7 @@ package ios
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -289,6 +290,54 @@ func initializeXpcConnection(h *http.HttpConnection) error {
 	csWriter := http.NewStreamReadWriter(h, http.ClientServer)
 	ssWriter := http.NewStreamReadWriter(h, http.ServerClient)
 
+	err := xpc.EncodeMessage(csWriter, xpc.Message{
+		Flags: xpc.AlwaysSetFlag,
+		Body:  map[string]interface{}{},
+		Id:    0,
+	})
+	if err != nil {
+		return fmt.Errorf("initializeXpcConnection: failed to encode message: %w", err)
+	}
+
+	_, err = xpc.DecodeMessage(csWriter) // TODO : figure out if need to act on this frame
+	if err != nil {
+		return fmt.Errorf("initializeXpcConnection: failed to decode message: %w", err)
+	}
+
+	err = xpc.EncodeMessage(ssWriter, xpc.Message{
+		Flags: xpc.InitHandshakeFlag | xpc.AlwaysSetFlag,
+		Body:  nil,
+		Id:    0,
+	})
+	if err != nil {
+		return fmt.Errorf("initializeXpcConnection: failed to encode message 2: %w", err)
+	}
+
+	_, err = xpc.DecodeMessage(ssWriter) // TODO : figure out if need to act on this frame
+	if err != nil {
+		return fmt.Errorf("initializeXpcConnection: failed to decode message 2: %w", err)
+	}
+
+	err = xpc.EncodeMessage(csWriter, xpc.Message{
+		Flags: 0x201, // alwaysSetFlag | 0x200
+		Body:  nil,
+		Id:    0,
+	})
+	if err != nil {
+		return fmt.Errorf("initializeXpcConnection: failed to encode message 3: %w", err)
+	}
+
+	_, err = xpc.DecodeMessage(csWriter) // TODO : figure out if need to act on this frame
+	if err != nil {
+		return fmt.Errorf("initializeXpcConnection: failed to decode message 3: %w", err)
+	}
+
+	return nil
+}
+
+func initializeXpcConnection2(c io.ReadWriteCloser) error {
+	csWriter := c
+	ssWriter := c
 	err := xpc.EncodeMessage(csWriter, xpc.Message{
 		Flags: xpc.AlwaysSetFlag,
 		Body:  map[string]interface{}{},

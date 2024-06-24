@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"crypto/cipher"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -39,6 +40,12 @@ func (p *pairingData) Decode(e map[string]interface{}) error {
 	}
 	if data, ok := pd["data"].([]byte); ok {
 		p.data = data
+	}
+	if data, ok := pd["data"].(string); ok {
+		p.data, err = base64.StdEncoding.DecodeString(data)
+		if err != nil {
+			return fmt.Errorf("Decode: failed to decode base64 data: %w", err)
+		}
 	}
 	if kind, ok := pd["kind"].(string); ok {
 		p.kind = kind
@@ -184,16 +191,16 @@ func (c *controlChannelReadWriter) read() (map[string]interface{}, error) {
 // the host. This message pair uses the same nonce before that counter is increased for the next message from the host
 // to the device
 type cipherStream struct {
-	controlChannel *controlChannelReadWriter
+	controlChannel pairingService
 	clientCipher   cipher.AEAD
 	serverCipher   cipher.AEAD
 	nonce          []byte
 	sequence       uint64
 }
 
-func newCipherStream(controlChannel *controlChannelReadWriter, clientCipher, serverCipher cipher.AEAD) *cipherStream {
+func newCipherStream(p pairingService, clientCipher, serverCipher cipher.AEAD) *cipherStream {
 	return &cipherStream{
-		controlChannel: controlChannel,
+		controlChannel: p,
 		clientCipher:   clientCipher,
 		serverCipher:   serverCipher,
 		nonce:          make([]byte, clientCipher.NonceSize()),
@@ -209,7 +216,7 @@ func (c *cipherStream) write(p map[string]interface{}) error {
 	}
 	encrypted := c.clientCipher.Seal(nil, c.nonce, marshalled, nil)
 	c.sequence += 1
-	return c.controlChannel.write(map[string]interface{}{
+	return c.controlChannel.writeEncrypted(map[string]interface{}{
 		"streamEncrypted": map[string]interface{}{
 			"_0": encrypted,
 		},
@@ -217,18 +224,30 @@ func (c *cipherStream) write(p map[string]interface{}) error {
 }
 
 func (c *cipherStream) read(p *map[string]interface{}) error {
-	m, err := c.controlChannel.read()
+	m, err := c.controlChannel.readEncrypted()
 	if err != nil {
 		return err
 	}
 	if streamEncr, err := getChildMap(m, "streamEncrypted"); err == nil {
-		if cip, ok := streamEncr["_0"].([]byte); ok {
-			plain, err := c.serverCipher.Open(nil, c.nonce, cip, nil)
-			if err != nil {
-				return err
+		var cip []byte
+		var ok bool
+		if cip, ok = streamEncr["_0"].([]byte); !ok {
+			cips, ok := streamEncr["_0"].(string)
+			if !ok {
+				return fmt.Errorf("read: failed to get encrypted payload")
 			}
-			return json.Unmarshal(plain, p)
+			cip, err = base64.StdEncoding.DecodeString(cips)
+			if err != nil {
+				return fmt.Errorf("read: failed to decode base64 data: %w", err)
+			}
 		}
+
+		plain, err := c.serverCipher.Open(nil, c.nonce, cip, nil)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(plain, p)
+
 	}
 	return fmt.Errorf("not implemented")
 }

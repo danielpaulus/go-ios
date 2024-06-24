@@ -7,8 +7,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
@@ -121,10 +123,10 @@ func ListRunningTunnels(tunnelInfoPort int) ([]Tunnel, error) {
 // TunnelManager starts tunnels for devices when needed (if no tunnel is running yet) and stores the information
 // how those tunnels are reachable (address and remote service discovery port)
 type TunnelManager struct {
-	ts tunnelStarter
-	dl deviceLister
-	pm PairRecordManager
-
+	ts                 tunnelStarter
+	dl                 deviceLister
+	pm                 PairRecordManager
+	mux                sync.Mutex
 	tunnels            map[string]Tunnel
 	startTunnelTimeout time.Duration
 }
@@ -143,15 +145,22 @@ func NewTunnelManager(pm PairRecordManager) *TunnelManager {
 // UpdateTunnels checks for connected devices and starts a new tunnel if needed
 // On device disconnects the tunnel resources get cleaned up
 func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
+
+	m.mux.Lock()
+	localTunnels := map[string]Tunnel{}
+	maps.Copy(localTunnels, m.tunnels)
+	m.mux.Unlock()
+
 	devices, err := m.dl.ListDevices()
 	if err != nil {
 		return fmt.Errorf("UpdateTunnels: failed to get list of devices: %w", err)
 	}
 	for _, d := range devices.DeviceList {
 		udid := d.Properties.SerialNumber
-		if _, exists := m.tunnels[udid]; exists {
+		if _, exists := localTunnels[udid]; exists {
 			continue
 		}
+
 		t, err := m.startTunnel(ctx, d)
 		if err != nil {
 			log.WithField("udid", udid).
@@ -159,9 +168,12 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 				Warn("failed to start tunnel")
 			continue
 		}
+		m.mux.Lock()
+		localTunnels[udid] = t
 		m.tunnels[udid] = t
+		m.mux.Unlock()
 	}
-	for udid, tun := range m.tunnels {
+	for udid, tun := range localTunnels {
 		idx := slices.ContainsFunc(devices.DeviceList, func(entry ios.DeviceEntry) bool {
 			return entry.Properties.SerialNumber == udid
 		})
@@ -173,6 +185,8 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 }
 
 func (m *TunnelManager) stopTunnel(t Tunnel) error {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	log.WithField("udid", t.Udid).Info("stopping tunnel")
 	delete(m.tunnels, t.Udid)
 
@@ -183,7 +197,11 @@ func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry)
 	log.WithField("udid", device.Properties.SerialNumber).Info("start tunnel")
 	startTunnelCtx, cancel := context.WithTimeout(ctx, m.startTunnelTimeout)
 	defer cancel()
-	t, err := m.ts.StartTunnel(startTunnelCtx, device, m.pm)
+	version, err := ios.GetProductVersion(device)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("startTunnel: failed to get device version: %w", err)
+	}
+	t, err := m.ts.StartTunnel(startTunnelCtx, device, m.pm, version)
 	if err != nil {
 		return Tunnel{}, err
 	}
@@ -192,6 +210,8 @@ func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry)
 
 // ListTunnels provides all currently running device tunnels
 func (m *TunnelManager) ListTunnels() ([]Tunnel, error) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	return maps.Values(m.tunnels), nil
 }
 
@@ -211,7 +231,7 @@ func (m *TunnelManager) FindTunnel(udid string) (Tunnel, error) {
 }
 
 type tunnelStarter interface {
-	StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager) (Tunnel, error)
+	StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version) (Tunnel, error)
 }
 
 type deviceLister interface {
@@ -221,8 +241,17 @@ type deviceLister interface {
 type manualPairingTunnelStart struct {
 }
 
-func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager) (Tunnel, error) {
-	return ManualPairAndConnectToTunnel(ctx, device, p)
+func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version) (Tunnel, error) {
+	//return ManualPairAndConnectToTunnel(ctx, device, p)
+	return ConnectRemotePairingTunnel(ctx, device, p)
+
+	if version.Major() >= 17 && version.Minor() >= 4 {
+		return ConnectTunnelLockdown(device)
+	}
+	if version.Major() >= 17 {
+		return ManualPairAndConnectToTunnel(ctx, device, p)
+	}
+	return Tunnel{}, fmt.Errorf("manualPairingTunnelStart: unsupported iOS version %s", version.String())
 }
 
 type deviceList struct {
