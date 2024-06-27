@@ -1,7 +1,9 @@
 package tunnel
 
 import (
+	"bufio"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -38,7 +40,7 @@ func connectToTunnelLockdown(ctx context.Context, device ios.DeviceEntry, connTo
 	tunnelCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	go func() {
-		err := forwardTCPToInterface(tunnelCtx, connToDevice, utunIface)
+		err := forwardTCPToInterface(tunnelCtx, tunnelInfo.ClientParameters.Mtu, connToDevice, utunIface)
 		if err != nil {
 			logrus.WithError(err).Error("failed to forward data to tunnel interface")
 		}
@@ -87,21 +89,38 @@ func forwardTUNToDevice(ctx context.Context, mtu uint64, tun io.Reader, deviceCo
 	}
 }
 
-func forwardTCPToInterface(ctx context.Context, deviceConn io.Reader, tun io.Writer) error {
-	b := make([]byte, 20000)
-	for {
+func forwardTCPToInterface(ctx context.Context, mtu uint64, deviceConn io.Reader, tun io.Writer) error {
+	payload := make([]byte, mtu)
+	ip6Header := make([]byte, 40)
 
+	br := bufio.NewReader(deviceConn)
+	bw := bufio.NewWriter(tun)
+
+	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
-			n, err := deviceConn.Read(b)
+			_, err := io.ReadFull(br, ip6Header)
 			if err != nil {
-				return fmt.Errorf("failed to read datagram. %w", err)
+				return fmt.Errorf("failed to read IPv6 header: %w", err)
 			}
-			_, err = tun.Write(b[:n])
+
+			if ip6Header[0] != 0x60 {
+				return fmt.Errorf("not an IPv6 packet. expected 0x60, but got 0x%02x", ip6Header[0])
+			}
+			payloadLength := binary.BigEndian.Uint16(ip6Header[4:6])
+			_, err = io.ReadFull(br, payload[:payloadLength])
 			if err != nil {
-				return fmt.Errorf("failed to forward data. %w", err)
+				return fmt.Errorf("failed to read payload of length %d: %w", payloadLength, err)
+			}
+
+			// we don't need to check all errors here as `Flush` will return the error from a previous write as well
+			_, _ = bw.Write(ip6Header)
+			_, _ = bw.Write(payload[:payloadLength])
+			err = bw.Flush()
+			if err != nil {
+				return fmt.Errorf("could not flush packet: %w", err)
 			}
 		}
 
