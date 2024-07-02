@@ -69,7 +69,9 @@ jobs:
           alias sed=gsed
           gsed -i 's/version \= \"local-build\"/version = \"${{ env.release_tag }}\"/' main.go
           mkdir bin
-          go build -ldflags="-s -w" -o bin/ios
+          GOARCH=arm64 go build -ldflags="-s -w" -o bin/ios-arm64
+          GOARCH=amd64 go build -ldflags="-s -w" -o bin/ios-amd64
+          lipo bin/ios-amd64 bin/ios-arm64 -create -output bin/ios
           zip -j go-ios-mac.zip bin/ios
 
       - name: upload the macos build
@@ -129,7 +131,7 @@ jobs:
 
       - uses: AButler/upload-release-assets@v2.0
         with:
-          files: '*.zip'
+          files: "*.zip"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           release-tag: ${{ env.release_tag }}
 
@@ -139,9 +141,11 @@ jobs:
         run: |
           mkdir ./npm_publish/dist
           mkdir ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64
+          mkdir ./npm_publish/dist/go-ios-darwin-arm64_darwin_arm64
           mkdir ./npm_publish/dist/go-ios-linux-amd64_linux_amd64
           mkdir ./npm_publish/dist/go-ios-windows-amd64_windows_amd64
           cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64/ios
+          cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-arm64_darwin_arm64/ios
           cp ./win-bin/ios.exe ./npm_publish/dist/go-ios-windows-amd64_windows_amd64/ios.exe
           cp ./bin/ios ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
           echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" >> ~/.npmrc
