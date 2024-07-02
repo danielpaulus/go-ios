@@ -90,6 +90,8 @@ var (
 const (
 	imageFile     = "DeveloperDiskImage.dmg"
 	signatureFile = "DeveloperDiskImage.dmg.signature"
+	devicebox     = "https://deviceboxhq.com/"
+	xcode15_4_ddi = "ddi-15F31d"
 )
 
 func MatchAvailable(version string) string {
@@ -118,14 +120,55 @@ func MatchAvailable(version string) string {
 	return bestMatchString
 }
 
+func Download17Plus(device ios.DeviceEntry, baseDir string, version *semver.Version) (string, error) {
+	downloadUrl := fmt.Sprintf("%s%s%s", devicebox, xcode15_4_ddi, ".zip")
+	log.Infof("device iOS version: %s, getting developer image: %s", version.String(), downloadUrl)
+
+	imageDownloaded, err := validateBaseDirAndLookForImage(baseDir, xcode15_4_ddi)
+	if err != nil {
+		return "", err
+	}
+	if imageDownloaded != "" {
+		log.Infof("using already downloaded image: %s", imageDownloaded)
+		return path.Join(imageDownloaded, "Restore"), err
+	}
+	imageFileName := path.Join(baseDir, xcode15_4_ddi+".zip")
+	extractedPath := path.Join(baseDir, xcode15_4_ddi)
+	log.Infof("downloading '%s' to path '%s'", downloadUrl, imageFileName)
+	err = downloadFile(imageFileName, downloadUrl)
+	if err != nil {
+		return "", err
+	}
+	_, _, err = ios.Unzip(imageFileName, extractedPath)
+	if err != nil {
+		return "", fmt.Errorf("Download17Plus: error extracting image %s %w", imageFileName, err)
+	}
+
+	return path.Join(extractedPath, "Restore"), nil
+}
+
 func DownloadImageFor(device ios.DeviceEntry, baseDir string) (string, error) {
 	allValues, err := ios.GetValues(device)
 	if err != nil {
 		return "", err
 	}
+	parsedVersion, err := semver.NewVersion(allValues.Value.ProductVersion)
+	if err != nil {
+		return "", fmt.Errorf("DownloadImageFor: failed parsing ios productversion: '%s' with %w", allValues.Value.ProductVersion, err)
+	}
+	if parsedVersion.GreaterThan(ios.IOS17()) || parsedVersion.Equal(ios.IOS17()) {
+		return Download17Plus(device, baseDir, parsedVersion)
+	}
 	version := MatchAvailable(allValues.Value.ProductVersion)
 	log.Infof("device iOS version: %s, getting developer image for iOS %s", allValues.Value.ProductVersion, version)
-	imageDownloaded, err := validateBaseDirAndLookForImage(baseDir, version)
+	var imageToFind string
+	switch runtime.GOOS {
+	case "windows":
+		imageToFind = fmt.Sprintf("%s\\%s", version, imageFile)
+	default:
+		imageToFind = fmt.Sprintf("%s/%s", version, imageFile)
+	}
+	imageDownloaded, err := validateBaseDirAndLookForImage(baseDir, imageToFind)
 	if err != nil {
 		return "", err
 	}
@@ -160,14 +203,7 @@ func DownloadImageFor(device ios.DeviceEntry, baseDir string) (string, error) {
 	return imageFileName, nil
 }
 
-func findImage(dir string, version string) (string, error) {
-	var imageToFind string
-	switch runtime.GOOS {
-	case "windows":
-		imageToFind = fmt.Sprintf("%s\\%s", version, imageFile)
-	default:
-		imageToFind = fmt.Sprintf("%s/%s", version, imageFile)
-	}
+func findImage(dir string, imageToFind string) (string, error) {
 	var imageWeFound string
 	err := filepath.Walk(dir,
 		func(path string, info os.FileInfo, err error) error {
@@ -188,7 +224,7 @@ func findImage(dir string, version string) (string, error) {
 	return "", fmt.Errorf("image not found")
 }
 
-func validateBaseDirAndLookForImage(baseDir string, version string) (string, error) {
+func validateBaseDirAndLookForImage(baseDir string, imageToFind string) (string, error) {
 	dirHandle, err := os.Open(baseDir)
 	defer dirHandle.Close()
 	if err != nil {
@@ -199,7 +235,7 @@ func validateBaseDirAndLookForImage(baseDir string, version string) (string, err
 		return "", nil
 	}
 
-	dmgPath, err := findImage(baseDir, version)
+	dmgPath, err := findImage(baseDir, imageToFind)
 	if err != nil {
 		return "", nil
 	}

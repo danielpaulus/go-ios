@@ -193,7 +193,7 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		}
 	}()
 	log.Debug("unzipping..")
-	unzippedFiles, totalBytes, err := Unzip(ipaFile, tmpDir)
+	unzippedFiles, totalBytes, err := ios.Unzip(ipaFile, tmpDir)
 	if err != nil {
 		return err
 	}
