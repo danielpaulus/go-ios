@@ -2,6 +2,7 @@ package ios
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -121,7 +122,7 @@ func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionI
 	if err != nil {
 		return nil, err
 	}
-	return NewDeviceConnectionWithConn(conn), nil
+	return NewDeviceConnectionWithRWC(conn), nil
 }
 
 // ConnectToServiceTunnelIface connects to a service on an iOS17+ device using a XPC over HTTP2 connection
@@ -150,7 +151,7 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 		return nil, fmt.Errorf("ConnectToServiceTunnelIface: failed to connect to tunnel: %w", err)
 	}
 
-	return NewDeviceConnectionWithConn(conn), nil
+	return NewDeviceConnectionWithRWC(conn), nil
 }
 
 func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
@@ -158,7 +159,7 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to resolve address: %w", err)
 	}
-
+	addr, _ = net.ResolveTCPAddr("tcp4", "localhost:7779")
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
@@ -172,16 +173,16 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive period: %w", err)
 	}
-	return http.NewHttpConnection(conn)
+	return http.NewHttpConnection(wrapipv6(conn))
 }
 
 // ConnectToTunnel opens a new connection to the tunnel interface of the specified device and on the specified port
-func ConnectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
+func ConnectToTunnel(device DeviceEntry, port int) (io.ReadWriteCloser, error) {
 	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to resolve address: %w", err)
 	}
-
+	addr, _ = net.ResolveTCPAddr("tcp4", "localhost:7779")
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
@@ -196,7 +197,7 @@ func ConnectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to set keepalive period: %w", err)
 	}
 
-	return conn, nil
+	return wrapipv6(conn), nil
 }
 
 func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {
