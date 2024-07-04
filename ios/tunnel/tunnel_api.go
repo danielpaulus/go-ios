@@ -195,6 +195,8 @@ func (m *TunnelManager) stopTunnel(t Tunnel) error {
 
 func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry) (Tunnel, error) {
 	log.WithField("udid", device.Properties.SerialNumber).Info("start tunnel")
+	t1, err := ConnectUserSpaceTunnelLockdown(device)
+	return t1, err
 	startTunnelCtx, cancel := context.WithTimeout(ctx, m.startTunnelTimeout)
 	defer cancel()
 	version, err := ios.GetProductVersion(device)
@@ -242,7 +244,7 @@ type manualPairingTunnelStart struct {
 }
 
 func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version) (Tunnel, error) {
-	
+
 	if version.Major() >= 17 && version.Minor() >= 4 {
 		return ConnectTunnelLockdown(device)
 	}

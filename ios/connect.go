@@ -1,6 +1,7 @@
 package ios
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -156,15 +157,18 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 
 func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
 	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-	if err != nil {
+	/*if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to resolve address: %w", err)
-	}
+	}*/
 	addr, _ = net.ResolveTCPAddr("tcp4", "localhost:7779")
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
 	}
-
+	conn.Write(net.ParseIP(device.Address).To16())
+	portBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(portBytes, uint32(port))
+	conn.Write(portBytes)
 	err = conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive: %w", err)
@@ -179,14 +183,19 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 // ConnectToTunnel opens a new connection to the tunnel interface of the specified device and on the specified port
 func ConnectToTunnel(device DeviceEntry, port int) (io.ReadWriteCloser, error) {
 	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-	if err != nil {
+	/*if err != nil {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to resolve address: %w", err)
-	}
+	}*/
 	addr, _ = net.ResolveTCPAddr("tcp4", "localhost:7779")
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
 	}
+	print("connet to tunnel")
+	conn.Write(net.ParseIP(device.Address).To16())
+	portBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(portBytes, uint32(port))
+	conn.Write(portBytes)
 
 	err = conn.SetKeepAlive(true)
 	if err != nil {
@@ -201,15 +210,25 @@ func ConnectToTunnel(device DeviceEntry, port int) (io.ReadWriteCloser, error) {
 }
 
 func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", a, port))
-	if err != nil {
+	//addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", a, port))
+	/*if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
 	}
 
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
+	}*/
+	addr, _ := net.ResolveTCPAddr("tcp4", "localhost:7779")
+	conn, err := net.DialTCP("tcp", nil, addr)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
 	}
+	print("connet to tunnel")
+	conn.Write(net.ParseIP(a).To16())
+	portBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(portBytes, uint32(port))
+	conn.Write(portBytes)
 
 	err = conn.SetKeepAlive(true)
 	if err != nil {

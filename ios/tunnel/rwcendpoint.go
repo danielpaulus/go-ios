@@ -12,6 +12,7 @@ import (
 	"gvisor.dev/gvisor/pkg/tcpip"
 	"gvisor.dev/gvisor/pkg/tcpip/header"
 	"gvisor.dev/gvisor/pkg/tcpip/link/channel"
+
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 )
 

@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build linux
-// +build linux
-
 // This sample creates a stack with TCP and IPv4 protocols on top of a TUN
 // device, and connects to a peer. Similar to "nc <address> <port>". While the
 // sample is running, attempts to connect to its IPv4 address will result in
@@ -44,12 +41,13 @@ package tunnel
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"math/rand"
 	"net"
-	"os"
 	"strconv"
 	"time"
 
@@ -96,16 +94,14 @@ func writer(ch chan struct{}, ep tcpip.Endpoint, rwc io.ReadWriteCloser) {
 
 var interface_i_think *stack.Stack
 
-func ConnectUserSpace(localportname string, remoteAddrName string, remotePortName string, rwc io.ReadWriteCloser) error {
+func ConnectUserSpace(localportname string, remoteAddr net.IP, remotePort uint16, rwc io.ReadWriteCloser) error {
 	remote := tcpip.FullAddress{
 		NIC:  1,
-		Addr: tcpip.AddrFromSlice(net.ParseIP(remoteAddrName).To16()),
+		Addr: tcpip.AddrFromSlice(remoteAddr.To16()),
 	}
-	if v, err := strconv.Atoi(remotePortName); err != nil {
-		log.Fatalf("Unable to convert port %v: %v", remotePortName, err)
-	} else {
-		remote.Port = uint16(v)
-	}
+
+	remote.Port = remotePort
+
 	var localPort uint16
 	if v, err := strconv.Atoi(localportname); err != nil {
 		log.Fatalf("Unable to convert port %v: %v", localportname, err)
@@ -175,18 +171,19 @@ func ConnectUserSpace(localportname string, remoteAddrName string, remotePortNam
 	return nil
 }
 
-func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser) {
+func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser, addrName string, prefixLength int) {
 	/*	if len(os.Args) != 6 {
 			log.Fatal("Usage: ", os.Args[0], " <tun-device> <local-ipv4-address> <local-port> <remote-ipv4-address> <remote-port>")
 		}
 	*/
 	//tunName := os.Args[1]
-	addrName := os.Args[2]
+	//addrName := os.Args[2]
 
 	rand.Seed(time.Now().UnixNano())
 
 	addr := tcpip.AddrFromSlice(net.ParseIP(addrName).To16())
-
+	addrWithPrefix := addr.WithPrefix()
+	addrWithPrefix.PrefixLen = prefixLength
 	// Create the stack with ipv4 and tcp protocols, then add a tun-based
 	// NIC and ipv4 address.
 	stack_orinterfaceithink := stack.New(stack.Options{
@@ -219,7 +216,7 @@ func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser) {
 
 	protocolAddr := tcpip.ProtocolAddress{
 		Protocol:          ipv6.ProtocolNumber,
-		AddressWithPrefix: addr.WithPrefix(),
+		AddressWithPrefix: addrWithPrefix,
 	}
 	if err := stack_orinterfaceithink.AddProtocolAddress(1, protocolAddr, stack.AddressProperties{}); err != nil {
 		log.Fatalf("AddProtocolAddress(%d, %+v, {}): %s", 1, protocolAddr, err)
@@ -236,8 +233,6 @@ func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser) {
 
 }
 
-add tcp socket for connect user space
-
 func ConnectUserSpaceTunnelLockdown(device ios.DeviceEntry) (Tunnel, error) {
 	conn, err := ios.ConnectToService(device, coreDeviceProxy)
 	if err != nil {
@@ -253,16 +248,46 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not exchange tunnel parameters. %w", err)
 	}
+	const prefixLength = 64
 
-	startuserspacetunnel(uint32(tunnelInfo.ClientParameters.Mtu), connToDevice)
+	startuserspacetunnel(uint32(tunnelInfo.ClientParameters.Mtu), connToDevice, tunnelInfo.ClientParameters.Address, prefixLength)
 
 	closeFunc := func() error {
 		return nil
 	}
+	go listenToConns()
 	return Tunnel{
 		Address: tunnelInfo.ServerAddress,
 		RsdPort: int(tunnelInfo.ServerRSDPort),
 		Udid:    device.Properties.SerialNumber,
 		closer:  closeFunc,
 	}, nil
+}
+
+func listenToConns() error {
+	defer func() {
+		slog.Info("Stopped listening for connections")
+	}()
+	listener, err := net.Listen("tcp", "localhost:7779")
+	if err != nil {
+		return err
+	}
+	for {
+
+		client, err := listener.Accept()
+		if err != nil {
+			return err
+		}
+		remoteAddrBytes := make([]byte, 16)
+		_, err = client.Read(remoteAddrBytes)
+		if err != nil {
+			return err
+		}
+
+		remotePortBytes := make([]byte, 4)
+		_, err = client.Read(remotePortBytes)
+		port := binary.LittleEndian.Uint32(remotePortBytes)
+		slog.Info("Received connection request to device ", "ip", net.IP(remoteAddrBytes), "port", port)
+		go ConnectUserSpace("0", net.IP(remoteAddrBytes), uint16(port), client)
+	}
 }

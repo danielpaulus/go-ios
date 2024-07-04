@@ -23,6 +23,7 @@ require (
 	golang.org/x/net v0.26.0
 	golang.org/x/sys v0.21.0
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2
+	gvisor.dev/gvisor v0.0.0-20240405191320-0878b34101b5
 	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5
 	software.sslmate.com/src/go-pkcs12 v0.2.0
 )
@@ -34,7 +35,6 @@ require (
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/miekg/dns v1.1.57 // indirect
 	github.com/onsi/ginkgo/v2 v2.9.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -47,5 +47,4 @@ require (
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gvisor.dev/gvisor v0.0.0-20240702234927-b488752cba57 // indirect
 )
