@@ -59,6 +59,7 @@ import (
 	"gvisor.dev/gvisor/pkg/tcpip/network/ipv6"
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 	"gvisor.dev/gvisor/pkg/tcpip/transport/tcp"
+	"gvisor.dev/gvisor/pkg/tcpip/transport/udp"
 	"gvisor.dev/gvisor/pkg/waiter"
 )
 
@@ -79,6 +80,10 @@ func writer(ch chan struct{}, ep tcpip.Endpoint, rwc io.ReadWriteCloser) {
 			if err != nil {
 				return fmt.Errorf("rwc.Read failed: %s", err)
 			}
+			print("\n")
+			print(n)
+			fmt.Printf("bytes sent: %x", bs[:n])
+			print("\n")
 
 			b.Write(bs[:n])
 			for b.Len() != 0 {
@@ -148,6 +153,8 @@ func ConnectUserSpace(localportname string, remoteAddr net.IP, remotePort uint16
 	waitEntry, notifyCh = waiter.NewChannelEntry(waiter.ReadableEvents)
 	wq.EventRegister(&waitEntry)
 	for {
+		//var b bytes.Buffer
+		//t, err := ep.Read(&b, tcpip.ReadOptions{})
 		_, err := ep.Read(rwc, tcpip.ReadOptions{})
 		if err != nil {
 			if _, ok := err.(*tcpip.ErrClosedForReceive); ok {
@@ -161,6 +168,9 @@ func ConnectUserSpace(localportname string, remoteAddr net.IP, remotePort uint16
 
 			log.Fatal("Read() failed:", err)
 		}
+
+		//fmt.Printf("%d bytes rcv: %x  ", t.Count, b.Bytes())
+
 	}
 	wq.EventUnregister(&waitEntry)
 
@@ -188,7 +198,7 @@ func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser, addrName 
 	// NIC and ipv4 address.
 	stack_orinterfaceithink := stack.New(stack.Options{
 		NetworkProtocols:   []stack.NetworkProtocolFactory{ipv6.NewProtocol},
-		TransportProtocols: []stack.TransportProtocolFactory{tcp.NewProtocol},
+		TransportProtocols: []stack.TransportProtocolFactory{tcp.NewProtocol, udp.NewProtocol},
 	})
 	interface_i_think = stack_orinterfaceithink
 	/*

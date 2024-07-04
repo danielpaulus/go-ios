@@ -177,7 +177,7 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive period: %w", err)
 	}
-	return http.NewHttpConnection(wrapipv6(conn))
+	return http.NewHttpConnection(conn)
 }
 
 // ConnectToTunnel opens a new connection to the tunnel interface of the specified device and on the specified port
@@ -206,7 +206,7 @@ func ConnectToTunnel(device DeviceEntry, port int) (io.ReadWriteCloser, error) {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to set keepalive period: %w", err)
 	}
 
-	return wrapipv6(conn), nil
+	return conn, nil
 }
 
 func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {
