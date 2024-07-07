@@ -3,16 +3,14 @@ package tunnel
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
-	"github.com/sirupsen/logrus"
 	"gvisor.dev/gvisor/pkg/tcpip"
 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
 	"gvisor.dev/gvisor/pkg/tcpip/header"
@@ -23,22 +21,28 @@ import (
 	"gvisor.dev/gvisor/pkg/waiter"
 )
 
+// UserSpaceTUNInterface uses gVisor's netstack to create a userspace virtual network interface.
+// You can use it to connect local tcp connections to remote adresses on the network.
+// Set it up with the Init method and provide a io.ReadWriter to a IP/TUN compatible device.
+// If EnableSniffer, raw TCP packets will be dumped to the console.
 type UserSpaceTUNInterface struct {
-	NicID         tcpip.NICID
+	nicID tcpip.NICID
+	//If EnableSniffer, raw TCP packets will be dumped to the console.
 	EnableSniffer bool
-	NetworkStack  *stack.Stack
+	networkStack  *stack.Stack
 }
 
-func (iface *UserSpaceTUNInterface) TunnelRWCThroughInterface(localPort uint16, remoteAddr net.IP, remotePort uint16, rw io.ReadWriter) error {
+func (iface *UserSpaceTUNInterface) TunnelRWCThroughInterface(localPort uint16, remoteAddr net.IP, remotePort uint16, rw io.ReadWriteCloser) error {
+	defer rw.Close()
 	remote := tcpip.FullAddress{
-		NIC:  iface.NicID,
+		NIC:  iface.nicID,
 		Addr: tcpip.AddrFromSlice(remoteAddr.To16()),
 		Port: remotePort,
 	}
 
 	// Create TCP endpoint.
 	var wq waiter.Queue
-	ep, err := iface.NetworkStack.NewEndpoint(tcp.ProtocolNumber, ipv6.ProtocolNumber, &wq)
+	ep, err := iface.networkStack.NewEndpoint(tcp.ProtocolNumber, ipv6.ProtocolNumber, &wq)
 	if err != nil {
 		return fmt.Errorf("TunnelRWCThroughInterface: NewEndpoint failed: %+v", err)
 	}
@@ -56,59 +60,62 @@ func (iface *UserSpaceTUNInterface) TunnelRWCThroughInterface(localPort uint16, 
 	wq.EventRegister(&waitEntry)
 	err = ep.Connect(remote)
 	if _, ok := err.(*tcpip.ErrConnectStarted); ok {
-		fmt.Println("Connect is pending...")
 		<-notifyCh
 		err = ep.LastError()
 	}
 	wq.EventUnregister(&waitEntry)
-
 	if err != nil {
 		return fmt.Errorf("TunnelRWCThroughInterface: Connect to remote failed: %+v", err)
 	}
 
 	slog.Info("Connected to ", "remoteAddr", remoteAddr, "remotePort", remotePort)
 	remoteConn := gonet.NewTCPConn(&wq, ep)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
-	go copyMyShit(remoteConn, rw, wg)
-	go copyMyShit(rw, remoteConn, wg)
-	wg.Wait()
+	defer remoteConn.Close()
+	perr := proxyConns(rw, remoteConn)
+	if perr != nil {
+		return fmt.Errorf("TunnelRWCThroughInterface: proxyConns failed: %+v", perr)
+	}
 	return nil
 }
 
-func copyMyShit(w io.Writer, r io.Reader, wg *sync.WaitGroup) {
-	defer wg.Done()
-	_, err := io.Copy(w, r)
-	if err != nil {
-		log.Print(err)
-	}
-
+func proxyConns(rw1 io.ReadWriter, rw2 io.ReadWriter) error {
+	err1 := make(chan error)
+	err2 := make(chan error)
+	go ioCopyWithErr(rw1, rw2, err1)
+	go ioCopyWithErr(rw2, rw1, err2)
+	return errors.Join(<-err1, <-err2)
 }
 
-func (iface *UserSpaceTUNInterface) Init(mtu uint32, lockdownconn io.ReadWriteCloser, addrName string, prefixLength int) error {
+func ioCopyWithErr(w io.Writer, r io.Reader, errCh chan error) {
+	_, err := io.Copy(w, r)
+	errCh <- err
+}
+
+func (iface *UserSpaceTUNInterface) Init(mtu uint32, connToTUNIface io.ReadWriteCloser, addrName string, prefixLength int) error {
 	addr := tcpip.AddrFromSlice(net.ParseIP(addrName).To16())
 	addrWithPrefix := addr.WithPrefix()
 	addrWithPrefix.PrefixLen = prefixLength
-	// Create the stack with ipv4 and tcp protocols, then add a tun-based
-	// NIC and ipv4 address.
-	iface.NetworkStack = stack.New(stack.Options{
+
+	//Create a new stack, ipv6 is enough for ios devices
+	iface.networkStack = stack.New(stack.Options{
 		NetworkProtocols:   []stack.NetworkProtocolFactory{ipv6.NewProtocol},
 		TransportProtocols: []stack.TransportProtocolFactory{tcp.NewProtocol},
 	})
 
+	// connToTUNIface needs to be connection that understands IP packets,
+	// so we can use it to link it against a virtual network interface
 	var linkEP stack.LinkEndpoint
-	linkEP, err := RWCEndpointNew(lockdownconn, mtu, 0)
+	linkEP, err := RWCEndpointNew(connToTUNIface, mtu, 0)
 	if err != nil {
 		return fmt.Errorf("initVirtualInterface: RWCEndpointNew failed: %+v", err)
 	}
 
-	nicID := tcpip.NICID(iface.NetworkStack.UniqueID())
-	iface.NicID = nicID
+	nicID := tcpip.NICID(iface.networkStack.UniqueID())
+	iface.nicID = nicID
 	if iface.EnableSniffer {
 		linkEP = sniffer.New(linkEP)
 	}
-	if err := iface.NetworkStack.CreateNIC(nicID, linkEP); err != nil {
+	if err := iface.networkStack.CreateNIC(nicID, linkEP); err != nil {
 		return fmt.Errorf("initVirtualInterface: CreateNIC failed: %+v", err)
 	}
 
@@ -116,12 +123,12 @@ func (iface *UserSpaceTUNInterface) Init(mtu uint32, lockdownconn io.ReadWriteCl
 		Protocol:          ipv6.ProtocolNumber,
 		AddressWithPrefix: addrWithPrefix,
 	}
-	if err := iface.NetworkStack.AddProtocolAddress(1, protocolAddr, stack.AddressProperties{}); err != nil {
+	if err := iface.networkStack.AddProtocolAddress(iface.nicID, protocolAddr, stack.AddressProperties{}); err != nil {
 		return fmt.Errorf("initVirtualInterface: AddProtocolAddress(%d, %v, {}): %+v", nicID, protocolAddr, err)
 	}
 
 	// Add default route.
-	iface.NetworkStack.SetRouteTable([]tcpip.Route{
+	iface.networkStack.SetRouteTable([]tcpip.Route{
 		{
 			Destination: header.IPv6EmptySubnet,
 			NIC:         nicID,
@@ -139,8 +146,7 @@ func ConnectUserSpaceTunnelLockdown(device ios.DeviceEntry) (Tunnel, error) {
 }
 
 func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntry, connToDevice io.ReadWriteCloser) (Tunnel, error) {
-	logrus.Info("connect to lockdown tunnel endpoint on device")
-
+	slog.Info("connect to lockdown tunnel endpoint on device")
 	tunnelInfo, err := exchangeCoreTunnelParameters(connToDevice)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not exchange tunnel parameters. %w", err)
