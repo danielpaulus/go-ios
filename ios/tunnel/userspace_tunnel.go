@@ -1,41 +1,3 @@
-// Copyright 2018 The gVisor Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// This sample creates a stack with TCP and IPv4 protocols on top of a TUN
-// device, and connects to a peer. Similar to "nc <address> <port>". While the
-// sample is running, attempts to connect to its IPv4 address will result in
-// a RST segment.
-//
-// As an example of how to run it, a TUN device can be created and enabled on
-// a linux host as follows (this only needs to be done once per boot):
-//
-// [sudo] ip tuntap add user <username> mode tun <device-name>
-// [sudo] ip link set <device-name> up
-// [sudo] ip addr add <ipv4-address>/<mask-length> dev <device-name>
-//
-// A concrete example:
-//
-// $ sudo ip tuntap add user wedsonaf mode tun tun0
-// $ sudo ip link set tun0 up
-// $ sudo ip addr add 192.168.1.1/24 dev tun0
-//
-// Then one can run tun_tcp_connect as such:
-//
-// $ ./tun/tun_tcp_connect tun0 192.168.1.2 0 192.168.1.1 1234
-//
-// This will attempt to connect to the linux host's stack. One can run nc in
-// listen mode to accept a connect from tun_tcp_connect and exchange data.
 package tunnel
 
 import (
@@ -62,7 +24,7 @@ import (
 	"gvisor.dev/gvisor/pkg/waiter"
 )
 
-var interface_i_think *stack.Stack
+var networkStack *stack.Stack
 
 func ConnectUserSpace(localportname string, remoteAddr net.IP, remotePort uint16, rwc io.ReadWriteCloser) error {
 	remote := tcpip.FullAddress{
@@ -81,7 +43,7 @@ func ConnectUserSpace(localportname string, remoteAddr net.IP, remotePort uint16
 
 	// Create TCP endpoint.
 	var wq waiter.Queue
-	ep, e := interface_i_think.NewEndpoint(tcp.ProtocolNumber, ipv6.ProtocolNumber, &wq)
+	ep, e := networkStack.NewEndpoint(tcp.ProtocolNumber, ipv6.ProtocolNumber, &wq)
 	if e != nil {
 		log.Fatal(e)
 	}
@@ -144,11 +106,11 @@ func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser, addrName 
 	addrWithPrefix.PrefixLen = prefixLength
 	// Create the stack with ipv4 and tcp protocols, then add a tun-based
 	// NIC and ipv4 address.
-	stack_orinterfaceithink := stack.New(stack.Options{
+	networkStack = stack.New(stack.Options{
 		NetworkProtocols:   []stack.NetworkProtocolFactory{ipv6.NewProtocol},
 		TransportProtocols: []stack.TransportProtocolFactory{tcp.NewProtocol},
 	})
-	interface_i_think = stack_orinterfaceithink
+
 	/*
 		fd, err := tun.Open(tunName)
 		if err != nil {
@@ -171,7 +133,7 @@ func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser, addrName 
 	/*if debug {
 		linkEP = sniffer.New(linkEP)
 	}*/
-	if err := stack_orinterfaceithink.CreateNIC(1, linkEP); err != nil {
+	if err := networkStack.CreateNIC(1, linkEP); err != nil {
 		log.Fatal(err)
 	}
 
@@ -179,12 +141,12 @@ func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser, addrName 
 		Protocol:          ipv6.ProtocolNumber,
 		AddressWithPrefix: addrWithPrefix,
 	}
-	if err := stack_orinterfaceithink.AddProtocolAddress(1, protocolAddr, stack.AddressProperties{}); err != nil {
+	if err := networkStack.AddProtocolAddress(1, protocolAddr, stack.AddressProperties{}); err != nil {
 		log.Fatalf("AddProtocolAddress(%d, %+v, {}): %s", 1, protocolAddr, err)
 	}
 
 	// Add default route.
-	stack_orinterfaceithink.SetRouteTable([]tcpip.Route{
+	networkStack.SetRouteTable([]tcpip.Route{
 		{
 			Destination: header.IPv6EmptySubnet,
 			NIC:         1,
