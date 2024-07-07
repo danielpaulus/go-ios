@@ -39,7 +39,6 @@
 package tunnel
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -49,53 +48,19 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/sirupsen/logrus"
 	"gvisor.dev/gvisor/pkg/tcpip"
+	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
 	"gvisor.dev/gvisor/pkg/tcpip/header"
-	"gvisor.dev/gvisor/pkg/tcpip/link/sniffer"
 	"gvisor.dev/gvisor/pkg/tcpip/network/ipv6"
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 	"gvisor.dev/gvisor/pkg/tcpip/transport/tcp"
-	"gvisor.dev/gvisor/pkg/tcpip/transport/udp"
 	"gvisor.dev/gvisor/pkg/waiter"
 )
-
-// writer reads from standard input and writes to the endpoint until standard
-// input is closed. It signals that it's done by closing the provided channel.
-func writer(ch chan struct{}, ep tcpip.Endpoint, rwc io.ReadWriteCloser) {
-	defer func() {
-		ep.Shutdown(tcpip.ShutdownWrite)
-		close(ch)
-	}()
-
-	if err := func() error {
-		bs := make([]byte, 1500)
-		for {
-			var b bytes.Buffer
-
-			n, err := rwc.Read(bs)
-			if err != nil {
-				return fmt.Errorf("rwc.Read failed: %s", err)
-			}
-			print("\n")
-			print(n)
-			fmt.Printf("bytes sent: %x", bs[:n])
-			print("\n")
-
-			b.Write(bs[:n])
-			for b.Len() != 0 {
-				if _, err := ep.Write(&b, tcpip.WriteOptions{Atomic: true}); err != nil {
-					return fmt.Errorf("ep.Write failed: %s", err)
-				}
-			}
-		}
-	}(); err != nil {
-		fmt.Println(err)
-	}
-}
 
 var interface_i_think *stack.Stack
 
@@ -113,20 +78,22 @@ func ConnectUserSpace(localportname string, remoteAddr net.IP, remotePort uint16
 	} else {
 		localPort = uint16(v)
 	}
+
 	// Create TCP endpoint.
 	var wq waiter.Queue
 	ep, e := interface_i_think.NewEndpoint(tcp.ProtocolNumber, ipv6.ProtocolNumber, &wq)
 	if e != nil {
 		log.Fatal(e)
 	}
-
+	ep.SocketOptions().SetKeepAlive(true)
+	o := tcpip.KeepaliveIntervalOption(1 * time.Second)
+	ep.SetSockOpt(&o)
 	// Bind if a port is specified.
 	if localPort != 0 {
 		if err := ep.Bind(tcpip.FullAddress{Port: localPort}); err != nil {
 			log.Fatal("Bind failed: ", err)
 		}
 	}
-
 	// Issue connect request and wait for it to complete.
 	waitEntry, notifyCh := waiter.NewChannelEntry(waiter.WritableEvents)
 	wq.EventRegister(&waitEntry)
@@ -143,42 +110,23 @@ func ConnectUserSpace(localportname string, remoteAddr net.IP, remotePort uint16
 	}
 
 	fmt.Println("Connected")
+	c := gonet.NewTCPConn(&wq, ep)
 
-	// Start the writer in its own goroutine.
-	writerCompletedCh := make(chan struct{})
-	go writer(writerCompletedCh, ep, rwc) // S/R-SAFE: sample code.
-
-	// Read data and write to standard output until the peer closes the
-	// connection from its side.
-	waitEntry, notifyCh = waiter.NewChannelEntry(waiter.ReadableEvents)
-	wq.EventRegister(&waitEntry)
-	for {
-		//var b bytes.Buffer
-		//t, err := ep.Read(&b, tcpip.ReadOptions{})
-		_, err := ep.Read(rwc, tcpip.ReadOptions{})
-		if err != nil {
-			if _, ok := err.(*tcpip.ErrClosedForReceive); ok {
-				break
-			}
-
-			if _, ok := err.(*tcpip.ErrWouldBlock); ok {
-				<-notifyCh
-				continue
-			}
-
-			log.Fatal("Read() failed:", err)
-		}
-
-		//fmt.Printf("%d bytes rcv: %x  ", t.Count, b.Bytes())
-
-	}
-	wq.EventUnregister(&waitEntry)
-
-	// The reader has completed. Now wait for the writer as well.
-	<-writerCompletedCh
-
-	ep.Close()
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go copyMyShit(c, rwc, wg)
+	go copyMyShit(rwc, c, wg)
+	wg.Wait()
 	return nil
+}
+
+func copyMyShit(w io.Writer, r io.Reader, wg *sync.WaitGroup) {
+	defer wg.Done()
+	_, err := io.Copy(w, r)
+	if err != nil {
+		log.Print(err)
+	}
+
 }
 
 func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser, addrName string, prefixLength int) {
@@ -198,7 +146,7 @@ func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser, addrName 
 	// NIC and ipv4 address.
 	stack_orinterfaceithink := stack.New(stack.Options{
 		NetworkProtocols:   []stack.NetworkProtocolFactory{ipv6.NewProtocol},
-		TransportProtocols: []stack.TransportProtocolFactory{tcp.NewProtocol, udp.NewProtocol},
+		TransportProtocols: []stack.TransportProtocolFactory{tcp.NewProtocol},
 	})
 	interface_i_think = stack_orinterfaceithink
 	/*
@@ -220,7 +168,10 @@ func startuserspacetunnel(mtu uint32, lockdownconn io.ReadWriteCloser, addrName 
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := stack_orinterfaceithink.CreateNIC(1, sniffer.New(linkEP)); err != nil {
+	/*if debug {
+		linkEP = sniffer.New(linkEP)
+	}*/
+	if err := stack_orinterfaceithink.CreateNIC(1, linkEP); err != nil {
 		log.Fatal(err)
 	}
 
