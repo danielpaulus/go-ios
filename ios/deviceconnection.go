@@ -33,6 +33,7 @@ type DeviceConnection struct {
 	unencryptedConn net.Conn
 }
 
+// TODO: remove the need for this with some refactoring in a follow up PR
 type DeviceConnectionRWC struct {
 	c io.ReadWriteCloser
 }
