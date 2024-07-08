@@ -136,6 +136,7 @@ Options:
   -v --verbose              Enable Debug Logging.
   -t --trace                Enable Trace Logging (dump every message).
   --nojson                  Disable JSON output
+  --noagent                 Do not start the go-ios agent automatically
   --pretty                  Pretty-print JSON command output
   -h --help                 Show this screen.
   --udid=<udid>             UDID of the device.
@@ -249,7 +250,7 @@ The commands work as following:
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
-
+	ios.Version = version
 	exitIfError("failed parsing args", err)
 	disableJSON, _ := arguments.Bool("--nojson")
 	if disableJSON {
@@ -278,7 +279,10 @@ The commands work as following:
 	}
 	// log.SetReportCaller(true)
 	log.Debug(arguments)
-	tunnel.RunAgent()
+	skipAgent, _ := arguments.Bool("--noagent")
+	if !skipAgent {
+		tunnel.RunAgent()
+	}
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
 	shouldPrintVersion, _ := arguments.Bool("--version")
 	if shouldPrintVersionNoDashes || shouldPrintVersion {
@@ -306,7 +310,7 @@ The commands work as following:
 
 	tunnelInfoPort, err := arguments.Int("--tunnel-info-port")
 	if err != nil {
-		tunnelInfoPort = tunnel.DefaultHttpApiPort()
+		tunnelInfoPort = ios.DefaultHttpApiPort()
 	}
 
 	tunnelCommand, _ := arguments.Bool("tunnel")

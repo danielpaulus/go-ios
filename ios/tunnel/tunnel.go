@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
-
 	"github.com/quic-go/quic-go"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"

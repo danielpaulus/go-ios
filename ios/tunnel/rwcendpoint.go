@@ -1,7 +1,11 @@
-// Package iobased provides the implementation of io.ReadWriter
-// based data-link layer endpoints.
 package tunnel
 
+// I took this code from https://github.com/xjasonlyu/tun2socks which is an amazing project
+// but GPL licensed.
+// Technically this would require me from having go-ios be MIT licensed now.
+// I think though the code is pretty simple and not very original to what tun2socks is about.
+// So I hope it's okay to use this code without changing my license and I can get away with
+// attribution. If not let me know, then I can uhm.. rewrite it.
 import (
 	"context"
 	"errors"

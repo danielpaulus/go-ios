@@ -2,9 +2,12 @@ package ios
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios/http"
@@ -156,19 +159,14 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 }
 
 func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
+	_, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
 	/*if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to resolve address: %w", err)
 	}*/
-	addr, _ = net.ResolveTCPAddr("tcp4", "localhost:7779")
-	conn, err := net.DialTCP("tcp", nil, addr)
+	conn, err := ConnectUserSpaceTunnel(device.Address, port)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
 	}
-	conn.Write(net.ParseIP(device.Address).To16())
-	portBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(portBytes, uint32(port))
-	conn.Write(portBytes)
 	err = conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive: %w", err)
@@ -182,21 +180,14 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 
 // ConnectToTunnel opens a new connection to the tunnel interface of the specified device and on the specified port
 func ConnectToTunnel(device DeviceEntry, port int) (io.ReadWriteCloser, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
+	_, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
 	/*if err != nil {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to resolve address: %w", err)
 	}*/
-	addr, _ = net.ResolveTCPAddr("tcp4", "localhost:7779")
-	conn, err := net.DialTCP("tcp", nil, addr)
+	conn, err := ConnectUserSpaceTunnel(device.Address, port)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
 	}
-	print("connet to tunnel")
-	conn.Write(net.ParseIP(device.Address).To16())
-	portBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(portBytes, uint32(port))
-	conn.Write(portBytes)
-
 	err = conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to set keepalive: %w", err)
@@ -219,17 +210,10 @@ func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
 	}*/
-	addr, _ := net.ResolveTCPAddr("tcp4", "localhost:7779")
-	conn, err := net.DialTCP("tcp", nil, addr)
+	conn, err := ConnectUserSpaceTunnel(a, port)
 	if err != nil {
-		return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to connect to tunnel: %w", err)
 	}
-	print("connet to tunnel")
-	conn.Write(net.ParseIP(a).To16())
-	portBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(portBytes, uint32(port))
-	conn.Write(portBytes)
-
 	err = conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to set keepalive: %w", err)
@@ -352,4 +336,40 @@ func initializeXpcConnection(h *http.HttpConnection) error {
 	}
 
 	return nil
+}
+
+func ConnectUserSpaceTunnel(remoteIp string, port int) (*net.TCPConn, error) {
+	addr, _ := net.ResolveTCPAddr("tcp4", fmt.Sprintf("localhost:%d", DefaultTunnelPort()))
+	conn, err := net.DialTCP("tcp", nil, addr)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to dial: %w", err)
+	}
+	_, err = conn.Write(net.ParseIP(remoteIp).To16())
+	portBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(portBytes, uint32(port))
+	_, err1 := conn.Write(portBytes)
+	return conn, errors.Join(err, err1)
+}
+
+// defaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
+// 60-106 is leetspeek for go-ios :-D
+const defaultHttpApiPort = 60105
+
+// DefaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
+// if GO_IOS_AGENT_PORT is set, we use that port. Otherwise we use the default port 60106.
+// 60-106 is leetspeek for go-ios :-D
+func DefaultHttpApiPort() int {
+	port, err := strconv.Atoi(os.Getenv("GO_IOS_AGENT_PORT"))
+	if err != nil {
+		return defaultHttpApiPort
+	}
+	return port
+}
+
+// DefaultTunnelPort is the port on which you can connect to services on the device.
+// It is used for connecting to the user space TUN device.
+// It will be on DefaultHttpApiPort() + 1
+// Which means 60106 per default
+func DefaultTunnelPort() int {
+	return DefaultHttpApiPort() + 1
 }

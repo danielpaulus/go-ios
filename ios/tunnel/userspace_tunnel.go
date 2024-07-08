@@ -176,16 +176,16 @@ func listenToConns(iface UserSpaceTUNInterface) error {
 	defer func() {
 		slog.Info("Stopped listening for connections")
 	}()
-	listener, err := net.Listen("tcp", "localhost:7779")
+	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", ios.DefaultTunnelPort()))
 	if err != nil {
 		return err
 	}
 	for {
-
 		client, err := listener.Accept()
 		if err != nil {
 			return err
 		}
+		slog.Info("Received connection request", "from", client.RemoteAddr(), "to", client.LocalAddr())
 		remoteAddrBytes := make([]byte, 16)
 		_, err = client.Read(remoteAddrBytes)
 		if err != nil {

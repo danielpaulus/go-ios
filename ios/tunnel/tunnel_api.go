@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,27 +20,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// defaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
-// 60-106 is leetspeek for go-ios :-D
-const defaultHttpApiPort = 60105
-
-// DefaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
-// if GO_IOS_AGENT_PORT is set, we use that port. Otherwise we use the default port 60106.
-// 60-106 is leetspeek for go-ios :-D
-func DefaultHttpApiPort() int {
-	port, err := strconv.Atoi(os.Getenv("GO_IOS_AGENT_PORT"))
-	if err != nil {
-		return defaultHttpApiPort
-	}
-	return port
-}
-
 var netClient = &http.Client{
 	Timeout: time.Millisecond * 200,
 }
 
 func IsAgentRunning() bool {
-	resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/health", "127.0.0.1", DefaultHttpApiPort()))
+	resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/health", "127.0.0.1", ios.DefaultHttpApiPort()))
 	if err != nil {
 		return false
 	}
@@ -50,7 +34,7 @@ func IsAgentRunning() bool {
 func WaitUntilAgentReady() bool {
 	for {
 		slog.Info("Waiting for go-ios agent to be ready...")
-		resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/ready", "127.0.0.1", DefaultHttpApiPort()))
+		resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/ready", "127.0.0.1", ios.DefaultHttpApiPort()))
 		if err != nil {
 			return false
 		}
@@ -65,7 +49,7 @@ func RunAgent(args ...string) error {
 	if IsAgentRunning() {
 		return nil
 	}
-	slog.Info("Go-iOS Agent not running, starting it on port", "port", DefaultHttpApiPort())
+	slog.Info("Go-iOS Agent not running, starting it on port", "port", ios.DefaultHttpApiPort())
 	ex, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("RunAgent: failed to get executable path: %w", err)
