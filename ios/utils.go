@@ -17,13 +17,6 @@ import (
 	plist "howett.net/plist"
 )
 
-// hack, remove later
-var Version string
-
-func GetVersion() string {
-	return Version
-}
-
 // CheckRoot checks if the current user is root or has elevated privileges on Windows.
 func CheckRoot() error {
 	// On Windows, check if the process has elevated privileges

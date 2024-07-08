@@ -250,7 +250,6 @@ The commands work as following:
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
-	ios.Version = version
 	exitIfError("failed parsing args", err)
 	disableJSON, _ := arguments.Bool("--nojson")
 	if disableJSON {
