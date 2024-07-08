@@ -91,8 +91,11 @@ func ioCopyWithErr(w io.Writer, r io.Reader, errCh chan error) {
 	errCh <- err
 }
 
-func (iface *UserSpaceTUNInterface) Init(mtu uint32, connToTUNIface io.ReadWriteCloser, addrName string, prefixLength int) error {
-	addr := tcpip.AddrFromSlice(net.ParseIP(addrName).To16())
+// Init initializes the virtual network interface.
+// The connToTUNIface needs to be connection that understands IP packets to a remote TUN device or sth.
+// provide mtu, ip address as a string and the prefix length of the interface.
+func (iface *UserSpaceTUNInterface) Init(mtu uint32, connToTUNIface io.ReadWriteCloser, ipAddrString string, prefixLength int) error {
+	addr := tcpip.AddrFromSlice(net.ParseIP(ipAddrString).To16())
 	addrWithPrefix := addr.WithPrefix()
 	addrWithPrefix.PrefixLen = prefixLength
 
@@ -153,8 +156,10 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 	}
 	const prefixLength = 64
 	iface := UserSpaceTUNInterface{}
-	iface.Init(uint32(tunnelInfo.ClientParameters.Mtu), connToDevice, tunnelInfo.ClientParameters.Address, prefixLength)
-
+	err = iface.Init(uint32(tunnelInfo.ClientParameters.Mtu), connToDevice, tunnelInfo.ClientParameters.Address, prefixLength)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
+	}
 	closeFunc := func() error {
 		return nil
 	}

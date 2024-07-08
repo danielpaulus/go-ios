@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,8 +21,68 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+// defaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
+// 60-106 is leetspeek for go-ios :-D
+const defaultHttpApiPort = 60105
+
 // DefaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
-const DefaultHttpApiPort = 28100
+// if GO_IOS_AGENT_PORT is set, we use that port. Otherwise we use the default port 60106.
+// 60-106 is leetspeek for go-ios :-D
+func DefaultHttpApiPort() int {
+	port, err := strconv.Atoi(os.Getenv("GO_IOS_AGENT_PORT"))
+	if err != nil {
+		return defaultHttpApiPort
+	}
+	return port
+}
+
+var netClient = &http.Client{
+	Timeout: time.Millisecond * 200,
+}
+
+func IsAgentRunning() bool {
+	resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/health", "127.0.0.1", DefaultHttpApiPort()))
+	if err != nil {
+		return false
+	}
+	return resp.StatusCode == http.StatusOK
+}
+func WaitUntilAgentReady() bool {
+	for {
+		slog.Info("Waiting for go-ios agent to be ready...")
+		resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/ready", "127.0.0.1", DefaultHttpApiPort()))
+		if err != nil {
+			return false
+		}
+		if resp.StatusCode == http.StatusOK {
+			slog.Info("Go-iOS Agent is ready")
+			return true
+		}
+	}
+}
+
+func RunAgent(args ...string) error {
+	if IsAgentRunning() {
+		return nil
+	}
+	slog.Info("Go-iOS Agent not running, starting it on port", "port", DefaultHttpApiPort())
+	ex, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("RunAgent: failed to get executable path: %w", err)
+	}
+
+	cmd := exec.Command(ex, append([]string{"tunnel", "start"}, args...)...)
+	err = cmd.Start()
+	if err != nil {
+		return fmt.Errorf("RunAgent: failed to start agent: %w", err)
+	}
+	err = cmd.Process.Release()
+	if err != nil {
+		return fmt.Errorf("RunAgent: failed to release process: %w", err)
+	}
+	WaitUntilAgentReady()
+	return nil
+}
 
 // ServeTunnelInfo starts a simple http serve that exposes the tunnel information about the running tunnel.
 // The API has two endpoints:
@@ -27,6 +91,17 @@ const DefaultHttpApiPort = 28100
 // 3. GET    localhost:{PORT}/tunnels       to get a list of all tunnels
 func ServeTunnelInfo(tm *TunnelManager, port int) error {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc("/ready", func(writer http.ResponseWriter, request *http.Request) {
+		if tm.FirstUpdateCompleted() {
+			writer.WriteHeader(http.StatusOK)
+		} else {
+			writer.WriteHeader(http.StatusServiceUnavailable)
+		}
+	})
+
 	mux.HandleFunc("/tunnel/", func(writer http.ResponseWriter, request *http.Request) {
 		udid := strings.TrimPrefix(request.URL.Path, "/tunnel/")
 		if len(udid) == 0 {
@@ -123,12 +198,13 @@ func ListRunningTunnels(tunnelInfoPort int) ([]Tunnel, error) {
 // TunnelManager starts tunnels for devices when needed (if no tunnel is running yet) and stores the information
 // how those tunnels are reachable (address and remote service discovery port)
 type TunnelManager struct {
-	ts                 tunnelStarter
-	dl                 deviceLister
-	pm                 PairRecordManager
-	mux                sync.Mutex
-	tunnels            map[string]Tunnel
-	startTunnelTimeout time.Duration
+	ts                   tunnelStarter
+	dl                   deviceLister
+	pm                   PairRecordManager
+	mux                  sync.Mutex
+	tunnels              map[string]Tunnel
+	startTunnelTimeout   time.Duration
+	firstUpdateCompleted bool
 }
 
 // NewTunnelManager creates a new TunnelManager instance for setting up device tunnels for all connected devices
@@ -140,6 +216,14 @@ func NewTunnelManager(pm PairRecordManager) *TunnelManager {
 		tunnels:            map[string]Tunnel{},
 		startTunnelTimeout: 10 * time.Second,
 	}
+}
+
+// FirstUpdateCompleted returns true if the first update completed,
+// use it to prevent race conditions when trying to use go-ios agent for the first time
+func (m *TunnelManager) FirstUpdateCompleted() bool {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	return m.firstUpdateCompleted
 }
 
 // UpdateTunnels checks for connected devices and starts a new tunnel if needed
@@ -181,6 +265,9 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 			_ = m.stopTunnel(tun)
 		}
 	}
+	m.mux.Lock()
+	m.firstUpdateCompleted = true
+	m.mux.Unlock()
 	return nil
 }
 

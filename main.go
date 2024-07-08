@@ -278,7 +278,7 @@ The commands work as following:
 	}
 	// log.SetReportCaller(true)
 	log.Debug(arguments)
-
+	tunnel.RunAgent()
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
 	shouldPrintVersion, _ := arguments.Bool("--version")
 	if shouldPrintVersionNoDashes || shouldPrintVersion {
@@ -306,7 +306,7 @@ The commands work as following:
 
 	tunnelInfoPort, err := arguments.Int("--tunnel-info-port")
 	if err != nil {
-		tunnelInfoPort = tunnel.DefaultHttpApiPort
+		tunnelInfoPort = tunnel.DefaultHttpApiPort()
 	}
 
 	tunnelCommand, _ := arguments.Bool("tunnel")
