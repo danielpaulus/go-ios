@@ -66,7 +66,7 @@ func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, e
 func tryHandshake(ip6 net.IP, port int, interfaceName, udid string, result chan<- string) {
 	addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
 	s, err := NewWithAddrPort(addr, port)
-	print("handshare")
+
 	if err != nil {
 		slog.Error("failed to connect to remote service discovery", "error", err, "address", addr)
 		return
