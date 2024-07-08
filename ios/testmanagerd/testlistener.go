@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
@@ -15,7 +16,8 @@ import (
 
 // TestListener collects test results from the test execution
 type TestListener struct {
-	executionFinished    chan struct{}
+	finished             chan struct{}
+	finishedOnce         sync.Once
 	err                  error
 	logWriter            io.Writer
 	debugLogWriter       io.Writer
@@ -71,7 +73,7 @@ type TestAttachment struct {
 
 func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer, attachmentsDirectory string) *TestListener {
 	return &TestListener{
-		executionFinished:    make(chan struct{}),
+		finished:             make(chan struct{}),
 		logWriter:            logWriter,
 		debugLogWriter:       debugLogWriter,
 		TestSuites:           make([]TestSuite, 0),
@@ -80,17 +82,17 @@ func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer, attachmentsD
 }
 
 func (t *TestListener) didFinishExecutingTestPlan() {
-	close(t.executionFinished)
+	t.executionFinished()
 }
 
 func (t *TestListener) initializationForUITestingDidFailWithError(err nskeyedarchiver.NSError) {
 	t.err = err
-	close(t.executionFinished)
+	t.executionFinished()
 }
 
 func (t *TestListener) didFailToBootstrapWithError(err nskeyedarchiver.NSError) {
 	t.err = err
-	close(t.executionFinished)
+	t.executionFinished()
 }
 
 func (t *TestListener) testCaseStalled(testClass string, method string, file string, line uint64) {
@@ -249,11 +251,11 @@ func (t *TestListener) LogDebugMessage(msg string) {
 
 func (t *TestListener) TestRunnerKilled() {
 	t.err = errors.New("Test runner has been explicitly killed.")
-	close(t.executionFinished)
+	t.executionFinished()
 }
 
 func (t *TestListener) Done() <-chan struct{} {
-	return t.executionFinished
+	return t.finished
 }
 
 func (t *TestListener) findTestCase(className string, methodName string) *TestCase {
@@ -275,4 +277,10 @@ func (t *TestListener) findTestSuite(className string) *TestSuite {
 	}
 
 	return nil
+}
+
+func (t *TestListener) executionFinished() {
+	t.finishedOnce.Do(func() {
+		close(t.finished)
+	})
 }
