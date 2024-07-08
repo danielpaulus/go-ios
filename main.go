@@ -128,7 +128,7 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
-  ios tunnel start [options] [--pair-record-path=<pairrecordpath>]
+  ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]
   ios tunnel ls [options]
   ios devmode (enable | get) [--enable-post-restart] [options]
 
@@ -240,12 +240,12 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
-   ios tunnel start [options] [--pair-record-path=<pairrecordpath>]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
+   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
    >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path=default' can be used to point to /var/db/lockdown/RemotePairing/user_501.
    >                                                                  If nothing is specified, the current dir is used for the pair record.
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
-   ios tunnel ls                                                      List currently started tunnels
+   ios tunnel ls                                                      List currently started tunnels. Use --enabletun to activate using TUN devices rather than user space network. Requires sudo/admin shells. 
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
@@ -1013,11 +1013,11 @@ The commands work as following:
 
 	if tunnelCommand {
 		startCommand, _ := arguments.Bool("start")
-
-		if startCommand {
+		useTUNdevices, _ := arguments.Bool("--enabletun")
+		if startCommand && useTUNdevices {
 			err := ios.CheckRoot()
 			if err != nil {
-				log.Warn("Run this with 'sudo' or in as admin on windows")
+				exitIfError("If --enabletun is set, we need sudo or an admin shell on Windows", err)
 			}
 		}
 
@@ -1030,7 +1030,7 @@ The commands work as following:
 			if strings.ToLower(pairRecordsPath) == "default" {
 				pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
 			}
-			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort)
+			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, !useTUNdevices)
 		} else if listCommand {
 			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoPort)
 			if err != nil {
@@ -2005,10 +2005,10 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
 
-func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int) {
+func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, userspaceTUN bool) {
 	pm, err := tunnel.NewPairRecordManager(recordsPath)
 	exitIfError("could not creat pair record manager", err)
-	tm := tunnel.NewTunnelManager(pm)
+	tm := tunnel.NewTunnelManager(pm, userspaceTUN)
 
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)

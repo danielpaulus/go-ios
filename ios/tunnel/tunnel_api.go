@@ -189,16 +189,19 @@ type TunnelManager struct {
 	tunnels              map[string]Tunnel
 	startTunnelTimeout   time.Duration
 	firstUpdateCompleted bool
+	userspaceTUN         bool
 }
 
 // NewTunnelManager creates a new TunnelManager instance for setting up device tunnels for all connected devices
-func NewTunnelManager(pm PairRecordManager) *TunnelManager {
+// If userspaceTUN is set to true, the network stack will run in user space.
+func NewTunnelManager(pm PairRecordManager, userspaceTUN bool) *TunnelManager {
 	return &TunnelManager{
 		ts:                 manualPairingTunnelStart{},
 		dl:                 deviceList{},
 		pm:                 pm,
 		tunnels:            map[string]Tunnel{},
 		startTunnelTimeout: 10 * time.Second,
+		userspaceTUN:       userspaceTUN,
 	}
 }
 
@@ -266,15 +269,13 @@ func (m *TunnelManager) stopTunnel(t Tunnel) error {
 
 func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry) (Tunnel, error) {
 	log.WithField("udid", device.Properties.SerialNumber).Info("start tunnel")
-	t1, err := ConnectUserSpaceTunnelLockdown(device)
-	return t1, err
 	startTunnelCtx, cancel := context.WithTimeout(ctx, m.startTunnelTimeout)
 	defer cancel()
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("startTunnel: failed to get device version: %w", err)
 	}
-	t, err := m.ts.StartTunnel(startTunnelCtx, device, m.pm, version)
+	t, err := m.ts.StartTunnel(startTunnelCtx, device, m.pm, version, m.userspaceTUN)
 	if err != nil {
 		return Tunnel{}, err
 	}
@@ -304,7 +305,7 @@ func (m *TunnelManager) FindTunnel(udid string) (Tunnel, error) {
 }
 
 type tunnelStarter interface {
-	StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version) (Tunnel, error)
+	StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version, userspaceTUN bool) (Tunnel, error)
 }
 
 type deviceLister interface {
@@ -314,9 +315,11 @@ type deviceLister interface {
 type manualPairingTunnelStart struct {
 }
 
-func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version) (Tunnel, error) {
-
+func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version, userspaceTUN bool) (Tunnel, error) {
 	if version.Major() >= 17 && version.Minor() >= 4 {
+		if userspaceTUN {
+			return ConnectUserSpaceTunnelLockdown(device)
+		}
 		return ConnectTunnelLockdown(device)
 	}
 	if version.Major() >= 17 {
