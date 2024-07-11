@@ -45,7 +45,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	"github.com/danielpaulus/go-ios/ios/notificationproxy"
 	"github.com/danielpaulus/go-ios/ios/pcap"
-	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
@@ -595,7 +594,7 @@ The commands work as following:
 			if port == "" {
 				port = "3333"
 			}
-			err := screenshotr.StartStreamingServer(device, port)
+			err := instruments.StartMJPEGStreamingServer(device, port)
 			exitIfError("failed starting mjpeg", err)
 			return
 		}
@@ -1722,18 +1721,19 @@ func printDeviceName(device ios.DeviceEntry) {
 }
 
 func saveScreenshot(device ios.DeviceEntry, outputPath string) {
-	log.Debug("take screenshot")
-	screenshotrService, err := screenshotr.New(device)
-	exitIfError("Starting Screenshotr failed with", err)
+	screenshotService, err := instruments.NewScreenshotService(device)
+	exitIfError("Starting screenshot service failed", err)
+	defer screenshotService.Close()
 
-	imageBytes, err := screenshotrService.TakeScreenshot()
-	exitIfError("screenshotr failed", err)
+	imageBytes, err := screenshotService.TakeScreenshot()
+	exitIfError("Taking screenshot failed", err)
 
 	if outputPath == "" {
 		timestamp := time.Now().Format("20060102150405")
 		outputPath, err = filepath.Abs("./screenshot" + timestamp + ".png")
 		exitIfError("getting filepath failed", err)
 	}
+
 	err = os.WriteFile(outputPath, imageBytes, 0o777)
 	exitIfError("write file failed", err)
 

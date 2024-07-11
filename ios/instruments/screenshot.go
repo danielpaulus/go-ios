@@ -1,30 +1,63 @@
-package screenshotr
+package instruments
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios"
+	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
+	log "github.com/sirupsen/logrus"
 	"image/jpeg"
 	"image/png"
 	"io"
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/danielpaulus/go-ios/ios"
-	log "github.com/sirupsen/logrus"
 )
 
+const screenshotServiceName string = "com.apple.instruments.server.services.screenshot"
+
+type ScreenshotService struct {
+	channel *dtx.Channel
+	conn    *dtx.Connection
+}
+
+func NewScreenshotService(device ios.DeviceEntry) (*ScreenshotService, error) {
+	dtxConn, err := connectInstruments(device)
+	if err != nil {
+		return nil, err
+	}
+	processControlChannel := dtxConn.RequestChannelIdentifier(screenshotServiceName, loggingDispatcher{dtxConn})
+	return &ScreenshotService{channel: processControlChannel, conn: dtxConn}, nil
+}
+
+func (d *ScreenshotService) Close() {
+	d.conn.Close()
+}
+
+func (d *ScreenshotService) TakeScreenshot() ([]byte, error) {
+	msg, err := d.channel.MethodCall("takeScreenshot")
+	if err != nil {
+		return nil, fmt.Errorf("TakeScreenshot: %s", err)
+	}
+	imageBytes := msg.Payload[0].([]byte)
+
+	return imageBytes, nil
+}
+
+// MJPEG server code
 var (
 	consumers       sync.Map
 	conversionQueue = make(chan []byte, 20)
 )
 
-func StartStreamingServer(device ios.DeviceEntry, port string) error {
-	conn, err := New(device)
+func StartMJPEGStreamingServer(device ios.DeviceEntry, port string) error {
+	conn, err := NewScreenshotService(device)
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
+
 	go startScreenshotting(conn)
 	go startConversionQueue()
 	http.HandleFunc("/", mjpegHandler)
@@ -62,12 +95,12 @@ func startConversionQueue() {
 	}
 }
 
-func startScreenshotting(conn *Connection) {
+func startScreenshotting(conn *ScreenshotService) {
 	for {
 		start := time.Now()
 		pngBytes, err := conn.TakeScreenshot()
 		if err != nil {
-			log.Fatal("screenshotr failed", err)
+			log.Fatal("Screenshot failed", err)
 		}
 		elapsed := time.Since(start)
 		log.Debugf("shot took %fs", elapsed.Seconds())
