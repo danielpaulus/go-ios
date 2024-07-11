@@ -159,15 +159,25 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 }
 
 func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
-	_, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-	/*if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2: failed to resolve address: %w", err)
-	}*/
-	conn, err := ConnectUserSpaceTunnel(device.Address, port)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
+	var conn *net.TCPConn
+	if device.UserspaceTUN {
+		var err error
+		conn, err = ConnectUserSpaceTunnel(device.Address, port)
+		if err != nil {
+			return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
+		}
+	} else {
+		addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
+		if err != nil {
+			return nil, fmt.Errorf("ConnectToHttp2: failed to resolve address: %w", err)
+		}
+
+		conn, err = net.DialTCP("tcp", nil, addr)
+		if err != nil {
+			return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
+		}
 	}
-	err = conn.SetKeepAlive(true)
+	err := conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive: %w", err)
 	}
@@ -180,15 +190,25 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 
 // ConnectToTunnel opens a new connection to the tunnel interface of the specified device and on the specified port
 func ConnectToTunnel(device DeviceEntry, port int) (io.ReadWriteCloser, error) {
-	_, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-	/*if err != nil {
-		return nil, fmt.Errorf("ConnectToTunnel: failed to resolve address: %w", err)
-	}*/
-	conn, err := ConnectUserSpaceTunnel(device.Address, port)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
+	var conn *net.TCPConn
+	if device.UserspaceTUN {
+		var err error
+		conn, err = ConnectUserSpaceTunnel(device.Address, port)
+		if err != nil {
+			return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
+		}
+	} else {
+		addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
+		if err != nil {
+			return nil, fmt.Errorf("ConnectToTunnel: failed to resolve address: %w", err)
+		}
+		conn, err = net.DialTCP("tcp", nil, addr)
+		if err != nil {
+			return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
+		}
 	}
-	err = conn.SetKeepAlive(true)
+
+	err := conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to set keepalive: %w", err)
 	}
@@ -200,21 +220,26 @@ func ConnectToTunnel(device DeviceEntry, port int) (io.ReadWriteCloser, error) {
 	return conn, nil
 }
 
-func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {
-	//addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", a, port))
-	/*if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
-	}
+func ConnectToHttp2WithAddr(a string, port int, userSpaceTUN bool) (*http.HttpConnection, error) {
+	var conn *net.TCPConn
+	if !userSpaceTUN {
+		addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", a, port))
+		if err != nil {
+			return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
+		}
 
-	conn, err := net.DialTCP("tcp", nil, addr)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
-	}*/
-	conn, err := ConnectUserSpaceTunnel(a, port)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to connect to tunnel: %w", err)
+		conn, err = net.DialTCP("tcp", nil, addr)
+		if err != nil {
+			return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
+		}
+	} else {
+		var err error
+		conn, err = ConnectUserSpaceTunnel(a, port)
+		if err != nil {
+			return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to connect to tunnel: %w", err)
+		}
 	}
-	err = conn.SetKeepAlive(true)
+	err := conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to set keepalive: %w", err)
 	}

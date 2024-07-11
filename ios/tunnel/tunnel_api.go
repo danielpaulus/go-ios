@@ -318,7 +318,9 @@ type manualPairingTunnelStart struct {
 func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version, userspaceTUN bool) (Tunnel, error) {
 	if version.Major() >= 17 && version.Minor() >= 4 {
 		if userspaceTUN {
-			return ConnectUserSpaceTunnelLockdown(device)
+			tun, err := ConnectUserSpaceTunnelLockdown(device)
+			tun.UserspaceTUN = true
+			return tun, err
 		}
 		return ConnectTunnelLockdown(device)
 	}

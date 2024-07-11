@@ -57,15 +57,15 @@ func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, e
 			}
 			print(entry.ServiceInstanceName())
 			for _, ip6 := range entry.AddrIPv6 {
-				tryHandshake(ip6, entry.Port, interfaceName, device.Properties.SerialNumber, result)
+				tryHandshake(ip6, entry.Port, interfaceName, device.Properties.SerialNumber, device.UserspaceTUN, result)
 			}
 		}
 	}
 }
 
-func tryHandshake(ip6 net.IP, port int, interfaceName, udid string, result chan<- string) {
+func tryHandshake(ip6 net.IP, port int, interfaceName, udid string, userspaceTUN bool, result chan<- string) {
 	addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
-	s, err := NewWithAddrPort(addr, port)
+	s, err := NewWithAddrPort(addr, port, userspaceTUN)
 
 	if err != nil {
 		slog.Error("failed to connect to remote service discovery", "error", err, "address", addr)

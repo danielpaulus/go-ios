@@ -32,8 +32,10 @@ type Tunnel struct {
 	// RsdPort is the port on which remote service discover is reachable
 	RsdPort int `json:"rsdPort"`
 	// Udid is the id of the device for this tunnel
-	Udid   string `json:"udid"`
-	closer func() error
+	Udid string `json:"udid"`
+	// Userspace TUN device is used, connect to the local tcp port at Default
+	UserspaceTUN bool `json:"userspaceTun"`
+	closer       func() error
 }
 
 // Close closes the connection to the device and removes the virtual network interface from the host
@@ -50,11 +52,11 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to find device ethernet interface: %w", err)
 	}
 
-	port, err := getUntrustedTunnelServicePort(addr)
+	port, err := getUntrustedTunnelServicePort(addr, device.UserspaceTUN)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: could not find port for '%s'", untrustedTunnelServiceName)
 	}
-	h, err := ios.ConnectToHttp2WithAddr(addr, port)
+	h, err := ios.ConnectToHttp2WithAddr(addr, port, device.UserspaceTUN)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create HTTP2 connection: %w", err)
 	}
@@ -80,8 +82,8 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 	return t, nil
 }
 
-func getUntrustedTunnelServicePort(addr string) (int, error) {
-	rsdService, err := ios.NewWithAddr(addr)
+func getUntrustedTunnelServicePort(addr string, userspaceTUN bool) (int, error) {
+	rsdService, err := ios.NewWithAddr(addr, userspaceTUN)
 	if err != nil {
 		return 0, fmt.Errorf("getUntrustedTunnelServicePort: failed to connect to RSD service: %w", err)
 	}

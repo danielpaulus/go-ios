@@ -323,11 +323,11 @@ The commands work as following:
 	if !tunnelCommand {
 		exitIfError("Device not found: "+udid, err)
 		if addressErr == nil && rsdErr == nil {
-			device = deviceWithRsdProvider(device, udid, address, rsdPort)
+			device = deviceWithRsdProvider(device, udid, address, rsdPort, false)
 		} else {
 			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoPort)
 			if err == nil {
-				device = deviceWithRsdProvider(device, udid, info.Address, info.RsdPort)
+				device = deviceWithRsdProvider(device, udid, info.Address, info.RsdPort, info.UserspaceTUN)
 			} else {
 				log.WithField("udid", device.Properties.SerialNumber).Warn("failed to get tunnel info")
 			}
@@ -2035,8 +2035,8 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, us
 	<-ctx.Done()
 }
 
-func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
-	rsdService, err := ios.NewWithAddrPort(address, rsdPort)
+func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int, useUserspaceTUN bool) ios.DeviceEntry {
+	rsdService, err := ios.NewWithAddrPort(address, rsdPort, useUserspaceTUN)
 	exitIfError("could not connect to RSD", err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
