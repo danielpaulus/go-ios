@@ -160,10 +160,17 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
 	}
-	closeFunc := func() error {
-		return nil
+
+	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", ios.DefaultTunnelPort()))
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("could not setup listener. %w", err)
 	}
-	go listenToConns(iface)
+	go listenToConns(iface, listener)
+
+	closeFunc := func() error {
+		iface.networkStack.Close()
+		return errors.Join(connToDevice.Close(), listener.Close())
+	}
 	return Tunnel{
 		Address: tunnelInfo.ServerAddress,
 		RsdPort: int(tunnelInfo.ServerRSDPort),
@@ -172,14 +179,11 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 	}, nil
 }
 
-func listenToConns(iface UserSpaceTUNInterface) error {
+func listenToConns(iface UserSpaceTUNInterface, listener net.Listener) error {
 	defer func() {
 		slog.Info("Stopped listening for connections")
 	}()
-	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", ios.DefaultTunnelPort()))
-	if err != nil {
-		return err
-	}
+
 	for {
 		client, err := listener.Accept()
 		if err != nil {

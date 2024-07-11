@@ -396,5 +396,5 @@ func HttpApiPort() int {
 // It will be on DefaultHttpApiPort() + 1
 // Which means 60106 per default
 func DefaultTunnelPort() int {
-	return DefaultHttpApiPort() + 1
+	return HttpApiPort() + 1
 }

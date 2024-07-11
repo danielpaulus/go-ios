@@ -25,7 +25,7 @@ var netClient = &http.Client{
 }
 
 func IsAgentRunning() bool {
-	resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/health", "127.0.0.1", ios.DefaultHttpApiPort()))
+	resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/health", "127.0.0.1", ios.HttpApiPort()))
 	if err != nil {
 		return false
 	}
@@ -34,7 +34,7 @@ func IsAgentRunning() bool {
 func WaitUntilAgentReady() bool {
 	for {
 		slog.Info("Waiting for go-ios agent to be ready...")
-		resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/ready", "127.0.0.1", ios.DefaultHttpApiPort()))
+		resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/ready", "127.0.0.1", ios.HttpApiPort()))
 		if err != nil {
 			return false
 		}
@@ -49,7 +49,7 @@ func RunAgent(args ...string) error {
 	if IsAgentRunning() {
 		return nil
 	}
-	slog.Info("Go-iOS Agent not running, starting it on port", "port", ios.DefaultHttpApiPort())
+	slog.Info("Go-iOS Agent not running, starting it on port", "port", ios.HttpApiPort())
 	ex, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("RunAgent: failed to get executable path: %w", err)
