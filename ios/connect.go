@@ -383,7 +383,7 @@ const defaultHttpApiPort = 60105
 // DefaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
 // if GO_IOS_AGENT_PORT is set, we use that port. Otherwise we use the default port 60106.
 // 60-105 is leetspeek for go-ios :-D
-func DefaultHttpApiPort() int {
+func HttpApiPort() int {
 	port, err := strconv.Atoi(os.Getenv("GO_IOS_AGENT_PORT"))
 	if err != nil {
 		return defaultHttpApiPort
