@@ -46,7 +46,12 @@ type Endpoint struct {
 	wg sync.WaitGroup
 }
 
-// New returns stack.LinkEndpoint(.*Endpoint) and error.
+// RWCEndpointNew creates a new io.ReadWriter based endpoint. It is used to
+// connect the virtual TUN device with the lockdown connection to the device.
+// The lockdown connection expects IP packets as it is a proxy to some virtual
+// network interface on the device. So in essence, the virtual gVisor TUN device will
+// receive normal tcp ip connections and then encode them into IP packets sent to
+// lockdown using a RWCEndpoint.
 func RWCEndpointNew(rw io.ReadWriter, mtu uint32, offset int) (*Endpoint, error) {
 	if mtu == 0 {
 		return nil, errors.New("MTU size is zero")
