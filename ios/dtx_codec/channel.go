@@ -164,16 +164,19 @@ func (d *Channel) Dispatch(msg Message) {
 						d.messageDispatcher.Dispatch(msg)
 					}
 					delete(d.responseWaiters, msg.Identifier)
+					delete(d.defragmenters, msg.Identifier)
 				}
 				return
 			}
 			log.Warn("Received message fragment without first message, dropping it")
 			delete(d.responseWaiters, msg.Identifier)
+			delete(d.defragmenters, msg.Identifier)
 			return
 		}
 
 		d.responseWaiters[msg.Identifier] <- msg
 		delete(d.responseWaiters, msg.Identifier)
+		delete(d.defragmenters, msg.Identifier)
 		return
 	}
 	d.messageDispatcher.Dispatch(msg)
