@@ -2041,6 +2041,7 @@ func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, 
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
 	device, err = ios.GetDeviceWithAddress(udid, address, rsdProvider)
+	device.UserspaceTUN = useUserspaceTUN
 	exitIfError("error getting devicelist", err)
 
 	return device
