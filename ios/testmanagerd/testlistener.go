@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -133,12 +134,12 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 
 		file.Write(attachment.Payload)
 		testCase.Attachments = append(testCase.Attachments, TestAttachment{
-			Name:                  attachment.Name,
+			Name:                  strings.Clone(attachment.Name),
 			Timestamp:             attachment.Timestamp,
-			Activity:              xcActivityRecord.Title,
+			Activity:              strings.Clone(xcActivityRecord.Title),
 			Path:                  attachmentsPath,
-			Type:                  xcActivityRecord.ActivityType,
-			UniformTypeIdentifier: attachment.UniformTypeIdentifier,
+			Type:                  strings.Clone(xcActivityRecord.ActivityType),
+			UniformTypeIdentifier: strings.Clone(attachment.UniformTypeIdentifier),
 		})
 	}
 }
