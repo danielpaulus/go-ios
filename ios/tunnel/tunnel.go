@@ -35,8 +35,9 @@ type Tunnel struct {
 	// Udid is the id of the device for this tunnel
 	Udid string `json:"udid"`
 	// Userspace TUN device is used, connect to the local tcp port at Default
-	UserspaceTUN bool `json:"userspaceTun"`
-	closer       func() error
+	UserspaceTUN     bool `json:"userspaceTun"`
+	UserspaceTUNPort int  `json:"userspaceTunPort"`
+	closer           func() error
 }
 
 // Close closes the connection to the device and removes the virtual network interface from the host

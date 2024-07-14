@@ -140,15 +140,15 @@ func (iface *UserSpaceTUNInterface) Init(mtu uint32, connToTUNIface io.ReadWrite
 	return nil
 }
 
-func ConnectUserSpaceTunnelLockdown(device ios.DeviceEntry) (Tunnel, error) {
+func ConnectUserSpaceTunnelLockdown(device ios.DeviceEntry, ifacePort int) (Tunnel, error) {
 	conn, err := ios.ConnectToService(device, coreDeviceProxy)
 	if err != nil {
 		return Tunnel{}, err
 	}
-	return connectToUserspaceTunnelLockdown(context.TODO(), device, conn)
+	return connectToUserspaceTunnelLockdown(context.TODO(), device, conn, ifacePort)
 }
 
-func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntry, connToDevice io.ReadWriteCloser) (Tunnel, error) {
+func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntry, connToDevice io.ReadWriteCloser, ifacePort int) (Tunnel, error) {
 	slog.Info("connect to lockdown tunnel endpoint on device")
 	tunnelInfo, err := exchangeCoreTunnelParameters(connToDevice)
 	if err != nil {
@@ -161,10 +161,12 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
 	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", ios.DefaultTunnelPort()))
+	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", ifacePort))
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not setup listener. %w", err)
 	}
+
+	listener.Addr()
 	go listenToConns(iface, listener)
 
 	closeFunc := func() error {

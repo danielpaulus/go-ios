@@ -211,6 +211,7 @@ type TunnelManager struct {
 	firstUpdateCompleted bool
 	userspaceTUN         bool
 	closeOnce            sync.Once
+	portOffset           int
 }
 
 // NewTunnelManager creates a new TunnelManager instance for setting up device tunnels for all connected devices
@@ -223,6 +224,7 @@ func NewTunnelManager(pm PairRecordManager, userspaceTUN bool) *TunnelManager {
 		tunnels:            map[string]Tunnel{},
 		startTunnelTimeout: 10 * time.Second,
 		userspaceTUN:       userspaceTUN,
+		portOffset:         1,
 	}
 }
 
@@ -270,7 +272,10 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 		if _, exists := localTunnels[udid]; exists {
 			continue
 		}
-
+		if m.userspaceTUN && d.UserspaceTUNPort == 0 {
+			d.UserspaceTUNPort = ios.HttpApiPort() + m.portOffset
+			m.portOffset++
+		}
 		t, err := m.startTunnel(ctx, d)
 		if err != nil {
 			log.WithField("udid", udid).
@@ -357,8 +362,9 @@ type manualPairingTunnelStart struct {
 func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version, userspaceTUN bool) (Tunnel, error) {
 	if version.Major() >= 17 && version.Minor() >= 4 {
 		if userspaceTUN {
-			tun, err := ConnectUserSpaceTunnelLockdown(device)
+			tun, err := ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
 			tun.UserspaceTUN = true
+			tun.UserspaceTUNPort = device.UserspaceTUNPort
 			return tun, err
 		}
 		return ConnectTunnelLockdown(device)

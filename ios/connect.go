@@ -282,7 +282,7 @@ func ConnectTUNDevice(remoteIp string, port int, d DeviceEntry) (*net.TCPConn, e
 		return connectTUN(remoteIp, port)
 	}
 
-	addr, _ := net.ResolveTCPAddr("tcp4", fmt.Sprintf("localhost:%d", DefaultTunnelPort()))
+	addr, _ := net.ResolveTCPAddr("tcp4", fmt.Sprintf("localhost:%d", d.UserspaceTUNPort))
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to dial: %w", err)
@@ -337,9 +337,4 @@ func HttpApiPort() int {
 		return defaultHttpApiPort
 	}
 	return port
-}
-
-// todo make dynamic so multiple devices work
-func DefaultTunnelPort() int {
-	return 60106
 }
