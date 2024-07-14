@@ -127,7 +127,7 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
-  ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]
+  ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
   ios tunnel ls [options]
   ios tunnel stopagent 
   ios devmode (enable | get) [--enable-post-restart] [options]
@@ -1017,12 +1017,15 @@ The commands work as following:
 
 	if tunnelCommand {
 		startCommand, _ := arguments.Bool("start")
-		useTUNdevices, _ := arguments.Bool("--enabletun")
-		if startCommand && useTUNdevices {
+		useUserspaceNetworking, _ := arguments.Bool("--userspace")
+		if startCommand && !useUserspaceNetworking {
 			err := ios.CheckRoot()
 			if err != nil {
-				exitIfError("If --enabletun is set, we need sudo or an admin shell on Windows", err)
+				exitIfError("If --userspace is not set, we need sudo or an admin shell on Windows", err)
 			}
+		}
+		if useUserspaceNetworking {
+			log.Info("Using userspace networking")
 		}
 		stopagent, _ := arguments.Bool("stopagent")
 		listCommand, _ := arguments.Bool("ls")
@@ -1034,7 +1037,7 @@ The commands work as following:
 			if strings.ToLower(pairRecordsPath) == "default" {
 				pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
 			}
-			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, !useTUNdevices)
+			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, useUserspaceNetworking)
 		} else if listCommand {
 			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoPort)
 			if err != nil {
