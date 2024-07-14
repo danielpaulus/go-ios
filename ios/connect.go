@@ -1,8 +1,12 @@
 package ios
 
 import (
+	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios/http"
@@ -111,9 +115,8 @@ func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionI
 	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToShimService: Cannot connect to %s, missing tunnel address and RSD port.  To start the tunnel, run `ios tunnel start`", service)
 	}
-
 	port := device.Rsd.GetPort(service)
-	conn, err := ConnectToTunnel(device, port)
+	conn, err := ConnectTUNDevice(device.Address, port, device)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +124,7 @@ func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionI
 	if err != nil {
 		return nil, err
 	}
-	return NewDeviceConnectionWithConn(conn), nil
+	return NewDeviceConnectionWithRWC(conn), nil
 }
 
 // ConnectToServiceTunnelIface connects to a service on an iOS17+ device using a XPC over HTTP2 connection
@@ -132,7 +135,12 @@ func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xp
 	}
 	port := device.Rsd.GetPort(serviceName)
 
-	h, err := ConnectToHttp2(device, port)
+	conn, err := ConnectTUNDevice(device.Address, port, device)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
+	}
+
+	h, err := http.NewHttpConnection(conn)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToXpcServiceTunnelIface: failed to connect to http2: %w", err)
 	}
@@ -145,80 +153,12 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 	}
 	port := device.Rsd.GetPort(serviceName)
 
-	conn, err := ConnectToTunnel(device, port)
+	conn, err := ConnectTUNDevice(device.Address, port, device)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToServiceTunnelIface: failed to connect to tunnel: %w", err)
 	}
 
-	return NewDeviceConnectionWithConn(conn), nil
-}
-
-func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2: failed to resolve address: %w", err)
-	}
-
-	conn, err := net.DialTCP("tcp", nil, addr)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
-	}
-
-	err = conn.SetKeepAlive(true)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive: %w", err)
-	}
-	err = conn.SetKeepAlivePeriod(1 * time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive period: %w", err)
-	}
-	return http.NewHttpConnection(conn)
-}
-
-// ConnectToTunnel opens a new connection to the tunnel interface of the specified device and on the specified port
-func ConnectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToTunnel: failed to resolve address: %w", err)
-	}
-
-	conn, err := net.DialTCP("tcp", nil, addr)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
-	}
-
-	err = conn.SetKeepAlive(true)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToTunnel: failed to set keepalive: %w", err)
-	}
-	err = conn.SetKeepAlivePeriod(1 * time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToTunnel: failed to set keepalive period: %w", err)
-	}
-
-	return conn, nil
-}
-
-func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", a, port))
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
-	}
-
-	conn, err := net.DialTCP("tcp", nil, addr)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
-	}
-
-	err = conn.SetKeepAlive(true)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to set keepalive: %w", err)
-	}
-	err = conn.SetKeepAlivePeriod(1 * time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to set keepalive period: %w", err)
-	}
-	return http.NewHttpConnection(conn)
+	return NewDeviceConnectionWithRWC(conn), nil
 }
 
 func CreateXpcConnection(h *http.HttpConnection) (*xpc.Connection, error) {
@@ -332,4 +272,69 @@ func initializeXpcConnection(h *http.HttpConnection) error {
 	}
 
 	return nil
+}
+
+// ConnectTUNDevice creates a *net.TCPConn to the device at the given address and port.
+// If the device is a userspaceTUN device provided by go-ios agent, it will connect to this
+// automatically. Otherwise it will try a operating system level TUN device.
+func ConnectTUNDevice(remoteIp string, port int, d DeviceEntry) (*net.TCPConn, error) {
+	if !d.UserspaceTUN {
+		return connectTUN(remoteIp, port)
+	}
+
+	addr, _ := net.ResolveTCPAddr("tcp4", fmt.Sprintf("localhost:%d", d.UserspaceTUNPort))
+	conn, err := net.DialTCP("tcp", nil, addr)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to dial: %w", err)
+	}
+	err = conn.SetKeepAlive(true)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to set keepalive: %w", err)
+	}
+	err = conn.SetKeepAlivePeriod(1 * time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to set keepalive period: %w", err)
+	}
+	_, err = conn.Write(net.ParseIP(remoteIp).To16())
+	portBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(portBytes, uint32(port))
+	_, err1 := conn.Write(portBytes)
+	return conn, errors.Join(err, err1)
+}
+
+// connect to a operating system level TUN device
+func connectTUN(address string, port int) (*net.TCPConn, error) {
+	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", address, port))
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
+	}
+	conn, err := net.DialTCP("tcp", nil, addr)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
+	}
+	err = conn.SetKeepAlive(true)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to set keepalive: %w", err)
+	}
+	err = conn.SetKeepAlivePeriod(1 * time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to set keepalive period: %w", err)
+	}
+
+	return conn, nil
+}
+
+// defaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
+// 60-105 is leetspeek for go-ios :-D
+const defaultHttpApiPort = 60105
+
+// DefaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
+// if GO_IOS_AGENT_PORT is set, we use that port. Otherwise we use the default port 60106.
+// 60-105 is leetspeek for go-ios :-D
+func HttpApiPort() int {
+	port, err := strconv.Atoi(os.Getenv("GO_IOS_AGENT_PORT"))
+	if err != nil {
+		return defaultHttpApiPort
+	}
+	return port
 }

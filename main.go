@@ -127,8 +127,9 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
-  ios tunnel start [options] [--pair-record-path=<pairrecordpath>]
+  ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]
   ios tunnel ls [options]
+  ios tunnel stopagent 
   ios devmode (enable | get) [--enable-post-restart] [options]
 
 Options:
@@ -238,17 +239,16 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
-   ios tunnel start [options] [--pair-record-path=<pairrecordpath>]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
+   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
    >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path=default' can be used to point to /var/db/lockdown/RemotePairing/user_501.
    >                                                                  If nothing is specified, the current dir is used for the pair record.
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
-   ios tunnel ls                                                      List currently started tunnels
+   ios tunnel ls                                                      List currently started tunnels. Use --enabletun to activate using TUN devices rather than user space network. Requires sudo/admin shells. 
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
-
 	exitIfError("failed parsing args", err)
 	disableJSON, _ := arguments.Bool("--nojson")
 	if disableJSON {
@@ -278,6 +278,13 @@ The commands work as following:
 	// log.SetReportCaller(true)
 	log.Debug(arguments)
 
+	skipAgent, _ := os.LookupEnv("ENABLE_GO_IOS_AGENT")
+	if skipAgent == "yes" {
+		tunnel.RunAgent()
+	}
+	if !tunnel.IsAgentRunning() {
+		log.Warn("go-ios agent is not running. You might need to start it with 'ios tunnel start' for ios17+. Use ENABLE_GO_IOS_AGENT=yes for experimental daemon mode.")
+	}
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
 	shouldPrintVersion, _ := arguments.Bool("--version")
 	if shouldPrintVersionNoDashes || shouldPrintVersion {
@@ -305,7 +312,7 @@ The commands work as following:
 
 	tunnelInfoPort, err := arguments.Int("--tunnel-info-port")
 	if err != nil {
-		tunnelInfoPort = tunnel.DefaultHttpApiPort
+		tunnelInfoPort = ios.HttpApiPort()
 	}
 
 	tunnelCommand, _ := arguments.Bool("tunnel")
@@ -323,6 +330,8 @@ The commands work as following:
 		} else {
 			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoPort)
 			if err == nil {
+				device.UserspaceTUNPort = info.UserspaceTUNPort
+				device.UserspaceTUN = info.UserspaceTUN
 				device = deviceWithRsdProvider(device, udid, info.Address, info.RsdPort)
 			} else {
 				log.WithField("udid", device.Properties.SerialNumber).Warn("failed to get tunnel info")
@@ -1008,14 +1017,14 @@ The commands work as following:
 
 	if tunnelCommand {
 		startCommand, _ := arguments.Bool("start")
-
-		if startCommand {
+		useTUNdevices, _ := arguments.Bool("--enabletun")
+		if startCommand && useTUNdevices {
 			err := ios.CheckRoot()
 			if err != nil {
-				log.Warn("Run this with 'sudo' or in as admin on windows")
+				exitIfError("If --enabletun is set, we need sudo or an admin shell on Windows", err)
 			}
 		}
-
+		stopagent, _ := arguments.Bool("stopagent")
 		listCommand, _ := arguments.Bool("ls")
 		if startCommand {
 			pairRecordsPath, _ := arguments.String("--pair-record-path")
@@ -1025,7 +1034,7 @@ The commands work as following:
 			if strings.ToLower(pairRecordsPath) == "default" {
 				pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
 			}
-			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort)
+			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, !useTUNdevices)
 		} else if listCommand {
 			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoPort)
 			if err != nil {
@@ -1034,6 +1043,13 @@ The commands work as following:
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			_ = enc.Encode(tunnels)
+		}
+		if stopagent {
+			err := tunnel.CloseAgent()
+			if err != nil {
+				exitIfError("failed to close agent", err)
+			}
+			return
 		}
 	}
 
@@ -2001,10 +2017,10 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
 
-func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int) {
+func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, userspaceTUN bool) {
 	pm, err := tunnel.NewPairRecordManager(recordsPath)
 	exitIfError("could not creat pair record manager", err)
-	tm := tunnel.NewTunnelManager(pm)
+	tm := tunnel.NewTunnelManager(pm, userspaceTUN)
 
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)
@@ -2033,14 +2049,16 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int) {
 }
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
-	rsdService, err := ios.NewWithAddrPort(address, rsdPort)
+	rsdService, err := ios.NewWithAddrPort(address, rsdPort, device)
 	exitIfError("could not connect to RSD", err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
-	device, err = ios.GetDeviceWithAddress(udid, address, rsdProvider)
+	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
+	device1.UserspaceTUN = device.UserspaceTUN
+	device1.UserspaceTUNPort = device.UserspaceTUNPort
 	exitIfError("error getting devicelist", err)
 
-	return device
+	return device1
 }
 
 func readPair(device ios.DeviceEntry) {
