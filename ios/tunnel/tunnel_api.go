@@ -3,6 +3,7 @@ package tunnel
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -22,6 +23,14 @@ import (
 
 var netClient = &http.Client{
 	Timeout: time.Millisecond * 200,
+}
+
+func CloseAgent() error {
+	_, err := netClient.Get(fmt.Sprintf("http://%s:%d/shutdown", "127.0.0.1", ios.HttpApiPort()))
+	if err != nil {
+		return fmt.Errorf("CloseAgent: failed to send shutdown request: %w", err)
+	}
+	return nil
 }
 
 func IsAgentRunning() bool {
@@ -85,7 +94,18 @@ func ServeTunnelInfo(tm *TunnelManager, port int) error {
 			writer.WriteHeader(http.StatusServiceUnavailable)
 		}
 	})
-
+	mux.HandleFunc("/shutdown", func(writer http.ResponseWriter, request *http.Request) {
+		err := tm.Close()
+		if err != nil {
+			log.Error("failed to close tunnel manager", err)
+		}
+		writer.WriteHeader(http.StatusOK)
+		writer.Write([]byte("shutting down in 1 second..."))
+		go func() {
+			time.Sleep(1 * time.Second)
+			os.Exit(0)
+		}()
+	})
 	mux.HandleFunc("/tunnel/", func(writer http.ResponseWriter, request *http.Request) {
 		udid := strings.TrimPrefix(request.URL.Path, "/tunnel/")
 		if len(udid) == 0 {
@@ -190,6 +210,7 @@ type TunnelManager struct {
 	startTunnelTimeout   time.Duration
 	firstUpdateCompleted bool
 	userspaceTUN         bool
+	closeOnce            sync.Once
 }
 
 // NewTunnelManager creates a new TunnelManager instance for setting up device tunnels for all connected devices
@@ -203,6 +224,24 @@ func NewTunnelManager(pm PairRecordManager, userspaceTUN bool) *TunnelManager {
 		startTunnelTimeout: 10 * time.Second,
 		userspaceTUN:       userspaceTUN,
 	}
+}
+
+func (m *TunnelManager) Close() error {
+	var baseErr error
+	m.closeOnce.Do(func() {
+		tunnels, err := m.ListTunnels()
+		if err != nil {
+			log.Error("failed to list tunnels", err)
+		}
+		for _, t := range tunnels {
+			err := t.Close()
+			baseErr = errors.Join(baseErr, err)
+			if err != nil {
+				log.WithField("udid", t.Udid).Error("failed to stop tunnel", err)
+			}
+		}
+	})
+	return baseErr
 }
 
 // FirstUpdateCompleted returns true if the first update completed,

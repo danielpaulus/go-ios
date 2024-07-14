@@ -129,6 +129,7 @@ Usage:
   ios batterycheck [options]
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]
   ios tunnel ls [options]
+  ios tunnel stopagent 
   ios devmode (enable | get) [--enable-post-restart] [options]
 
 Options:
@@ -1018,7 +1019,7 @@ The commands work as following:
 				exitIfError("If --enabletun is set, we need sudo or an admin shell on Windows", err)
 			}
 		}
-
+		stopagent, _ := arguments.Bool("stopagent")
 		listCommand, _ := arguments.Bool("ls")
 		if startCommand {
 			pairRecordsPath, _ := arguments.String("--pair-record-path")
@@ -1037,6 +1038,13 @@ The commands work as following:
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			_ = enc.Encode(tunnels)
+		}
+		if stopagent {
+			err := tunnel.CloseAgent()
+			if err != nil {
+				exitIfError("failed to close agent", err)
+			}
+			return
 		}
 	}
 
