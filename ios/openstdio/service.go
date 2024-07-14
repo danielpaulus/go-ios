@@ -26,7 +26,7 @@ func NewOpenStdIoSocket(device ios.DeviceEntry) (Connection, error) {
 		return Connection{}, errors.New("NewOpenStdIoSocket: no rsd device found")
 	}
 	port := device.Rsd.GetPort("com.apple.coredevice.openstdiosocket")
-	conn, err := ios.ConnectToTunnel(device, port)
+	conn, err := ios.ConnectTUNDevice(device.Address, port, device)
 	if err != nil {
 		return Connection{}, fmt.Errorf("NewOpenStdIoSocket: failed to open connection: %w", err)
 	}

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/http"
 
 	"github.com/quic-go/quic-go"
 	"github.com/sirupsen/logrus"
@@ -56,7 +57,11 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: could not find port for '%s'", untrustedTunnelServiceName)
 	}
-	h, err := ios.ConnectToHttp2WithAddr(addr, port, device)
+	conn, err := ios.ConnectTUNDevice(addr, port, device)
+	if err != nil {
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to connect to TUN device: %w", err)
+	}
+	h, err := http.NewHttpConnection(conn)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create HTTP2 connection: %w", err)
 	}
