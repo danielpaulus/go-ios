@@ -136,7 +136,6 @@ Options:
   -v --verbose              Enable Debug Logging.
   -t --trace                Enable Trace Logging (dump every message).
   --nojson                  Disable JSON output
-  --noagent                 Do not start the go-ios agent automatically
   --pretty                  Pretty-print JSON command output
   -h --help                 Show this screen.
   --udid=<udid>             UDID of the device.
@@ -278,9 +277,13 @@ The commands work as following:
 	}
 	// log.SetReportCaller(true)
 	log.Debug(arguments)
-	skipAgent, _ := arguments.Bool("--noagent")
-	if !skipAgent {
+
+	skipAgent, _ := os.LookupEnv("ENABLE_GO_IOS_AGENT")
+	if skipAgent == "yes" {
 		tunnel.RunAgent()
+	}
+	if !tunnel.IsAgentRunning() {
+		log.Warn("go-ios agent is not running. You might need to start it with 'ios tunnel start' for ios17+. Use ENABLE_GO_IOS_AGENT=yes for experimental daemon mode.")
 	}
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
 	shouldPrintVersion, _ := arguments.Bool("--version")
