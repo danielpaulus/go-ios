@@ -52,11 +52,11 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to find device ethernet interface: %w", err)
 	}
 
-	port, err := getUntrustedTunnelServicePort(addr, device.UserspaceTUN)
+	port, err := getUntrustedTunnelServicePort(addr, device)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: could not find port for '%s'", untrustedTunnelServiceName)
 	}
-	h, err := ios.ConnectToHttp2WithAddr(addr, port, device.UserspaceTUN)
+	h, err := ios.ConnectToHttp2WithAddr(addr, port, device)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create HTTP2 connection: %w", err)
 	}
@@ -82,8 +82,8 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 	return t, nil
 }
 
-func getUntrustedTunnelServicePort(addr string, userspaceTUN bool) (int, error) {
-	rsdService, err := ios.NewWithAddr(addr, userspaceTUN)
+func getUntrustedTunnelServicePort(addr string, device ios.DeviceEntry) (int, error) {
+	rsdService, err := ios.NewWithAddr(addr, device)
 	if err != nil {
 		return 0, fmt.Errorf("getUntrustedTunnelServicePort: failed to connect to RSD service: %w", err)
 	}

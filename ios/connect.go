@@ -159,25 +159,8 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 }
 
 func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
-	var conn *net.TCPConn
-	if device.UserspaceTUN {
-		var err error
-		conn, err = ConnectUserSpaceTunnel(device.Address, port)
-		if err != nil {
-			return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
-		}
-	} else {
-		addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-		if err != nil {
-			return nil, fmt.Errorf("ConnectToHttp2: failed to resolve address: %w", err)
-		}
-
-		conn, err = net.DialTCP("tcp", nil, addr)
-		if err != nil {
-			return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
-		}
-	}
-	err := conn.SetKeepAlive(true)
+	conn, err := ConnectUserSpaceTunnel(device.Address, port, device)
+	err = conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive: %w", err)
 	}
@@ -190,25 +173,8 @@ func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) 
 
 // ConnectToTunnel opens a new connection to the tunnel interface of the specified device and on the specified port
 func ConnectToTunnel(device DeviceEntry, port int) (io.ReadWriteCloser, error) {
-	var conn *net.TCPConn
-	if device.UserspaceTUN {
-		var err error
-		conn, err = ConnectUserSpaceTunnel(device.Address, port)
-		if err != nil {
-			return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
-		}
-	} else {
-		addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-		if err != nil {
-			return nil, fmt.Errorf("ConnectToTunnel: failed to resolve address: %w", err)
-		}
-		conn, err = net.DialTCP("tcp", nil, addr)
-		if err != nil {
-			return nil, fmt.Errorf("ConnectToTunnel: failed to dial: %w", err)
-		}
-	}
-
-	err := conn.SetKeepAlive(true)
+	conn, err := ConnectUserSpaceTunnel(device.Address, port, device)
+	err = conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToTunnel: failed to set keepalive: %w", err)
 	}
@@ -220,26 +186,14 @@ func ConnectToTunnel(device DeviceEntry, port int) (io.ReadWriteCloser, error) {
 	return conn, nil
 }
 
-func ConnectToHttp2WithAddr(a string, port int, userSpaceTUN bool) (*http.HttpConnection, error) {
-	var conn *net.TCPConn
-	if !userSpaceTUN {
-		addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", a, port))
-		if err != nil {
-			return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
-		}
+type DeviceConnector func(string, int) (*net.TCPConn, error)
 
-		conn, err = net.DialTCP("tcp", nil, addr)
-		if err != nil {
-			return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
-		}
-	} else {
-		var err error
-		conn, err = ConnectUserSpaceTunnel(a, port)
-		if err != nil {
-			return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to connect to tunnel: %w", err)
-		}
+func ConnectToHttp2WithAddr(a string, port int, device DeviceEntry) (*http.HttpConnection, error) {
+	conn, err := ConnectUserSpaceTunnel(a, port, device)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
 	}
-	err := conn.SetKeepAlive(true)
+	err = conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to set keepalive: %w", err)
 	}
@@ -363,7 +317,11 @@ func initializeXpcConnection(h *http.HttpConnection) error {
 	return nil
 }
 
-func ConnectUserSpaceTunnel(remoteIp string, port int) (*net.TCPConn, error) {
+func ConnectUserSpaceTunnel(remoteIp string, port int, d DeviceEntry) (*net.TCPConn, error) {
+	if !d.UserspaceTUN {
+		return ConnectTUN(remoteIp, port)
+	}
+
 	addr, _ := net.ResolveTCPAddr("tcp4", fmt.Sprintf("localhost:%d", DefaultTunnelPort()))
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
@@ -374,6 +332,13 @@ func ConnectUserSpaceTunnel(remoteIp string, port int) (*net.TCPConn, error) {
 	binary.LittleEndian.PutUint32(portBytes, uint32(port))
 	_, err1 := conn.Write(portBytes)
 	return conn, errors.Join(err, err1)
+}
+func ConnectTUN(address string, port int) (*net.TCPConn, error) {
+	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", address, port))
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
+	}
+	return net.DialTCP("tcp", nil, addr)
 }
 
 // defaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
@@ -391,10 +356,7 @@ func HttpApiPort() int {
 	return port
 }
 
-// DefaultTunnelPort is the port on which you can connect to services on the device.
-// It is used for connecting to the user space TUN device.
-// It will be on DefaultHttpApiPort() + 1
-// Which means 60106 per default
+// todo make dynamic so multiple devices work
 func DefaultTunnelPort() int {
-	return HttpApiPort() + 1
+	return 60106
 }

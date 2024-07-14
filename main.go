@@ -308,7 +308,7 @@ The commands work as following:
 
 	tunnelInfoPort, err := arguments.Int("--tunnel-info-port")
 	if err != nil {
-		tunnelInfoPort = ios.DefaultHttpApiPort()
+		tunnelInfoPort = ios.HttpApiPort()
 	}
 
 	tunnelCommand, _ := arguments.Bool("tunnel")
@@ -2036,7 +2036,8 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, us
 }
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int, useUserspaceTUN bool) ios.DeviceEntry {
-	rsdService, err := ios.NewWithAddrPort(address, rsdPort, useUserspaceTUN)
+	device.UserspaceTUN = useUserspaceTUN
+	rsdService, err := ios.NewWithAddrPort(address, rsdPort, device)
 	exitIfError("could not connect to RSD", err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()

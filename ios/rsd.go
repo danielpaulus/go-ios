@@ -139,13 +139,13 @@ func (r RsdHandshakeResponse) GetPort(service string) int {
 }
 
 // NewWithAddr creates a new RsdService with the given address and port 58783 using a HTTP2 based XPC connection.
-func NewWithAddr(addr string, userSpaceTUN bool) (RsdService, error) {
-	return NewWithAddrPort(addr, port, userSpaceTUN)
+func NewWithAddr(addr string, d DeviceEntry) (RsdService, error) {
+	return NewWithAddrPort(addr, port, d)
 }
 
 // NewWithAddrPort creates a new RsdService with the given address and port using a HTTP2 based XPC connection.
-func NewWithAddrPort(addr string, port int, userSpaceTUN bool) (RsdService, error) {
-	h, err := ConnectToHttp2WithAddr(addr, port, userSpaceTUN)
+func NewWithAddrPort(addr string, port int, d DeviceEntry) (RsdService, error) {
+	h, err := ConnectToHttp2WithAddr(addr, port, d)
 	if err != nil {
 		return RsdService{}, fmt.Errorf("NewWithAddrPort: failed to connect to http2: %w", err)
 	}
