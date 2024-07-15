@@ -86,7 +86,6 @@ func Resign(udid string, ipaFile *os.File, s SigningWorkspace) error {
 }
 
 // RemoveSignature executes "codesign --remove-signature" for the given path.
-// this is mostly needed for removing the signature after wrapping a simulator app.
 func RemoveSignature(dir string) error {
 	cmd := exec.Command(codesignPath, "--remove-signature", dir)
 	output, err := cmd.CombinedOutput()
@@ -96,12 +95,6 @@ func RemoveSignature(dir string) error {
 	}
 	log.WithFields(log.Fields{"cmd": cmd, "output": string(output)}).Debugf("codesign invoked")
 	return err
-}
-
-// SignDylib can be used to codesign a dylib library.
-// This is only used for signing the injected dylib during wrapping.
-func SignDylib(sdkPath string, config SigningConfig) error {
-	return exeuteCodesignFramework(sdkPath, config)
 }
 
 // Sign uses the cert, entitlements and keychain from the SigningConf to codesign the unzipped app
