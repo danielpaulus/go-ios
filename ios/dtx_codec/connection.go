@@ -170,6 +170,9 @@ func reader(dtxConn *Connection) {
 		reader := dtxConn.deviceConnection.Reader()
 		msg, err := ReadMessage(reader)
 		if err != nil {
+			if dtxConn.isClosed() {
+				return
+			}
 			defer dtxConn.close(err)
 			errText := err.Error()
 			if err == io.EOF || strings.Contains(errText, "use of closed network") {
@@ -256,4 +259,13 @@ func (dtxConn *Connection) close(err error) {
 		dtxConn.err = err
 		close(dtxConn.closed)
 	})
+}
+
+func (d *Connection) isClosed() bool {
+	select {
+	case <-d.closed:
+		return true
+	default:
+		return false
+	}
 }
