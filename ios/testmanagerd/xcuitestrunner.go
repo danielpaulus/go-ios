@@ -410,13 +410,13 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	case <-ctx.Done():
 		break
 	}
-	log.Infof("Killing test runner with pid %d ...", testRunnerLaunch.Pid)
-	err = killTestRunner(appserviceConn, testRunnerLaunch.Pid)
-	if err != nil {
-		log.Infof("Nothing to kill, process with pid %d is already dead", testRunnerLaunch.Pid)
-	} else {
-		log.Info("Test runner killed with success")
-	}
+	//log.Infof("Killing test runner with pid %d ...", testRunnerLaunch.Pid)
+	//err = killTestRunner(appserviceConn, testRunnerLaunch.Pid)
+	//if err != nil {
+	//	log.Infof("Nothing to kill, process with pid %d is already dead", testRunnerLaunch.Pid)
+	//} else {
+	//	log.Info("Test runner killed with success")
+	//}
 
 	log.Debugf("Done running test")
 
