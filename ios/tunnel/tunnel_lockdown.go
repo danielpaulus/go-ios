@@ -77,11 +77,17 @@ func forwardTUNToDevice(ctx context.Context, mtu uint64, tun io.Reader, deviceCo
 			n, err := tun.Read(packet)
 
 			if err != nil {
+				if isContextDone(ctx) {
+					return nil
+				}
 				return fmt.Errorf("could not read packet. %w", err)
 			}
 
 			_, err = deviceConn.Write(packet[:n])
 			if err != nil {
+				if isContextDone(ctx) {
+					return nil
+				}
 				return fmt.Errorf("could not write packet. %w", err)
 			}
 		}
@@ -103,6 +109,9 @@ func forwardTCPToInterface(ctx context.Context, mtu uint64, deviceConn io.Reader
 		default:
 			_, err := io.ReadFull(br, ip6Header)
 			if err != nil {
+				if isContextDone(ctx) {
+					return nil
+				}
 				return fmt.Errorf("failed to read IPv6 header: %w", err)
 			}
 
@@ -112,6 +121,9 @@ func forwardTCPToInterface(ctx context.Context, mtu uint64, deviceConn io.Reader
 			payloadLength := binary.BigEndian.Uint16(ip6Header[4:6])
 			_, err = io.ReadFull(br, payload[:payloadLength])
 			if err != nil {
+				if isContextDone(ctx) {
+					return nil
+				}
 				return fmt.Errorf("failed to read payload of length %d: %w", payloadLength, err)
 			}
 
@@ -120,6 +132,9 @@ func forwardTCPToInterface(ctx context.Context, mtu uint64, deviceConn io.Reader
 			_, _ = bw.Write(payload[:payloadLength])
 			err = bw.Flush()
 			if err != nil {
+				if isContextDone(ctx) {
+					return nil
+				}
 				return fmt.Errorf("could not flush packet: %w", err)
 			}
 		}

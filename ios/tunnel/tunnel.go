@@ -19,7 +19,6 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/http"
-
 	"github.com/quic-go/quic-go"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
@@ -272,10 +271,16 @@ func forwardDataToDevice(ctx context.Context, mtu uint64, r io.Reader, conn quic
 		default:
 			n, err := r.Read(packet)
 			if err != nil {
+				if isContextDone(ctx) {
+					return nil
+				}
 				return fmt.Errorf("could not read packet. %w", err)
 			}
 			err = conn.SendDatagram(packet[:n])
 			if err != nil {
+				if isContextDone(ctx) {
+					return nil
+				}
 				return fmt.Errorf("could not write packet. %w", err)
 			}
 		}
@@ -290,10 +295,16 @@ func forwardDataToInterface(ctx context.Context, conn quic.Connection, w io.Writ
 		default:
 			b, err := conn.ReceiveDatagram(ctx)
 			if err != nil {
+				if isContextDone(ctx) {
+					return nil
+				}
 				return fmt.Errorf("failed to read datagram. %w", err)
 			}
 			_, err = w.Write(b)
 			if err != nil {
+				if isContextDone(ctx) {
+					return nil
+				}
 				return fmt.Errorf("failed to forward data. %w", err)
 			}
 		}
@@ -340,4 +351,13 @@ func exchangeCoreTunnelParameters(stream io.ReadWriteCloser) (tunnelParameters, 
 		return tunnelParameters{}, err
 	}
 	return parameters, nil
+}
+
+func isContextDone(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return true
+	default:
+		return false
+	}
 }
