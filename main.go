@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path"
@@ -46,7 +45,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	"github.com/danielpaulus/go-ios/ios/notificationproxy"
 	"github.com/danielpaulus/go-ios/ios/pcap"
-	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	syslog "github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
@@ -66,6 +64,7 @@ const version = "local-build"
 
 // Main Exports main for testing
 func Main() {
+
 	usage := fmt.Sprintf(`go-ios %s
 
 Usage:
@@ -113,7 +112,7 @@ Usage:
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
-  ios ax [options]
+  ios ax [--font=<fontSize>] [options]
   ios debug [options] [--stop-at-entry] <app_path>
   ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>
   ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
@@ -128,8 +127,9 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
-  ios tunnel start [options] [--pair-record-path=<pairrecordpath>]
+  ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
   ios tunnel ls [options]
+  ios tunnel stopagent 
   ios devmode (enable | get) [--enable-post-restart] [options]
 
 Options:
@@ -223,7 +223,7 @@ The commands work as following:
    >                                                                  The method name can also be omitted and in this case all tests of the specified class are run
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
-   ios ax [options]                                                   Access accessibility inspector features.
+   ios ax [--font=<fontSize>] [options]                               Access accessibility inspector features.
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
    ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
@@ -239,16 +239,16 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
-   ios tunnel start [options] [--pair-record-path=<pairrecordpath>]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
-   >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path' is required as we can not access the default path for the pair record
+   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
+   >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path=default' can be used to point to /var/db/lockdown/RemotePairing/user_501.
+   >                                                                  If nothing is specified, the current dir is used for the pair record.
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
-   ios tunnel ls                                                      List currently started tunnels
+   ios tunnel ls                                                      List currently started tunnels. Use --enabletun to activate using TUN devices rather than user space network. Requires sudo/admin shells. 
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
-
 	exitIfError("failed parsing args", err)
 	disableJSON, _ := arguments.Bool("--nojson")
 	if disableJSON {
@@ -278,6 +278,13 @@ The commands work as following:
 	// log.SetReportCaller(true)
 	log.Debug(arguments)
 
+	skipAgent, _ := os.LookupEnv("ENABLE_GO_IOS_AGENT")
+	if skipAgent == "yes" {
+		tunnel.RunAgent()
+	}
+	if !tunnel.IsAgentRunning() {
+		log.Warn("go-ios agent is not running. You might need to start it with 'ios tunnel start' for ios17+. Use ENABLE_GO_IOS_AGENT=yes for experimental daemon mode.")
+	}
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
 	shouldPrintVersion, _ := arguments.Bool("--version")
 	if shouldPrintVersionNoDashes || shouldPrintVersion {
@@ -305,7 +312,7 @@ The commands work as following:
 
 	tunnelInfoPort, err := arguments.Int("--tunnel-info-port")
 	if err != nil {
-		tunnelInfoPort = tunnel.DefaultHttpApiPort
+		tunnelInfoPort = ios.HttpApiPort()
 	}
 
 	tunnelCommand, _ := arguments.Bool("tunnel")
@@ -323,6 +330,8 @@ The commands work as following:
 		} else {
 			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoPort)
 			if err == nil {
+				device.UserspaceTUNPort = info.UserspaceTUNPort
+				device.UserspaceTUN = info.UserspaceTUN
 				device = deviceWithRsdProvider(device, udid, info.Address, info.RsdPort)
 			} else {
 				log.WithField("udid", device.Properties.SerialNumber).Warn("failed to get tunnel info")
@@ -594,7 +603,7 @@ The commands work as following:
 			if port == "" {
 				port = "3333"
 			}
-			err := screenshotr.StartStreamingServer(device, port)
+			err := instruments.StartMJPEGStreamingServer(device, port)
 			exitIfError("failed starting mjpeg", err)
 			return
 		}
@@ -719,7 +728,7 @@ The commands work as following:
 		if p12password == "" {
 			p12password = os.Getenv("P12_PASSWORD")
 		}
-		p12bytes, err := ioutil.ReadFile(p12file)
+		p12bytes, err := os.ReadFile(p12file)
 		exitIfError("could not read p12-file", err)
 
 		err = mcinstall.SetHttpProxy(device, host, port, user, pass, p12bytes, p12password)
@@ -900,7 +909,7 @@ The commands work as following:
 
 	b, _ = arguments.Bool("ax")
 	if b {
-		startAx(device)
+		startAx(device, arguments)
 		return
 	}
 
@@ -1008,13 +1017,27 @@ The commands work as following:
 
 	if tunnelCommand {
 		startCommand, _ := arguments.Bool("start")
+		useUserspaceNetworking, _ := arguments.Bool("--userspace")
+		if startCommand && !useUserspaceNetworking {
+			err := ios.CheckRoot()
+			if err != nil {
+				exitIfError("If --userspace is not set, we need sudo or an admin shell on Windows", err)
+			}
+		}
+		if useUserspaceNetworking {
+			log.Info("Using userspace networking")
+		}
+		stopagent, _ := arguments.Bool("stopagent")
 		listCommand, _ := arguments.Bool("ls")
 		if startCommand {
 			pairRecordsPath, _ := arguments.String("--pair-record-path")
 			if len(pairRecordsPath) == 0 {
+				pairRecordsPath = "."
+			}
+			if strings.ToLower(pairRecordsPath) == "default" {
 				pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
 			}
-			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort)
+			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, useUserspaceNetworking)
 		} else if listCommand {
 			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoPort)
 			if err != nil {
@@ -1023,6 +1046,13 @@ The commands work as following:
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			_ = enc.Encode(tunnels)
+		}
+		if stopagent {
+			err := tunnel.CloseAgent()
+			if err != nil {
+				exitIfError("failed to close agent", err)
+			}
+			return
 		}
 	}
 
@@ -1506,19 +1536,19 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 	}
 }
 
-func startAx(device ios.DeviceEntry) {
+func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 	go func() {
-		deviceList, err := ios.ListDevices()
-		exitIfError("failed converting to json", err)
-
-		device := deviceList.DeviceList[0]
-
 		conn, err := accessibility.New(device)
 		exitIfError("failed starting ax", err)
 
 		conn.SwitchToDevice()
 
 		conn.EnableSelectionMode()
+
+		size, _ := arguments.Float64("--font")
+		if size != 0 {
+			conn.UpdateAccessibilitySetting("DYNAMIC_TYPE", size)
+		}
 
 		for i := 0; i < 3; i++ {
 			conn.GetElement()
@@ -1583,7 +1613,7 @@ func handleProfileRemove(device ios.DeviceEntry, identifier string) {
 func handleProfileAdd(device ios.DeviceEntry, file string) {
 	profileService, err := mcinstall.New(device)
 	exitIfError("Starting mcInstall failed with", err)
-	filebytes, err := ioutil.ReadFile(file)
+	filebytes, err := os.ReadFile(file)
 	exitIfError("could not read profile-file", err)
 	err = profileService.AddProfile(filebytes)
 	exitIfError("failed adding profile", err)
@@ -1593,9 +1623,9 @@ func handleProfileAdd(device ios.DeviceEntry, file string) {
 func handleProfileAddSupervised(device ios.DeviceEntry, file string, p12file string, p12password string) {
 	profileService, err := mcinstall.New(device)
 	exitIfError("Starting mcInstall failed with", err)
-	filebytes, err := ioutil.ReadFile(file)
+	filebytes, err := os.ReadFile(file)
 	exitIfError("could not read profile-file", err)
-	p12bytes, err := ioutil.ReadFile(p12file)
+	p12bytes, err := os.ReadFile(p12file)
 	exitIfError("could not read p12-file", err)
 	err = profileService.AddProfileSupervised(filebytes, p12bytes, p12password)
 	exitIfError("failed adding profile", err)
@@ -1710,19 +1740,20 @@ func printDeviceName(device ios.DeviceEntry) {
 }
 
 func saveScreenshot(device ios.DeviceEntry, outputPath string) {
-	log.Debug("take screenshot")
-	screenshotrService, err := screenshotr.New(device)
-	exitIfError("Starting Screenshotr failed with", err)
+	screenshotService, err := instruments.NewScreenshotService(device)
+	exitIfError("Starting screenshot service failed", err)
+	defer screenshotService.Close()
 
-	imageBytes, err := screenshotrService.TakeScreenshot()
-	exitIfError("screenshotr failed", err)
+	imageBytes, err := screenshotService.TakeScreenshot()
+	exitIfError("Taking screenshot failed", err)
 
 	if outputPath == "" {
 		timestamp := time.Now().Format("20060102150405")
 		outputPath, err = filepath.Abs("./screenshot" + timestamp + ".png")
 		exitIfError("getting filepath failed", err)
 	}
-	err = ioutil.WriteFile(outputPath, imageBytes, 0o777)
+
+	err = os.WriteFile(outputPath, imageBytes, 0o777)
 	exitIfError("write file failed", err)
 
 	if JSONdisabled {
@@ -1989,10 +2020,10 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	log.Infof("Successfully paired %s", device.Properties.SerialNumber)
 }
 
-func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int) {
+func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, userspaceTUN bool) {
 	pm, err := tunnel.NewPairRecordManager(recordsPath)
 	exitIfError("could not creat pair record manager", err)
-	tm := tunnel.NewTunnelManager(pm)
+	tm := tunnel.NewTunnelManager(pm, userspaceTUN)
 
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)
@@ -2016,19 +2047,21 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int) {
 			exitIfError("failed to start tunnel server", err)
 		}
 	}()
-
+	log.Info("Tunnel server started")
 	<-ctx.Done()
 }
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
-	rsdService, err := ios.NewWithAddrPort(address, rsdPort)
+	rsdService, err := ios.NewWithAddrPort(address, rsdPort, device)
 	exitIfError("could not connect to RSD", err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
-	device, err = ios.GetDeviceWithAddress(udid, address, rsdProvider)
+	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
+	device1.UserspaceTUN = device.UserspaceTUN
+	device1.UserspaceTUNPort = device.UserspaceTUNPort
 	exitIfError("error getting devicelist", err)
 
-	return device
+	return device1
 }
 
 func readPair(device ios.DeviceEntry) {
