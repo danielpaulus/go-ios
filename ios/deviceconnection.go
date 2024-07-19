@@ -1,6 +1,7 @@
 package ios
 
 import (
+	"bufio"
 	"crypto/tls"
 	"encoding/binary"
 	"io"
@@ -10,6 +11,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 )
+
+const readerBufferSize = 40 * 1024
 
 // DeviceConnectionInterface contains a physical network connection to a usbmuxd socket.
 type DeviceConnectionInterface interface {
@@ -31,11 +34,12 @@ type DeviceConnectionInterface interface {
 type DeviceConnection struct {
 	c               net.Conn
 	unencryptedConn net.Conn
+	bufferedReader  io.Reader
 }
 
 // Read reads incoming data from the connection to the device
 func (conn *DeviceConnection) Read(p []byte) (n int, err error) {
-	return conn.c.Read(p)
+	return conn.bufferedReader.Read(p)
 }
 
 // Write writes data on the connection to the device
@@ -51,7 +55,8 @@ func NewDeviceConnection(socketToConnectTo string) (*DeviceConnection, error) {
 
 // NewDeviceConnectionWithConn create a DeviceConnection with a already connected network conn.
 func NewDeviceConnectionWithConn(conn net.Conn) *DeviceConnection {
-	return &DeviceConnection{c: conn}
+	bufferedReader := bufio.NewReaderSize(conn, readerBufferSize)
+	return &DeviceConnection{c: conn, bufferedReader: bufferedReader}
 }
 
 // ConnectToSocketAddress connects to the USB multiplexer with a specified socket addres
@@ -66,6 +71,7 @@ func (conn *DeviceConnection) connectToSocketAddress(socketAddress string) error
 	}
 	log.Tracef("Opening connection: %v", &c)
 	conn.c = c
+	conn.bufferedReader = bufio.NewReaderSize(c, readerBufferSize)
 	return nil
 }
 
@@ -117,6 +123,7 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 	}
 	// Use the underlying conn again to receive unencrypted bytes
 	conn.c = conn.unencryptedConn
+	conn.bufferedReader = bufio.NewReaderSize(conn.c, readerBufferSize)
 	// tls.Conn.CloseWrite() sets the writeDeadline to now, which will cause
 	// all writes to timeout immediately, for this hacky workaround
 	// we need to undo that
@@ -155,6 +162,7 @@ func (conn *DeviceConnection) EnableSessionSslServerMode(pairRecord PairRecord) 
 
 	conn.unencryptedConn = conn.c
 	conn.c = net.Conn(tlsConn)
+	conn.bufferedReader = bufio.NewReaderSize(conn.c, readerBufferSize)
 	return nil
 }
 
@@ -173,6 +181,7 @@ func (conn *DeviceConnection) EnableSessionSsl(pairRecord PairRecord) error {
 	}
 	conn.unencryptedConn = conn.c
 	conn.c = net.Conn(tlsConn)
+	conn.bufferedReader = bufio.NewReaderSize(conn.c, readerBufferSize)
 	return nil
 }
 
