@@ -20,7 +20,7 @@ func TestGetDisplayInfos(t *testing.T) {
 		t.Skipf("GO_IOS_ADDRESS missing")
 	}
 
-	rsdService, err := ios.NewWithAddrPort(address, rsdPort)
+	rsdService, err := ios.NewWithAddrPortDevice(address, rsdPort)
 	require.NoError(t, err)
 
 	defer rsdService.Close()

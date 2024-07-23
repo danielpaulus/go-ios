@@ -89,7 +89,7 @@ func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p
 }
 
 func getUntrustedTunnelServicePort(addr string, device ios.DeviceEntry) (int, error) {
-	rsdService, err := ios.NewWithAddr(addr, device)
+	rsdService, err := ios.NewWithAddrDevice(addr, device)
 	if err != nil {
 		return 0, fmt.Errorf("getUntrustedTunnelServicePort: failed to connect to RSD service: %w", err)
 	}
