@@ -1,6 +1,7 @@
 package dtx_test
 
 import (
+	"bufio"
 	"bytes"
 	"os"
 	"testing"
@@ -230,6 +231,31 @@ func TestDecoder(t *testing.T) {
 		assert.Equal(t, uint32(425), msg.PayloadHeader.AuxiliaryLength)
 		assert.Equal(t, uint32(596), msg.PayloadHeader.TotalPayloadLength)
 		assert.Equal(t, uint32(0), msg.PayloadHeader.Flags)
+	}
+}
 
+func TestDecoderWithBufferedReader(t *testing.T) {
+	dat, err := os.ReadFile("fixtures/notifyOfPublishedCapabilites")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reader := bufio.NewReader(bytes.NewReader(append(dat[:], dat[:]...)))
+	for i := 0; i < 2; i++ {
+		msg, err := dtx.ReadMessage(reader)
+		if assert.NoError(t, err) {
+			assert.Equal(t, msg.Fragments, uint16(1))
+			assert.Equal(t, msg.FragmentIndex, uint16(0))
+			assert.Equal(t, msg.MessageLength, 612)
+			assert.Equal(t, 0, msg.ChannelCode)
+			assert.Equal(t, false, msg.ExpectsReply)
+			assert.Equal(t, 2, msg.Identifier)
+			assert.Equal(t, 0, msg.ChannelCode)
+
+			assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
+			assert.Equal(t, uint32(425), msg.PayloadHeader.AuxiliaryLength)
+			assert.Equal(t, uint32(596), msg.PayloadHeader.TotalPayloadLength)
+			assert.Equal(t, uint32(0), msg.PayloadHeader.Flags)
+		}
 	}
 }
