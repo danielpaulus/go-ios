@@ -1,6 +1,7 @@
 package dtx_test
 
 import (
+	"bufio"
 	"bytes"
 	"os"
 	"testing"
@@ -161,7 +162,7 @@ func TestFragmentedMessage(t *testing.T) {
 	nonblockingFullMessage := defragmenter.Extract()
 
 	// now test that the blocking decoder creates the same message and that it is decodeable
-	dtxReader := bytes.NewReader(dat)
+	dtxReader := bufio.NewReader(bytes.NewReader(dat))
 	msg, err = dtx.ReadMessage(dtxReader)
 	if assert.NoError(t, err) {
 		assert.Equal(t, uint16(3), msg.Fragments)
@@ -187,7 +188,7 @@ func TestFragmentedMessage(t *testing.T) {
 	assert.Equal(t, true, defragmenter.HasFinished())
 	defraggedMessage := defragmenter.Extract()
 	assert.Equal(t, defraggedMessage, nonblockingFullMessage)
-	dtxReader = bytes.NewReader(defraggedMessage)
+	dtxReader = bufio.NewReader(bytes.NewReader(defraggedMessage))
 	_, err = dtx.ReadMessage(dtxReader)
 	assert.NoError(t, err)
 }
@@ -197,39 +198,23 @@ func TestDecoder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	msg, remainingBytes, err := dtx.DecodeNonBlocking(dat)
-	if assert.NoError(t, err) {
-		assert.Equal(t, 0, len(remainingBytes))
-		assert.Equal(t, msg.Fragments, uint16(1))
-		assert.Equal(t, msg.FragmentIndex, uint16(0))
-		assert.Equal(t, msg.MessageLength, 612)
-		assert.Equal(t, 0, msg.ChannelCode)
-		assert.Equal(t, false, msg.ExpectsReply)
-		assert.Equal(t, 2, msg.Identifier)
-		assert.Equal(t, 0, msg.ChannelCode)
 
-		assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
-		assert.Equal(t, uint32(425), msg.PayloadHeader.AuxiliaryLength)
-		assert.Equal(t, uint32(596), msg.PayloadHeader.TotalPayloadLength)
-		assert.Equal(t, uint32(0), msg.PayloadHeader.Flags)
+	reader := bufio.NewReader(bytes.NewReader(append(dat[:], dat[:]...)))
+	for i := 0; i < 2; i++ {
+		msg, err := dtx.ReadMessage(reader)
+		if assert.NoError(t, err) {
+			assert.Equal(t, msg.Fragments, uint16(1))
+			assert.Equal(t, msg.FragmentIndex, uint16(0))
+			assert.Equal(t, msg.MessageLength, 612)
+			assert.Equal(t, 0, msg.ChannelCode)
+			assert.Equal(t, false, msg.ExpectsReply)
+			assert.Equal(t, 2, msg.Identifier)
+			assert.Equal(t, 0, msg.ChannelCode)
 
-	}
-
-	msg, err = dtx.ReadMessage(bytes.NewReader(dat))
-	if assert.NoError(t, err) {
-
-		assert.Equal(t, msg.Fragments, uint16(1))
-		assert.Equal(t, msg.FragmentIndex, uint16(0))
-		assert.Equal(t, msg.MessageLength, 612)
-		assert.Equal(t, 0, msg.ChannelCode)
-		assert.Equal(t, false, msg.ExpectsReply)
-		assert.Equal(t, 2, msg.Identifier)
-		assert.Equal(t, 0, msg.ChannelCode)
-
-		assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
-		assert.Equal(t, uint32(425), msg.PayloadHeader.AuxiliaryLength)
-		assert.Equal(t, uint32(596), msg.PayloadHeader.TotalPayloadLength)
-		assert.Equal(t, uint32(0), msg.PayloadHeader.Flags)
-
+			assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
+			assert.Equal(t, uint32(425), msg.PayloadHeader.AuxiliaryLength)
+			assert.Equal(t, uint32(596), msg.PayloadHeader.TotalPayloadLength)
+			assert.Equal(t, uint32(0), msg.PayloadHeader.Flags)
+		}
 	}
 }
