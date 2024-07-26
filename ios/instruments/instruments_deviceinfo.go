@@ -27,6 +27,10 @@ func (d DeviceInfoService) ProcessList() ([]ProcessInfo, error) {
 		return nil, err
 	}
 
+	if len(resp.Payload) == 0 {
+		return []ProcessInfo{}, nil
+	}
+
 	result := mapToProcInfo(resp.Payload[0].([]interface{}))
 	return result, err
 }
