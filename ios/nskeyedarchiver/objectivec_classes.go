@@ -126,7 +126,7 @@ func NewXCTestConfiguration(
 	contents["emitOSLogs"] = false
 	// contents["formatVersion"] = 2
 	contents["gatherLocalizableStringsData"] = false
-	contents["initializeForUITesting"] = true
+	contents["initializeForUITesting"] = false
 	contents["maximumTestExecutionTimeAllowance"] = plist.UID(0)
 	contents["randomExecutionOrderingSeed"] = plist.UID(0)
 	contents["reportActivities"] = true

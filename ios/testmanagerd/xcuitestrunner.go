@@ -447,7 +447,7 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 	env := map[string]interface{}{
 		"CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0",
 		"CA_DEBUG_TRANSACTIONS":              "0",
-		"DYLD_INSERT_LIBRARIES":              "/Developer/usr/lib/libMainThreadChecker.dylib",
+		"DYLD_INSERT_LIBRARIES":              "/Developer/usr/lib/libMainThreadChecker.dylib:/System/Developer/usr/lib/libXCTestBundleInject.dylib",
 		"DYLD_FRAMEWORK_PATH":                "/System/Developer/Library/Frameworks",
 		"DYLD_LIBRARY_PATH":                  "/System/Developer/usr/lib",
 
