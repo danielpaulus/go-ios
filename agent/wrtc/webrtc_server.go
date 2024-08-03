@@ -137,7 +137,10 @@ func generateSDPAnswer(sdpModel models.SDP) (models.SDP, error) {
 		// Register channel opening handling
 		d.OnOpen(func() {
 			fmt.Printf("Data channel '%s' opened.", d.Label())
-
+			err := d.SendText("ok")
+			if err != nil {
+				log.Errorf("failed sending datachannel message: %v", err)
+			}
 		})
 		d.OnMessage(func(msg webrtc.DataChannelMessage) {
 			log.Info("received message")
@@ -166,10 +169,7 @@ func generateSDPAnswer(sdpModel models.SDP) (models.SDP, error) {
 				}()
 			}
 		})
-		err := d.SendText("ok")
-		if err != nil {
-			log.Errorf("failed sending datachannel message: %v", err)
-		}
+
 	})
 
 	return responseSdpModel, nil
