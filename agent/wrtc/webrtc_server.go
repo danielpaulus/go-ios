@@ -151,6 +151,7 @@ func generateSDPAnswer(sdpModel models.SDP) (models.SDP, error) {
 				log.Info("launching syslog")
 				udid := data["serial"]
 				de := ios.DeviceEntry{Properties: ios.DeviceProperties{SerialNumber: udid}}
+				log.Infof("device: %+v", de)
 				go func() {
 					log.Info("start pushing logs to remote")
 					syslogConnection, err := syslog.New(de)
