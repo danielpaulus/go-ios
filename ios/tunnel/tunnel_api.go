@@ -360,7 +360,8 @@ type manualPairingTunnelStart struct {
 }
 
 func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version, userspaceTUN bool) (Tunnel, error) {
-	if version.Major() >= 17 && version.Minor() >= 4 {
+
+	if version.GreaterThan(semver.MustParse("17.4.0")) {
 		if userspaceTUN {
 			tun, err := ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
 			tun.UserspaceTUN = true
