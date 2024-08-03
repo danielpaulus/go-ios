@@ -1,3 +1,5 @@
+.env
+pool-data*
 __debug_bin*
 selfIdentity.plist
 cmd/cdc-ncm/cdc-ncm

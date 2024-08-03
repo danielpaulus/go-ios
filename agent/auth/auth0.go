@@ -12,8 +12,10 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
 
@@ -24,7 +26,7 @@ const AUTH0_CALLBACK_URL = "http://localhost:60104"
 const AUTH0_AUDIENCE = "https://device-orchestrator/api"
 
 // AuthorizeUser implements the PKCE OAuth2 flow.
-func AuthorizeUser() {
+func AuthorizeUser() (Account, error) {
 	// initialize the code verifier
 	//var CodeVerifier, _ = cv.CreateCodeVerifier()
 
@@ -61,7 +63,7 @@ func AuthorizeUser() {
 
 	// start a web server to listen on a callback URL
 	server := &http.Server{Addr: AUTH0_CALLBACK_URL}
-	resultChannel := make(chan string)
+	resultChannel := make(chan Account)
 	// define a handler that will get the authorization code, call the token endpoint, and close the HTTP server
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// get the authorization code
@@ -86,7 +88,7 @@ func AuthorizeUser() {
 
 		w.Write(successResponse())
 		cleanup(server)
-		return
+
 		// trade the authorization code and the code verifier for an access token
 	})
 
@@ -116,7 +118,7 @@ func AuthorizeUser() {
 	// this will exit when the handler gets fired and calls server.Close()
 	go server.Serve(l)
 	res := <-resultChannel
-	fmt.Println(res)
+	return res, nil
 }
 
 func errorResponse(errorMessage string, errorDescription string) []byte {
@@ -197,8 +199,27 @@ type CustomClaims struct {
 	Name string `json:"Name"`
 	jwt.StandardClaims
 }
+type User struct {
+	AccountId string `json:"Id"`
+	Email     string `json:"Email"`
+	Auth0Id   string `json:"Auth0Id"`
+	Name      string `json:"Name"`
+}
 
-func fetchUser(accessToken string, idToken string) (string, error) {
+type Account struct {
+	Id     string
+	ApiKey uuid.UUID
+}
+type ApiKey struct {
+	Id        uuid.UUID
+	AccountId uuid.UUID
+	Key       uuid.UUID
+	Type      string
+	Metadata  map[string]interface{}
+	CreatedAt time.Time
+}
+
+func fetchUser(accessToken string, idToken string) (Account, error) {
 	token, err := jwt.ParseWithClaims(idToken, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		// Normally, you would provide the key used to sign the token here
 		// For example, if using HMAC:
@@ -220,7 +241,7 @@ func fetchUser(accessToken string, idToken string) (string, error) {
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Printf("fetchUser: HTTP error: %s", err)
-		return "", err
+		return Account{}, err
 	}
 
 	/*acc.Email = user["email"].(string)
@@ -228,9 +249,30 @@ func fetchUser(accessToken string, idToken string) (string, error) {
 	acc.Name = user["name"].(string)
 	*/
 	b, _ = io.ReadAll(res.Body)
-	body := string(b)
+	var deviceBoxUser User
+	json.Unmarshal(b, &deviceBoxUser)
+
+	keyDownloadUrl := fmt.Sprintf("https://api.deviceboxhq.com/api/v1/auth/accounts/%s/apikeys", deviceBoxUser.AccountId)
+	req, _ = http.NewRequest("GET", keyDownloadUrl, nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("fetchUser: HTTP error: %s", err)
+		return Account{}, err
+	}
+	b, _ = io.ReadAll(res.Body)
+	var apikeys []ApiKey
+	json.Unmarshal(b, &apikeys)
 	defer res.Body.Close()
-	return body, nil
+	if len(apikeys) == 0 {
+		return Account{}, fmt.Errorf("No API keys found for user")
+	}
+
+	if err != nil {
+		return Account{}, err
+	}
+	return Account{Id: deviceBoxUser.AccountId, ApiKey: apikeys[0].Key}, nil
 }
 
 func successResponse() []byte {
