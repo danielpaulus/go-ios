@@ -3,10 +3,12 @@ package wrtc
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
+
 	"sync"
 
 	"github.com/danielpaulus/go-ios/agent/models"
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/pion/webrtc/v3"
 	log "github.com/sirupsen/logrus"
 )
@@ -131,17 +133,35 @@ func generateSDPAnswer(sdpModel models.SDP) (models.SDP, error) {
 	// Register data channel creation handling
 	peerConnection.OnDataChannel(func(d *webrtc.DataChannel) {
 		fmt.Printf("New DataChannel %s\n", d.Label())
-		if strings.HasPrefix(d.Label(), "direct_") {
-			log.Info("creating direct conn to usbmux")
-
-			return
-
-		}
 
 		// Register channel opening handling
 		d.OnOpen(func() {
 			fmt.Printf("Data channel '%s' opened.", d.Label())
 
+		})
+		d.OnMessage(func(msg webrtc.DataChannelMessage) {
+			var data map[string]string
+			json.Unmarshal(msg.Data, &data)
+			if data["cmd"] == "syslog" {
+				udid := data["serial"]
+				de := ios.DeviceEntry{Properties: ios.DeviceProperties{SerialNumber: udid}}
+				go func() {
+					log.Info("start pushing logs to remote")
+					syslogConnection, err := syslog.New(de)
+					if err != nil {
+						log.Errorf("failed creating syslog connection: %v", err)
+						return
+					}
+					for {
+						s, err := syslogConnection.ReadLogMessage()
+						if err != nil {
+							log.Errorf("error reading syslog: %v", err)
+							return
+						}
+						d.Send([]byte(s))
+					}
+				}()
+			}
 		})
 	})
 

@@ -1,6 +1,7 @@
 package wrtc
 
 import (
+	"encoding/json"
 	"io"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -34,5 +35,10 @@ func (c *RTCConnection) StreamingResponse(args ...string) (io.ReadWriteCloser, e
 	if err != nil {
 		return nil, err
 	}
+	cmd := map[string]interface{}{}
+	cmd["cmd"] = args[0]
+	cmd["serial"] = c.Serial
+	cmdBytes, err := json.Marshal(cmd)
+	dc.Send(cmdBytes)
 	return wrapDataChannel(dc)
 }
