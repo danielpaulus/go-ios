@@ -5,6 +5,7 @@ import (
 )
 
 func registerRoutes(router *gin.RouterGroup) {
+	router.POST("/cmd", ExecuteCommand)
 	router.GET("/list", List)
 	router.GET("/health", Health)
 	router.GET("/reservations", GetReservedDevices)

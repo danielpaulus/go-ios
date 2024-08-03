@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"path"
@@ -250,6 +251,18 @@ The commands work as following:
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
 	exitIfError("failed parsing args", err)
+	const cloud = true
+	if cloud {
+		b, err := json.Marshal(os.Args)
+		exitIfError("failed marshalling args", err)
+		res, err := http.Post("http://localhost:60103/api/v1/cmd", "application/json", bytes.NewReader(b))
+		exitIfError("failed posting to cloud", err)
+		defer res.Body.Close()
+		output, err := io.ReadAll(res.Body)
+		exitIfError("failed reading response", err)
+		fmt.Println(string(output))
+		return
+	}
 	disableJSON, _ := arguments.Bool("--nojson")
 	if disableJSON {
 		JSONdisabled = true

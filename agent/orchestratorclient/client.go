@@ -20,6 +20,14 @@ var netClient = &http.Client{
 	Timeout: time.Second * 50,
 }
 
+func GetDevices() ([]models.DeviceInfo, error) {
+	_, devices, err := getRequest("api/v1/devices", []models.DeviceInfo{})
+	if err != nil {
+		return nil, err
+	}
+	return devices, nil
+}
+
 func PushSDPAnswers(sdps []models.SDP) error {
 	_, _, err := putRequest(fmt.Sprintf("api/v1/pools/%s/sdp", models.GetPoolId().String()), sdps)
 	return err
