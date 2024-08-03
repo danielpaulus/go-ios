@@ -258,9 +258,16 @@ The commands work as following:
 		res, err := http.Post("http://localhost:60103/api/v1/cmd", "application/json", bytes.NewReader(b))
 		exitIfError("failed posting to cloud", err)
 		defer res.Body.Close()
-		output, err := io.ReadAll(res.Body)
-		exitIfError("failed reading response", err)
-		fmt.Println(string(output))
+		buf := make([]byte, 1024)
+		for {
+			n, err := res.Body.Read(buf)
+			if err == io.EOF {
+				break
+			}
+			exitIfError("failed reading response", err)
+			fmt.Println(string(buf[:n]))
+		}
+
 		return
 	}
 	disableJSON, _ := arguments.Bool("--nojson")

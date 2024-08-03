@@ -5,7 +5,7 @@ import (
 )
 
 func registerRoutes(router *gin.RouterGroup) {
-	router.POST("/cmd", ExecuteCommand)
+
 	router.GET("/list", List)
 	router.GET("/health", Health)
 	router.GET("/reservations", GetReservedDevices)
@@ -46,4 +46,5 @@ func initStreamingResponseRoutes(device *gin.RouterGroup, router *gin.RouterGrou
 	streamingGeneral := router.Group("")
 	streamingGeneral.Use(StreamingHeaderMiddleware())
 	streamingGeneral.GET("/listen", Listen)
+	streamingGeneral.POST("/cmd", ExecuteCommand)
 }

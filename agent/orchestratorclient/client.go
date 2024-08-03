@@ -2,6 +2,7 @@ package orchestratorclient
 
 import (
 	"bytes"
+	"log"
 
 	"fmt"
 	"io"
@@ -18,6 +19,17 @@ const AUTH_HEADER = "X-DEVICEAPI-AUTH-HEADER"
 
 var netClient = &http.Client{
 	Timeout: time.Second * 50,
+}
+
+func OfferSDP(sdp models.SDP) (string, error) {
+	_, resp, err := putRequest("api/v1/client/sdpoffer", sdp)
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+	r, err := io.ReadAll(resp)
+
+	return string(r), err
 }
 
 func GetDevices() ([]models.DeviceInfo, error) {

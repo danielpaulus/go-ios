@@ -11,8 +11,6 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-const IOSDEVICEBRIDGE = "ios_device_Brige_handle"
-const ANDROIDDEVICEBRIDGE = "android_device_Brige_handle"
 const DEVICE_LIST = "devicelist_go_devicepool"
 
 func Main(list *devicestatemgmt.DeviceList) {
