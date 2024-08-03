@@ -53,7 +53,7 @@ func LaunchApp(c *gin.Context) {
 		return
 	}
 
-	_, err = pControl.LaunchApp(bundleID)
+	_, err = pControl.LaunchApp(bundleID, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 		return

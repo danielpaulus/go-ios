@@ -2,6 +2,7 @@ package instruments
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -15,10 +16,12 @@ type ProcessControl struct {
 
 // LaunchApp launches the app with the given bundleID on the given device.LaunchApp
 // Use LaunchAppWithArgs for passing arguments and envVars. It returns the PID of the created app process.
-func (p *ProcessControl) LaunchApp(bundleID string) (uint64, error) {
+func (p *ProcessControl) LaunchApp(bundleID string, my_opts map[string]any) (uint64, error) {
 	opts := map[string]interface{}{
 		"StartSuspendedKey": uint64(0),
+		"KillExisting":      uint64(0),
 	}
+	maps.Copy(opts, my_opts)
 	// Xcode sends all these, no idea if we need them for sth. later.
 	//"CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0", "CA_DEBUG_TRANSACTIONS": "0", "LLVM_PROFILE_FILE": "/dev/null", "METAL_DEBUG_ERROR_MODE": "0", "METAL_DEVICE_WRAPPER_TYPE": "1",
 	//"OS_ACTIVITY_DT_MODE": "YES", "SQLITE_ENABLE_THREAD_ASSERTIONS": "1", "__XPC_LLVM_PROFILE_FILE": "/dev/null"
