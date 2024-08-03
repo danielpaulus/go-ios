@@ -6,6 +6,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/pion/webrtc/v3"
+	log "github.com/sirupsen/logrus"
 )
 
 type RTCConnection struct {
@@ -39,6 +40,7 @@ func (c *RTCConnection) StreamingResponse(args ...string) (io.ReadWriteCloser, e
 	cmd["cmd"] = args[0]
 	cmd["serial"] = c.Serial
 	cmdBytes, err := json.Marshal(cmd)
+	log.Infof("sending command %s", string(cmdBytes))
 	dc.Send(cmdBytes)
 	return wrapDataChannel(dc)
 }

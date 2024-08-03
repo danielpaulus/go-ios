@@ -140,9 +140,12 @@ func generateSDPAnswer(sdpModel models.SDP) (models.SDP, error) {
 
 		})
 		d.OnMessage(func(msg webrtc.DataChannelMessage) {
+			log.Info("received message")
 			var data map[string]string
 			json.Unmarshal(msg.Data, &data)
+			log.Infof("received data: %+v", data)
 			if data["cmd"] == "syslog" {
+				log.Info("launching syslog")
 				udid := data["serial"]
 				de := ios.DeviceEntry{Properties: ios.DeviceProperties{SerialNumber: udid}}
 				go func() {
