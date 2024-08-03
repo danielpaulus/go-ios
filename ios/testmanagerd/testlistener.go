@@ -255,6 +255,11 @@ func (t *TestListener) TestRunnerKilled() {
 	t.executionFinished()
 }
 
+func (t *TestListener) FinishWithError(err error) {
+	t.err = err
+	t.executionFinished()
+}
+
 func (t *TestListener) Done() <-chan struct{} {
 	return t.finished
 }
