@@ -17,6 +17,7 @@ var mux sync.Mutex
 var webRtcConns map[string]*webrtc.PeerConnection = make(map[string]*webrtc.PeerConnection)
 
 func getOrCreatePeerConnection(serial string) (*webrtc.PeerConnection, error) {
+	log.Info("creating peer connection")
 	mux.Lock()
 	defer mux.Unlock()
 	conn, ok := webRtcConns[serial]
@@ -34,6 +35,7 @@ func getOrCreatePeerConnection(serial string) (*webrtc.PeerConnection, error) {
 }
 
 func connectWebRTC(serial string) (*webrtc.PeerConnection, error) {
+	log.Info("webRTC connection starting")
 	peerConnectionEstablished := make(chan interface{})
 	peerConnectionError := make(chan error)
 	config := webrtc.Configuration{
@@ -83,10 +85,6 @@ func connectWebRTC(serial string) (*webrtc.PeerConnection, error) {
 		return nil, err
 	}
 
-	offer, err = peerConnection.CreateOffer(nil)
-	if err != nil {
-		return nil, err
-	}
 	// Sets the LocalDescription, and starts our UDP listeners
 	// Note: this will start the gathering of ICE candidates
 	if err = peerConnection.SetLocalDescription(offer); err != nil {
@@ -102,7 +100,7 @@ func connectWebRTC(serial string) (*webrtc.PeerConnection, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("sending offer")
+	log.Info("sending offer using rest")
 	resp, err := orchestratorclient.OfferSDP(models.SDP{
 		ID:     uuid.New(),
 		SDP:    string(payload),
@@ -111,13 +109,14 @@ func connectWebRTC(serial string) (*webrtc.PeerConnection, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to send offer: %w", err)
 	}
-	log.Debug("answer received")
+
 	//log.Println(resp)
 	var answer webrtc.SessionDescription
 	err = json.Unmarshal([]byte(resp), &answer)
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing json SDP answer: %w", err)
 	}
+	log.Infof("answer received %+v", answer)
 	err = peerConnection.SetRemoteDescription(answer)
 	if err != nil {
 		return nil, fmt.Errorf("failed setting remote description: %w", err)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/agent/models"
 	"github.com/danielpaulus/go-ios/agent/utils"
+	"github.com/danielpaulus/go-ios/agent/wrtc"
 	_ "github.com/joho/godotenv/autoload"
 	log "github.com/sirupsen/logrus"
 )
@@ -36,11 +37,22 @@ func StartUpdatingOrchestrator() {
 					models.UpdateConfigFromCloud(config)
 				}
 				log.Info("pulling SDP records for webRTC")
-				_, err = DownloadSDPs()
+				sdps, err := DownloadSDPs()
 				if err != nil {
 					log.Errorf("failed pulling SDP records %v", err)
 				} else {
-
+					sdpAnswers, err := wrtc.CreateSDPAnswer(sdps)
+					if err != nil {
+						log.Errorf("failed answering SDP records %v", err)
+					}
+					if len(sdpAnswers) == 0 {
+						continue
+					}
+					log.Info("pushing sdp answer")
+					err = PushSDPAnswers(sdpAnswers)
+					if err != nil {
+						log.Errorf("failed answering SDP records %v", err)
+					}
 				}
 			}
 		}
