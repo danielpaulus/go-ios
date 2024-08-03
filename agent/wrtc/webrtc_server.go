@@ -166,6 +166,10 @@ func generateSDPAnswer(sdpModel models.SDP) (models.SDP, error) {
 				}()
 			}
 		})
+		err := d.SendText("ok")
+		if err != nil {
+			log.Errorf("failed sending datachannel message: %v", err)
+		}
 	})
 
 	return responseSdpModel, nil

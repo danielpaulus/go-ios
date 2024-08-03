@@ -32,15 +32,18 @@ func (c *RTCConnection) RequestResponse(args ...string) (string, error) {
 }
 
 func (c *RTCConnection) StreamingResponse(args ...string) (io.ReadWriteCloser, error) {
+	log.Info("new streaming response")
 	dc, err := CreateNewDataChannelConnection(c.webrtcConn, c.Serial)
 	if err != nil {
 		return nil, err
 	}
+	log.Info("datachannel created")
 	cmd := map[string]interface{}{}
 	cmd["cmd"] = args[0]
 	cmd["serial"] = c.Serial
 	cmdBytes, err := json.Marshal(cmd)
 	log.Infof("sending command %s", string(cmdBytes))
 	dc.Send(cmdBytes)
+
 	return wrapDataChannel(dc)
 }

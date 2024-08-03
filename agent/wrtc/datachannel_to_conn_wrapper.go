@@ -123,11 +123,11 @@ func CreateNewDataChannelConnection(peerConnection *webrtc.PeerConnection, seria
 	waiter2 := make(chan interface{})
 	datachan.OnMessage(func(msg webrtc.DataChannelMessage) {
 		i := string(msg.Data)
-		log.Debugf("chan: %s sent init msg: %s", datachan.Label(), i)
+		log.Infof("chan: %s sent init msg: %s", datachan.Label(), i)
 		waiter2 <- struct{}{}
 	})
 
-	log.Debugf("waiting for channel %s to open..", datachan.Label())
+	log.Infof("waiting for channel %s to open..", datachan.Label())
 	waiter := make(chan interface{})
 	// Register channel opening handling
 

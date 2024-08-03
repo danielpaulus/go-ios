@@ -65,11 +65,13 @@ func ExecuteCommand(c *gin.Context) {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		}
+		log.Info("starting logstream")
 		reader, err := conn.StreamingResponse("syslog")
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 			return
 		}
+		log.Info(" logstream started")
 		buf := make([]byte, 1024)
 		c.Stream(func(w io.Writer) bool {
 			n, err := reader.Read(buf)
