@@ -6,8 +6,8 @@ import (
 
 	"github.com/danielpaulus/go-ios/agent/auth"
 	"github.com/danielpaulus/go-ios/agent/devicestatemgmt"
+	"github.com/danielpaulus/go-ios/agent/jobs"
 	"github.com/danielpaulus/go-ios/agent/models"
-	"github.com/danielpaulus/go-ios/agent/orchestratorclient"
 	"github.com/danielpaulus/go-ios/agent/restapi"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
@@ -42,7 +42,7 @@ func Main() {
 
 	go restapi.StartApi(list)
 
-	orchestratorclient.StartUpdatingOrchestrator()
+	jobs.StartUpdatingOrchestrator()
 	stopSignal := make(chan interface{})
 	waitForSigInt(stopSignal)
 	<-stopSignal
