@@ -5,6 +5,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/agent/models"
 	"github.com/danielpaulus/go-ios/agent/orchestratorclient"
+	"github.com/danielpaulus/go-ios/ios"
 	"github.com/gin-gonic/gin"
 	"gvisor.dev/gvisor/pkg/log"
 )
@@ -22,10 +23,19 @@ func ExecuteCommand(c *gin.Context) {
 		info, err := orchestratorclient.GetDevices()
 		if err != nil {
 			c.IndentedJSON(http.StatusOK, gin.H{"error": err.Error()})
+			return
 		}
 		list := createDeviceList(info)
 		resp := map[string]interface{}{"deviceList": list}
 		c.IndentedJSON(http.StatusOK, resp)
+	}
+	if args[1] == "syslog" {
+		list, err := ios.ListDevices()
+		if err != nil {
+			c.IndentedJSON(http.StatusOK, gin.H{"error": err.Error()})
+			return
+		}
+		
 	}
 }
 func createDeviceList(info []models.DeviceInfo) []string {

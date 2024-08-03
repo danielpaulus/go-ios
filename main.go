@@ -253,7 +253,7 @@ The commands work as following:
 	exitIfError("failed parsing args", err)
 	const cloud = true
 	if cloud {
-		b, err := json.Marshal(os.Args)
+		b, err := json.Marshal(arguments)
 		exitIfError("failed marshalling args", err)
 		res, err := http.Post("http://localhost:60103/api/v1/cmd", "application/json", bytes.NewReader(b))
 		exitIfError("failed posting to cloud", err)
