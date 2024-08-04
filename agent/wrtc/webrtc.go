@@ -19,6 +19,7 @@ func Connect(device ios.DeviceEntry) (*RTCConnection, error) {
 	if err != nil {
 		return &RTCConnection{}, err
 	}
+
 	rtcconn := RTCConnection{
 		webrtcConn: conn,
 		Serial:     device.Properties.SerialNumber,

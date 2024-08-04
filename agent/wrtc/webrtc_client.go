@@ -3,7 +3,6 @@ package wrtc
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/danielpaulus/go-ios/agent/models"
 	"github.com/danielpaulus/go-ios/agent/orchestratorclient"
@@ -12,24 +11,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var mux sync.Mutex
-
-var webRtcConns map[string]*webrtc.PeerConnection = make(map[string]*webrtc.PeerConnection)
-
 func getOrCreatePeerConnection(serial string) (*webrtc.PeerConnection, error) {
 	log.Info("creating peer connection")
-	mux.Lock()
-	defer mux.Unlock()
-	conn, ok := webRtcConns[serial]
-	if ok {
-		return conn, nil
-	}
-
 	webrtcconn, err := connectWebRTC(serial)
 	if err != nil {
 		return nil, fmt.Errorf("could not establish webrtc connection to device: %v", err)
 	}
-	webRtcConns[serial] = webrtcconn
 	return webrtcconn, nil
 
 }
@@ -63,6 +50,15 @@ func connectWebRTC(serial string) (*webrtc.PeerConnection, error) {
 		panic(err)
 	}
 	dataChannel.Label()
+	go func() {
+		for {
+			err := dataChannel.SendText("ping")
+			if err != nil {
+				log.Errorf("error sending ping: %v", err)
+				return
+			}
+		}
+	}()
 
 	// Set the handler for Peer connection state
 	// This will notify you when the peer has connected/disconnected

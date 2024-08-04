@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +32,12 @@ func ExecuteCommand(c *gin.Context) {
 		}
 		list := createDeviceList(info)
 		resp := map[string]interface{}{"deviceList": list}
+		b, _ := json.Marshal(resp)
+		c.Stream(func(w io.Writer) bool {
+
+			w.Write(b)
+			return false
+		})
 		c.IndentedJSON(http.StatusOK, resp)
 		return
 	}
