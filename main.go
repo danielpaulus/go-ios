@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -145,6 +147,8 @@ Options:
   >                         connect a device and open Xcode
   --rsd-port=<port>         Port of remote service discovery on the device through the tunnel
   >                         This parameter is similar to '--address' and can be obtained by the same log filter
+  --proxyurl=<url>          Set this if you want go-ios to use a http proxy for outgoing requests, like for downloading images or contacting Apple during device activation.
+  >                         A simple format like: "http://PROXY_LOGIN:PROXY_PASS@proxyIp:proxyPort" works. Otherwise use the HTTP_PROXY system env var.
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -290,6 +294,15 @@ The commands work as following:
 	if shouldPrintVersionNoDashes || shouldPrintVersion {
 		printVersion()
 		return
+	}
+	proxyUrl, _ := arguments.String("--proxyurl")
+	if proxyUrl == "" {
+		proxyUrl = os.Getenv("HTTP_PROXY")
+	}
+	if proxyUrl != "" {
+		parsedUrl, err := url.Parse(proxyUrl)
+		exitIfError("failed parsing proxy url", err)
+		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(parsedUrl)}
 	}
 
 	b, _ := arguments.Bool("listen")
@@ -1115,6 +1128,7 @@ func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			if err != nil {
 				log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber, "err": err}).
 					Error("failed downloading image")
+				return false
 			}
 
 			log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber}).Info("success downloaded image")

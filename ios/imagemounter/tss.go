@@ -20,7 +20,8 @@ type tssClient struct {
 
 func newTssClient() tssClient {
 	c := &http.Client{
-		Timeout: 1 * time.Minute,
+		Timeout:   1 * time.Minute,
+		Transport: http.DefaultTransport,
 	}
 
 	return tssClient{
