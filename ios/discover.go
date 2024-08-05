@@ -65,7 +65,7 @@ func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, e
 
 func tryHandshake(ip6 net.IP, port int, interfaceName string, device DeviceEntry, result chan<- string) {
 	addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
-	s, err := NewWithAddrPort(addr, port, device)
+	s, err := NewWithAddrPortDevice(addr, port, device)
 	udid := device.Properties.SerialNumber
 	if err != nil {
 		slog.Error("failed to connect to remote service discovery", "error", err, "address", addr)
