@@ -22,7 +22,7 @@ func TestLaunchAndKill(t *testing.T) {
 	if !assert.NoError(t, err) {
 		t.Fatal(err)
 	}
-	pid, err := pControl.LaunchApp(weatherAppBundleID)
+	pid, err := pControl.LaunchApp(weatherAppBundleID, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
