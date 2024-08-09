@@ -132,7 +132,7 @@ func NewXCTestConfiguration(
 	contents["reportActivities"] = true
 	contents["reportResultsToIDE"] = true
 	contents["sessionIdentifier"] = NewNSUUID(sessionIdentifier)
-	contents["systemAttachmentLifetime"] = attachmentLifetimeDeleteAlways
+	contents["systemAttachmentLifetime"] = attachmentLifetimeDeleteOnSuccess
 	// testApplicationDependencies
 	contents["testApplicationUserOverrides"] = plist.UID(0)
 	contents["testBundleRelativePath"] = plist.UID(0)
