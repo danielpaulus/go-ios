@@ -129,6 +129,19 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 	return nil
 }
 
+func (p PersonalizedDeveloperDiskImageMounter) UnmountImage() error {
+	req := map[string]interface{}{
+		"Command":   "UnmountImage",
+		"MountPath": "/System/Developer",
+	}
+	log.Debugf("sending: %+v", req)
+	err := p.plistRw.Write(req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p PersonalizedDeveloperDiskImageMounter) queryPersonalizedImageNonce() ([]byte, error) {
 	err := p.plistRw.Write(map[string]interface{}{
 		"Command":               "QueryNonce",
