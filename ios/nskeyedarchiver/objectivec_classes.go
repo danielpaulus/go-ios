@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
@@ -128,7 +127,6 @@ func NewXCTestConfiguration(
 	contents["emitOSLogs"] = false
 	// contents["formatVersion"] = 2
 	contents["gatherLocalizableStringsData"] = false
-	log.Info("NewXCTestConfiguration CONSTRUCTOR isXCTest ######################### initializeForUITesting: ", !isXCTest)
 	contents["initializeForUITesting"] = !isXCTest
 	contents["maximumTestExecutionTimeAllowance"] = plist.UID(0)
 	contents["randomExecutionOrderingSeed"] = plist.UID(0)

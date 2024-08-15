@@ -222,14 +222,6 @@ const testBundleSuffix = "UITests.xctrunner"
 func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName string, device ios.DeviceEntry, env []string, testsToRun []string, testsToSkip []string, testListener *TestListener, isXCTest bool) ([]TestSuite, error) {
 	// FIXME: this is redundant code, getting the app list twice and creating the appinfos twice
 	// just to generate the xctestConfigFileName. Should be cleaned up at some point.
-
-	// TODO MOOTAZ to be removed
-	log.Info("11111111111111---------")
-	log.Info("testRunnerBundleID:", testRunnerBundleID)
-	log.Info("xctestConfigName:", xctestConfigName)
-	log.Info("isXCTest", isXCTest)
-	log.Info("11111111111111---------")
-
 	installationProxy, err := installationproxy.New(device)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUITest: cannot connect to installation proxy: %w", err)
@@ -253,11 +245,6 @@ func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName st
 
 		xctestConfigName = info.bundleName + "UITests.xctest"
 	}
-
-	// TODO MOOTAZ to be removed
-	log.Info("11111111111111---------")
-	log.Info("xctestConfigName:", xctestConfigName)
-	log.Info("11111111111111---------")
 
 	return RunXCUIWithBundleIdsCtx(context.TODO(), bundleID, testRunnerBundleID, xctestConfigName, device, nil, env, testsToRun, testsToSkip, testListener, isXCTest)
 }
@@ -348,10 +335,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 
 	testSessionID := uuid.New()
-	// TODO MOOTAZ remove logs
-	log.Info("Begin CreateTestConfig: ######### 7777777")
 	testconfig := createTestConfig(info, testSessionID, xctestConfigFileName, testsToRun, testsToSkip, isXCTest)
-	log.Info("END CreateTestConfig: ######### 7777777")
 	ideDaemonProxy1 := newDtxProxyWithConfig(conn1, testconfig, testListener)
 
 	localCaps := nskeyedarchiver.XCTCapabilities{CapabilitiesDictionary: map[string]interface{}{
@@ -486,11 +470,7 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 		"XCTestManagerVariant":            "DDI",
 		"XCTestSessionIdentifier":         strings.ToUpper(sessionIdentifier),
 	}
-	// TODO MOOTAZ romove logs
-	log.Info("2222222222222222-------------------++++++++++++++++++++++")
-	value, exists := env["DYLD_INSERT_LIBRARIES"]
-	log.Info("The value forDYLD_INSERT_LIBRARIES is : ", exists, value)
-	log.Info("2222222222222222-------------------++++++++++++++++++++++")
+
 	for _, entrystring := range testEnv {
 		entry := strings.Split(entrystring, "=")
 		key := entry[0]
