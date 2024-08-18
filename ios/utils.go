@@ -19,6 +19,10 @@ import (
 	plist "howett.net/plist"
 )
 
+// UseHttpProxy sets the default http transport to use the given proxy url.
+// If the proxyUrl is empty, it will try to use the HTTP_PROXY or HTTPS_PROXY environment variables.
+// If the environment variables are not set, it will not set a proxy.
+// If the proxyUrl is invalid, it will return an error.
 func UseHttpProxy(proxyUrl string) error {
 	if proxyUrl != "" {
 		parsedUrl, err := url.Parse(proxyUrl)
