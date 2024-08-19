@@ -26,6 +26,7 @@ type DeveloperDiskImageMounter struct {
 type ImageMounter interface {
 	ListImages() ([][]byte, error)
 	MountImage(imagePath string) error
+	UnmountImage() error
 	io.Closer
 }
 
@@ -93,6 +94,19 @@ func (conn *DeveloperDiskImageMounter) MountImage(imagePath string) error {
 	}
 
 	return hangUp(conn.plistRw)
+}
+
+func (conn *DeveloperDiskImageMounter) UnmountImage() error {
+	req := map[string]interface{}{
+		"Command":   "UnmountImage",
+		"MountPath": "/Developer",
+	}
+	log.Debugf("sending: %+v", req)
+	err := conn.plistRw.Write(req)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (conn *DeveloperDiskImageMounter) mountImage(signatureBytes []byte) error {
@@ -187,6 +201,16 @@ func MountImage(device ios.DeviceEntry, path string) error {
 		return nil
 	}
 	return conn.MountImage(path)
+}
+
+func UnmountImage(device ios.DeviceEntry) error {
+	conn, err := NewImageMounter(device)
+	if err != nil {
+		return fmt.Errorf("failed connecting to image mounter: %v", err)
+	}
+	defer conn.Close()
+
+	return conn.UnmountImage()
 }
 
 func listImages(prw ios.PlistCodecReadWriter, imageType string, v *semver.Version) ([][]byte, error) {

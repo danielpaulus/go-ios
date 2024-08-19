@@ -74,6 +74,7 @@ Usage:
   ios info [display | lockdown] [options]
   ios image list [options]
   ios image mount [--path=<imagepath>] [options]
+  ios image unmount [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
@@ -160,6 +161,7 @@ The commands work as following:
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
    >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk
+   ios image unmount [options]                                        Unmount developer disk image
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
@@ -1138,6 +1140,17 @@ func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
 				return true
 			}
 			log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
+		}
+
+		unmount, _ := arguments.Bool("unmount")
+		if unmount {
+			err := imagemounter.UnmountImage(device)
+			if err != nil {
+				log.WithFields(log.Fields{"udid": device.Properties.SerialNumber, "err": err}).
+					Error("error unmounting image")
+				return true
+			}
+			log.WithFields(log.Fields{"udid": device.Properties.SerialNumber}).Info("success unmounting image")
 		}
 	}
 	return b
