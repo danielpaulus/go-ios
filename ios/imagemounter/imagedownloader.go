@@ -121,7 +121,7 @@ func MatchAvailable(version string) string {
 	return bestMatchString
 }
 
-func Download17Plus(device ios.DeviceEntry, baseDir string, version *semver.Version) (string, error) {
+func Download17Plus(baseDir string, version *semver.Version) (string, error) {
 	downloadUrl := fmt.Sprintf("%s%s%s", devicebox, xcode15_4_ddi, ".zip")
 	log.Infof("device iOS version: %s, getting developer image: %s", version.String(), downloadUrl)
 
@@ -158,7 +158,7 @@ func DownloadImageFor(device ios.DeviceEntry, baseDir string) (string, error) {
 		return "", fmt.Errorf("DownloadImageFor: failed parsing ios productversion: '%s' with %w", allValues.Value.ProductVersion, err)
 	}
 	if parsedVersion.GreaterThan(ios.IOS17()) || parsedVersion.Equal(ios.IOS17()) {
-		return Download17Plus(device, baseDir, parsedVersion)
+		return Download17Plus(baseDir, parsedVersion)
 	}
 	version := MatchAvailable(allValues.Value.ProductVersion)
 	log.Infof("device iOS version: %s, getting developer image for iOS %s", allValues.Value.ProductVersion, version)
