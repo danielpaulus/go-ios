@@ -132,6 +132,7 @@ Usage:
   ios tunnel ls [options]
   ios tunnel stopagent 
   ios devmode (enable | get) [--enable-post-restart] [options]
+  ios rsd ls [options]
 
 Options:
   -v --verbose              Enable Debug Logging.
@@ -250,6 +251,7 @@ The commands work as following:
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
    ios tunnel ls                                                      List currently started tunnels. Use --enabletun to activate using TUN devices rather than user space network. Requires sudo/admin shells. 
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
+   ios rsd ls [options]											  List RSD services and their port.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -363,6 +365,22 @@ The commands work as following:
 		exitIfError("failed erasing", mcinstall.Erase(device))
 		print(convertToJSONString("ok"))
 		return
+	}
+
+	rsdCommand, _ := arguments.Bool("rsd")
+	if rsdCommand {
+		listCommand, _ := arguments.Bool("ls")
+		if listCommand {
+			services := device.Rsd.GetServices()
+			if JSONdisabled {
+				fmt.Println(services)
+			} else {
+				b, err := marshalJSON(services)
+				exitIfError("failed json conversion", err)
+				println(string(b))
+			}
+			return
+		}
 	}
 
 	if mobileGestaltCommand(device, arguments) {
