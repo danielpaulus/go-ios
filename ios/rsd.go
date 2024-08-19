@@ -16,6 +16,7 @@ import (
 type RsdPortProvider interface {
 	GetPort(service string) int
 	GetService(p int) string
+	GetServices() map[string]RsdServiceEntry
 }
 
 type RsdPortProviderJson map[string]service
@@ -66,6 +67,21 @@ func (r RsdPortProviderJson) GetService(p int) string {
 		}
 	}
 	return ""
+}
+
+func (r RsdPortProviderJson) GetServices() (services map[string]RsdServiceEntry) {
+	services = make(map[string]RsdServiceEntry, len(r))
+	for name, s := range r {
+		port, err := strconv.ParseInt(s.Port, 10, 64)
+		if err != nil {
+			log.Errorf("GetService: failed to parse port: %v", err)
+			continue
+		}
+
+		services[name] = RsdServiceEntry{Port: uint32(port)}
+	}
+
+	return
 }
 
 // RsdCheckin sends a plist encoded message with the request 'RSDCheckin' to the device.
@@ -137,6 +153,10 @@ func (r RsdHandshakeResponse) GetPort(service string) int {
 		return int(s.Port)
 	}
 	return 0
+}
+
+func (r RsdHandshakeResponse) GetServices() map[string]RsdServiceEntry {
+	return r.Services
 }
 
 // NewWithAddr creates a new RsdService with the given address and port 58783 using a HTTP2 based XPC connection.
