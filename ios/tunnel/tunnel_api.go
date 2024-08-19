@@ -302,6 +302,17 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 	return nil
 }
 
+func (m *TunnelManager) RemoveTunnel(ctx context.Context, serialNumber string) error {
+	for udid, tun := range m.tunnels {
+		if udid == serialNumber {
+			err := m.stopTunnel(tun)
+			return err
+		}
+	}
+
+	return errors.New("tunnel not found")
+}
+
 func (m *TunnelManager) stopTunnel(t Tunnel) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
