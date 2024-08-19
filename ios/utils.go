@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,6 +18,35 @@ import (
 	log "github.com/sirupsen/logrus"
 	plist "howett.net/plist"
 )
+
+// UseHttpProxy sets the default http transport to use the given proxy url.
+// If the proxyUrl is empty, it will try to use the HTTP_PROXY or HTTPS_PROXY environment variables.
+// If the environment variables are not set, it will not set a proxy.
+// If the proxyUrl is invalid, it will return an error.
+func UseHttpProxy(proxyUrl string) error {
+	if proxyUrl != "" {
+		parsedUrl, err := url.Parse(proxyUrl)
+		if err != nil {
+			return fmt.Errorf("could not parse proxy url %s: %v", proxyUrl, err)
+		}
+		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(parsedUrl)}
+		return nil
+	}
+
+	proxyUrl = os.Getenv("HTTP_PROXY")
+	if os.Getenv("HTTPS_PROXY") != "" {
+		proxyUrl = os.Getenv("HTTPS_PROXY")
+	}
+
+	if proxyUrl != "" {
+		parsedUrl, err := url.Parse(proxyUrl)
+		if err != nil {
+			return fmt.Errorf("could not parse proxy url %s: %v", proxyUrl, err)
+		}
+		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(parsedUrl)}
+	}
+	return nil
+}
 
 // CheckRoot checks if the current user is root or has elevated privileges on Windows.
 func CheckRoot() error {

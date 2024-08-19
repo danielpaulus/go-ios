@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -76,6 +74,7 @@ Usage:
   ios info [display | lockdown] [options]
   ios image list [options]
   ios image mount [--path=<imagepath>] [options]
+  ios image unmount [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
@@ -133,6 +132,7 @@ Usage:
   ios tunnel ls [options]
   ios tunnel stopagent 
   ios devmode (enable | get) [--enable-post-restart] [options]
+  ios rsd ls [options]
 
 Options:
   -v --verbose              Enable Debug Logging.
@@ -162,6 +162,7 @@ The commands work as following:
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
    >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk
+   ios image unmount [options]                                        Unmount developer disk image
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
@@ -250,6 +251,7 @@ The commands work as following:
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
    ios tunnel ls                                                      List currently started tunnels. Use --enabletun to activate using TUN devices rather than user space network. Requires sudo/admin shells. 
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
+   ios rsd ls [options]											  List RSD services and their port.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -296,14 +298,7 @@ The commands work as following:
 		return
 	}
 	proxyUrl, _ := arguments.String("--proxyurl")
-	if proxyUrl == "" {
-		proxyUrl = os.Getenv("HTTP_PROXY")
-	}
-	if proxyUrl != "" {
-		parsedUrl, err := url.Parse(proxyUrl)
-		exitIfError("failed parsing proxy url", err)
-		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(parsedUrl)}
-	}
+	exitIfError("could not parse proxy url", ios.UseHttpProxy(proxyUrl))
 
 	b, _ := arguments.Bool("listen")
 	if b {
@@ -370,6 +365,22 @@ The commands work as following:
 		exitIfError("failed erasing", mcinstall.Erase(device))
 		print(convertToJSONString("ok"))
 		return
+	}
+
+	rsdCommand, _ := arguments.Bool("rsd")
+	if rsdCommand {
+		listCommand, _ := arguments.Bool("ls")
+		if listCommand {
+			services := device.Rsd.GetServices()
+			if JSONdisabled {
+				fmt.Println(services)
+			} else {
+				b, err := marshalJSON(services)
+				exitIfError("failed json conversion", err)
+				println(string(b))
+			}
+			return
+		}
 	}
 
 	if mobileGestaltCommand(device, arguments) {
@@ -1147,6 +1158,17 @@ func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
 				return true
 			}
 			log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
+		}
+
+		unmount, _ := arguments.Bool("unmount")
+		if unmount {
+			err := imagemounter.UnmountImage(device)
+			if err != nil {
+				log.WithFields(log.Fields{"udid": device.Properties.SerialNumber, "err": err}).
+					Error("error unmounting image")
+				return true
+			}
+			log.WithFields(log.Fields{"udid": device.Properties.SerialNumber}).Info("success unmounting image")
 		}
 	}
 	return b
