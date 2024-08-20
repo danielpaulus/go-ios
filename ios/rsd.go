@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"strconv"
 
 	"github.com/danielpaulus/go-ios/ios/http"
@@ -159,25 +160,39 @@ func (r RsdHandshakeResponse) GetServices() map[string]RsdServiceEntry {
 	return r.Services
 }
 
-// NewWithAddr creates a new RsdService with the given address and port 58783 using a HTTP2 based XPC connection.
-func NewWithAddr(addr string, d DeviceEntry) (RsdService, error) {
-	return NewWithAddrPort(addr, port, d)
-}
-
-// NewWithAddrPort creates a new RsdService with the given address and port using a HTTP2 based XPC connection.
-func NewWithAddrPort(addr string, port int, d DeviceEntry) (RsdService, error) {
-	conn, err := ConnectTUNDevice(addr, port, d)
+// NewWithAddrPort creates a new RsdService with the given address and port 58783 using a HTTP2 based XPC connection,
+// connecting to an operating system level TUN device.
+func NewWithAddrPort(addr string, port int) (RsdService, error) {
+	conn, err := connectTUN(addr, port)
 	if err != nil {
 		return RsdService{}, fmt.Errorf("NewWithAddrPort: failed to connect to device: %w", err)
 	}
+	return newRsdServiceFromTcpConn(conn)
+}
+
+// NewWithAddrDevice creates a new RsdService with the given address and port 58783 using a HTTP2 based XPC connection.
+func NewWithAddrDevice(addr string, d DeviceEntry) (RsdService, error) {
+	return NewWithAddrPortDevice(addr, port, d)
+}
+
+// NewWithAddrPortDevice creates a new RsdService with the given address and port using a HTTP2 based XPC connection.
+func NewWithAddrPortDevice(addr string, port int, d DeviceEntry) (RsdService, error) {
+	conn, err := ConnectTUNDevice(addr, port, d)
+	if err != nil {
+		return RsdService{}, fmt.Errorf("NewWithAddrPortTUNDevice: failed to connect to device: %w", err)
+	}
+	return newRsdServiceFromTcpConn(conn)
+}
+
+func newRsdServiceFromTcpConn(conn *net.TCPConn) (RsdService, error) {
 	h, err := http.NewHttpConnection(conn)
 	if err != nil {
-		return RsdService{}, fmt.Errorf("NewWithAddrPort: failed to connect to http2: %w", err)
+		return RsdService{}, fmt.Errorf("newRsdServiceFromTcpConn: failed to connect to http2: %w", err)
 	}
 
 	x, err := CreateXpcConnection(h)
 	if err != nil {
-		return RsdService{}, fmt.Errorf("NewWithAddrPort: failed to create xpc connection: %w", err)
+		return RsdService{}, fmt.Errorf("newRsdServiceFromTcpConn: failed to create xpc connection: %w", err)
 	}
 
 	return RsdService{
