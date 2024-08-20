@@ -160,11 +160,6 @@ func (r RsdHandshakeResponse) GetServices() map[string]RsdServiceEntry {
 	return r.Services
 }
 
-// NewWithAddr creates a new RsdService with the given address and port 58783 using a HTTP2 based XPC connection.
-func NewWithAddr(addr string, d DeviceEntry) (RsdService, error) {
-	return NewWithAddrPortDevice(addr, port, d)
-}
-
 // NewWithAddrPort creates a new RsdService with the given address and port 58783 using a HTTP2 based XPC connection,
 // connecting to an operating system level TUN device.
 func NewWithAddrPort(addr string, port int) (RsdService, error) {
