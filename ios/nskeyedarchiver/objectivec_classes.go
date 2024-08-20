@@ -83,6 +83,7 @@ func NewXCTestConfiguration(
 	testBundleURL string,
 	testsToRun []string,
 	testsToSkip []string,
+	isXCTest bool,
 ) XCTestConfiguration {
 	contents := map[string]interface{}{}
 
@@ -126,7 +127,7 @@ func NewXCTestConfiguration(
 	contents["emitOSLogs"] = false
 	// contents["formatVersion"] = 2
 	contents["gatherLocalizableStringsData"] = false
-	contents["initializeForUITesting"] = true
+	contents["initializeForUITesting"] = !isXCTest
 	contents["maximumTestExecutionTimeAllowance"] = plist.UID(0)
 	contents["randomExecutionOrderingSeed"] = plist.UID(0)
 	contents["reportActivities"] = true
