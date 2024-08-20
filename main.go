@@ -148,6 +148,7 @@ Options:
   >                         This parameter is similar to '--address' and can be obtained by the same log filter
   --proxyurl=<url>          Set this if you want go-ios to use a http proxy for outgoing requests, like for downloading images or contacting Apple during device activation.
   >                         A simple format like: "http://PROXY_LOGIN:PROXY_PASS@proxyIp:proxyPort" works. Otherwise use the HTTP_PROXY system env var.
+  --userspace-port=<port>   Optional. Set this if you run a command supplying rsd-port and address and your device is using userspace tunnel
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -327,12 +328,17 @@ The commands work as following:
 	udid, _ := arguments.String("--udid")
 	address, addressErr := arguments.String("--address")
 	rsdPort, rsdErr := arguments.Int("--rsd-port")
+	userspaceTunnelPort, userspaceTunnelErr := arguments.Int("--userspace-port")
 
 	device, err := ios.GetDevice(udid)
 	// device address and rsd port are only available after the tunnel started
 	if !tunnelCommand {
 		exitIfError("Device not found: "+udid, err)
 		if addressErr == nil && rsdErr == nil {
+			if userspaceTunnelErr == nil {
+				device.UserspaceTUN = true
+				device.UserspaceTUNPort = userspaceTunnelPort
+			}
 			device = deviceWithRsdProvider(device, udid, address, rsdPort)
 		} else {
 			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoPort)
