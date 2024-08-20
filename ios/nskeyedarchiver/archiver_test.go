@@ -36,7 +36,7 @@ func TestArchiveSlice(t *testing.T) {
 // TODO currently only partially decoding XCTestConfig is supported, fix later
 func TestXCTestconfig(t *testing.T) {
 	uuid := uuid.New()
-	config := nskeyedarchiver.NewXCTestConfiguration("productmodulename", uuid, "targetAppBundle", "targetAppPath", "testBundleUrl", nil, nil)
+	config := nskeyedarchiver.NewXCTestConfiguration("productmodulename", uuid, "targetAppBundle", "targetAppPath", "testBundleUrl", nil, nil, false)
 	result, err := nskeyedarchiver.ArchiveXML(config)
 	if err != nil {
 		log.Error(err)
