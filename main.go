@@ -74,6 +74,7 @@ Usage:
   ios info [display | lockdown] [options]
   ios image list [options]
   ios image mount [--path=<imagepath>] [options]
+  ios image unmount [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios syslog [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
