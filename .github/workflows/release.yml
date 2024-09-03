@@ -52,7 +52,7 @@ jobs:
           cache: true
 
       - name: Download win release from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: windows-build
           path: ./win-bin
@@ -94,7 +94,7 @@ jobs:
           cache: true
 
       - name: Download mac release from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: macos-build
           path: ./mac-bin
@@ -107,7 +107,7 @@ jobs:
           zip -j go-ios-mac.zip ios
 
       - name: Download windows release from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: windows-build
           path: ./win-bin
