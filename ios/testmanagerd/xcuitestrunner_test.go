@@ -69,7 +69,7 @@ func TestXcuiTest(t *testing.T) {
 	var wdaargs []string
 	var wdaenv []string
 	go func() {
-		_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(os.Stdout, os.Stdout, os.TempDir()))
+		_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(os.Stdout, os.Stdout, os.TempDir()), false)
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Fatal("Failed running WDA")
 			errorChannel <- err
