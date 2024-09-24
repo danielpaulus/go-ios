@@ -287,6 +287,7 @@ func IsDevModeEnabled(device ios.DeviceEntry) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("IsDevModeEnabled: failed connecting to image mounter service with err: %w", err)
 	}
+	defer conn.Close()
 
 	reader := conn.Reader()
 	request := map[string]interface{}{"Command": "QueryDeveloperModeStatus"}
