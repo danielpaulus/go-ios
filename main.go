@@ -911,8 +911,7 @@ The commands work as following:
 		}
 
 		rawTestlog, rawTestlogErr := arguments.String("--log-output")
-		env := arguments["--env"].([]string)
-
+		env := splitKeyValuePairs(arguments["--env"].([]string), "=")
 		isXCTest, _ := arguments.Bool("--xctest")
 
 		if rawTestlogErr == nil {
@@ -1189,7 +1188,7 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		testbundleID, _ := arguments.String("--testrunnerbundleid")
 		xctestconfig, _ := arguments.String("--xctestconfig")
 		wdaargs := arguments["--arg"].([]string)
-		wdaenv := arguments["--env"].([]string)
+		wdaenv := splitKeyValuePairs(arguments["--env"].([]string), "=")
 
 		if bundleID == "" && testbundleID == "" && xctestconfig == "" {
 			log.Info("no bundle ids specified, falling back to defaults")
@@ -2162,4 +2161,15 @@ func exitIfError(msg string, err error) {
 	if err != nil {
 		log.WithFields(log.Fields{"err": err}).Fatalf(msg)
 	}
+}
+
+func splitKeyValuePairs(envArgs []string, sep string) map[string]interface{} {
+	env := make(map[string]interface{})
+	for _, entrystring := range envArgs {
+		entry := strings.Split(entrystring, sep)
+		key := entry[0]
+		value := entry[1]
+		env[key] = value
+	}
+	return env
 }
