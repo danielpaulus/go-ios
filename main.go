@@ -105,6 +105,7 @@ Usage:
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios readpair [options]
+  ios sysmontap [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
@@ -218,6 +219,7 @@ The commands work as following:
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
+   ios sysmontap                                                      Get system stats like MEM, CPU
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
@@ -826,6 +828,44 @@ The commands work as following:
 			<-c
 			log.WithFields(log.Fields{"pid": pid}).Info("stop listening to logs")
 		}
+	}
+
+	b, _ = arguments.Bool("sysmontap")
+	if b {
+		deviceInfoService, err := instruments.NewDeviceInfoService(device)
+		if err != nil {
+			log.Error("NewDeviceInfoService error")
+			log.Error(err)
+		}
+		defer deviceInfoService.Close()
+
+		sysAttrs, err := deviceInfoService.SystemAttributes()
+		if err != nil {
+			log.Error("SystemAttributes error")
+			log.Error(err)
+		}
+		log.Info(sysAttrs)
+
+		sysmontapService, err := instruments.NewSysmontapService(device)
+		if err != nil {
+			log.Error("NewSysmontapService error")
+			log.Error(err)
+		}
+		defer sysmontapService.Close()
+
+		err = sysmontapService.SetConfig(sysAttrs)
+		if err != nil {
+			log.Error("SetConfig error")
+			log.Error(err)
+		}
+
+		res, err := sysmontapService.Start()
+		if err != nil {
+			log.Error("Start error")
+			log.Error(err)
+		}
+
+		log.Info(res)
 	}
 
 	b, _ = arguments.Bool("kill")
@@ -1622,8 +1662,8 @@ func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 		/*	conn.GetElement()
 			time.Sleep(time.Second)
 			conn.TurnOff()*/
-		//conn.GetElement()
-		//conn.GetElement()
+		// conn.GetElement()
+		// conn.GetElement()
 
 		exitIfError("ax failed", err)
 	}()
