@@ -138,3 +138,28 @@ func KillApp(c *gin.Context) {
 
 	c.JSON(http.StatusOK, GenericResponse{Message: bundleID + " is not running"})
 }
+
+func UninstallApp(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+
+	bundleID := c.Query("bundleID")
+	if bundleID == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "bundleID query param is missing"})
+		return
+	}
+
+	svc, err := installationproxy.New(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+	defer svc.Close()
+
+	err = svc.Uninstall(bundleID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, GenericResponse{Message: bundleID + " uninstalled successfully"})
+}

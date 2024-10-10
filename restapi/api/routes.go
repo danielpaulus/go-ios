@@ -46,4 +46,5 @@ func appRoutes(group *gin.RouterGroup) {
 	router.GET("/", ListApps)
 	router.POST("/launch", LaunchApp)
 	router.POST("/kill", KillApp)
+	router.POST("/uninstall", UninstallApp)
 }
