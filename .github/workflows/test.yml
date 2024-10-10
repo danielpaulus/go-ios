@@ -6,16 +6,15 @@ jobs:
   test_on_windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
 
       #- name: Install Libusb
-      #  run: choco install 
+      #  run: choco install
 
       - name: Build executable
         run: go build
@@ -26,13 +25,13 @@ jobs:
   test_on_linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
+
       - name: update
         run: sudo apt-get update
 
