@@ -38,7 +38,9 @@ func simpleDeviceRoutes(device *gin.RouterGroup) {
 	device.PUT("/setlocation", SetLocation)
 	device.GET("/syslog", streamingMiddleWare, Syslog)
 
-	device.POST("/wda", RunWda)
+	device.POST("/wda", CreateWdaSession)
+	device.GET("/wda/:sessionId", ReadWdaSession)
+	device.DELETE("/wda/:sessionId", DeleteWdaSession)
 }
 
 func appRoutes(group *gin.RouterGroup) {
