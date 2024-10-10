@@ -139,6 +139,14 @@ func KillApp(c *gin.Context) {
 	c.JSON(http.StatusOK, GenericResponse{Message: bundleID + " is not running"})
 }
 
+// Uninstall app on a device
+// @Summary      Uninstall app on a device
+// @Description  Uninstall app on a device by provided bundleID
+// @Tags         apps
+// @Produce      json
+// @Param        bundleID query string true "bundle identifier of the targeted app"
+// @Success      200 {object} GenericResponse
+// @Failure      500 {object} GenericResponse
 func UninstallApp(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 
