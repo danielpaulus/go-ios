@@ -165,6 +165,7 @@ func Screenshot(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 		return
 	}
+	defer screenshotService.Close()
 
 	imageBytes, err := screenshotService.TakeScreenshot()
 	if err != nil {
