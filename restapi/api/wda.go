@@ -44,6 +44,15 @@ func (session *WdaSession) Write(p []byte) (n int, err error) {
 
 var globalSessions = sync.Map{}
 
+// @Summary Create a new WDA session
+// @Description Create a new WebDriverAgent session for the specified device
+// @Tags WebDriverAgent
+// @Accept json
+// @Produce json
+// @Param config body WdaConfig true "WebDriverAgent Configuration"
+// @Success 200 {object} WdaSession
+// @Failure 400 {object} GenericResponse
+// @Router /wda/session [post]
 func CreateWdaSession(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 	log.
@@ -99,6 +108,14 @@ func CreateWdaSession(c *gin.Context) {
 	c.JSON(http.StatusOK, session)
 }
 
+// @Summary Get a WebDriverAgent session
+// @Description Get a WebDriverAgent session by sessionId
+// @Tags WebDriverAgent
+// @Produce json
+// @Param sessionId path string true "Session ID"
+// @Success 200 {object} WdaSession
+// @Failure 400 {object} GenericResponse
+// @Router /wda/session/{sessionId} [get]
 func ReadWdaSession(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 
@@ -122,6 +139,14 @@ func ReadWdaSession(c *gin.Context) {
 	c.JSON(http.StatusOK, session)
 }
 
+// @Summary Delete a WebDriverAgent session
+// @Description Delete a WebDriverAgent session by sessionId
+// @Tags WebDriverAgent
+// @Produce json
+// @Param sessionId path string true "Session ID"
+// @Success 200 {object} WdaSession
+// @Failure 400 {object} GenericResponse
+// @Router /wda/session/{sessionId} [delete]
 func DeleteWdaSession(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 
