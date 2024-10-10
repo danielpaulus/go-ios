@@ -5,4 +5,5 @@ toolchain go1.22.5
 use (
 	.
 	./ncm
+	./restapi
 )
