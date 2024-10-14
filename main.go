@@ -109,7 +109,7 @@ Usage:
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
   ios apps [--system] [--all] [--list] [--filesharing] [options]
-  ios launch <bundleID> [--wait] [--kill-existing] [options]
+  ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
@@ -221,7 +221,7 @@ The commands work as following:
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
-   ios launch <bundleID> [--wait] [--kill-existing] [options]         Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
+   ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options] Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
    >                                                                  If you provide '-' as log output, it prints resuts to stdout.
@@ -817,7 +817,9 @@ The commands work as following:
 		if bKillExisting {
 			opts["KillExisting"] = 1
 		} // end if
-		pid, err := pControl.LaunchApp(bundleID, opts)
+		args := toArgs(arguments["--arg"].([]string))
+		envs := toEnvs(arguments["--env"].([]string))
+		pid, err := pControl.LaunchAppWithArgs(bundleID, args, envs, opts)
 		exitIfError("launch app command failed", err)
 		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
 		if wait {
@@ -1274,6 +1276,27 @@ func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		}
 	}
 	return b
+}
+
+func toArgs(argsIn []string) []interface{} {
+	args := []interface{}{}
+	for _, arg := range argsIn {
+		args = append(args, arg)
+	}
+	return args
+}
+
+func toEnvs(envsIn []string) map[string]interface{} {
+	env := map[string]interface{}{}
+
+	for _, entrystring := range envsIn {
+		entry := strings.Split(entrystring, "=")
+		key := entry[0]
+		value := entry[1]
+		env[key] = value
+	}
+
+	return env
 }
 
 func crashCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
