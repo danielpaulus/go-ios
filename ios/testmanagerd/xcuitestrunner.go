@@ -473,7 +473,7 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 	}
 
 	if len(testEnv) > 0 {
-		maps.Copy(testEnv, env)
+		maps.Copy(env, testEnv)
 
 		for key, value := range testEnv {
 			log.Debugf("adding extra env %s=%s", key, value)

@@ -131,7 +131,7 @@ func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath st
 	}
 
 	if len(wdaenv) > 0 {
-		maps.Copy(wdaenv, env)
+		maps.Copy(env, wdaenv)
 
 		for key, value := range wdaenv {
 			log.Debugf("adding extra env %s=%s", key, value)
