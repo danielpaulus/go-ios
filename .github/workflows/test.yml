@@ -15,13 +15,33 @@ jobs:
           cache: true
 
       #- name: Install Libusb
-      #  run: choco install 
+      #  run: choco install
 
       - name: Build executable
         run: go build
 
       #- name: Run fast tests
       #  run: go test -v -tags=fast ./...
+  test_with_device:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: update
+        run: sudo apt-get update
+
+      - name: install libusb
+        run: sudo apt-get install -y libusb-1.0-0-dev
+
+      - name: Build executable
+        run: make build --trace
+      - name: test ios list
+        run: go run main.go list
 
   test_on_linux:
     runs-on: ubuntu-latest
