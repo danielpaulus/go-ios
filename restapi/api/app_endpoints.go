@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
@@ -175,10 +176,10 @@ func InstallApp(c *gin.Context) {
 
 	appDownloadFolder := os.Getenv("APP_DOWNLOAD_FOLDER")
 	if appDownloadFolder == "" {
-		appDownloadFolder = "/tmp"
+		appDownloadFolder = os.TempDir()
 	}
 
-	dst := appDownloadFolder + "/" + uuid.New().String() + ".ipa"
+	dst := path.Join(appDownloadFolder, uuid.New().String()+".ipa")
 	defer func() {
 		if err := os.Remove(dst); err != nil {
 			c.JSON(http.StatusInternalServerError, GenericResponse{Error: "failed to delete temporary file"})
