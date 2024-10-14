@@ -31,6 +31,24 @@ func (p *ProcessControl) LaunchApp(bundleID string, my_opts map[string]any) (uin
 	return p.StartProcess(bundleID, env, []interface{}{}, opts)
 }
 
+// LaunchApp launches the app with the given bundleID on the given device.LaunchApp
+// It returns the PID of the created app process.
+func (p *ProcessControl) LaunchAppWithArgs(bundleID string, my_args []interface{}, my_env map[string]any, my_opts map[string]any) (uint64, error) {
+	opts := map[string]interface{}{
+		"StartSuspendedKey": uint64(0),
+		"KillExisting":      uint64(0),
+	}
+	maps.Copy(opts, my_opts)
+	// Xcode sends all these, no idea if we need them for sth. later.
+	//"CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0", "CA_DEBUG_TRANSACTIONS": "0", "LLVM_PROFILE_FILE": "/dev/null", "METAL_DEBUG_ERROR_MODE": "0", "METAL_DEVICE_WRAPPER_TYPE": "1",
+	//"OS_ACTIVITY_DT_MODE": "YES", "SQLITE_ENABLE_THREAD_ASSERTIONS": "1", "__XPC_LLVM_PROFILE_FILE": "/dev/null"
+	// NSUnbufferedIO seems to make the app send its logs via instruments using the outputReceived:fromProcess:atTime: selector
+	// We'll supply per default to get logs
+	env := map[string]interface{}{"NSUnbufferedIO": "YES"}
+	maps.Copy(env, my_env)
+	return p.StartProcess(bundleID, env, my_args, opts)
+}
+
 func (p *ProcessControl) Close() error {
 	return p.conn.Close()
 }
