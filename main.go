@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"regexp"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -2114,63 +2113,16 @@ func legacyJsonSyslog() func(log string) string {
 	}
 }
 
-// LogEntry represents a parsed log entry
-type LogEntry struct {
-	Timestamp string `json:"timestamp"`
-	Device    string `json:"device"`
-	Process   string `json:"process"`
-	PID       string `json:"pid"`
-	Level     string `json:"level"`
-	Message   string `json:"message"`
-}
-
 func parsedJsonSyslog() func(log string) string {
-	messageContainer := map[string]string{}
-	pattern := `(?P<Timestamp>[A-Z][a-z]{2} \d{1,2} \d{2}:\d{2}:\d{2}) (?P<Device>\S+) (?P<Process>[^\[]+)\[(?P<PID>\d+)\] <(?P<Level>\w+)>: (?P<Message>.+)`
-	regexp := regexp.MustCompile(pattern)
+	parser := syslog.Parser()
 
 	return func(log string) string {
-		// Match the log message against the regex pattern
-		match := regexp.FindStringSubmatch(log)
-		if match == nil {
-			messageContainer["msg"] = log
-			messageContainer["error"] = "failed to parse syslog message"
-			return convertToJSONString(messageContainer)
-		}
-
-		// Create a map of named capture groups
-		result := make(map[string]string)
-		for i, name := range regexp.SubexpNames() {
-			if i != 0 && name != "" {
-				result[name] = match[i]
-			}
-		}
-
-		// Parse the original timestamp
-		originalTimestamp := result["Timestamp"]
-		parsedTime, err := time.Parse("Jan 2 15:04:05", originalTimestamp)
-		// Set the year to the current year from the system (this might cause friction at year end)
-		parsedTime = parsedTime.AddDate(time.Now().Year()-parsedTime.Year(), 0, 0)
+		log_entry, err := parser(log)
 		if err != nil {
-			messageContainer["msg"] = log
-			messageContainer["error"] = "failed to parse syslog timestamp"
-			return convertToJSONString(messageContainer)
+			return convertToJSONString(map[string]string{"msg": log, "error": err.Error()})
 		}
 
-		// Convert to ISO 8601 format
-		isoTimestamp := parsedTime.Format("2006-01-02T15:04:05")
-
-		// Populate the LogEntry struct
-		entry := &LogEntry{
-			Timestamp: isoTimestamp,
-			Device:    result["Device"],
-			Process:   strings.TrimSpace(result["Process"]),
-			PID:       result["PID"],
-			Level:     result["Level"],
-			Message:   result["Message"],
-		}
-
-		return convertToJSONString(entry)
+		return convertToJSONString(log_entry)
 	}
 }
 
