@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"path"
 	"strings"
 
@@ -219,7 +220,7 @@ const (
 
 const testBundleSuffix = "UITests.xctrunner"
 
-func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName string, device ios.DeviceEntry, env []string, testsToRun []string, testsToSkip []string, testListener *TestListener, isXCTest bool) ([]TestSuite, error) {
+func RunXCUITest(bundleID string, testRunnerBundleID string, xctestConfigName string, device ios.DeviceEntry, env map[string]interface{}, testsToRun []string, testsToSkip []string, testListener *TestListener, isXCTest bool) ([]TestSuite, error) {
 	// FIXME: this is redundant code, getting the app list twice and creating the appinfos twice
 	// just to generate the xctestConfigFileName. Should be cleaned up at some point.
 	installationProxy, err := installationproxy.New(device)
@@ -256,7 +257,7 @@ func RunXCUIWithBundleIdsCtx(
 	xctestConfigFileName string,
 	device ios.DeviceEntry,
 	args []string,
-	env []string,
+	env map[string]interface{},
 	testsToRun []string,
 	testsToSkip []string,
 	testListener *TestListener,
@@ -288,7 +289,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	xctestConfigFileName string,
 	device ios.DeviceEntry,
 	args []string,
-	env []string,
+	env map[string]interface{},
 	testsToRun []string,
 	testsToSkip []string,
 	testListener *TestListener,
@@ -443,7 +444,7 @@ func killTestRunner(killer processKiller, pid int) error {
 	return nil
 }
 
-func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connection, xctestConfigPath string, bundleID string, sessionIdentifier string, testBundlePath string, testArgs []string, testEnv []string, isXCTest bool) (appservice.LaunchedAppWithStdIo, error) {
+func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connection, xctestConfigPath string, bundleID string, sessionIdentifier string, testBundlePath string, testArgs []string, testEnv map[string]interface{}, isXCTest bool) (appservice.LaunchedAppWithStdIo, error) {
 	args := []interface{}{}
 	for _, arg := range testArgs {
 		args = append(args, arg)
@@ -471,12 +472,12 @@ func startTestRunner17(device ios.DeviceEntry, appserviceConn *appservice.Connec
 		"XCTestSessionIdentifier":         strings.ToUpper(sessionIdentifier),
 	}
 
-	for _, entrystring := range testEnv {
-		entry := strings.Split(entrystring, "=")
-		key := entry[0]
-		value := entry[1]
-		env[key] = value
-		log.Debugf("adding extra env %s=%s", key, value)
+	if len(testEnv) > 0 {
+		maps.Copy(env, testEnv)
+
+		for key, value := range testEnv {
+			log.Debugf("adding extra env %s=%s", key, value)
+		}
 	}
 
 	opts := map[string]interface{}{
