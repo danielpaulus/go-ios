@@ -76,7 +76,7 @@ Usage:
   ios image mount [--path=<imagepath>] [options]
   ios image unmount [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
-  ios syslog [options]
+  ios syslog [--parse] [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
   ios instruments notifications [options]
   ios crash ls [<pattern>] [options]
@@ -167,7 +167,7 @@ The commands work as following:
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
-   ios syslog [options]                                               Prints a device's log output
+   ios syslog [--parse] [options]                                     Prints a device's log output, Use --parse to parse the fields from the log
    ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]  Takes a screenshot and writes it to the current dir or to <outfile>  If --stream is supplied it
    >                                                                  starts an mjpeg server at 0.0.0.0:3333. Use --port to set another port.
    ios instruments notifications [options]                            Listen to application state notifications
@@ -620,7 +620,9 @@ The commands work as following:
 
 	b, _ = arguments.Bool("syslog")
 	if b {
-		runSyslog(device)
+		parse, _ := arguments.Bool("--parse")
+
+		runSyslog(device, parse)
 		return
 	}
 
@@ -2063,7 +2065,7 @@ func printDeviceInfo(device ios.DeviceEntry) {
 	fmt.Println(convertToJSONString(allValues))
 }
 
-func runSyslog(device ios.DeviceEntry) {
+func runSyslog(device ios.DeviceEntry, parse bool) {
 	log.Debug("Run Syslog.")
 
 	syslogConnection, err := syslog.New(device)
@@ -2071,8 +2073,16 @@ func runSyslog(device ios.DeviceEntry) {
 
 	defer syslogConnection.Close()
 
+	var logFormatter func(string) string
+	if JSONdisabled {
+		logFormatter = rawSyslog
+	} else if parse {
+		logFormatter = parsedJsonSyslog()
+	} else {
+		logFormatter = legacyJsonSyslog()
+	}
+
 	go func() {
-		messageContainer := map[string]string{}
 		for {
 			logMessage, err := syslogConnection.ReadLogMessage()
 			if err != nil {
@@ -2080,17 +2090,39 @@ func runSyslog(device ios.DeviceEntry) {
 			}
 			logMessage = strings.TrimSuffix(logMessage, "\x00")
 			logMessage = strings.TrimSuffix(logMessage, "\x0A")
-			if JSONdisabled {
-				fmt.Println(logMessage)
-			} else {
-				messageContainer["msg"] = logMessage
-				fmt.Println(convertToJSONString(messageContainer))
-			}
+
+			fmt.Println(logFormatter(logMessage))
 		}
 	}()
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
+}
+
+func rawSyslog(log string) string {
+	return log
+}
+
+func legacyJsonSyslog() func(log string) string {
+	messageContainer := map[string]string{}
+
+	return func(log string) string {
+		messageContainer["msg"] = log
+		return convertToJSONString(messageContainer)
+	}
+}
+
+func parsedJsonSyslog() func(log string) string {
+	parser := syslog.Parser()
+
+	return func(log string) string {
+		log_entry, err := parser(log)
+		if err != nil {
+			return convertToJSONString(map[string]string{"msg": log, "error": err.Error()})
+		}
+
+		return convertToJSONString(log_entry)
+	}
 }
 
 func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password string) {
