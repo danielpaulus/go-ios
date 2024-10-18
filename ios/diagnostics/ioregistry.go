@@ -2,27 +2,32 @@ package diagnostics
 
 import ios "github.com/danielpaulus/go-ios/ios"
 
-func ioregentryRequest(key string) []byte {
-	requestMap := map[string]interface{}{
-		"Request":   "IORegistry",
-		"EntryName": key,
-	}
-	bt, err := ios.PlistCodec{}.Encode(requestMap)
-	if err != nil {
-		panic("query request encoding should never fail")
-	}
-	return bt
+type ioregistryRequest struct {
+	reqMap map[string]string
 }
 
-func (diagnosticsConn *Connection) IORegEntryQuery(key string) (interface{}, error) {
-	err := diagnosticsConn.deviceConn.Send(ioregentryRequest(key))
+func newIORegistryRequest() *ioregistryRequest {
+	return &ioregistryRequest{map[string]string{
+		"Request": "IORegistry",
+	}}
+}
+
+func (req *ioregistryRequest) addPlane(plane string) {
+	req.reqMap["CurrentPlane"] = plane
+}
+
+func (req *ioregistryRequest) addName(name string) {
+	req.reqMap["EntryName"] = name
+}
+
+func (req *ioregistryRequest) addClass(class string) {
+	req.reqMap["EntryClass"] = class
+}
+
+func (req *ioregistryRequest) encoded() ([]byte, error) {
+	bt, err := ios.PlistCodec{}.Encode(req.reqMap)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	respBytes, err := diagnosticsConn.plistCodec.Decode(diagnosticsConn.deviceConn.Reader())
-	if err != nil {
-		return "", err
-	}
-	plist, err := ios.ParsePlist(respBytes)
-	return plist, err
+	return bt, nil
 }
