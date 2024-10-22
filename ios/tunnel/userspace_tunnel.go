@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -20,6 +21,22 @@ import (
 	"gvisor.dev/gvisor/pkg/tcpip/transport/tcp"
 	"gvisor.dev/gvisor/pkg/waiter"
 )
+
+// ioResourceCloser is a type for closing function.
+type ioResourceCloser func()
+
+// createIoCloser returns a ioResourceCloser for closing both writer and together
+func createIoCloser(rw1, rw2 io.ReadWriteCloser) ioResourceCloser {
+
+	// Using sync.Once is essential to close writer and reader just once
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			rw1.Close()
+			rw2.Close()
+		})
+	}
+}
 
 // UserSpaceTUNInterface uses gVisor's netstack to create a userspace virtual network interface.
 // You can use it to connect local tcp connections to remote adresses on the network.
@@ -78,17 +95,33 @@ func (iface *UserSpaceTUNInterface) TunnelRWCThroughInterface(localPort uint16, 
 	return nil
 }
 
-func proxyConns(rw1 io.ReadWriter, rw2 io.ReadWriter) error {
-	err1 := make(chan error)
-	err2 := make(chan error)
-	go ioCopyWithErr(rw1, rw2, err1)
-	go ioCopyWithErr(rw2, rw1, err2)
-	return errors.Join(<-err1, <-err2)
+func proxyConns(rw1 io.ReadWriteCloser, rw2 io.ReadWriteCloser) error {
+
+	// Use buffered channel for non-blocking send recieve. We use the same single channel 2 times for 2 ioCopyWithErr.
+	errCh := make(chan error, 2)
+
+	// Create a IO closing functions to unblock stuck io.Copy() call
+	ioCloser := createIoCloser(rw1, rw2)
+
+	// Send same error channel and the io close function
+	go ioCopyWithErr(rw1, rw2, errCh, ioCloser)
+	go ioCopyWithErr(rw2, rw1, errCh, ioCloser)
+
+	// Read from error channel. As the channel is a FIFO queue first in first out, each <-errCh will read one message and remove it from the channel.
+	// Order of messages are not important.
+	err1 := <-errCh
+	err2 := <-errCh
+
+	return errors.Join(err1, err2)
 }
 
-func ioCopyWithErr(w io.Writer, r io.Reader, errCh chan error) {
+func ioCopyWithErr(w io.Writer, r io.Reader, errCh chan error, ioCloser ioResourceCloser) {
 	_, err := io.Copy(w, r)
 	errCh <- err
+
+	// Close the writer and reader to notify the second io.Copy() if one part of the connection closed.
+	// This is also necessary to avoid resource leaking.
+	ioCloser()
 }
 
 // Init initializes the virtual network interface.
