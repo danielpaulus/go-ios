@@ -104,6 +104,7 @@ Usage:
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios readpair [options]
+  ios sysmontap [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
@@ -213,6 +214,7 @@ The commands work as following:
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
+   ios sysmontap                                                      Get system stats like MEM, CPU
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
@@ -796,6 +798,11 @@ The commands work as following:
 		}
 	}
 
+	b, _ = arguments.Bool("sysmontap")
+	if b {
+		printSysmontapStats(device)
+	}
+
 	b, _ = arguments.Bool("kill")
 	if b {
 		var response []installationproxy.AppInfo
@@ -1080,6 +1087,42 @@ The commands work as following:
 
 		return
 	}
+}
+
+func printSysmontapStats(device ios.DeviceEntry) {
+	deviceInfoService, err := instruments.NewDeviceInfoService(device)
+	if err != nil {
+		exitIfError("NewDeviceInfoService creation error", err)
+	}
+	defer deviceInfoService.Close()
+
+	sysAttrs, err := deviceInfoService.SystemAttributes()
+	if err != nil {
+		exitIfError("Reading SystemAttributes error", err)
+	}
+
+	procAttrs, err := deviceInfoService.ProcessAttributes()
+	if err != nil {
+		exitIfError("Reading ProcessAttributes error", err)
+	}
+
+	sysmontapService, err := instruments.NewSysmontapService(device)
+	if err != nil {
+		exitIfError("NewSysmontapService creation error", err)
+	}
+	defer sysmontapService.Close()
+
+	err = sysmontapService.SetConfig(procAttrs, sysAttrs)
+	if err != nil {
+		exitIfError("SetConfig call error", err)
+	}
+
+	sysmontapMsg, err := sysmontapService.Start()
+	if err != nil {
+		exitIfError("Start call error", err)
+	}
+
+	log.WithFields(log.Fields{"cpuUsage": sysmontapMsg}).Info("total cpu usage on the device")
 }
 
 func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {

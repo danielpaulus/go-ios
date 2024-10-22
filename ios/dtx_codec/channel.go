@@ -9,12 +9,21 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type messageReceiver struct {
+	msgChannel chan Message
+}
+
+func newMessageReceiver() *messageReceiver {
+	return &messageReceiver{msgChannel: make(chan Message)}
+}
+
 type Channel struct {
 	channelCode       int
 	channelName       string
 	messageIdentifier int
 	connection        *Connection
 	messageDispatcher Dispatcher
+	messageReceiver   *messageReceiver
 	responseWaiters   map[int]chan Message
 	defragmenters     map[int]*FragmentDecoder
 	registeredMethods map[string]chan Message
@@ -123,6 +132,15 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType MessageType, 
 	}
 }
 
+func (d *Channel) Receive() (Message, error) {
+	select {
+	case response := <-d.messageReceiver.msgChannel:
+		return response, nil
+	case <-time.After(30 * time.Second):
+		return Message{}, fmt.Errorf("exceeded waiting time message:%d channel:%d", d.messageIdentifier, d.channelCode)
+	}
+}
+
 func (d *Channel) Dispatch(msg Message) {
 	d.mutex.Lock()
 	if msg.Identifier >= d.messageIdentifier {
@@ -135,6 +153,12 @@ func (d *Channel) Dispatch(msg Message) {
 			v <- msg
 			return
 		}
+	}
+	if msg.PayloadHeader.MessageType == UnknownTypeOne {
+		d.mutex.Unlock()
+		d.messageReceiver.msgChannel <- msg
+
+		return
 	}
 	d.mutex.Unlock()
 	if msg.ConversationIndex > 0 || msg.IsFragment() {
