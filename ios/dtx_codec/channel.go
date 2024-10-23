@@ -132,6 +132,7 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType MessageType, 
 	}
 }
 
+// Receive receives a message from a global channel (0)
 func (d *Channel) Receive() (Message, error) {
 	select {
 	case response := <-d.messageReceiver.msgChannel:

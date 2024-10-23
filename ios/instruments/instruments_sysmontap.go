@@ -15,6 +15,7 @@ type SysmontapService struct {
 	plistCodec ios.PlistCodec
 }
 
+// Creates a new SysmontapService
 func NewSysmontapService(device ios.DeviceEntry) (*SysmontapService, error) {
 	dtxConn, err := connectInstruments(device)
 	if err != nil {
@@ -53,6 +54,7 @@ func (s *SysmontapService) Start() (SysmontapMessage, error) {
 	return sysmontapMessage, nil
 }
 
+// SetConfig sets configuration to allow the sysmontap service getting desired data points
 func (s *SysmontapService) SetConfig(procAttrs, sysAttrs []interface{}) error {
 	config := map[string]interface{}{
 		"ur":             500,

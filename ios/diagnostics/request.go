@@ -37,6 +37,7 @@ type Diagnostics struct {
 	IORegistry IORegistry
 }
 
+// IORegistry relates to the battery stats
 type IORegistry struct {
 	InstantAmperage int
 	Temperature     int
