@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -23,9 +24,10 @@ func runXCUIWithBundleIdsXcode11Ctx(
 	testsToSkip []string,
 	testListener *TestListener,
 	isXCTest bool,
+	version *semver.Version,
 ) ([]TestSuite, error) {
 	log.Debugf("set up xcuitest")
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName, testsToRun, testsToSkip, isXCTest)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName, testsToRun, testsToSkip, isXCTest, version)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create test config: %w", err)
 	}
