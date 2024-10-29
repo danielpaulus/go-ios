@@ -80,7 +80,15 @@ func CreateWdaSession(c *gin.Context) {
 	}
 
 	go func() {
-		_, err := testmanagerd.RunXCUIWithBundleIdsCtx(wdaCtx, config.BundleID, config.TestbundleID, config.XCTestConfig, device, config.Args, config.Env, nil, nil, testmanagerd.NewTestListener(&session, &session, os.TempDir()), false)
+		_, err := testmanagerd.RunTestWithConfig(wdaCtx, testmanagerd.TestConfig{
+			BundleId:           config.BundleID,
+			TestRunnerBundleId: config.TestbundleID,
+			XctestConfigName:   config.XCTestConfig,
+			Env:                config.Env,
+			Args:               config.Args,
+			Device:             device,
+			Listener:           testmanagerd.NewTestListener(&session, &session, os.TempDir()),
+		})
 		if err != nil {
 			log.
 				WithField("udid", sessionKey.udid).
