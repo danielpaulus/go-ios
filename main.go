@@ -1090,39 +1090,18 @@ The commands work as following:
 }
 
 func printSysmontapStats(device ios.DeviceEntry) {
-	deviceInfoService, err := instruments.NewDeviceInfoService(device)
+	sysmon, err := instruments.NewSystemMonitor(device)
 	if err != nil {
-		exitIfError("NewDeviceInfoService creation error", err)
+		exitIfError("SystemMonitor creation error", err)
 	}
-	defer deviceInfoService.Close()
+	defer sysmon.Close()
 
-	sysAttrs, err := deviceInfoService.SystemAttributes()
+	cpuUsage, err := sysmon.GetCPUUsage()
 	if err != nil {
-		exitIfError("Reading SystemAttributes error", err)
-	}
-
-	procAttrs, err := deviceInfoService.ProcessAttributes()
-	if err != nil {
-		exitIfError("Reading ProcessAttributes error", err)
+		exitIfError("GetCPUUsage error", err)
 	}
 
-	sysmontapService, err := instruments.NewSysmontapService(device)
-	if err != nil {
-		exitIfError("NewSysmontapService creation error", err)
-	}
-	defer sysmontapService.Close()
-
-	err = sysmontapService.SetConfig(procAttrs, sysAttrs)
-	if err != nil {
-		exitIfError("SetConfig call error", err)
-	}
-
-	sysmontapMsg, err := sysmontapService.Start()
-	if err != nil {
-		exitIfError("Start call error", err)
-	}
-
-	log.WithFields(log.Fields{"cpuUsage": sysmontapMsg}).Info("total cpu usage on the device")
+	log.WithFields(log.Fields{"cpuUsage": cpuUsage}).Info("total cpu usage on the device")
 }
 
 func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {

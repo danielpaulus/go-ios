@@ -9,30 +9,30 @@ import (
 
 const sysmontapName = "com.apple.instruments.server.services.sysmontap"
 
-type SysmontapService struct {
-	channel    *dtx.Channel
-	conn       *dtx.Connection
-	plistCodec ios.PlistCodec
+type sysmontapService struct {
+	channel *dtx.Channel
+	conn    *dtx.Connection
 }
 
-// Creates a new SysmontapService
-func NewSysmontapService(device ios.DeviceEntry) (*SysmontapService, error) {
+// Creates a new sysmontapService
+func newSysmontapService(device ios.DeviceEntry) (*sysmontapService, error) {
 	dtxConn, err := connectInstruments(device)
 	if err != nil {
 		return nil, err
 	}
 	processControlChannel := dtxConn.RequestChannelIdentifier(sysmontapName, loggingDispatcher{dtxConn})
 
-	return &SysmontapService{channel: processControlChannel, conn: dtxConn, plistCodec: ios.NewPlistCodec()}, nil
+	return &sysmontapService{channel: processControlChannel, conn: dtxConn}, nil
 }
 
 // Close closes up the DTX connection
-func (s *SysmontapService) Close() {
-	s.conn.Close()
+func (s *sysmontapService) Close() error {
+	return s.conn.Close()
 }
 
-// Start sends a start method call async and waits until the cpu info & stats come back
-func (s *SysmontapService) Start() (SysmontapMessage, error) {
+// start sends a start method call async and waits until the cpu info & stats come back
+// the method is a part of the @protocol DTTapAuthorizedAPI
+func (s *sysmontapService) start() (SysmontapMessage, error) {
 	err := s.channel.MethodCallAsync("start")
 	if err != nil {
 		return SysmontapMessage{}, err
@@ -54,8 +54,8 @@ func (s *SysmontapService) Start() (SysmontapMessage, error) {
 	return sysmontapMessage, nil
 }
 
-// SetConfig sets configuration to allow the sysmontap service getting desired data points
-func (s *SysmontapService) SetConfig(procAttrs, sysAttrs []interface{}) error {
+// setConfig sets configuration to allow the sysmontap service getting desired data points
+func (s *sysmontapService) setConfig(procAttrs, sysAttrs []interface{}) error {
 	config := map[string]interface{}{
 		"ur":             500,
 		"bm":             0,

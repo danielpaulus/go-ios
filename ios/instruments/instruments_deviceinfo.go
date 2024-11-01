@@ -20,8 +20,8 @@ type ProcessInfo struct {
 	StartDate     time.Time
 }
 
-// ProcessAttributes returns the attributes list which can be used for monitoring
-func (d DeviceInfoService) ProcessAttributes() ([]interface{}, error) {
+// processAttributes returns the attributes list which can be used for monitoring
+func (d DeviceInfoService) processAttributes() ([]interface{}, error) {
 	resp, err := d.channel.MethodCall("sysmonProcessAttributes")
 	if err != nil {
 		return nil, err
@@ -29,8 +29,8 @@ func (d DeviceInfoService) ProcessAttributes() ([]interface{}, error) {
 	return resp.Payload[0].([]interface{}), nil
 }
 
-// SystemAttributes returns the attributes list which can be used for monitoring
-func (d DeviceInfoService) SystemAttributes() ([]interface{}, error) {
+// systemAttributes returns the attributes list which can be used for monitoring
+func (d DeviceInfoService) systemAttributes() ([]interface{}, error) {
 	resp, err := d.channel.MethodCall("sysmonSystemAttributes")
 	if err != nil {
 		return nil, err
