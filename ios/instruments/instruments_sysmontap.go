@@ -93,14 +93,38 @@ func mapToCPUUsage(msg dtx.Message) (SysmontapMessage, error) {
 		return SysmontapMessage{}, fmt.Errorf("payload of message should have only one element: %+v", msg)
 	}
 
-	resultArray := payload[0].([]interface{})
-	resultMap := resultArray[0].(map[string]interface{})
-	cpuCount := resultMap["CPUCount"].(uint64)
-	enabledCPUs := resultMap["EnabledCPUs"].(uint64)
-	endMachAbsTime := resultMap["EndMachAbsTime"].(uint64)
-	typ := resultMap["Type"].(uint64)
-	sysmontapMessageMap := resultMap["SystemCPUUsage"].(map[string]interface{})
-	cpuTotalLoad := sysmontapMessageMap["CPU_TotalLoad"].(float64)
+	resultArray, ok := payload[0].([]interface{})
+	if !ok {
+		return SysmontapMessage{}, fmt.Errorf("expected resultArray of type []interface{}: %+v", payload[0])
+	}
+	resultMap, ok := resultArray[0].(map[string]interface{})
+	if !ok {
+		return SysmontapMessage{}, fmt.Errorf("expected resultMap of type map[string]interface{} as a single element of resultArray: %+v", resultArray[0])
+	}
+	cpuCount, ok := resultMap["CPUCount"].(uint64)
+	if !ok {
+		return SysmontapMessage{}, fmt.Errorf("expected CPUCount of type uint64 of resultMap: %+v", resultMap)
+	}
+	enabledCPUs, ok := resultMap["EnabledCPUs"].(uint64)
+	if !ok {
+		return SysmontapMessage{}, fmt.Errorf("expected EnabledCPUs of type uint64 of resultMap: %+v", resultMap)
+	}
+	endMachAbsTime, ok := resultMap["EndMachAbsTime"].(uint64)
+	if !ok {
+		return SysmontapMessage{}, fmt.Errorf("expected EndMachAbsTime of type uint64 of resultMap: %+v", resultMap)
+	}
+	typ, ok := resultMap["Type"].(uint64)
+	if !ok {
+		return SysmontapMessage{}, fmt.Errorf("expected Type of type uint64 of resultMap: %+v", resultMap)
+	}
+	sysmontapMessageMap, ok := resultMap["SystemCPUUsage"].(map[string]interface{})
+	if !ok {
+		return SysmontapMessage{}, fmt.Errorf("expected SystemCPUUsage of type map[string]interface{} of resultMap: %+v", resultMap)
+	}
+	cpuTotalLoad, ok := sysmontapMessageMap["CPU_TotalLoad"].(float64)
+	if !ok {
+		return SysmontapMessage{}, fmt.Errorf("expected CPU_TotalLoad of type uint64 of sysmontapMessageMap: %+v", sysmontapMessageMap)
+	}
 	cpuUsage := CPUUsage{CPU_TotalLoad: cpuTotalLoad}
 
 	sysmontapMessage := SysmontapMessage{
