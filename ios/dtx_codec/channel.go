@@ -15,7 +15,6 @@ type Channel struct {
 	messageIdentifier int
 	connection        *Connection
 	messageDispatcher Dispatcher
-	messageReceiver   chan Message
 	responseWaiters   map[int]chan Message
 	defragmenters     map[int]*FragmentDecoder
 	registeredMethods map[string]chan Message
@@ -124,16 +123,6 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType MessageType, 
 	}
 }
 
-// Receive receives a message from a global channel (0)
-func (d *Channel) Receive() (Message, error) {
-	select {
-	case response := <-d.messageReceiver:
-		return response, nil
-	case <-time.After(30 * time.Second):
-		return Message{}, fmt.Errorf("exceeded waiting time message:%d channel:%d", d.messageIdentifier, d.channelCode)
-	}
-}
-
 func (d *Channel) Dispatch(msg Message) {
 	d.mutex.Lock()
 	if msg.Identifier >= d.messageIdentifier {
@@ -146,12 +135,6 @@ func (d *Channel) Dispatch(msg Message) {
 			v <- msg
 			return
 		}
-	}
-	if msg.PayloadHeader.MessageType == UnknownTypeOne {
-		d.mutex.Unlock()
-		d.messageReceiver <- msg
-
-		return
 	}
 	d.mutex.Unlock()
 	if msg.ConversationIndex > 0 || msg.IsFragment() {

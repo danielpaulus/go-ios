@@ -2,27 +2,44 @@ package instruments
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
+	log "github.com/sirupsen/logrus"
 )
+
+type sysmontapMsgDispatcher struct {
+	channel chan dtx.Message
+}
+
+func newSysmontapMsgDispatcher() *sysmontapMsgDispatcher {
+	return &sysmontapMsgDispatcher{make(chan dtx.Message)}
+}
+
+func (p *sysmontapMsgDispatcher) Dispatch(m dtx.Message) {
+	p.channel <- m
+}
 
 const sysmontapName = "com.apple.instruments.server.services.sysmontap"
 
 type sysmontapService struct {
-	channel *dtx.Channel
-	conn    *dtx.Connection
+	channel       *dtx.Channel
+	conn          *dtx.Connection
+	msgDispatcher *sysmontapMsgDispatcher
 }
 
 // Creates a new sysmontapService
 func newSysmontapService(device ios.DeviceEntry) (*sysmontapService, error) {
-	dtxConn, err := connectInstruments(device)
+	msgDispatcher := newSysmontapMsgDispatcher()
+	dtxConn, err := connectInstrumentsWithMsgDispatcher(device, msgDispatcher)
 	if err != nil {
 		return nil, err
 	}
+
 	processControlChannel := dtxConn.RequestChannelIdentifier(sysmontapName, loggingDispatcher{dtxConn})
 
-	return &sysmontapService{channel: processControlChannel, conn: dtxConn}, nil
+	return &sysmontapService{channel: processControlChannel, conn: dtxConn, msgDispatcher: msgDispatcher}, nil
 }
 
 // Close closes up the DTX connection
@@ -38,20 +55,21 @@ func (s *sysmontapService) start() (SysmontapMessage, error) {
 		return SysmontapMessage{}, err
 	}
 
-	globalChannel := s.conn.GlobalChannel()
+	for {
+		select {
+		case msg := <-s.msgDispatcher.channel:
+			sysmontapMessage, err := mapToCPUUsage(msg)
+			if err != nil {
+				log.Debug(fmt.Sprintf("expected `sysmontapMessage` from global channel, but was %v", msg))
+				continue
+			}
 
-	// Receive() will block until the message with the CPU usage is delivered
-	msg, err := globalChannel.Receive()
-	if err != nil {
-		return SysmontapMessage{}, err
+			return sysmontapMessage, nil
+
+		case <-time.After(30 * time.Second):
+			return SysmontapMessage{}, fmt.Errorf("exceeded waiting time message")
+		}
 	}
-
-	sysmontapMessage, err := mapToCPUUsage(msg)
-	if err != nil {
-		return SysmontapMessage{}, err
-	}
-
-	return sysmontapMessage, nil
 }
 
 // setConfig sets configuration to allow the sysmontap service getting desired data points

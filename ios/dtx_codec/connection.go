@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +30,14 @@ type Connection struct {
 	capabilities           map[string]interface{}
 	mutex                  sync.Mutex
 	requestChannelMessages chan Message
+
+	// MessageDispatcher use this prop to catch messages from GlobalDispatcher
+	// and handle it accordingly in a custom dispatcher of the dedicated service
+	//
+	// Set this prop when creating a connection instance
+	//
+	// Refer to end-to-end example of `instruments/instruments_sysmontap.go`
+	MessageDispatcher Dispatcher
 
 	closed    chan struct{}
 	err       error
@@ -87,12 +96,27 @@ func NewGlobalDispatcher(requestChannelMessages chan Message, dtxConnection *Con
 	return dispatcher
 }
 
+// Dispatch to a MessageDispatcher of the Connection if set
+func (dtxConn *Connection) Dispatch(msg Message) {
+	msgDispatcher := dtxConn.MessageDispatcher
+	if msgDispatcher != nil {
+		log.Debugf("msg dispatcher found: %v", reflect.TypeOf(msgDispatcher))
+		msgDispatcher.Dispatch(msg)
+		return
+	}
+
+	log.Errorf("no connection dispatcher registered for global channel, msg: %v", msg)
+}
+
 // Dispatch prints log messages and errors when they are received and also creates local Channels when requested by the device.
 func (g GlobalDispatcher) Dispatch(msg Message) {
 	SendAckIfNeeded(g.dtxConnection, msg)
 	if msg.Payload != nil {
 		if requestChannel == msg.Payload[0] {
 			g.requestChannelMessages <- msg
+		}
+		if msg.PayloadHeader.MessageType == UnknownTypeOne {
+			g.dtxConnection.Dispatch(msg)
 		}
 		// TODO: use the dispatchFunctions map
 		if "outputReceived:fromProcess:atTime:" == msg.Payload[0] {
@@ -149,7 +173,6 @@ func newDtxConnection(conn ios.DeviceConnectionInterface) (*Connection, error) {
 		channelCode:       0,
 		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
 		messageDispatcher: NewGlobalDispatcher(requestChannelMessages, dtxConnection),
-		messageReceiver:   make(chan Message),
 		responseWaiters:   map[int]chan Message{},
 		registeredMethods: map[string]chan Message{},
 		defragmenters:     map[int]*FragmentDecoder{},
