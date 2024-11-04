@@ -149,7 +149,7 @@ func newDtxConnection(conn ios.DeviceConnectionInterface) (*Connection, error) {
 		channelCode:       0,
 		messageIdentifier: 5, channelName: "global_channel", connection: dtxConnection,
 		messageDispatcher: NewGlobalDispatcher(requestChannelMessages, dtxConnection),
-		messageReceiver:   newMessageReceiver(),
+		messageReceiver:   make(chan Message),
 		responseWaiters:   map[int]chan Message{},
 		registeredMethods: map[string]chan Message{},
 		defragmenters:     map[int]*FragmentDecoder{},
