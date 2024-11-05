@@ -31,7 +31,11 @@ type sysmontapService struct {
 }
 
 // NewSysmontapService creates a new sysmontapService
-func NewSysmontapService(device ios.DeviceEntry) (*sysmontapService, error) {
+// - samplingInterval is the rate how often to get samples, i.e Xcode's default is 10, which results in sampling output
+// each 1 second, with 500 the samples are retrieved every 15 seconds. It doesn't make any correlation between
+// the expected rate and the actual rate of samples delivery. We can only conclude, that the lower the rate in digits,
+// the faster the samples are delivered
+func NewSysmontapService(device ios.DeviceEntry, samplingInterval int) (*sysmontapService, error) {
 	deviceInfoService, err := NewDeviceInfoService(device)
 	if err != nil {
 		return nil, err
@@ -56,7 +60,7 @@ func NewSysmontapService(device ios.DeviceEntry) (*sysmontapService, error) {
 	}
 
 	config := map[string]interface{}{
-		"ur":             500,
+		"ur":             samplingInterval,
 		"bm":             0,
 		"procAttrs":      procAttrs,
 		"sysAttrs":       sysAttrs,

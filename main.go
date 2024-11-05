@@ -1090,7 +1090,8 @@ The commands work as following:
 }
 
 func printSysmontapStats(device ios.DeviceEntry) {
-	sysmon, err := instruments.NewSysmontapService(device)
+	const xcodeDefaultSamplingRate = 10
+	sysmon, err := instruments.NewSysmontapService(device, xcodeDefaultSamplingRate)
 	if err != nil {
 		exitIfError("systemMonitor creation error", err)
 	}
