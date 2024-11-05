@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"math"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -100,7 +99,7 @@ func NewGlobalDispatcher(requestChannelMessages chan Message, dtxConnection *Con
 func (dtxConn *Connection) Dispatch(msg Message) {
 	msgDispatcher := dtxConn.MessageDispatcher
 	if msgDispatcher != nil {
-		log.Debugf("msg dispatcher found: %v", reflect.TypeOf(msgDispatcher))
+		log.Debugf("msg dispatcher found: %T", msgDispatcher)
 		msgDispatcher.Dispatch(msg)
 		return
 	}
@@ -114,9 +113,6 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 	if msg.Payload != nil {
 		if requestChannel == msg.Payload[0] {
 			g.requestChannelMessages <- msg
-		}
-		if msg.PayloadHeader.MessageType == UnknownTypeOne {
-			g.dtxConnection.Dispatch(msg)
 		}
 		// TODO: use the dispatchFunctions map
 		if "outputReceived:fromProcess:atTime:" == msg.Payload[0] {
@@ -134,6 +130,9 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 	log.Tracef("Global Dispatcher Received: %s %s", msg.Payload, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
+	}
+	if msg.PayloadHeader.MessageType == UnknownTypeOne {
+		g.dtxConnection.Dispatch(msg)
 	}
 }
 

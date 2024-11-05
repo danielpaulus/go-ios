@@ -2,7 +2,6 @@ package instruments
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -10,7 +9,7 @@ import (
 )
 
 type sysmontapMsgDispatcher struct {
-	channel chan dtx.Message
+	messages chan dtx.Message
 }
 
 func newSysmontapMsgDispatcher() *sysmontapMsgDispatcher {
@@ -18,7 +17,7 @@ func newSysmontapMsgDispatcher() *sysmontapMsgDispatcher {
 }
 
 func (p *sysmontapMsgDispatcher) Dispatch(m dtx.Message) {
-	p.channel <- m
+	p.messages <- m
 }
 
 const sysmontapName = "com.apple.instruments.server.services.sysmontap"
@@ -44,6 +43,7 @@ func newSysmontapService(device ios.DeviceEntry) (*sysmontapService, error) {
 
 // Close closes up the DTX connection
 func (s *sysmontapService) Close() error {
+	close(s.msgDispatcher.messages)
 	return s.conn.Close()
 }
 
@@ -57,7 +57,7 @@ func (s *sysmontapService) start() (SysmontapMessage, error) {
 
 	for {
 		select {
-		case msg := <-s.msgDispatcher.channel:
+		case msg := <-s.msgDispatcher.messages:
 			sysmontapMessage, err := mapToCPUUsage(msg)
 			if err != nil {
 				log.Debug(fmt.Sprintf("expected `sysmontapMessage` from global channel, but was %v", msg))
@@ -65,9 +65,6 @@ func (s *sysmontapService) start() (SysmontapMessage, error) {
 			}
 
 			return sysmontapMessage, nil
-
-		case <-time.After(30 * time.Second):
-			return SysmontapMessage{}, fmt.Errorf("exceeded waiting time message")
 		}
 	}
 }
