@@ -1090,18 +1090,38 @@ The commands work as following:
 }
 
 func printSysmontapStats(device ios.DeviceEntry) {
-	sysmon, err := instruments.NewSystemMonitor(device)
+	sysmon, err := instruments.NewSysmontapService(device)
 	if err != nil {
-		exitIfError("SystemMonitor creation error", err)
+		exitIfError("systemMonitor creation error", err)
 	}
 	defer sysmon.Close()
 
-	cpuUsage, err := sysmon.GetCPUUsage()
-	if err != nil {
-		exitIfError("GetCPUUsage error", err)
-	}
+	cpuUsageChannel := sysmon.ReceiveCPUUsage()
 
-	log.WithFields(log.Fields{"cpuUsage": cpuUsage}).Info("total cpu usage on the device")
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	log.Info("starting to monitor CPU usage... Press CTRL+C to stop.")
+
+	for {
+		select {
+		case cpuUsageMsg, ok := <-cpuUsageChannel:
+			if !ok {
+				log.Info("CPU usage channel closed.")
+				return
+			}
+			log.WithFields(log.Fields{
+				"cpu_count":      cpuUsageMsg.CPUCount,
+				"enabled_cpus":   cpuUsageMsg.EnabledCPUs,
+				"end_time":       cpuUsageMsg.EndMachAbsTime,
+				"cpu_total_load": cpuUsageMsg.SystemCPUUsage.CPU_TotalLoad,
+			}).Info("received CPU usage data")
+
+		case <-c:
+			log.Info("shutting down sysmontap")
+			return
+		}
+	}
 }
 
 func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {

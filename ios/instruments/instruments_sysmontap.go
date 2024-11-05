@@ -23,13 +23,20 @@ func (p *sysmontapMsgDispatcher) Dispatch(m dtx.Message) {
 const sysmontapName = "com.apple.instruments.server.services.sysmontap"
 
 type sysmontapService struct {
-	channel       *dtx.Channel
-	conn          *dtx.Connection
-	msgDispatcher *sysmontapMsgDispatcher
+	channel *dtx.Channel
+	conn    *dtx.Connection
+
+	deviceInfoService *DeviceInfoService
+	msgDispatcher     *sysmontapMsgDispatcher
 }
 
-// Creates a new sysmontapService
-func newSysmontapService(device ios.DeviceEntry) (*sysmontapService, error) {
+// NewSysmontapService creates a new sysmontapService
+func NewSysmontapService(device ios.DeviceEntry) (*sysmontapService, error) {
+	deviceInfoService, err := NewDeviceInfoService(device)
+	if err != nil {
+		return nil, err
+	}
+
 	msgDispatcher := newSysmontapMsgDispatcher()
 	dtxConn, err := connectInstrumentsWithMsgDispatcher(device, msgDispatcher)
 	if err != nil {
@@ -38,39 +45,16 @@ func newSysmontapService(device ios.DeviceEntry) (*sysmontapService, error) {
 
 	processControlChannel := dtxConn.RequestChannelIdentifier(sysmontapName, loggingDispatcher{dtxConn})
 
-	return &sysmontapService{channel: processControlChannel, conn: dtxConn, msgDispatcher: msgDispatcher}, nil
-}
-
-// Close closes up the DTX connection
-func (s *sysmontapService) Close() error {
-	close(s.msgDispatcher.messages)
-	return s.conn.Close()
-}
-
-// start sends a start method call async and waits until the cpu info & stats come back
-// the method is a part of the @protocol DTTapAuthorizedAPI
-func (s *sysmontapService) start() (SysmontapMessage, error) {
-	err := s.channel.MethodCallAsync("start")
+	sysAttrs, err := deviceInfoService.systemAttributes()
 	if err != nil {
-		return SysmontapMessage{}, err
+		return nil, err
 	}
 
-	for {
-		select {
-		case msg := <-s.msgDispatcher.messages:
-			sysmontapMessage, err := mapToCPUUsage(msg)
-			if err != nil {
-				log.Debug(fmt.Sprintf("expected `sysmontapMessage` from global channel, but was %v", msg))
-				continue
-			}
-
-			return sysmontapMessage, nil
-		}
+	procAttrs, err := deviceInfoService.processAttributes()
+	if err != nil {
+		return nil, err
 	}
-}
 
-// setConfig sets configuration to allow the sysmontap service getting desired data points
-func (s *sysmontapService) setConfig(procAttrs, sysAttrs []interface{}) error {
 	config := map[string]interface{}{
 		"ur":             500,
 		"bm":             0,
@@ -80,16 +64,52 @@ func (s *sysmontapService) setConfig(procAttrs, sysAttrs []interface{}) error {
 		"physFootprint":  true,
 		"sampleInterval": 500000000,
 	}
-
-	_, err := s.channel.MethodCall("setConfig:", config)
-
+	_, err = processControlChannel.MethodCall("setConfig:", config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	err = processControlChannel.MethodCallAsync("start")
+	if err != nil {
+		return nil, err
+	}
+
+	return &sysmontapService{processControlChannel, dtxConn, deviceInfoService, msgDispatcher}, nil
 }
 
+// Close closes up the DTX connection, message dispatcher and dtx.Message channel
+func (s *sysmontapService) Close() error {
+	close(s.msgDispatcher.messages)
+
+	s.deviceInfoService.Close()
+	return s.conn.Close()
+}
+
+// ReceiveCPUUsage returns a chan of SysmontapMessage with CPU Usage info
+// The method will close the result channel automatically as soon as sysmontapMsgDispatcher's
+// dtx.Message channel is closed.
+func (s *sysmontapService) ReceiveCPUUsage() chan SysmontapMessage {
+	messages := make(chan SysmontapMessage)
+	go func() {
+		defer close(messages)
+
+		for msg := range s.msgDispatcher.messages {
+			sysmontapMessage, err := mapToCPUUsage(msg)
+			if err != nil {
+				log.Debugf("expected `sysmontapMessage` from global channel, but received %v", msg)
+				continue
+			}
+
+			messages <- sysmontapMessage
+		}
+
+		log.Infof("sysmontap message dispatcher channel closed")
+	}()
+
+	return messages
+}
+
+// SysmontapMessage is a wrapper struct for incoming CPU samples
 type SysmontapMessage struct {
 	CPUCount       uint64
 	EnabledCPUs    uint64
