@@ -3,8 +3,9 @@ package testmanagerd
 import (
 	"context"
 	"fmt"
-	"strings"
+	"maps"
 
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -18,13 +19,15 @@ func runXCUIWithBundleIdsXcode11Ctx(
 	xctestConfigFileName string,
 	device ios.DeviceEntry,
 	args []string,
-	env []string,
+	env map[string]interface{},
 	testsToRun []string,
 	testsToSkip []string,
 	testListener *TestListener,
+	isXCTest bool,
+	version *semver.Version,
 ) ([]TestSuite, error) {
 	log.Debugf("set up xcuitest")
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName, testsToRun, testsToSkip)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName, testsToRun, testsToSkip, isXCTest, version)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create test config: %w", err)
 	}
@@ -109,7 +112,7 @@ func runXCUIWithBundleIdsXcode11Ctx(
 }
 
 func startTestRunner11(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
-	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv []string,
+	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv map[string]interface{},
 ) (uint64, error) {
 	args := []interface{}{}
 	for _, arg := range wdaargs {
@@ -121,12 +124,12 @@ func startTestRunner11(pControl *instruments.ProcessControl, xctestConfigPath st
 		"XCTestSessionIdentifier":     sessionIdentifier,
 	}
 
-	for _, entrystring := range wdaenv {
-		entry := strings.Split(entrystring, "=")
-		key := entry[0]
-		value := entry[1]
-		env[key] = value
-		log.Debugf("adding extra env %s=%s", key, value)
+	if len(wdaenv) > 0 {
+		maps.Copy(env, wdaenv)
+
+		for key, value := range wdaenv {
+			log.Debugf("adding extra env %s=%s", key, value)
+		}
 	}
 
 	opts := map[string]interface{}{

@@ -3,9 +3,10 @@ package testmanagerd
 import (
 	"context"
 	"fmt"
-	"strings"
+	"maps"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -14,14 +15,14 @@ import (
 )
 
 func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, testRunnerBundleID string, xctestConfigFileName string,
-	device ios.DeviceEntry, args []string, env []string, testsToRun []string, testsToSkip []string, testListener *TestListener,
+	device ios.DeviceEntry, args []string, env map[string]interface{}, testsToRun []string, testsToSkip []string, testListener *TestListener, isXCTest bool, version *semver.Version,
 ) ([]TestSuite, error) {
 	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
 
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName, testsToRun, testsToSkip)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName, testsToRun, testsToSkip, isXCTest, version)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot setup test config: %w", err)
 	}
@@ -108,7 +109,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, tes
 }
 
 func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
-	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv []string,
+	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv map[string]interface{},
 ) (uint64, error) {
 	args := []interface{}{
 		"-NSTreatUnknownArgumentsAsOpen", "NO", "-ApplePersistenceIgnoreState", "YES",
@@ -130,12 +131,12 @@ func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath st
 		"XCTestSessionIdentifier":         sessionIdentifier,
 	}
 
-	for _, entrystring := range wdaenv {
-		entry := strings.Split(entrystring, "=")
-		key := entry[0]
-		value := entry[1]
-		env[key] = value
-		log.Debugf("adding extra env %s=%s", key, value)
+	if len(wdaenv) > 0 {
+		maps.Copy(env, wdaenv)
+
+		for key, value := range wdaenv {
+			log.Debugf("adding extra env %s=%s", key, value)
+		}
 	}
 
 	opts := map[string]interface{}{

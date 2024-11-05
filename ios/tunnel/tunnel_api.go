@@ -302,6 +302,17 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 	return nil
 }
 
+func (m *TunnelManager) RemoveTunnel(ctx context.Context, serialNumber string) error {
+	for udid, tun := range m.tunnels {
+		if udid == serialNumber {
+			err := m.stopTunnel(tun)
+			return err
+		}
+	}
+
+	return errors.New("tunnel not found")
+}
+
 func (m *TunnelManager) stopTunnel(t Tunnel) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
@@ -360,7 +371,8 @@ type manualPairingTunnelStart struct {
 }
 
 func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version, userspaceTUN bool) (Tunnel, error) {
-	if version.Major() >= 17 && version.Minor() >= 4 {
+
+	if version.GreaterThan(semver.MustParse("17.4.0")) {
 		if userspaceTUN {
 			tun, err := ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
 			tun.UserspaceTUN = true

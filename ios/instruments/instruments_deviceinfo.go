@@ -41,6 +41,14 @@ func (d DeviceInfoService) systemAttributes() ([]interface{}, error) {
 // ProcessList returns a []ProcessInfo, one for each process running on the iOS device
 func (d DeviceInfoService) ProcessList() ([]ProcessInfo, error) {
 	resp, err := d.channel.MethodCall("runningProcesses")
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Payload) == 0 {
+		return []ProcessInfo{}, nil
+	}
+
 	result := mapToProcInfo(resp.Payload[0].([]interface{}))
 	return result, err
 }

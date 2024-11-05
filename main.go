@@ -74,8 +74,9 @@ Usage:
   ios info [display | lockdown] [options]
   ios image list [options]
   ios image mount [--path=<imagepath>] [options]
+  ios image unmount [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
-  ios syslog [options]
+  ios syslog [--parse] [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
   ios instruments notifications [options]
   ios crash ls [<pattern>] [options]
@@ -109,10 +110,10 @@ Usage:
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
   ios apps [--system] [--all] [--list] [--filesharing] [options]
-  ios launch <bundleID> [--wait] [options]
+  ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
-  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
-  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]... [options]
+  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
+  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [--font=<fontSize>] [options]
   ios debug [options] [--stop-at-entry] <app_path>
   ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>
@@ -133,6 +134,7 @@ Usage:
   ios tunnel ls [options]
   ios tunnel stopagent 
   ios devmode (enable | get) [--enable-post-restart] [options]
+  ios rsd ls [options]
 
 Options:
   -v --verbose              Enable Debug Logging.
@@ -147,6 +149,9 @@ Options:
   >                         connect a device and open Xcode
   --rsd-port=<port>         Port of remote service discovery on the device through the tunnel
   >                         This parameter is similar to '--address' and can be obtained by the same log filter
+  --proxyurl=<url>          Set this if you want go-ios to use a http proxy for outgoing requests, like for downloading images or contacting Apple during device activation.
+  >                         A simple format like: "http://PROXY_LOGIN:PROXY_PASS@proxyIp:proxyPort" works. Otherwise use the HTTP_PROXY system env var.
+  --userspace-port=<port>   Optional. Set this if you run a command supplying rsd-port and address and your device is using userspace tunnel
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -160,10 +165,11 @@ The commands work as following:
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
    >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk
+   ios image unmount [options]                                        Unmount developer disk image
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
-   ios syslog [options]                                               Prints a device's log output
+   ios syslog [--parse] [options]                                     Prints a device's log output, Use --parse to parse the fields from the log
    ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]  Takes a screenshot and writes it to the current dir or to <outfile>  If --stream is supplied it
    >                                                                  starts an mjpeg server at 0.0.0.0:3333. Use --port to set another port.
    ios instruments notifications [options]                            Listen to application state notifications
@@ -218,13 +224,13 @@ The commands work as following:
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
-   ios launch <bundleID> [--wait]                                     Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
+   ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options] Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
-   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
+   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
    >                                                                  If you provide '-' as log output, it prints resuts to stdout.
    >                                                                  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=(TestTarget.)TestClass/testMethod --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
    >                                                                  The method name can also be omitted and in this case all tests of the specified class are run
-   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
+   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [--font=<fontSize>] [options]                               Access accessibility inspector features.
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
@@ -250,6 +256,7 @@ The commands work as following:
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
    ios tunnel ls                                                      List currently started tunnels. Use --enabletun to activate using TUN devices rather than user space network. Requires sudo/admin shells. 
    ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
+   ios rsd ls [options]											  List RSD services and their port.
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -295,6 +302,8 @@ The commands work as following:
 		printVersion()
 		return
 	}
+	proxyUrl, _ := arguments.String("--proxyurl")
+	exitIfError("could not parse proxy url", ios.UseHttpProxy(proxyUrl))
 
 	b, _ := arguments.Bool("listen")
 	if b {
@@ -324,12 +333,17 @@ The commands work as following:
 	udid, _ := arguments.String("--udid")
 	address, addressErr := arguments.String("--address")
 	rsdPort, rsdErr := arguments.Int("--rsd-port")
+	userspaceTunnelPort, userspaceTunnelErr := arguments.Int("--userspace-port")
 
 	device, err := ios.GetDevice(udid)
 	// device address and rsd port are only available after the tunnel started
 	if !tunnelCommand {
 		exitIfError("Device not found: "+udid, err)
 		if addressErr == nil && rsdErr == nil {
+			if userspaceTunnelErr == nil {
+				device.UserspaceTUN = true
+				device.UserspaceTUNPort = userspaceTunnelPort
+			}
 			device = deviceWithRsdProvider(device, udid, address, rsdPort)
 		} else {
 			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoPort)
@@ -361,6 +375,22 @@ The commands work as following:
 		exitIfError("failed erasing", mcinstall.Erase(device))
 		print(convertToJSONString("ok"))
 		return
+	}
+
+	rsdCommand, _ := arguments.Bool("rsd")
+	if rsdCommand {
+		listCommand, _ := arguments.Bool("ls")
+		if listCommand {
+			services := device.Rsd.GetServices()
+			if JSONdisabled {
+				fmt.Println(services)
+			} else {
+				b, err := marshalJSON(services)
+				exitIfError("failed json conversion", err)
+				println(string(b))
+			}
+			return
+		}
 	}
 
 	if mobileGestaltCommand(device, arguments) {
@@ -594,7 +624,9 @@ The commands work as following:
 
 	b, _ = arguments.Bool("syslog")
 	if b {
-		runSyslog(device)
+		parse, _ := arguments.Bool("--parse")
+
+		runSyslog(device, parse)
 		return
 	}
 
@@ -780,14 +812,20 @@ The commands work as following:
 	b, _ = arguments.Bool("launch")
 	if b {
 		wait, _ := arguments.Bool("--wait")
+		bKillExisting, _ := arguments.Bool("--kill-existing")
 		bundleID, _ := arguments.String("<bundleID>")
 		if bundleID == "" {
 			log.Fatal("please provide a bundleID")
 		}
 		pControl, err := instruments.NewProcessControl(device)
 		exitIfError("processcontrol failed", err)
-
-		pid, err := pControl.LaunchApp(bundleID)
+		opts := map[string]any{}
+		if bKillExisting {
+			opts["KillExisting"] = 1
+		} // end if
+		args := toArgs(arguments["--arg"].([]string))
+		envs := toEnvs(arguments["--env"].([]string))
+		pid, err := pControl.LaunchAppWithArgs(bundleID, args, envs, opts)
 		exitIfError("launch app command failed", err)
 		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
 		if wait {
@@ -886,7 +924,8 @@ The commands work as following:
 		}
 
 		rawTestlog, rawTestlogErr := arguments.String("--log-output")
-		env := arguments["--env"].([]string)
+		env := splitKeyValuePairs(arguments["--env"].([]string), "=")
+		isXCTest, _ := arguments.Bool("--xctest")
 
 		if rawTestlogErr == nil {
 			var writer *os.File = os.Stdout
@@ -897,14 +936,14 @@ The commands work as following:
 			}
 			defer writer.Close()
 
-			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(writer, writer, os.TempDir()))
+			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(writer, writer, os.TempDir()), isXCTest)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
 
 			log.Info(fmt.Printf("%+v", testResults))
 		} else {
-			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
+			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()), isXCTest)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
@@ -1165,6 +1204,7 @@ func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			if err != nil {
 				log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber, "err": err}).
 					Error("failed downloading image")
+				return false
 			}
 
 			log.WithFields(log.Fields{"basedir": basedir, "udid": device.Properties.SerialNumber}).Info("success downloaded image")
@@ -1180,6 +1220,17 @@ func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			}
 			log.WithFields(log.Fields{"image": path, "udid": device.Properties.SerialNumber}).Info("success mounting image")
 		}
+
+		unmount, _ := arguments.Bool("unmount")
+		if unmount {
+			err := imagemounter.UnmountImage(device)
+			if err != nil {
+				log.WithFields(log.Fields{"udid": device.Properties.SerialNumber, "err": err}).
+					Error("error unmounting image")
+				return true
+			}
+			log.WithFields(log.Fields{"udid": device.Properties.SerialNumber}).Info("success unmounting image")
+		}
 	}
 	return b
 }
@@ -1191,7 +1242,7 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		testbundleID, _ := arguments.String("--testrunnerbundleid")
 		xctestconfig, _ := arguments.String("--xctestconfig")
 		wdaargs := arguments["--arg"].([]string)
-		wdaenv := arguments["--env"].([]string)
+		wdaenv := splitKeyValuePairs(arguments["--env"].([]string), "=")
 
 		if bundleID == "" && testbundleID == "" && xctestconfig == "" {
 			log.Info("no bundle ids specified, falling back to defaults")
@@ -1203,11 +1254,28 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		}
 		log.WithFields(log.Fields{"bundleid": bundleID, "testbundleid": testbundleID, "xctestconfig": xctestconfig}).Info("Running wda")
 
+		rawTestlog, rawTestlogErr := arguments.String("--log-output")
+
+		var writer io.Writer
+
+		if rawTestlogErr == nil {
+			writerCloser := os.Stdout
+			writer = writerCloser
+			if rawTestlog != "-" {
+				file, err := os.Create(rawTestlog)
+				exitIfError("Cannot open file "+rawTestlog, err)
+				writer = file
+			}
+			defer writerCloser.Close()
+		} else {
+			writer = io.Discard
+		}
+
 		errorChannel := make(chan error)
 		defer close(errorChannel)
 		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
-			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
+			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(writer, writer, os.TempDir()), false)
 			if err != nil {
 				errorChannel <- err
 			}
@@ -1260,6 +1328,27 @@ func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		}
 	}
 	return b
+}
+
+func toArgs(argsIn []string) []interface{} {
+	args := []interface{}{}
+	for _, arg := range argsIn {
+		args = append(args, arg)
+	}
+	return args
+}
+
+func toEnvs(envsIn []string) map[string]interface{} {
+	env := map[string]interface{}{}
+
+	for _, entrystring := range envsIn {
+		entry := strings.Split(entrystring, "=")
+		key := entry[0]
+		value := entry[1]
+		env[key] = value
+	}
+
+	return env
 }
 
 func crashCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
@@ -2041,7 +2130,7 @@ func printDeviceInfo(device ios.DeviceEntry) {
 	fmt.Println(convertToJSONString(allValues))
 }
 
-func runSyslog(device ios.DeviceEntry) {
+func runSyslog(device ios.DeviceEntry, parse bool) {
 	log.Debug("Run Syslog.")
 
 	syslogConnection, err := syslog.New(device)
@@ -2049,8 +2138,16 @@ func runSyslog(device ios.DeviceEntry) {
 
 	defer syslogConnection.Close()
 
+	var logFormatter func(string) string
+	if JSONdisabled {
+		logFormatter = rawSyslog
+	} else if parse {
+		logFormatter = parsedJsonSyslog()
+	} else {
+		logFormatter = legacyJsonSyslog()
+	}
+
 	go func() {
-		messageContainer := map[string]string{}
 		for {
 			logMessage, err := syslogConnection.ReadLogMessage()
 			if err != nil {
@@ -2058,17 +2155,39 @@ func runSyslog(device ios.DeviceEntry) {
 			}
 			logMessage = strings.TrimSuffix(logMessage, "\x00")
 			logMessage = strings.TrimSuffix(logMessage, "\x0A")
-			if JSONdisabled {
-				fmt.Println(logMessage)
-			} else {
-				messageContainer["msg"] = logMessage
-				fmt.Println(convertToJSONString(messageContainer))
-			}
+
+			fmt.Println(logFormatter(logMessage))
 		}
 	}()
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
+}
+
+func rawSyslog(log string) string {
+	return log
+}
+
+func legacyJsonSyslog() func(log string) string {
+	messageContainer := map[string]string{}
+
+	return func(log string) string {
+		messageContainer["msg"] = log
+		return convertToJSONString(messageContainer)
+	}
+}
+
+func parsedJsonSyslog() func(log string) string {
+	parser := syslog.Parser()
+
+	return func(log string) string {
+		log_entry, err := parser(log)
+		if err != nil {
+			return convertToJSONString(map[string]string{"msg": log, "error": err.Error()})
+		}
+
+		return convertToJSONString(log_entry)
+	}
 }
 
 func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password string) {
@@ -2117,7 +2236,7 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, us
 }
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
-	rsdService, err := ios.NewWithAddrPort(address, rsdPort, device)
+	rsdService, err := ios.NewWithAddrPortDevice(address, rsdPort, device)
 	exitIfError("could not connect to RSD", err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
@@ -2162,4 +2281,15 @@ func exitIfError(msg string, err error) {
 	if err != nil {
 		log.WithFields(log.Fields{"err": err}).Fatalf(msg)
 	}
+}
+
+func splitKeyValuePairs(envArgs []string, sep string) map[string]interface{} {
+	env := make(map[string]interface{})
+	for _, entrystring := range envArgs {
+		entry := strings.Split(entrystring, sep)
+		key := entry[0]
+		value := entry[1]
+		env[key] = value
+	}
+	return env
 }

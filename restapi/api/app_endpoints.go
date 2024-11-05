@@ -1,12 +1,17 @@
 package api
 
 import (
+	"log"
 	"net/http"
+	"os"
+	"path"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
+	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // List apps on a device
@@ -53,7 +58,7 @@ func LaunchApp(c *gin.Context) {
 		return
 	}
 
-	_, err = pControl.LaunchApp(bundleID)
+	_, err = pControl.LaunchApp(bundleID, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 		return
@@ -137,4 +142,96 @@ func KillApp(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, GenericResponse{Message: bundleID + " is not running"})
+}
+
+// Install app on a device
+// @Summary      Install app on a device
+// @Description  Install app on a device by uploading an ipa file
+// @Tags         apps
+// @Produce      json
+// @Param        file formData file true "ipa file to install"
+// @Success      200 {object} GenericResponse
+// @Failure      500 {object} GenericResponse
+// @Router       /device/{udid}/apps/install [post]
+func InstallApp(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	file, err := c.FormFile("file")
+
+	log.Printf("Received file: %s", file.Filename)
+
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "file form-data is missing"})
+		return
+	}
+
+	if file.Size == 0 { // 100 MB limit
+		c.JSON(http.StatusRequestEntityTooLarge, GenericResponse{Error: "uploaded file is empty"})
+		return
+	}
+
+	if file.Size > 200*1024*1024 { // 100 MB limit
+		c.JSON(http.StatusRequestEntityTooLarge, GenericResponse{Error: "file size exceeds the 200MB limit"})
+		return
+	}
+
+	appDownloadFolder := os.Getenv("APP_DOWNLOAD_FOLDER")
+	if appDownloadFolder == "" {
+		appDownloadFolder = os.TempDir()
+	}
+
+	dst := path.Join(appDownloadFolder, uuid.New().String()+".ipa")
+	defer func() {
+		if err := os.Remove(dst); err != nil {
+			c.JSON(http.StatusInternalServerError, GenericResponse{Error: "failed to delete temporary file"})
+		}
+	}()
+
+	c.SaveUploadedFile(file, dst)
+
+	conn, err := zipconduit.New(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: "Unable to setup ZipConduit connection"})
+		return
+	}
+
+	err = conn.SendFile(dst)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: "Unable to install uploaded app"})
+		return
+	}
+
+	c.JSON(http.StatusOK, GenericResponse{Message: "App installed successfully"})
+}
+
+// Uninstall app on a device
+// @Summary      Uninstall app on a device
+// @Description  Uninstall app on a device by provided bundleID
+// @Tags         apps
+// @Produce      json
+// @Param        bundleID query string true "bundle identifier of the targeted app"
+// @Success      200 {object} GenericResponse
+// @Failure      500 {object} GenericResponse
+func UninstallApp(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+
+	bundleID := c.Query("bundleID")
+	if bundleID == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "bundleID query param is missing"})
+		return
+	}
+
+	svc, err := installationproxy.New(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+	defer svc.Close()
+
+	err = svc.Uninstall(bundleID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, GenericResponse{Message: bundleID + " uninstalled successfully"})
 }
