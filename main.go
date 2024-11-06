@@ -105,6 +105,7 @@ Usage:
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios readpair [options]
+  ios sysmontap [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
@@ -128,6 +129,7 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
+  ios batteryregistry [options]
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
   ios tunnel ls [options]
   ios tunnel stopagent 
@@ -218,6 +220,7 @@ The commands work as following:
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
+   ios sysmontap                                                      Get system stats like MEM, CPU
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
@@ -245,6 +248,7 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
+   ios batteryregistry [options]                                      Prints battery registry stats like Temperature, Voltage.
    ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
    >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path=default' can be used to point to /var/db/lockdown/RemotePairing/user_501.
    >                                                                  If nothing is specified, the current dir is used for the pair record.
@@ -832,6 +836,11 @@ The commands work as following:
 		}
 	}
 
+	b, _ = arguments.Bool("sysmontap")
+	if b {
+		printSysmontapStats(device)
+	}
+
 	b, _ = arguments.Bool("kill")
 	if b {
 		var response []installationproxy.AppInfo
@@ -963,6 +972,11 @@ The commands work as following:
 		if err != nil {
 			log.Error(err.Error())
 		}
+	}
+
+	b, _ = arguments.Bool("batteryregistry")
+	if b {
+		printBatteryRegistry(device)
 	}
 
 	b, _ = arguments.Bool("reboot")
@@ -1111,6 +1125,42 @@ The commands work as following:
 		}
 
 		return
+	}
+}
+
+func printSysmontapStats(device ios.DeviceEntry) {
+	const xcodeDefaultSamplingRate = 10
+	sysmon, err := instruments.NewSysmontapService(device, xcodeDefaultSamplingRate)
+	if err != nil {
+		exitIfError("systemMonitor creation error", err)
+	}
+	defer sysmon.Close()
+
+	cpuUsageChannel := sysmon.ReceiveCPUUsage()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	log.Info("starting to monitor CPU usage... Press CTRL+C to stop.")
+
+	for {
+		select {
+		case cpuUsageMsg, ok := <-cpuUsageChannel:
+			if !ok {
+				log.Info("CPU usage channel closed.")
+				return
+			}
+			log.WithFields(log.Fields{
+				"cpu_count":      cpuUsageMsg.CPUCount,
+				"enabled_cpus":   cpuUsageMsg.EnabledCPUs,
+				"end_time":       cpuUsageMsg.EndMachAbsTime,
+				"cpu_total_load": cpuUsageMsg.SystemCPUUsage.CPU_TotalLoad,
+			}).Info("received CPU usage data")
+
+		case <-c:
+			log.Info("shutting down sysmontap")
+			return
+		}
 	}
 }
 
@@ -1646,8 +1696,8 @@ func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 		/*	conn.GetElement()
 			time.Sleep(time.Second)
 			conn.TurnOff()*/
-		//conn.GetElement()
-		//conn.GetElement()
+		// conn.GetElement()
+		// conn.GetElement()
 
 		exitIfError("ax failed", err)
 	}()
@@ -1761,6 +1811,21 @@ func printBatteryDiagnostics(device ios.DeviceEntry) {
 	exitIfError("failed getting battery diagnostics", err)
 
 	fmt.Println(convertToJSONString(battery))
+}
+
+func printBatteryRegistry(device ios.DeviceEntry) {
+	conn, err := diagnostics.New(device)
+	if err != nil {
+		exitIfError("failed diagnostics service", err)
+	}
+	defer conn.Close()
+
+	stats, err := conn.Battery()
+	if err != nil {
+		exitIfError("failed to get battery stats", err)
+	}
+
+	fmt.Println(convertToJSONString(stats))
 }
 
 func printDeviceDate(device ios.DeviceEntry) {

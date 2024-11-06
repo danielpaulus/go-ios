@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/google/uuid"
 	"howett.net/plist"
 )
@@ -84,6 +85,7 @@ func NewXCTestConfiguration(
 	testsToRun []string,
 	testsToSkip []string,
 	isXCTest bool,
+	version *semver.Version,
 ) XCTestConfiguration {
 	contents := map[string]interface{}{}
 
@@ -119,7 +121,11 @@ func NewXCTestConfiguration(
 	}
 
 	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
-	contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
+	if version.Major() >= 17 {
+		contents["automationFrameworkPath"] = "/System/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
+	} else {
+		contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
+	}
 	contents["baselineFileRelativePath"] = plist.UID(0)
 	contents["baselineFileURL"] = plist.UID(0)
 	contents["defaultTestExecutionTimeAllowance"] = plist.UID(0)

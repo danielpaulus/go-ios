@@ -30,6 +30,14 @@ type Connection struct {
 	mutex                  sync.Mutex
 	requestChannelMessages chan Message
 
+	// MessageDispatcher use this prop to catch messages from GlobalDispatcher
+	// and handle it accordingly in a custom dispatcher of the dedicated service
+	//
+	// Set this prop when creating a connection instance
+	//
+	// Refer to end-to-end example of `instruments/instruments_sysmontap.go`
+	MessageDispatcher Dispatcher
+
 	closed    chan struct{}
 	err       error
 	closeOnce sync.Once
@@ -87,6 +95,18 @@ func NewGlobalDispatcher(requestChannelMessages chan Message, dtxConnection *Con
 	return dispatcher
 }
 
+// Dispatch to a MessageDispatcher of the Connection if set
+func (dtxConn *Connection) Dispatch(msg Message) {
+	msgDispatcher := dtxConn.MessageDispatcher
+	if msgDispatcher != nil {
+		log.Debugf("msg dispatcher found: %T", msgDispatcher)
+		msgDispatcher.Dispatch(msg)
+		return
+	}
+
+	log.Errorf("no connection dispatcher registered for global channel, msg: %v", msg)
+}
+
 // Dispatch prints log messages and errors when they are received and also creates local Channels when requested by the device.
 func (g GlobalDispatcher) Dispatch(msg Message) {
 	SendAckIfNeeded(g.dtxConnection, msg)
@@ -110,6 +130,9 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 	log.Tracef("Global Dispatcher Received: %s %s", msg.Payload, msg.Auxiliary)
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
+	}
+	if msg.PayloadHeader.MessageType == UnknownTypeOne {
+		g.dtxConnection.Dispatch(msg)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"maps"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -14,14 +15,14 @@ import (
 )
 
 func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, bundleID string, testRunnerBundleID string, xctestConfigFileName string,
-	device ios.DeviceEntry, args []string, env map[string]interface{}, testsToRun []string, testsToSkip []string, testListener *TestListener, isXCTest bool,
+	device ios.DeviceEntry, args []string, env map[string]interface{}, testsToRun []string, testsToSkip []string, testListener *TestListener, isXCTest bool, version *semver.Version,
 ) ([]TestSuite, error) {
 	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerdiOS14)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
 
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName, testsToRun, testsToSkip, isXCTest)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName, testsToRun, testsToSkip, isXCTest, version)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot setup test config: %w", err)
 	}
