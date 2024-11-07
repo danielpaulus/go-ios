@@ -250,6 +250,9 @@ type TestConfig struct {
 }
 
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {
+	if len(testConfig.TestRunnerBundleId) == 0 {
+		return nil, fmt.Errorf("RunTestWithConfig: testConfig.TestRunnerBundleId can not be empty")
+	}
 	version, err := ios.GetProductVersion(testConfig.Device)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsCtx: cannot determine iOS version: %w", err)
