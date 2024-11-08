@@ -927,6 +927,17 @@ The commands work as following:
 		env := splitKeyValuePairs(arguments["--env"].([]string), "=")
 		isXCTest, _ := arguments.Bool("--xctest")
 
+		config := testmanagerd.TestConfig{
+			BundleId:           bundleID,
+			TestRunnerBundleId: testRunnerBundleId,
+			XctestConfigName:   xctestConfig,
+			Env:                env,
+			TestsToRun:         testsToRun,
+			TestsToSkip:        testsToSkip,
+			XcTest:             isXCTest,
+			Device:             device,
+		}
+
 		if rawTestlogErr == nil {
 			var writer *os.File = os.Stdout
 			if rawTestlog != "-" {
@@ -936,14 +947,17 @@ The commands work as following:
 			}
 			defer writer.Close()
 
-			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(writer, writer, os.TempDir()), isXCTest)
+			config.Listener = testmanagerd.NewTestListener(writer, writer, os.TempDir())
+
+			testResults, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
 
 			log.Info(fmt.Printf("%+v", testResults))
 		} else {
-			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()), isXCTest)
+			config.Listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
+			_, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
@@ -1275,7 +1289,15 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		defer close(errorChannel)
 		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
-			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(writer, writer, os.TempDir()), false)
+			_, err := testmanagerd.RunTestWithConfig(ctx, testmanagerd.TestConfig{
+				BundleId:           bundleID,
+				TestRunnerBundleId: testbundleID,
+				XctestConfigName:   xctestconfig,
+				Env:                wdaenv,
+				Args:               wdaargs,
+				Device:             device,
+				Listener:           testmanagerd.NewTestListener(writer, writer, os.TempDir()),
+			})
 			if err != nil {
 				errorChannel <- err
 			}
