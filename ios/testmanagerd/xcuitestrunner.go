@@ -463,8 +463,9 @@ func startTestRunner17(appserviceConn *appservice.Connection, bundleID string, s
 	}
 
 	opts := map[string]interface{}{
-		"ActivateSuspended": uint64(1),
-		"StartSuspendedKey": uint64(0),
+		"ActivateSuspended":   uint64(1),
+		"StartSuspendedKey":   uint64(0),
+		"__ActivateSuspended": uint64(1),
 	}
 
 	appLaunch, err := appserviceConn.LaunchAppWithStdIo(
