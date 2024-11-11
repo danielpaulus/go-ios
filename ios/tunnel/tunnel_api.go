@@ -177,11 +177,11 @@ func TunnelInfoForDevice(udid string, tunnelInfoHost string, tunnelInfoPort int)
 	return info, nil
 }
 
-func ListRunningTunnels(tunnelInfoPort int) ([]Tunnel, error) {
+func ListRunningTunnels(tunnelInfoHost string, tunnelInfoPort int) ([]Tunnel, error) {
 	c := http.Client{
 		Timeout: 5 * time.Second,
 	}
-	res, err := c.Get(fmt.Sprintf("http://127.0.0.1:%d/tunnels", tunnelInfoPort))
+	res, err := c.Get(fmt.Sprintf("http://%s:%d/tunnels", tunnelInfoHost, tunnelInfoPort))
 	if err != nil {
 		return nil, fmt.Errorf("TunnelInfoForDevice: failed to get tunnel info: %w", err)
 	}

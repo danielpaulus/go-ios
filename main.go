@@ -1118,7 +1118,7 @@ The commands work as following:
 			}
 			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, useUserspaceNetworking)
 		} else if listCommand {
-			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoPort)
+			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoHost, tunnelInfoPort)
 			if err != nil {
 				exitIfError("failed to get tunnel infos", err)
 			}
@@ -2276,6 +2276,7 @@ func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, 
 	rsdProvider, err := rsdService.Handshake()
 	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	device1.UserspaceTUN = device.UserspaceTUN
+	device1.UserspaceTUNHost = device.UserspaceTUNHost
 	device1.UserspaceTUNPort = device.UserspaceTUNPort
 	exitIfError("error getting devicelist", err)
 
