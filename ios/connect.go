@@ -282,7 +282,7 @@ func ConnectTUNDevice(remoteIp string, port int, d DeviceEntry) (*net.TCPConn, e
 		return connectTUN(remoteIp, port)
 	}
 
-	addr, _ := net.ResolveTCPAddr("tcp4", fmt.Sprintf("localhost:%d", d.UserspaceTUNPort))
+	addr, _ := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", d.UserspaceTUNHost, d.UserspaceTUNPort))
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to dial: %w", err)
@@ -328,6 +328,9 @@ func connectTUN(address string, port int) (*net.TCPConn, error) {
 // 60-105 is leetspeek for go-ios :-D
 const defaultHttpApiPort = 60105
 
+// defaultHttpApiHost is the host on which the HTTP-Server runs, by default it is 127.0.0.1
+const defaultHttpApiHost = "127.0.0.1"
+
 // DefaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
 // if GO_IOS_AGENT_PORT is set, we use that port. Otherwise we use the default port 60106.
 // 60-105 is leetspeek for go-ios :-D
@@ -337,4 +340,14 @@ func HttpApiPort() int {
 		return defaultHttpApiPort
 	}
 	return port
+}
+
+// DefaultHttpApiHost is the host on which the HTTP-Server runs, by default it is 127.0.0.1
+// if GO_IOS_AGENT_HOST is set, we use that host. Otherwise we use the default host
+func HttpApiHost() string {
+	host := os.Getenv("GO_IOS_AGENT_HOST")
+	if host == "" {
+		return defaultHttpApiHost
+	}
+	return host
 }

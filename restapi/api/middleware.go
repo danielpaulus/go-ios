@@ -33,7 +33,7 @@ func DeviceMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, ios.HttpApiPort())
+		info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, ios.HttpApiHost(), ios.HttpApiPort())
 		if err == nil {
 			log.WithField("udid", device.Properties.SerialNumber).Printf("Received tunnel info %v", info)
 

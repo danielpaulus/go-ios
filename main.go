@@ -323,6 +323,11 @@ The commands work as following:
 		return
 	}
 
+	tunnelInfoHost, err := arguments.String("--tunnel-info-host")
+	if err != nil {
+		tunnelInfoHost = ios.HttpApiHost()
+	}
+
 	tunnelInfoPort, err := arguments.Int("--tunnel-info-port")
 	if err != nil {
 		tunnelInfoPort = ios.HttpApiPort()
@@ -333,6 +338,11 @@ The commands work as following:
 	udid, _ := arguments.String("--udid")
 	address, addressErr := arguments.String("--address")
 	rsdPort, rsdErr := arguments.Int("--rsd-port")
+	userspaceTunnelHost, userspaceTunnelHostErr := arguments.String("--userspace-host")
+	if userspaceTunnelHostErr != nil {
+		userspaceTunnelHost = ios.HttpApiHost()
+	}
+
 	userspaceTunnelPort, userspaceTunnelErr := arguments.Int("--userspace-port")
 
 	device, err := ios.GetDevice(udid)
@@ -342,13 +352,15 @@ The commands work as following:
 		if addressErr == nil && rsdErr == nil {
 			if userspaceTunnelErr == nil {
 				device.UserspaceTUN = true
+				device.UserspaceTUNHost = userspaceTunnelHost
 				device.UserspaceTUNPort = userspaceTunnelPort
 			}
 			device = deviceWithRsdProvider(device, udid, address, rsdPort)
 		} else {
-			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoPort)
+			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoHost, tunnelInfoPort)
 			if err == nil {
 				device.UserspaceTUNPort = info.UserspaceTUNPort
+				device.UserspaceTUNHost = userspaceTunnelHost
 				device.UserspaceTUN = info.UserspaceTUN
 				device = deviceWithRsdProvider(device, udid, info.Address, info.RsdPort)
 			} else {
