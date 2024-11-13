@@ -3,9 +3,9 @@ package testmanagerd
 import (
 	"context"
 	"fmt"
-	"strings"
+	"maps"
 
-	"github.com/danielpaulus/go-ios/ios"
+	"github.com/Masterminds/semver"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	log "github.com/sirupsen/logrus"
@@ -13,38 +13,30 @@ import (
 
 func runXCUIWithBundleIdsXcode11Ctx(
 	ctx context.Context,
-	bundleID string,
-	testRunnerBundleID string,
-	xctestConfigFileName string,
-	device ios.DeviceEntry,
-	args []string,
-	env []string,
-	testsToRun []string,
-	testsToSkip []string,
-	testListener *TestListener,
-	isXCTest bool,
+	config TestConfig,
+	version *semver.Version,
 ) ([]TestSuite, error) {
 	log.Debugf("set up xcuitest")
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(device, bundleID, testRunnerBundleID, xctestConfigFileName, testsToRun, testsToSkip, isXCTest)
+	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(config.Device, config.BundleId, config.TestRunnerBundleId, config.XctestConfigName, config.TestsToRun, config.TestsToSkip, config.XcTest, version)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create test config: %w", err)
 	}
 	log.Debugf("test session setup ok")
-	conn, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
+	conn, err := dtx.NewUsbmuxdConnection(config.Device, testmanagerd)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
 	defer conn.Close()
 
-	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, testListener)
+	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, config.Listener)
 
-	conn2, err := dtx.NewUsbmuxdConnection(device, testmanagerd)
+	conn2, err := dtx.NewUsbmuxdConnection(config.Device, testmanagerd)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
 	defer conn2.Close()
 	log.Debug("connections ready")
-	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig, testListener)
+	ideDaemonProxy2 := newDtxProxyWithConfig(conn2, testConfig, config.Listener)
 	ideDaemonProxy2.ideInterface.testConfig = testConfig
 	// TODO: fixme
 	protocolVersion := uint64(25)
@@ -53,13 +45,13 @@ func runXCUIWithBundleIdsXcode11Ctx(
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot initiate a test session: %w", err)
 	}
 
-	pControl, err := instruments.NewProcessControl(device)
+	pControl, err := instruments.NewProcessControl(config.Device)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot connect to process control: %w", err)
 	}
 	defer pControl.Close()
 
-	pid, err := startTestRunner11(pControl, xctestConfigPath, testRunnerBundleID, testSessionId.String(), testInfo.testApp.path+"/PlugIns/"+xctestConfigFileName, args, env)
+	pid, err := startTestRunner11(pControl, xctestConfigPath, config.TestRunnerBundleId, testSessionId.String(), testInfo.testApp.path+"/PlugIns/"+config.XctestConfigName, config.Args, config.Env)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot start the test runner: %w", err)
 	}
@@ -91,7 +83,7 @@ func runXCUIWithBundleIdsXcode11Ctx(
 			log.WithError(conn2.Err()).Error("conn2 closed unexpectedly")
 		}
 		break
-	case <-testListener.Done():
+	case <-config.Listener.Done():
 		break
 	case <-ctx.Done():
 		break
@@ -106,11 +98,11 @@ func runXCUIWithBundleIdsXcode11Ctx(
 
 	log.Debugf("Done running test")
 
-	return testListener.TestSuites, testListener.err
+	return config.Listener.TestSuites, config.Listener.err
 }
 
 func startTestRunner11(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
-	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv []string,
+	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv map[string]interface{},
 ) (uint64, error) {
 	args := []interface{}{}
 	for _, arg := range wdaargs {
@@ -122,12 +114,12 @@ func startTestRunner11(pControl *instruments.ProcessControl, xctestConfigPath st
 		"XCTestSessionIdentifier":     sessionIdentifier,
 	}
 
-	for _, entrystring := range wdaenv {
-		entry := strings.Split(entrystring, "=")
-		key := entry[0]
-		value := entry[1]
-		env[key] = value
-		log.Debugf("adding extra env %s=%s", key, value)
+	if len(wdaenv) > 0 {
+		maps.Copy(env, wdaenv)
+
+		for key, value := range wdaenv {
+			log.Debugf("adding extra env %s=%s", key, value)
+		}
 	}
 
 	opts := map[string]interface{}{

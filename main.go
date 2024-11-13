@@ -76,7 +76,7 @@ Usage:
   ios image mount [--path=<imagepath>] [options]
   ios image unmount [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
-  ios syslog [options]
+  ios syslog [--parse] [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
   ios instruments notifications [options]
   ios crash ls [<pattern>] [options]
@@ -105,11 +105,12 @@ Usage:
   ios forward [options] <hostPort> <targetPort>
   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios readpair [options]
+  ios sysmontap [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios install --path=<ipaOrAppFolder> [options]
   ios uninstall <bundleID> [options]
   ios apps [--system] [--all] [--list] [--filesharing] [options]
-  ios launch <bundleID> [--wait] [--kill-existing] [options]
+  ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
@@ -128,6 +129,7 @@ Usage:
   ios zoomtouch (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
+  ios batteryregistry [options]
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
   ios tunnel ls [options]
   ios tunnel stopagent 
@@ -167,7 +169,7 @@ The commands work as following:
    ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
    >                                                                  You can specify a dir where images should be cached.
    >                                                                  The default is the current dir.
-   ios syslog [options]                                               Prints a device's log output
+   ios syslog [--parse] [options]                                     Prints a device's log output, Use --parse to parse the fields from the log
    ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]  Takes a screenshot and writes it to the current dir or to <outfile>  If --stream is supplied it
    >                                                                  starts an mjpeg server at 0.0.0.0:3333. Use --port to set another port.
    ios instruments notifications [options]                            Listen to application state notifications
@@ -218,10 +220,11 @@ The commands work as following:
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
+   ios sysmontap                                                      Get system stats like MEM, CPU
    ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
-   ios launch <bundleID> [--wait] [--kill-existing] [options]         Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
+   ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options] Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
    >                                                                  If you provide '-' as log output, it prints resuts to stdout.
@@ -245,6 +248,7 @@ The commands work as following:
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
    ios diskspace [options]											  Prints disk space info.
    ios batterycheck [options]                                         Prints battery info.
+   ios batteryregistry [options]                                      Prints battery registry stats like Temperature, Voltage.
    ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
    >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path=default' can be used to point to /var/db/lockdown/RemotePairing/user_501.
    >                                                                  If nothing is specified, the current dir is used for the pair record.
@@ -620,7 +624,9 @@ The commands work as following:
 
 	b, _ = arguments.Bool("syslog")
 	if b {
-		runSyslog(device)
+		parse, _ := arguments.Bool("--parse")
+
+		runSyslog(device, parse)
 		return
 	}
 
@@ -817,7 +823,9 @@ The commands work as following:
 		if bKillExisting {
 			opts["KillExisting"] = 1
 		} // end if
-		pid, err := pControl.LaunchApp(bundleID, opts)
+		args := toArgs(arguments["--arg"].([]string))
+		envs := toEnvs(arguments["--env"].([]string))
+		pid, err := pControl.LaunchAppWithArgs(bundleID, args, envs, opts)
 		exitIfError("launch app command failed", err)
 		log.WithFields(log.Fields{"pid": pid}).Info("Process launched")
 		if wait {
@@ -826,6 +834,11 @@ The commands work as following:
 			<-c
 			log.WithFields(log.Fields{"pid": pid}).Info("stop listening to logs")
 		}
+	}
+
+	b, _ = arguments.Bool("sysmontap")
+	if b {
+		printSysmontapStats(device)
 	}
 
 	b, _ = arguments.Bool("kill")
@@ -911,9 +924,19 @@ The commands work as following:
 		}
 
 		rawTestlog, rawTestlogErr := arguments.String("--log-output")
-		env := arguments["--env"].([]string)
-
+		env := splitKeyValuePairs(arguments["--env"].([]string), "=")
 		isXCTest, _ := arguments.Bool("--xctest")
+
+		config := testmanagerd.TestConfig{
+			BundleId:           bundleID,
+			TestRunnerBundleId: testRunnerBundleId,
+			XctestConfigName:   xctestConfig,
+			Env:                env,
+			TestsToRun:         testsToRun,
+			TestsToSkip:        testsToSkip,
+			XcTest:             isXCTest,
+			Device:             device,
+		}
 
 		if rawTestlogErr == nil {
 			var writer *os.File = os.Stdout
@@ -924,14 +947,17 @@ The commands work as following:
 			}
 			defer writer.Close()
 
-			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(writer, writer, os.TempDir()), isXCTest)
+			config.Listener = testmanagerd.NewTestListener(writer, writer, os.TempDir())
+
+			testResults, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
 
 			log.Info(fmt.Printf("%+v", testResults))
 		} else {
-			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()), isXCTest)
+			config.Listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
+			_, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
@@ -960,6 +986,11 @@ The commands work as following:
 		if err != nil {
 			log.Error(err.Error())
 		}
+	}
+
+	b, _ = arguments.Bool("batteryregistry")
+	if b {
+		printBatteryRegistry(device)
 	}
 
 	b, _ = arguments.Bool("reboot")
@@ -1111,6 +1142,42 @@ The commands work as following:
 	}
 }
 
+func printSysmontapStats(device ios.DeviceEntry) {
+	const xcodeDefaultSamplingRate = 10
+	sysmon, err := instruments.NewSysmontapService(device, xcodeDefaultSamplingRate)
+	if err != nil {
+		exitIfError("systemMonitor creation error", err)
+	}
+	defer sysmon.Close()
+
+	cpuUsageChannel := sysmon.ReceiveCPUUsage()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	log.Info("starting to monitor CPU usage... Press CTRL+C to stop.")
+
+	for {
+		select {
+		case cpuUsageMsg, ok := <-cpuUsageChannel:
+			if !ok {
+				log.Info("CPU usage channel closed.")
+				return
+			}
+			log.WithFields(log.Fields{
+				"cpu_count":      cpuUsageMsg.CPUCount,
+				"enabled_cpus":   cpuUsageMsg.EnabledCPUs,
+				"end_time":       cpuUsageMsg.EndMachAbsTime,
+				"cpu_total_load": cpuUsageMsg.SystemCPUUsage.CPU_TotalLoad,
+			}).Info("received CPU usage data")
+
+		case <-c:
+			log.Info("shutting down sysmontap")
+			return
+		}
+	}
+}
+
 func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 	b, _ := arguments.Bool("mobilegestalt")
 	if b {
@@ -1189,7 +1256,7 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		testbundleID, _ := arguments.String("--testrunnerbundleid")
 		xctestconfig, _ := arguments.String("--xctestconfig")
 		wdaargs := arguments["--arg"].([]string)
-		wdaenv := arguments["--env"].([]string)
+		wdaenv := splitKeyValuePairs(arguments["--env"].([]string), "=")
 
 		if bundleID == "" && testbundleID == "" && xctestconfig == "" {
 			log.Info("no bundle ids specified, falling back to defaults")
@@ -1222,7 +1289,15 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		defer close(errorChannel)
 		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
-			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(writer, writer, os.TempDir()), false)
+			_, err := testmanagerd.RunTestWithConfig(ctx, testmanagerd.TestConfig{
+				BundleId:           bundleID,
+				TestRunnerBundleId: testbundleID,
+				XctestConfigName:   xctestconfig,
+				Env:                wdaenv,
+				Args:               wdaargs,
+				Device:             device,
+				Listener:           testmanagerd.NewTestListener(writer, writer, os.TempDir()),
+			})
 			if err != nil {
 				errorChannel <- err
 			}
@@ -1275,6 +1350,27 @@ func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		}
 	}
 	return b
+}
+
+func toArgs(argsIn []string) []interface{} {
+	args := []interface{}{}
+	for _, arg := range argsIn {
+		args = append(args, arg)
+	}
+	return args
+}
+
+func toEnvs(envsIn []string) map[string]interface{} {
+	env := map[string]interface{}{}
+
+	for _, entrystring := range envsIn {
+		entry := strings.Split(entrystring, "=")
+		key := entry[0]
+		value := entry[1]
+		env[key] = value
+	}
+
+	return env
 }
 
 func crashCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
@@ -1622,8 +1718,8 @@ func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 		/*	conn.GetElement()
 			time.Sleep(time.Second)
 			conn.TurnOff()*/
-		//conn.GetElement()
-		//conn.GetElement()
+		// conn.GetElement()
+		// conn.GetElement()
 
 		exitIfError("ax failed", err)
 	}()
@@ -1737,6 +1833,21 @@ func printBatteryDiagnostics(device ios.DeviceEntry) {
 	exitIfError("failed getting battery diagnostics", err)
 
 	fmt.Println(convertToJSONString(battery))
+}
+
+func printBatteryRegistry(device ios.DeviceEntry) {
+	conn, err := diagnostics.New(device)
+	if err != nil {
+		exitIfError("failed diagnostics service", err)
+	}
+	defer conn.Close()
+
+	stats, err := conn.Battery()
+	if err != nil {
+		exitIfError("failed to get battery stats", err)
+	}
+
+	fmt.Println(convertToJSONString(stats))
 }
 
 func printDeviceDate(device ios.DeviceEntry) {
@@ -2041,7 +2152,7 @@ func printDeviceInfo(device ios.DeviceEntry) {
 	fmt.Println(convertToJSONString(allValues))
 }
 
-func runSyslog(device ios.DeviceEntry) {
+func runSyslog(device ios.DeviceEntry, parse bool) {
 	log.Debug("Run Syslog.")
 
 	syslogConnection, err := syslog.New(device)
@@ -2049,8 +2160,16 @@ func runSyslog(device ios.DeviceEntry) {
 
 	defer syslogConnection.Close()
 
+	var logFormatter func(string) string
+	if JSONdisabled {
+		logFormatter = rawSyslog
+	} else if parse {
+		logFormatter = parsedJsonSyslog()
+	} else {
+		logFormatter = legacyJsonSyslog()
+	}
+
 	go func() {
-		messageContainer := map[string]string{}
 		for {
 			logMessage, err := syslogConnection.ReadLogMessage()
 			if err != nil {
@@ -2058,17 +2177,39 @@ func runSyslog(device ios.DeviceEntry) {
 			}
 			logMessage = strings.TrimSuffix(logMessage, "\x00")
 			logMessage = strings.TrimSuffix(logMessage, "\x0A")
-			if JSONdisabled {
-				fmt.Println(logMessage)
-			} else {
-				messageContainer["msg"] = logMessage
-				fmt.Println(convertToJSONString(messageContainer))
-			}
+
+			fmt.Println(logFormatter(logMessage))
 		}
 	}()
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
+}
+
+func rawSyslog(log string) string {
+	return log
+}
+
+func legacyJsonSyslog() func(log string) string {
+	messageContainer := map[string]string{}
+
+	return func(log string) string {
+		messageContainer["msg"] = log
+		return convertToJSONString(messageContainer)
+	}
+}
+
+func parsedJsonSyslog() func(log string) string {
+	parser := syslog.Parser()
+
+	return func(log string) string {
+		log_entry, err := parser(log)
+		if err != nil {
+			return convertToJSONString(map[string]string{"msg": log, "error": err.Error()})
+		}
+
+		return convertToJSONString(log_entry)
+	}
 }
 
 func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password string) {
@@ -2162,4 +2303,15 @@ func exitIfError(msg string, err error) {
 	if err != nil {
 		log.WithFields(log.Fields{"err": err}).Fatalf(msg)
 	}
+}
+
+func splitKeyValuePairs(envArgs []string, sep string) map[string]interface{} {
+	env := make(map[string]interface{})
+	for _, entrystring := range envArgs {
+		entry := strings.Split(entrystring, sep)
+		key := entry[0]
+		value := entry[1]
+		env[key] = value
+	}
+	return env
 }

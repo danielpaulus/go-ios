@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/google/uuid"
 	"howett.net/plist"
 )
@@ -84,6 +85,7 @@ func NewXCTestConfiguration(
 	testsToRun []string,
 	testsToSkip []string,
 	isXCTest bool,
+	version *semver.Version,
 ) XCTestConfiguration {
 	contents := map[string]interface{}{}
 
@@ -119,7 +121,11 @@ func NewXCTestConfiguration(
 	}
 
 	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
-	contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
+	if version.Major() >= 17 {
+		contents["automationFrameworkPath"] = "/System/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
+	} else {
+		contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
+	}
 	contents["baselineFileRelativePath"] = plist.UID(0)
 	contents["baselineFileURL"] = plist.UID(0)
 	contents["defaultTestExecutionTimeAllowance"] = plist.UID(0)
@@ -580,7 +586,11 @@ func NewNSError(object map[string]interface{}, objects []interface{}) interface{
 }
 
 func (err NSError) Error() string {
-	return fmt.Sprintf("Error code: %d, Domain: %s, User info: %v", err.ErrorCode, err.Domain, err.UserInfo)
+	var description any = "no description available"
+	if d, ok := err.UserInfo["NSLocalizedDescription"]; ok {
+		description = d
+	}
+	return fmt.Sprintf("%v (Error code: %d, Domain: %s)", description, err.ErrorCode, err.Domain)
 }
 
 // Apples Reference Date is Jan 1st 2001 00:00

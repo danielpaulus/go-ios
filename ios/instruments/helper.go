@@ -2,6 +2,7 @@ package instruments
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -22,6 +23,17 @@ type loggingDispatcher struct {
 func (p loggingDispatcher) Dispatch(m dtx.Message) {
 	dtx.SendAckIfNeeded(p.conn, m)
 	log.Debug(m)
+}
+
+func connectInstrumentsWithMsgDispatcher(device ios.DeviceEntry, dispatcher dtx.Dispatcher) (*dtx.Connection, error) {
+	dtxConn, err := connectInstruments(device)
+	if err != nil {
+		return nil, err
+	}
+	dtxConn.MessageDispatcher = dispatcher
+	log.Debugf("msg dispatcher: %v attached to instruments connection", reflect.TypeOf(dispatcher))
+
+	return dtxConn, nil
 }
 
 func connectInstruments(device ios.DeviceEntry) (*dtx.Connection, error) {

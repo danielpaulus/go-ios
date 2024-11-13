@@ -3,17 +3,17 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios/imagemounter"
-	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 	"io"
 	"net/http"
 	"os"
 	"sync"
 
+	"github.com/danielpaulus/go-ios/ios/imagemounter"
+	"github.com/danielpaulus/go-ios/ios/mobileactivation"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/mcinstall"
-	"github.com/danielpaulus/go-ios/ios/screenshotr"
 	"github.com/danielpaulus/go-ios/ios/simlocation"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
@@ -159,12 +159,22 @@ func Info(c *gin.Context) {
 // @Router       /device/{udid}/screenshot [get]
 func Screenshot(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	conn, err := screenshotr.New(device)
-	log.Error(err)
-	b, _ := conn.TakeScreenshot()
+
+	screenshotService, err := instruments.NewScreenshotService(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
+	defer screenshotService.Close()
+
+	imageBytes, err := screenshotService.TakeScreenshot()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
+		return
+	}
 
 	c.Header("Content-Type", "image/png")
-	c.Data(http.StatusOK, "application/octet-stream", b)
+	c.Data(http.StatusOK, "application/octet-stream", imageBytes)
 }
 
 // Change the current device location

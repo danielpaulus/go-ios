@@ -20,6 +20,24 @@ type ProcessInfo struct {
 	StartDate     time.Time
 }
 
+// processAttributes returns the attributes list which can be used for monitoring
+func (d DeviceInfoService) processAttributes() ([]interface{}, error) {
+	resp, err := d.channel.MethodCall("sysmonProcessAttributes")
+	if err != nil {
+		return nil, err
+	}
+	return resp.Payload[0].([]interface{}), nil
+}
+
+// systemAttributes returns the attributes list which can be used for monitoring
+func (d DeviceInfoService) systemAttributes() ([]interface{}, error) {
+	resp, err := d.channel.MethodCall("sysmonSystemAttributes")
+	if err != nil {
+		return nil, err
+	}
+	return resp.Payload[0].([]interface{}), nil
+}
+
 // ProcessList returns a []ProcessInfo, one for each process running on the iOS device
 func (d DeviceInfoService) ProcessList() ([]ProcessInfo, error) {
 	resp, err := d.channel.MethodCall("runningProcesses")

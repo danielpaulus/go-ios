@@ -33,6 +33,27 @@ func Reboot(device ios.DeviceEntry) error {
 	return service.Close()
 }
 
+// Battery extracts the battery ioregistry stats like Temperature, Voltage, CurrentCapacity
+func (diagnosticsConn *Connection) Battery() (IORegistry, error) {
+	req := newIORegistryRequest()
+	req.addClass("IOPMPowerSource")
+
+	reader := diagnosticsConn.deviceConn.Reader()
+	encoded, err := req.encoded()
+	if err != nil {
+		return IORegistry{}, err
+	}
+	err = diagnosticsConn.deviceConn.Send(encoded)
+	if err != nil {
+		return IORegistry{}, err
+	}
+	response, err := diagnosticsConn.plistCodec.Decode(reader)
+	if err != nil {
+		return IORegistry{}, err
+	}
+	return diagnosticsfromBytes(response).Diagnostics.IORegistry, nil
+}
+
 func (diagnosticsConn *Connection) Reboot() error {
 	req := rebootRequest{Request: "Restart", WaitForDisconnect: true, DisplayFail: true, DisplayPass: true}
 	reader := diagnosticsConn.deviceConn.Reader()
