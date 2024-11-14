@@ -112,6 +112,7 @@ Usage:
   ios apps [--system] [--all] [--list] [--filesharing] [options]
   ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
+  ios memlimitoff (--process=<processName>) [options]
   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [--font=<fontSize>] [options]
@@ -226,6 +227,7 @@ The commands work as following:
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
    ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options] Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
+   ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
    >                                                                  If you provide '-' as log output, it prints resuts to stdout.
    >                                                                  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=(TestTarget.)TestClass/testMethod --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
@@ -851,6 +853,28 @@ The commands work as following:
 	b, _ = arguments.Bool("sysmontap")
 	if b {
 		printSysmontapStats(device)
+	}
+
+	b, _ = arguments.Bool("memlimitoff")
+	if b {
+		processName, _ := arguments.String("--process")
+
+		pControl, err := instruments.NewProcessControl(device)
+		exitIfError("processcontrol failed", err)
+		defer pControl.Close()
+
+		svc, err := instruments.NewDeviceInfoService(device)
+		exitIfError("failed opening deviceInfoService for getting process list", err)
+		defer svc.Close()
+
+		processList, _ := svc.ProcessList()
+		for _, process := range processList {
+			if process.Pid > 1 && process.Name == processName {
+				disabled, err := pControl.DisableMemoryLimit(process.Pid)
+				exitIfError("DisableMemoryLimit failed", err)
+				log.WithFields(log.Fields{"process": process.Name, "pid": process.Pid}).Info("memory limit is off: ", disabled)
+			}
+		}
 	}
 
 	b, _ = arguments.Bool("kill")
