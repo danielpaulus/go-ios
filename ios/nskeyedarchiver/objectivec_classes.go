@@ -586,7 +586,11 @@ func NewNSError(object map[string]interface{}, objects []interface{}) interface{
 }
 
 func (err NSError) Error() string {
-	return fmt.Sprintf("Error code: %d, Domain: %s, User info: %v", err.ErrorCode, err.Domain, err.UserInfo)
+	var description any = "no description available"
+	if d, ok := err.UserInfo["NSLocalizedDescription"]; ok {
+		description = d
+	}
+	return fmt.Sprintf("%v (Error code: %d, Domain: %s)", description, err.ErrorCode, err.Domain)
 }
 
 // Apples Reference Date is Jan 1st 2001 00:00

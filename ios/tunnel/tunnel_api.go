@@ -26,7 +26,7 @@ var netClient = &http.Client{
 }
 
 func CloseAgent() error {
-	_, err := netClient.Get(fmt.Sprintf("http://%s:%d/shutdown", "127.0.0.1", ios.HttpApiPort()))
+	_, err := netClient.Get(fmt.Sprintf("http://%s:%d/shutdown", ios.HttpApiHost(), ios.HttpApiPort()))
 	if err != nil {
 		return fmt.Errorf("CloseAgent: failed to send shutdown request: %w", err)
 	}
@@ -34,7 +34,7 @@ func CloseAgent() error {
 }
 
 func IsAgentRunning() bool {
-	resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/health", "127.0.0.1", ios.HttpApiPort()))
+	resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/health", ios.HttpApiHost(), ios.HttpApiPort()))
 	if err != nil {
 		return false
 	}
@@ -43,7 +43,7 @@ func IsAgentRunning() bool {
 func WaitUntilAgentReady() bool {
 	for {
 		slog.Info("Waiting for go-ios agent to be ready...")
-		resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/ready", "127.0.0.1", ios.HttpApiPort()))
+		resp, err := netClient.Get(fmt.Sprintf("http://%s:%d/ready", ios.HttpApiHost(), ios.HttpApiPort()))
 		if err != nil {
 			return false
 		}
@@ -155,11 +155,11 @@ func ServeTunnelInfo(tm *TunnelManager, port int) error {
 	return nil
 }
 
-func TunnelInfoForDevice(udid string, tunnelInfoPort int) (Tunnel, error) {
+func TunnelInfoForDevice(udid string, tunnelInfoHost string, tunnelInfoPort int) (Tunnel, error) {
 	c := http.Client{
 		Timeout: 5 * time.Second,
 	}
-	res, err := c.Get(fmt.Sprintf("http://127.0.0.1:%d/tunnel/%s", tunnelInfoPort, udid))
+	res, err := c.Get(fmt.Sprintf("http://%s:%d/tunnel/%s", tunnelInfoHost, tunnelInfoPort, udid))
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("TunnelInfoForDevice: failed to get tunnel info: %w", err)
 	}
@@ -177,11 +177,11 @@ func TunnelInfoForDevice(udid string, tunnelInfoPort int) (Tunnel, error) {
 	return info, nil
 }
 
-func ListRunningTunnels(tunnelInfoPort int) ([]Tunnel, error) {
+func ListRunningTunnels(tunnelInfoHost string, tunnelInfoPort int) ([]Tunnel, error) {
 	c := http.Client{
 		Timeout: 5 * time.Second,
 	}
-	res, err := c.Get(fmt.Sprintf("http://127.0.0.1:%d/tunnels", tunnelInfoPort))
+	res, err := c.Get(fmt.Sprintf("http://%s:%d/tunnels", tunnelInfoHost, tunnelInfoPort))
 	if err != nil {
 		return nil, fmt.Errorf("TunnelInfoForDevice: failed to get tunnel info: %w", err)
 	}

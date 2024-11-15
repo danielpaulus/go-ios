@@ -59,6 +59,7 @@ type DeviceEntry struct {
 	Address          string
 	Rsd              RsdPortProvider
 	UserspaceTUN     bool
+	UserspaceTUNHost string
 	UserspaceTUNPort int
 }
 
