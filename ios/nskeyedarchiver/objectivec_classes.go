@@ -7,6 +7,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"howett.net/plist"
 )
 
@@ -126,6 +127,7 @@ func NewXCTestConfiguration(
 	} else {
 		contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
 	}
+	log.WithField("ios-version", version.String()).WithField("path", contents["automationFrameworkPath"]).Infof("applied automationFrameworkPath")
 	contents["baselineFileRelativePath"] = plist.UID(0)
 	contents["baselineFileURL"] = plist.UID(0)
 	contents["defaultTestExecutionTimeAllowance"] = plist.UID(0)
