@@ -554,8 +554,7 @@ func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArres
 
 	testBundleURL := path.Join(info.testApp.path, "PlugIns", xctestConfigFileName)
 
-	testConfig := nskeyedarchiver.NewXCTestConfiguration(info.targetApp.bundleName, testSessionID, info.targetApp.bundleID, info.targetApp.path, testBundleURL, testsToRun, testsToSkip, isXCTest, version)
-	config := testConfig
+	config := nskeyedarchiver.NewXCTestConfiguration(info.targetApp.bundleName, testSessionID, info.targetApp.bundleID, info.targetApp.path, testBundleURL, testsToRun, testsToSkip, isXCTest, version)
 	result, err := nskeyedarchiver.ArchiveXML(config)
 	if err != nil {
 		return "", nskeyedarchiver.XCTestConfiguration{}, err
@@ -565,7 +564,7 @@ func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArres
 	if err != nil {
 		return "", nskeyedarchiver.XCTestConfiguration{}, err
 	}
-	return xctestConfigPath, testConfig, nil
+	return xctestConfigPath, nskeyedarchiver.NewXCTestConfiguration(info.targetApp.bundleName, testSessionID, info.targetApp.bundleID, info.targetApp.path, testBundleURL, testsToRun, testsToSkip, isXCTest, version), nil
 }
 
 func createTestConfig(info testInfo, testSessionID uuid.UUID, xctestConfigFileName string, testsToRun []string, testsToSkip []string, isXCTest bool, version *semver.Version) nskeyedarchiver.XCTestConfiguration {
