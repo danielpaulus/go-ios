@@ -122,11 +122,7 @@ func NewXCTestConfiguration(
 	}
 
 	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
-	if version.Major() >= 17 {
-		contents["automationFrameworkPath"] = "/System/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
-	} else {
-		contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
-	}
+	contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
 	log.WithField("ios-version", version.String()).WithField("path", contents["automationFrameworkPath"]).Infof("applied automationFrameworkPath")
 	contents["baselineFileRelativePath"] = plist.UID(0)
 	contents["baselineFileURL"] = plist.UID(0)
