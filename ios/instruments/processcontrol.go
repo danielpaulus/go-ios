@@ -64,7 +64,7 @@ func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
 
 // DisableMemoryLimit disables the memory limit of a process.
 func (p ProcessControl) DisableMemoryLimit(pid uint64) (bool, error) {
-	msg, err := p.processControlChannel.MethodCall("requestDisableMemoryLimitsForPid:", pid)
+	msg, err := p.processControlChannel.MethodCallPrimitive("requestDisableMemoryLimitsForPid:", int(pid))
 	if err != nil {
 		return false, err
 	}
