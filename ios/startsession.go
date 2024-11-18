@@ -2,6 +2,7 @@ package ios
 
 import (
 	"bytes"
+	"errors"
 
 	plist "howett.net/plist"
 )
@@ -29,6 +30,7 @@ type StartSessionResponse struct {
 	EnableSessionSSL bool
 	Request          string
 	SessionID        string
+	Error            string
 }
 
 func startSessionResponsefromBytes(plistBytes []byte) StartSessionResponse {
@@ -52,6 +54,9 @@ func (lockDownConn *LockDownConnection) StartSession(pairRecord PairRecord) (Sta
 		return StartSessionResponse{}, err
 	}
 	response := startSessionResponsefromBytes(resp)
+	if response.Error != "" {
+		return StartSessionResponse{}, errors.New(response.Error)
+	}
 	lockDownConn.sessionID = response.SessionID
 	if response.EnableSessionSSL {
 		err = lockDownConn.deviceConnection.EnableSessionSsl(pairRecord)
