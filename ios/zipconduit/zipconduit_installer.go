@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -51,7 +50,7 @@ type Connection struct {
 
 // New returns a new ZipConduit Connection for the given DeviceID and Udid
 func New(device ios.DeviceEntry) (*Connection, error) {
-	if device.Rsd == nil {
+	if !device.SupportsRsd() {
 		return NewWithUsbmuxdConnection(device)
 	}
 	return NewWithShimConnection(device)
@@ -110,7 +109,7 @@ func (conn Connection) Close() error {
 }
 
 func (conn Connection) sendDirectory(dir string) error {
-	tmpDir, err := ioutil.TempDir("", "prefix")
+	tmpDir, err := os.MkdirTemp("", "prefix")
 	if err != nil {
 		return err
 	}
@@ -182,7 +181,7 @@ func (conn Connection) sendDirectory(dir string) error {
 }
 
 func (conn Connection) sendIpaFile(ipaFile string) error {
-	tmpDir, err := ioutil.TempDir("", "prefix")
+	tmpDir, err := os.MkdirTemp("", "prefix")
 	if err != nil {
 		return err
 	}
@@ -194,7 +193,7 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		}
 	}()
 	log.Debug("unzipping..")
-	unzippedFiles, totalBytes, err := Unzip(ipaFile, tmpDir)
+	unzippedFiles, totalBytes, err := ios.Unzip(ipaFile, tmpDir)
 	if err != nil {
 		return err
 	}
@@ -276,7 +275,7 @@ func addMetaInf(metainfPath string, files []string, totalBytes uint64) (string, 
 	meta := metadata{RecordCount: 2 + len(files), StandardDirectoryPerms: 16877, StandardFilePerms: -32348, TotalUncompressedBytes: totalBytes, Version: 2}
 	metaBytes := ios.ToPlistBytes(meta)
 	filePath := path.Join(metainfPath, "META-INF", metainfFileName)
-	err := ioutil.WriteFile(filePath, metaBytes, 0o777)
+	err := os.WriteFile(filePath, metaBytes, 0o777)
 	if err != nil {
 		return "", "", err
 	}

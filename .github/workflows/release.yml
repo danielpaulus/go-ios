@@ -26,7 +26,7 @@ jobs:
 
       - name: Build
         run: |
-          ((Get-Content -path main.go -Raw) -replace "local-build","${{ steps.create_release.outputs.current_tag }}") | Set-Content -Path main.go
+          ((Get-Content -path main.go -Raw) -replace "local-build","${{ steps.create_release.outputs.current_tag }}") | Set-Content -Path main.go  
           mkdir bin
           go build -ldflags="-s -w" -o bin/ios.exe
           "${{ steps.create_release.outputs.current_tag }}" | Out-File -Encoding utf8NoBOM release_tag -NoNewline
@@ -131,7 +131,7 @@ jobs:
 
       - uses: AButler/upload-release-assets@v2.0
         with:
-          files: '*.zip'
+          files: "*.zip"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           release-tag: ${{ env.release_tag }}
 
@@ -141,12 +141,13 @@ jobs:
         run: |
           mkdir ./npm_publish/dist
           mkdir ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64
+          mkdir ./npm_publish/dist/go-ios-darwin-arm64_darwin_arm64
           mkdir ./npm_publish/dist/go-ios-linux-amd64_linux_amd64
           mkdir ./npm_publish/dist/go-ios-windows-amd64_windows_amd64
-          cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-fat_darwin_fat/ios
+          cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64/ios
+          cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-arm64_darwin_arm64/ios
           cp ./win-bin/ios.exe ./npm_publish/dist/go-ios-windows-amd64_windows_amd64/ios.exe
           cp ./bin/ios ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
-          cp README.md ./npm_publish/README.md
           echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" >> ~/.npmrc
           cd npm_publish
           sed -i 's/\"local-build\"/\"${{ env.release_tag }}\"/' package.json

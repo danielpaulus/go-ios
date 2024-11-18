@@ -2,7 +2,11 @@ package syslog
 
 import (
 	"bufio"
+	"fmt"
 	"io"
+	"regexp"
+	"strings"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 )
@@ -21,7 +25,7 @@ type Connection struct {
 // New returns a new SysLog Connection for the given DeviceID and Udid
 // It will create LogReader as a buffered Channel because Syslog is very verbose.
 func New(device ios.DeviceEntry) (*Connection, error) {
-	if device.Rsd == nil {
+	if !device.SupportsRsd() {
 		return NewWithUsbmuxdConnection(device)
 	}
 	return NewWithShimConnection(device)
@@ -60,6 +64,61 @@ func (sysLogConn *Connection) ReadLogMessage() (string, error) {
 		return "", err
 	}
 	return logmsg, nil
+}
+
+// LogEntry represents a parsed log entry
+type LogEntry struct {
+	Timestamp string `json:"timestamp"`
+	Device    string `json:"device"`
+	Process   string `json:"process"`
+	PID       string `json:"pid"`
+	Level     string `json:"level"`
+	Message   string `json:"message"`
+}
+
+func Parser() func(log string) (*LogEntry, error) {
+	pattern := `(?P<Timestamp>[A-Z][a-z]{2} \d{1,2} \d{2}:\d{2}:\d{2}) (?P<Device>\S+) (?P<Process>[^\[]+)\[(?P<PID>\d+)\] <(?P<Level>\w+)>: (?P<Message>.+)`
+	regexp := regexp.MustCompile(pattern)
+
+	return func(log string) (*LogEntry, error) {
+		// Match the log message against the regex pattern
+		match := regexp.FindStringSubmatch(log)
+		if match == nil {
+			return nil, fmt.Errorf("failed to parse syslog message: %s", log)
+		}
+
+		// Create a map of named capture groups
+		result := make(map[string]string)
+		for i, name := range regexp.SubexpNames() {
+			if i != 0 && name != "" {
+				result[name] = match[i]
+			}
+		}
+
+		// Parse the original timestamp
+		originalTimestamp := result["Timestamp"]
+		parsedTime, err := time.Parse("Jan 2 15:04:05", originalTimestamp)
+		// Set the year to the current year from the system (this might cause friction at year end)
+		parsedTime = parsedTime.AddDate(time.Now().Year()-parsedTime.Year(), 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse syslog timestamp: %s", log)
+		}
+
+		// Convert to ISO 8601 format
+		isoTimestamp := parsedTime.Format("2006-01-02T15:04:05")
+
+		// Populate the LogEntry struct
+		entry := &LogEntry{
+			Timestamp: isoTimestamp,
+			Device:    result["Device"],
+			Process:   strings.TrimSpace(result["Process"]),
+			PID:       result["PID"],
+			Level:     result["Level"],
+			Message:   result["Message"],
+		}
+
+		return entry, nil
+	}
 }
 
 // Close closes the underlying UsbMuxConnection

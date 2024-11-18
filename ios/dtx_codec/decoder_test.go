@@ -1,8 +1,9 @@
 package dtx_test
 
 import (
+	"bufio"
 	"bytes"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -20,7 +21,7 @@ func TestErrors(t *testing.T) {
 	_, _, err = dtx.DecodeNonBlocking(dat)
 	assert.True(t, dtx.IsIncomplete(err))
 
-	dat, err = ioutil.ReadFile("fixtures/notifyOfPublishedCapabilites")
+	dat, err = os.ReadFile("fixtures/notifyOfPublishedCapabilites")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +32,7 @@ func TestErrors(t *testing.T) {
 }
 
 func TestLZ4CompressedDtxMessage(t *testing.T) {
-	dat, err := ioutil.ReadFile("fixtures/instruments-metrics-dtx.bin")
+	dat, err := os.ReadFile("fixtures/instruments-metrics-dtx.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +46,7 @@ func TestLZ4CompressedDtxMessage(t *testing.T) {
 }
 
 func TestCodec2(t *testing.T) {
-	dat, err := ioutil.ReadFile("fixtures/requestChannelWithCodeIdentifier.bin")
+	dat, err := os.ReadFile("fixtures/requestChannelWithCodeIdentifier.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +67,7 @@ func TestCodec2(t *testing.T) {
 }
 
 func TestCodec(t *testing.T) {
-	dat, err := ioutil.ReadFile("fixtures/requestChannelWithCodeIdentifier.bin")
+	dat, err := os.ReadFile("fixtures/requestChannelWithCodeIdentifier.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,10 +88,10 @@ func TestCodec(t *testing.T) {
 }
 
 func TestAXDump(t *testing.T) {
-	// dat, err := ioutil.ReadFile("fixtures/broken-message-from-ax-1.bin")
-	// dat, err := ioutil.ReadFile("fixtures/nsmutablestring.bin")
-	// dat, err := ioutil.ReadFile("fixtures/nsnull.bin")
-	dat, err := ioutil.ReadFile("fixtures/dtactivitytapmessage.bin")
+	// dat, err := os.ReadFile("fixtures/broken-message-from-ax-1.bin")
+	// dat, err := os.ReadFile("fixtures/nsmutablestring.bin")
+	// dat, err := os.ReadFile("fixtures/nsnull.bin")
+	dat, err := os.ReadFile("fixtures/dtactivitytapmessage.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,10 +108,10 @@ func TestAXDump(t *testing.T) {
 }
 
 func TestType1Message(t *testing.T) {
-	// dat, err := ioutil.ReadFile("fixtures/broken-message-from-ax-1.bin")
-	// dat, err := ioutil.ReadFile("fixtures/nsmutablestring.bin")
-	// dat, err := ioutil.ReadFile("fixtures/nsnull.bin")
-	dat, err := ioutil.ReadFile("fixtures/unknown-d-h-h-message.bin")
+	// dat, err := os.ReadFile("fixtures/broken-message-from-ax-1.bin")
+	// dat, err := os.ReadFile("fixtures/nsmutablestring.bin")
+	// dat, err := os.ReadFile("fixtures/nsnull.bin")
+	dat, err := os.ReadFile("fixtures/unknown-d-h-h-message.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +128,7 @@ func TestType1Message(t *testing.T) {
 }
 
 func TestFragmentedMessage(t *testing.T) {
-	dat, err := ioutil.ReadFile("fixtures/fragmentedmessage.bin")
+	dat, err := os.ReadFile("fixtures/fragmentedmessage.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +162,7 @@ func TestFragmentedMessage(t *testing.T) {
 	nonblockingFullMessage := defragmenter.Extract()
 
 	// now test that the blocking decoder creates the same message and that it is decodeable
-	dtxReader := bytes.NewReader(dat)
+	dtxReader := bufio.NewReader(bytes.NewReader(dat))
 	msg, err = dtx.ReadMessage(dtxReader)
 	if assert.NoError(t, err) {
 		assert.Equal(t, uint16(3), msg.Fragments)
@@ -187,49 +188,33 @@ func TestFragmentedMessage(t *testing.T) {
 	assert.Equal(t, true, defragmenter.HasFinished())
 	defraggedMessage := defragmenter.Extract()
 	assert.Equal(t, defraggedMessage, nonblockingFullMessage)
-	dtxReader = bytes.NewReader(defraggedMessage)
+	dtxReader = bufio.NewReader(bytes.NewReader(defraggedMessage))
 	_, err = dtx.ReadMessage(dtxReader)
 	assert.NoError(t, err)
 }
 
 func TestDecoder(t *testing.T) {
-	dat, err := ioutil.ReadFile("fixtures/notifyOfPublishedCapabilites")
+	dat, err := os.ReadFile("fixtures/notifyOfPublishedCapabilites")
 	if err != nil {
 		t.Fatal(err)
 	}
-	msg, remainingBytes, err := dtx.DecodeNonBlocking(dat)
-	if assert.NoError(t, err) {
-		assert.Equal(t, 0, len(remainingBytes))
-		assert.Equal(t, msg.Fragments, uint16(1))
-		assert.Equal(t, msg.FragmentIndex, uint16(0))
-		assert.Equal(t, msg.MessageLength, 612)
-		assert.Equal(t, 0, msg.ChannelCode)
-		assert.Equal(t, false, msg.ExpectsReply)
-		assert.Equal(t, 2, msg.Identifier)
-		assert.Equal(t, 0, msg.ChannelCode)
 
-		assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
-		assert.Equal(t, uint32(425), msg.PayloadHeader.AuxiliaryLength)
-		assert.Equal(t, uint32(596), msg.PayloadHeader.TotalPayloadLength)
-		assert.Equal(t, uint32(0), msg.PayloadHeader.Flags)
+	reader := bufio.NewReader(bytes.NewReader(append(dat[:], dat[:]...)))
+	for i := 0; i < 2; i++ {
+		msg, err := dtx.ReadMessage(reader)
+		if assert.NoError(t, err) {
+			assert.Equal(t, msg.Fragments, uint16(1))
+			assert.Equal(t, msg.FragmentIndex, uint16(0))
+			assert.Equal(t, msg.MessageLength, 612)
+			assert.Equal(t, 0, msg.ChannelCode)
+			assert.Equal(t, false, msg.ExpectsReply)
+			assert.Equal(t, 2, msg.Identifier)
+			assert.Equal(t, 0, msg.ChannelCode)
 
-	}
-
-	msg, err = dtx.ReadMessage(bytes.NewReader(dat))
-	if assert.NoError(t, err) {
-
-		assert.Equal(t, msg.Fragments, uint16(1))
-		assert.Equal(t, msg.FragmentIndex, uint16(0))
-		assert.Equal(t, msg.MessageLength, 612)
-		assert.Equal(t, 0, msg.ChannelCode)
-		assert.Equal(t, false, msg.ExpectsReply)
-		assert.Equal(t, 2, msg.Identifier)
-		assert.Equal(t, 0, msg.ChannelCode)
-
-		assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
-		assert.Equal(t, uint32(425), msg.PayloadHeader.AuxiliaryLength)
-		assert.Equal(t, uint32(596), msg.PayloadHeader.TotalPayloadLength)
-		assert.Equal(t, uint32(0), msg.PayloadHeader.Flags)
-
+			assert.Equal(t, dtx.MessageType(2), msg.PayloadHeader.MessageType)
+			assert.Equal(t, uint32(425), msg.PayloadHeader.AuxiliaryLength)
+			assert.Equal(t, uint32(596), msg.PayloadHeader.TotalPayloadLength)
+			assert.Equal(t, uint32(0), msg.PayloadHeader.Flags)
+		}
 	}
 }

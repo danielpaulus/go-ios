@@ -9,6 +9,8 @@
 Welcome 👋
 
 `npm install -g go-ios` can be used to get going. Run `ios --help` after the installation for details. 
+For iOS 17+ devices you need to run `sudo ios tunnel start` for go ios to work. This will start a tunnel daemon. 
+To make this work on Windows, download the latest wintun.dll from here `https://git.zx2c4.com/wintun` and copy it to `C:/Windows/system32`
 
 The goal of this project is to provide a stable and production ready opensource solution to automate iOS device on Linux, Windows and Mac OS X. I am delighted to announce that a few companies including [headspin.io](https://www.headspin.io/) and [Sauce Labs](https://saucelabs.com/) will use or are using go-iOS. 
 

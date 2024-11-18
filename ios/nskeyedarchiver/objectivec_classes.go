@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/google/uuid"
 	"howett.net/plist"
 )
@@ -83,6 +84,8 @@ func NewXCTestConfiguration(
 	testBundleURL string,
 	testsToRun []string,
 	testsToSkip []string,
+	isXCTest bool,
+	version *semver.Version,
 ) XCTestConfiguration {
 	contents := map[string]interface{}{}
 
@@ -118,7 +121,11 @@ func NewXCTestConfiguration(
 	}
 
 	contents["aggregateStatisticsBeforeCrash"] = map[string]interface{}{"XCSuiteRecordsKey": map[string]interface{}{}}
-	contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
+	if version.Major() >= 17 {
+		contents["automationFrameworkPath"] = "/System/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
+	} else {
+		contents["automationFrameworkPath"] = "/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework"
+	}
 	contents["baselineFileRelativePath"] = plist.UID(0)
 	contents["baselineFileURL"] = plist.UID(0)
 	contents["defaultTestExecutionTimeAllowance"] = plist.UID(0)
@@ -126,7 +133,7 @@ func NewXCTestConfiguration(
 	contents["emitOSLogs"] = false
 	// contents["formatVersion"] = 2
 	contents["gatherLocalizableStringsData"] = false
-	contents["initializeForUITesting"] = true
+	contents["initializeForUITesting"] = !isXCTest
 	contents["maximumTestExecutionTimeAllowance"] = plist.UID(0)
 	contents["randomExecutionOrderingSeed"] = plist.UID(0)
 	contents["reportActivities"] = true
@@ -181,19 +188,19 @@ func createTestIdentifierSet(productModuleName string, tests []string) XCTTestId
 			}
 		}
 
-		components := make([]string, 0, 3)
+		components := make([]string, 0, 2)
 
-		module := matchedGroups["module"]
+		// the `module` parameter is ingored here as it only works reliably with `testIdentifiersToRun`
+		// adding the `module` parameter to `testIdentifiersToSkip` won't skip the specified tests there
+		// this was verified with Xcode 15
+		_ = matchedGroups["module"]
 		clazz := matchedGroups["class"]
 		method := matchedGroups["method"]
 
 		options := uint64(3)
-		if len(module) > 0 {
-			clazz = fmt.Sprintf("%s.%s", productModuleName, clazz)
-		}
 		components = append(components, clazz)
 		if len(method) > 0 {
-			options = 6
+			options = 2
 			components = append(components, method)
 		}
 
@@ -579,7 +586,11 @@ func NewNSError(object map[string]interface{}, objects []interface{}) interface{
 }
 
 func (err NSError) Error() string {
-	return fmt.Sprintf("Error code: %d, Domain: %s, User info: %v", err.ErrorCode, err.Domain, err.UserInfo)
+	var description any = "no description available"
+	if d, ok := err.UserInfo["NSLocalizedDescription"]; ok {
+		description = d
+	}
+	return fmt.Sprintf("%v (Error code: %d, Domain: %s)", description, err.ErrorCode, err.Domain)
 }
 
 // Apples Reference Date is Jan 1st 2001 00:00

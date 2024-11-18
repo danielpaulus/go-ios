@@ -33,6 +33,83 @@ type DeviceConnection struct {
 	unencryptedConn net.Conn
 }
 
+// TODO: remove the need for this with some refactoring in a follow up PR
+type DeviceConnectionRWC struct {
+	c io.ReadWriteCloser
+}
+
+// Conn implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) Conn() net.Conn {
+	panic("unimplemented")
+}
+
+// DisableSessionSSL implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) DisableSessionSSL() {
+	panic("unimplemented")
+}
+
+// EnableSessionSsl implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) EnableSessionSsl(pairRecord PairRecord) error {
+	panic("unimplemented")
+}
+
+// EnableSessionSslHandshakeOnly implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) EnableSessionSslHandshakeOnly(pairRecord PairRecord) error {
+	panic("unimplemented")
+}
+
+// EnableSessionSslServerMode implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) EnableSessionSslServerMode(pairRecord PairRecord) error {
+	panic("unimplemented")
+}
+
+// EnableSessionSslServerModeHandshakeOnly implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) EnableSessionSslServerModeHandshakeOnly(pairRecord PairRecord) error {
+	panic("unimplemented")
+}
+
+// Read implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) Read(p []byte) (n int, err error) {
+	return conn.c.Read(p)
+}
+
+// Reader implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) Reader() io.Reader {
+	return conn.c
+}
+
+// Send implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) Send(message []byte) error {
+	n, err := conn.c.Write(message)
+	if n < len(message) {
+		log.Errorf("DeviceConnection failed writing %d bytes, only %d sent", len(message), n)
+	}
+	if err != nil {
+		log.Errorf("Failed sending: %s", err)
+		conn.Close()
+		return err
+	}
+	return nil
+}
+
+// Write implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) Write(p []byte) (n int, err error) {
+	return conn.c.Write(p)
+}
+
+// Writer implements DeviceConnectionInterface.
+func (conn *DeviceConnectionRWC) Writer() io.Writer {
+	return conn.c
+}
+
+func (conn *DeviceConnectionRWC) Close() error {
+	return conn.c.Close()
+}
+
+func NewDeviceConnectionWithRWC(rwc io.ReadWriteCloser) DeviceConnectionInterface {
+	return &DeviceConnectionRWC{c: rwc}
+}
+
 // Read reads incoming data from the connection to the device
 func (conn *DeviceConnection) Read(p []byte) (n int, err error) {
 	return conn.c.Read(p)

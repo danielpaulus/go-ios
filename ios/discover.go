@@ -3,6 +3,7 @@ package ios
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 
 	"github.com/grandcat/zeroconf"
@@ -19,7 +20,10 @@ func FindDeviceInterfaceAddress(ctx context.Context, device DeviceEntry) (string
 	}
 
 	result := make(chan string)
-	defer close(result)
+
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	defer cancel()
 
 	for _, iface := range ifaces {
 		resolver, err := zeroconf.NewResolver(zeroconf.SelectIfaces([]net.Interface{iface}), zeroconf.SelectIPTraffic(zeroconf.IPv6))
@@ -54,17 +58,20 @@ func checkEntry(ctx context.Context, device DeviceEntry, interfaceName string, e
 			if entry == nil {
 				continue
 			}
+			print(entry.ServiceInstanceName())
 			for _, ip6 := range entry.AddrIPv6 {
-				tryHandshake(ip6, interfaceName, device.Properties.SerialNumber, result)
+				tryHandshake(ctx, ip6, entry.Port, interfaceName, device, result)
 			}
 		}
 	}
 }
 
-func tryHandshake(ip6 net.IP, interfaceName, udid string, result chan<- string) {
+func tryHandshake(ctx context.Context, ip6 net.IP, port int, interfaceName string, device DeviceEntry, result chan<- string) {
 	addr := fmt.Sprintf("%s%%%s", ip6.String(), interfaceName)
-	s, err := NewWithAddr(addr)
+	s, err := NewWithAddrPortDevice(addr, port, device)
+	udid := device.Properties.SerialNumber
 	if err != nil {
+		slog.Error("failed to connect to remote service discovery", "error", err, "address", addr)
 		return
 	}
 	defer s.Close()
@@ -73,6 +80,10 @@ func tryHandshake(ip6 net.IP, interfaceName, udid string, result chan<- string) 
 		return
 	}
 	if udid == h.Udid {
-		result <- addr
+		select {
+		case <-ctx.Done():
+			slog.Error("failed sending handshake result", "error", ctx.Err())
+		case result <- addr:
+		}
 	}
 }

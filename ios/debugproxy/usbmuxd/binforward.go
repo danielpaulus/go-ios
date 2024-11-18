@@ -22,6 +22,7 @@ var serviceConfigurations = map[string]serviceConfig{
 	"com.apple.accessibility.axAuditDaemon.remoteserver":      {NewDtxDecoder, true},
 	"com.apple.testmanagerd.lockdown":                         {NewDtxDecoder, true},
 	"com.apple.debugserver":                                   {NewBinDumpOnly, true},
+	"com.apple.instruments.dtservicehub":                      {NewDtxDecoder, false},
 	"com.apple.instruments.remoteserver.DVTSecureSocketProxy": {NewDtxDecoder, false},
 	"com.apple.testmanagerd.lockdown.secure":                  {NewDtxDecoder, false},
 	"bindumper":                                               {NewBinDumpOnly, false},

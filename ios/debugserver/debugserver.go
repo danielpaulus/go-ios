@@ -3,7 +3,6 @@ package debugserver
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -125,7 +124,7 @@ func getBundleidFromApp(appPath string) (string, error) {
 		return "", errors.New("cannot find info.plist")
 	}
 	// read bundleId
-	pcontent, err := ioutil.ReadFile(plistPath)
+	pcontent, err := os.ReadFile(plistPath)
 	if err != nil {
 		return "", err
 	}

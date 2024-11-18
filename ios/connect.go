@@ -1,8 +1,12 @@
 package ios
 
 import (
+	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios/http"
@@ -108,12 +112,11 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 // to the provided service.
 // The 'RSDCheckin' required by shim services is also executed before returning the connection to the caller
 func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionInterface, error) {
-	if device.Rsd == nil {
+	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToShimService: Cannot connect to %s, missing tunnel address and RSD port.  To start the tunnel, run `ios tunnel start`", service)
 	}
-
 	port := device.Rsd.GetPort(service)
-	conn, err := connectToTunnel(device, port)
+	conn, err := ConnectTUNDevice(device.Address, port, device)
 	if err != nil {
 		return nil, err
 	}
@@ -121,18 +124,23 @@ func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionI
 	if err != nil {
 		return nil, err
 	}
-	return NewDeviceConnectionWithConn(conn), nil
+	return NewDeviceConnectionWithRWC(conn), nil
 }
 
 // ConnectToServiceTunnelIface connects to a service on an iOS17+ device using a XPC over HTTP2 connection
 // It returns a new xpc.Connection
 func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xpc.Connection, error) {
-	if device.Rsd == nil {
+	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToXpcServiceTunnelIface: Cannot connect to %s, missing tunnel address and RSD port. To start the tunnel, run `ios tunnel start`", serviceName)
 	}
 	port := device.Rsd.GetPort(serviceName)
 
-	h, err := ConnectToHttp2(device, port)
+	conn, err := ConnectTUNDevice(device.Address, port, device)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
+	}
+
+	h, err := http.NewHttpConnection(conn)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToXpcServiceTunnelIface: failed to connect to http2: %w", err)
 	}
@@ -140,84 +148,17 @@ func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xp
 }
 
 func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (DeviceConnectionInterface, error) {
-	if device.Rsd == nil {
+	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToServiceTunnelIface: Cannot connect to %s, missing tunnel address and RSD port", serviceName)
 	}
 	port := device.Rsd.GetPort(serviceName)
 
-	conn, err := connectToTunnel(device, port)
+	conn, err := ConnectTUNDevice(device.Address, port, device)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToServiceTunnelIface: failed to connect to tunnel: %w", err)
 	}
 
-	return NewDeviceConnectionWithConn(conn), nil
-}
-
-func ConnectToHttp2(device DeviceEntry, port int) (*http.HttpConnection, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2: failed to resolve address: %w", err)
-	}
-
-	conn, err := net.DialTCP("tcp", nil, addr)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2: failed to dial: %w", err)
-	}
-
-	err = conn.SetKeepAlive(true)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive: %w", err)
-	}
-	err = conn.SetKeepAlivePeriod(1 * time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2: failed to set keepalive period: %w", err)
-	}
-	return http.NewHttpConnection(conn)
-}
-
-func connectToTunnel(device DeviceEntry, port int) (*net.TCPConn, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", device.Address, port))
-	if err != nil {
-		return nil, fmt.Errorf("connectToTunnel: failed to resolve address: %w", err)
-	}
-
-	conn, err := net.DialTCP("tcp", nil, addr)
-	if err != nil {
-		return nil, fmt.Errorf("connectToTunnel: failed to dial: %w", err)
-	}
-
-	err = conn.SetKeepAlive(true)
-	if err != nil {
-		return nil, fmt.Errorf("connectToTunnel: failed to set keepalive: %w", err)
-	}
-	err = conn.SetKeepAlivePeriod(1 * time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("connectToTunnel: failed to set keepalive period: %w", err)
-	}
-
-	return conn, nil
-}
-
-func ConnectToHttp2WithAddr(a string, port int) (*http.HttpConnection, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", a, port))
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
-	}
-
-	conn, err := net.DialTCP("tcp", nil, addr)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
-	}
-
-	err = conn.SetKeepAlive(true)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to set keepalive: %w", err)
-	}
-	err = conn.SetKeepAlivePeriod(1 * time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to set keepalive period: %w", err)
-	}
-	return http.NewHttpConnection(conn)
+	return NewDeviceConnectionWithRWC(conn), nil
 }
 
 func CreateXpcConnection(h *http.HttpConnection) (*xpc.Connection, error) {
@@ -331,4 +272,82 @@ func initializeXpcConnection(h *http.HttpConnection) error {
 	}
 
 	return nil
+}
+
+// ConnectTUNDevice creates a *net.TCPConn to the device at the given address and port.
+// If the device is a userspaceTUN device provided by go-ios agent, it will connect to this
+// automatically. Otherwise it will try a operating system level TUN device.
+func ConnectTUNDevice(remoteIp string, port int, d DeviceEntry) (*net.TCPConn, error) {
+	if !d.UserspaceTUN {
+		return connectTUN(remoteIp, port)
+	}
+
+	addr, _ := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", d.UserspaceTUNHost, d.UserspaceTUNPort))
+	conn, err := net.DialTCP("tcp", nil, addr)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to dial: %w", err)
+	}
+	err = conn.SetKeepAlive(true)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to set keepalive: %w", err)
+	}
+	err = conn.SetKeepAlivePeriod(1 * time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to set keepalive period: %w", err)
+	}
+	_, err = conn.Write(net.ParseIP(remoteIp).To16())
+	portBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(portBytes, uint32(port))
+	_, err1 := conn.Write(portBytes)
+	return conn, errors.Join(err, err1)
+}
+
+// connect to a operating system level TUN device
+func connectTUN(address string, port int) (*net.TCPConn, error) {
+	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", address, port))
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
+	}
+	conn, err := net.DialTCP("tcp", nil, addr)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
+	}
+	err = conn.SetKeepAlive(true)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to set keepalive: %w", err)
+	}
+	err = conn.SetKeepAlivePeriod(1 * time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to set keepalive period: %w", err)
+	}
+
+	return conn, nil
+}
+
+// defaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
+// 60-105 is leetspeek for go-ios :-D
+const defaultHttpApiPort = 60105
+
+// defaultHttpApiHost is the host on which the HTTP-Server runs, by default it is 127.0.0.1
+const defaultHttpApiHost = "127.0.0.1"
+
+// DefaultHttpApiPort is the port on which we start the HTTP-Server for exposing started tunnels
+// if GO_IOS_AGENT_PORT is set, we use that port. Otherwise we use the default port 60106.
+// 60-105 is leetspeek for go-ios :-D
+func HttpApiPort() int {
+	port, err := strconv.Atoi(os.Getenv("GO_IOS_AGENT_PORT"))
+	if err != nil {
+		return defaultHttpApiPort
+	}
+	return port
+}
+
+// DefaultHttpApiHost is the host on which the HTTP-Server runs, by default it is 127.0.0.1
+// if GO_IOS_AGENT_HOST is set, we use that host. Otherwise we use the default host
+func HttpApiHost() string {
+	host := os.Getenv("GO_IOS_AGENT_HOST")
+	if host == "" {
+		return defaultHttpApiHost
+	}
+	return host
 }

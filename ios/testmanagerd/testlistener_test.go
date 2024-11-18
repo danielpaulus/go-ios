@@ -21,7 +21,7 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 			testListener.didFinishExecutingTestPlan()
 		}()
 
-		<-testListener.executionFinished
+		<-testListener.finished
 	})
 
 	t.Run("Wait for test finish with multiple waiters", func(t *testing.T) {
