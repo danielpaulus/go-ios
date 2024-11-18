@@ -55,7 +55,7 @@ func (lockDownConn *LockDownConnection) StartSession(pairRecord PairRecord) (Sta
 	}
 	response := startSessionResponsefromBytes(resp)
 	if response.Error != "" {
-		return StartSessionResponse{}, errors.New(response.Error)
+		return StartSessionResponse{}, fmt.Errorf("failed to start new lockdown session: %s", response.Error)
 	}
 	lockDownConn.sessionID = response.SessionID
 	if response.EnableSessionSSL {
