@@ -2,7 +2,7 @@ package ios
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 
 	plist "howett.net/plist"
 )
