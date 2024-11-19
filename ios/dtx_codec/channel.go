@@ -57,15 +57,10 @@ func (d *Channel) MethodCall(selector string, args ...interface{}) (Message, err
 	return d.methodCallWithReply(selector, auxiliary)
 }
 
-// MethodCallPrimitive is a DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
+// MethodCallWithAuxiliary is a DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 // DTXMessage payload, and the primitive arguments put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
-func (d *Channel) MethodCallPrimitive(selector string, args ...int) (Message, error) {
-	auxiliary := NewPrimitiveDictionary()
-	for _, arg := range args {
-		auxiliary.AddInt32(arg)
-	}
-
-	return d.methodCallWithReply(selector, auxiliary)
+func (d *Channel) MethodCallWithAuxiliary(selector string, aux PrimitiveDictionary) (Message, error) {
+	return d.methodCallWithReply(selector, aux)
 }
 
 func (d *Channel) methodCallWithReply(selector string, auxiliary PrimitiveDictionary) (Message, error) {
