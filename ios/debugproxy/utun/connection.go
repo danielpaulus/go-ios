@@ -108,7 +108,7 @@ func parseConnectionData(outgoing string, incoming string) error {
 			outErr := decodeHttp2(outgoing.w, outFile, true)
 			inErr := decodeHttp2(incoming.w, inFile, false)
 			if err := errors.Join(outErr, inErr); err != nil {
-				//return err
+				return err
 			}
 			return parseConnectionData(outgoing.p, incoming.p)
 		})

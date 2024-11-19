@@ -41,11 +41,12 @@ func detectType(r io.ReadSeeker) contentType {
 	if string(b) == "PRI " {
 		return http2
 	}
-	i := binary.LittleEndian.Uint32(b)
-	if i == 0x29b00b92 {
+	le := binary.LittleEndian.Uint32(b)
+	be := binary.BigEndian.Uint32(b)
+	if le == 0x29b00b92 {
 		return remoteXpc
 	}
-	if string(b[:3]) == "y[=" {
+	if be == dtx.DtxMessageMagic {
 		return remoteDtx
 	}
 
