@@ -104,7 +104,7 @@ Usage:
   ios ps [--apps] [options]
   ios ip [options]
   ios forward [options] <hostPort> <targetPort>
-  ios dproxy [options] [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface> --address=<ipv6addrr> --rsd-port=<port>]
+  ios dproxy [options] [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>]
   ios readpair [options]
   ios sysmontap [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
@@ -216,7 +216,7 @@ The commands work as following:
    >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
    >                                                                  f.ex. "ios launch com.apple.Maps"
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [options] [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface> --address=<ipv6addrr> --rsd-port=<port>] Starts the reverse engineering proxy server.
+   ios dproxy [options] [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] Starts the reverse engineering proxy server.
    >                                                                  It dumps every communication in plain text so it can be implemented easily.
    >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
