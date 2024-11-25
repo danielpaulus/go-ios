@@ -131,7 +131,7 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}
-	if msg.PayloadHeader.MessageType == UnknownTypeOne {
+	if msg.PayloadHeader.MessageType == UnknownTypeOne || msg.PayloadHeader.MessageType == ResponseWithReturnValueInPayload {
 		g.dtxConnection.Dispatch(msg)
 	}
 }
