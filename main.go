@@ -127,7 +127,7 @@ Usage:
   ios resetlocation [options]
   ios assistivetouch (enable | disable | toggle | get) [--force] [options]
   ios voiceover (enable | disable | toggle | get) [--force] [options]
-  ios zoomtouch (enable | disable | toggle | get) [--force] [options]
+  ios zoom (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
   ios batteryregistry [options]
