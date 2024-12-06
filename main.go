@@ -1010,21 +1010,7 @@ The commands work as following:
 	if b {
 		xctestrunFilePath, _ := arguments.String("--xctestrun-file-path")
 
-		testsToRunArg := arguments["--test-to-run"]
-		var testsToRun []string
-		if testsToRunArg != nil && len(testsToRunArg.([]string)) > 0 {
-			testsToRun = testsToRunArg.([]string)
-		}
-
-		testsToSkipArg := arguments["--test-to-skip"]
-		var testsToSkip []string
-		testsToSkip = nil
-		if testsToSkipArg != nil && len(testsToSkipArg.([]string)) > 0 {
-			testsToSkip = testsToSkipArg.([]string)
-		}
-
 		rawTestlog, rawTestlogErr := arguments.String("--log-output")
-		env := splitKeyValuePairs(arguments["--env"].([]string), "=")
 
 		if rawTestlogErr == nil {
 			var writer *os.File = os.Stdout
@@ -1036,7 +1022,7 @@ The commands work as following:
 			defer writer.Close()
 			var listener = testmanagerd.NewTestListener(writer, writer, os.TempDir())
 
-			testResults, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, testsToSkip, testsToRun, []string{}, env, device, listener)
+			testResults, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, device, listener)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xctest")
 			}
@@ -1044,7 +1030,7 @@ The commands work as following:
 			log.Info(fmt.Printf("%+v", testResults))
 		} else {
 			var listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
-			_, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, testsToSkip, testsToRun, []string{}, env, device, listener)
+			_, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, device, listener)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xctest")
 			}

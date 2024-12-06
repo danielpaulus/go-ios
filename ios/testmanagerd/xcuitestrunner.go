@@ -250,7 +250,7 @@ type TestConfig struct {
 	Listener *TestListener
 }
 
-func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, testsToSkip []string, testsToRun []string, testArgs []string, testEnv map[string]interface{}, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
+func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
 	// Parse the .xctestrun file to get the necessary details for TestConfig
 	codec := NewXCTestRunCodec()
 	result, err := codec.ParseFile(xctestrunFilePath)
@@ -265,6 +265,30 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, testsT
 		return nil, fmt.Errorf("invalid FormatVersion in .xctestrun file: %d (expected 1)", result.XCTestRunMetadata.FormatVersion)
 	}
 
+	testsToRunArg := result.RunnerTests.OnlyTestIdentifiers
+	var testsToRun []string
+	if testsToRunArg != nil && len(testsToRunArg) > 0 {
+		testsToRun = testsToRunArg
+	}
+
+	testsToSkipArg := result.RunnerTests.SkipTestIdentifiers
+	var testsToSkip []string
+	testsToSkip = nil
+	if testsToSkipArg != nil && len(testsToSkipArg) > 0 {
+		testsToSkip = testsToSkipArg
+	}
+
+	testEnv := make(map[string]any)
+
+	// Add EnvironmentVariables to the map
+	for key, value := range result.RunnerTests.EnvironmentVariables {
+		testEnv[key] = value
+	}
+
+	// Add TestingEnvironmentVariables to the map
+	testEnv["DYLD_INSERT_LIBRARIES"] = result.RunnerTests.TestingEnvironmentVariables.DYLD_INSERT_LIBRARIES
+	testEnv["XCInjectBundleInto"] = result.RunnerTests.TestingEnvironmentVariables.XCInjectBundleInto
+
 	// Extract only the file name
 	var testBundlePath = filepath.Base(result.RunnerTests.TestBundlePath)
 
@@ -272,7 +296,7 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, testsT
 	testConfig := TestConfig{
 		TestRunnerBundleId: result.RunnerTests.TestHostBundleIdentifier,
 		XctestConfigName:   testBundlePath,
-		Args:               testArgs,
+		Args:               result.RunnerTests.CommandLineArguments,
 		Env:                testEnv,
 		TestsToRun:         testsToRun,
 		TestsToSkip:        testsToSkip,

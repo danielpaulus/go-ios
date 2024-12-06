@@ -124,6 +124,21 @@ func TestParseXCTestRun(t *testing.T) {
 	assert.Equal(t, "com.example.myApp", data.RunnerTests.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
 	assert.Equal(t, "__TESTHOST__/PlugIns/RunnerTests.xctest", data.RunnerTests.TestBundlePath, "TestBundlePath mismatch")
 
+	// Assert EnvironmentVariables values
+	assert.Equal(t, map[string]string{
+		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
+		"OS_ACTIVITY_DT_MODE":             "YES",
+		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
+		"TERM":                            "dumb",
+	}, data.RunnerTests.EnvironmentVariables, "EnvironmentVariables mismatch")
+
+	// Assert CommandLineArguments values
+	assert.Equal(t, []string{}, data.RunnerTests.CommandLineArguments, "CommandLineArguments mismatch")
+
+	// Assert TestingEnvironmentVariables values
+	assert.Equal(t, "unused", data.RunnerTests.TestingEnvironmentVariables.XCInjectBundleInto, "XCInjectBundleInto mismatch")
+	assert.Equal(t, "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib", data.RunnerTests.TestingEnvironmentVariables.DYLD_INSERT_LIBRARIES, "DYLD_INSERT_LIBRARIES mismatch")
+
 	// Assert XCTestRunMetadata values
 	assert.Equal(t, 1, data.XCTestRunMetadata.FormatVersion, "FormatVersion mismatch")
 }
