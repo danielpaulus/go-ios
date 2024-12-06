@@ -265,29 +265,11 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, testsT
 		return nil, fmt.Errorf("invalid FormatVersion in .xctestrun file: %d (expected 1)", result.XCTestRunMetadata.FormatVersion)
 	}
 
-	// Get the value of DYLD_INSERT_LIBRARIES from the parsed data
-	newLibPath := result.RunnerTests.TestingEnvironmentVariables.DYLD_INSERT_LIBRARIES
-
-	// If DYLD_INSERT_LIBRARIES already exists in testEnv, append the new path using ':'
-	if existingLib, exists := testEnv["DYLD_INSERT_LIBRARIES"]; exists {
-		// Ensure it's a string and append the new library path
-		if existingLibStr, ok := existingLib.(string); ok {
-			testEnv["DYLD_INSERT_LIBRARIES"] = existingLibStr + ":" + newLibPath
-		} else {
-			// If it's not a string, you can handle it here, like logging an error
-			log.Errorf("DYLD_INSERT_LIBRARIES is not a string in testEnv, skipping appending.")
-		}
-	} else {
-		// If not present, add the new library path
-		testEnv["DYLD_INSERT_LIBRARIES"] = newLibPath
-	}
-
 	// Extract only the file name
 	var testBundlePath = filepath.Base(result.RunnerTests.TestBundlePath)
 
 	// Build the TestConfig object from parsed data
 	testConfig := TestConfig{
-		//BundleId:           result.RunnerTests.TestHostBundleIdentifier,
 		TestRunnerBundleId: result.RunnerTests.TestHostBundleIdentifier,
 		XctestConfigName:   testBundlePath,
 		Args:               testArgs,
@@ -514,11 +496,14 @@ func startTestRunner17(appserviceConn *appservice.Connection, bundleID string, s
 			log.Debugf("adding extra env %s=%s", key, value)
 		}
 	}
+	var opts = map[string]interface{}{}
 
-	opts := map[string]interface{}{
-		"ActivateSuspended":   uint64(1),
-		"StartSuspendedKey":   uint64(0),
-		"__ActivateSuspended": uint64(1),
+	if !isXCTest {
+		opts = map[string]interface{}{
+			"ActivateSuspended":   uint64(1),
+			"StartSuspendedKey":   uint64(0),
+			"__ActivateSuspended": uint64(1),
+		}
 	}
 
 	appLaunch, err := appserviceConn.LaunchAppWithStdIo(

@@ -13,12 +13,8 @@ import (
 
 type XCTestRunData struct {
 	RunnerTests struct {
-		TestHostBundleIdentifier    string `plist:"TestHostBundleIdentifier"`
-		TestBundlePath              string `plist:"TestBundlePath"`
-		TestingEnvironmentVariables struct {
-			DYLD_INSERT_LIBRARIES string `plist:"DYLD_INSERT_LIBRARIES"`
-			XCInjectBundleInto    string `plist:"XCInjectBundleInto"`
-		} `plist:"TestingEnvironmentVariables"`
+		TestHostBundleIdentifier string `plist:"TestHostBundleIdentifier"`
+		TestBundlePath           string `plist:"TestBundlePath"`
 	} `plist:"RunnerTests"`
 	XCTestRunMetadata struct {
 		FormatVersion int `plist:"FormatVersion"`
