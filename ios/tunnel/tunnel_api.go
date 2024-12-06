@@ -283,10 +283,14 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 				Warn("failed to start tunnel")
 			continue
 		}
-		m.mux.Lock()
-		localTunnels[udid] = t
-		m.tunnels[udid] = t
-		m.mux.Unlock()
+		if t.Address != "" {
+			log.WithField("udid", udid).Info("Tunnel started successfully")
+
+			m.mux.Lock()
+			localTunnels[udid] = t
+			m.tunnels[udid] = t
+			m.mux.Unlock()
+		}
 	}
 	for udid, tun := range localTunnels {
 		idx := slices.ContainsFunc(devices.DeviceList, func(entry ios.DeviceEntry) bool {
@@ -323,7 +327,6 @@ func (m *TunnelManager) stopTunnel(t Tunnel) error {
 }
 
 func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry) (Tunnel, error) {
-	log.WithField("udid", device.Properties.SerialNumber).Info("start tunnel")
 	startTunnelCtx, cancel := context.WithTimeout(ctx, m.startTunnelTimeout)
 	defer cancel()
 	version, err := ios.GetProductVersion(device)
@@ -384,7 +387,9 @@ func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.De
 	if version.Major() >= 17 {
 		return ManualPairAndConnectToTunnel(ctx, device, p)
 	}
-	return Tunnel{}, fmt.Errorf("manualPairingTunnelStart: unsupported iOS version %s", version.String())
+
+	log.WithField("udid", device.Properties.SerialNumber).Tracef("manualPairingTunnelStart: unsupported iOS version %s", version.String())
+	return Tunnel{}, nil
 }
 
 type deviceList struct {
