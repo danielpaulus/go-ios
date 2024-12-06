@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -249,6 +250,40 @@ type TestConfig struct {
 	Listener *TestListener
 }
 
+func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, testsToSkip []string, testsToRun []string, testArgs []string, testEnv map[string]interface{}, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
+	// Parse the .xctestrun file to get the necessary details for TestConfig
+	codec := NewXCTestRunCodec()
+	result, err := codec.ParseFile(xctestrunFilePath)
+	if err != nil {
+		log.Errorf("Error parsing xctestrun file: %v", err)
+		return nil, err
+	}
+
+	// Verify that the FormatVersion is 1
+	if result.XCTestRunMetadata.FormatVersion != 1 {
+		log.Errorf("Invalid FormatVersion in .xctestrun file: got %d, expected 1", result.XCTestRunMetadata.FormatVersion)
+		return nil, fmt.Errorf("invalid FormatVersion in .xctestrun file: %d (expected 1)", result.XCTestRunMetadata.FormatVersion)
+	}
+
+	// Extract only the file name
+	var testBundlePath = filepath.Base(result.RunnerTests.TestBundlePath)
+
+	// Build the TestConfig object from parsed data
+	testConfig := TestConfig{
+		TestRunnerBundleId: result.RunnerTests.TestHostBundleIdentifier,
+		XctestConfigName:   testBundlePath,
+		Args:               testArgs,
+		Env:                testEnv,
+		TestsToRun:         testsToRun,
+		TestsToSkip:        testsToSkip,
+		XcTest:             true,
+		Device:             device,
+		Listener:           listener,
+	}
+
+	return RunTestWithConfig(ctx, testConfig)
+}
+
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {
 	if len(testConfig.TestRunnerBundleId) == 0 {
 		return nil, fmt.Errorf("RunTestWithConfig: testConfig.TestRunnerBundleId can not be empty")
@@ -461,11 +496,14 @@ func startTestRunner17(appserviceConn *appservice.Connection, bundleID string, s
 			log.Debugf("adding extra env %s=%s", key, value)
 		}
 	}
+	var opts = map[string]interface{}{}
 
-	opts := map[string]interface{}{
-		"ActivateSuspended":   uint64(1),
-		"StartSuspendedKey":   uint64(0),
-		"__ActivateSuspended": uint64(1),
+	if !isXCTest {
+		opts = map[string]interface{}{
+			"ActivateSuspended":   uint64(1),
+			"StartSuspendedKey":   uint64(0),
+			"__ActivateSuspended": uint64(1),
+		}
 	}
 
 	appLaunch, err := appserviceConn.LaunchAppWithStdIo(
