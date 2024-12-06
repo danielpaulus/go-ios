@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -247,6 +248,61 @@ type TestConfig struct {
 	Device ios.DeviceEntry
 	// The listener for receiving results
 	Listener *TestListener
+}
+
+func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, testsToSkip []string, testsToRun []string, testArgs []string, testEnv map[string]interface{}, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
+	// If no testArgs is provided, use an empty slice
+	if testArgs == nil {
+		testArgs = []string{}
+	}
+	// If no testEnv is provided, use an empty map
+	if testEnv == nil {
+		testEnv = make(map[string]interface{})
+	}
+
+	// Parse the .xctestrun file to get the necessary details for TestConfig
+	codec := NewXCTestRunCodec()
+	result, err := codec.ParseFile(xctestrunFilePath)
+	if err != nil {
+		log.Errorf("Error parsing xctestrun file: %v", err)
+		return nil, err
+	}
+
+	// Get the value of DYLD_INSERT_LIBRARIES from the parsed data
+	newLibPath := result.RunnerTests.TestingEnvironmentVariables.DYLD_INSERT_LIBRARIES
+
+	// If DYLD_INSERT_LIBRARIES already exists in testEnv, append the new path using ':'
+	if existingLib, exists := testEnv["DYLD_INSERT_LIBRARIES"]; exists {
+		// Ensure it's a string and append the new library path
+		if existingLibStr, ok := existingLib.(string); ok {
+			testEnv["DYLD_INSERT_LIBRARIES"] = existingLibStr + ":" + newLibPath
+		} else {
+			// If it's not a string, you can handle it here, like logging an error
+			log.Errorf("DYLD_INSERT_LIBRARIES is not a string in testEnv, skipping appending.")
+		}
+	} else {
+		// If not present, add the new library path
+		testEnv["DYLD_INSERT_LIBRARIES"] = newLibPath
+	}
+
+	// Extract only the file name
+	var testBundlePath = filepath.Base(result.RunnerTests.TestBundlePath)
+
+	// Build the TestConfig object from parsed data
+	testConfig := TestConfig{
+		//BundleId:           result.RunnerTests.TestHostBundleIdentifier,
+		TestRunnerBundleId: result.RunnerTests.TestHostBundleIdentifier,
+		XctestConfigName:   testBundlePath,
+		Args:               testArgs,
+		Env:                testEnv,
+		TestsToRun:         testsToRun,
+		TestsToSkip:        testsToSkip,
+		XcTest:             true,
+		Device:             device,
+		Listener:           listener,
+	}
+
+	return RunTestWithConfig(ctx, testConfig)
 }
 
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {
