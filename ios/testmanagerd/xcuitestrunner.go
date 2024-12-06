@@ -251,15 +251,6 @@ type TestConfig struct {
 }
 
 func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, testsToSkip []string, testsToRun []string, testArgs []string, testEnv map[string]interface{}, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
-	// If no testArgs is provided, use an empty slice
-	if testArgs == nil {
-		testArgs = []string{}
-	}
-	// If no testEnv is provided, use an empty map
-	if testEnv == nil {
-		testEnv = make(map[string]interface{})
-	}
-
 	// Parse the .xctestrun file to get the necessary details for TestConfig
 	codec := NewXCTestRunCodec()
 	result, err := codec.ParseFile(xctestrunFilePath)
