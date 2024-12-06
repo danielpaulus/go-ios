@@ -20,6 +20,9 @@ type XCTestRunData struct {
 			XCInjectBundleInto    string `plist:"XCInjectBundleInto"`
 		} `plist:"TestingEnvironmentVariables"`
 	} `plist:"RunnerTests"`
+	XCTestRunMetadata struct {
+		FormatVersion int `plist:"FormatVersion"`
+	} `plist:"__xctestrun_metadata__"`
 }
 
 // XCTestRunCodec handles encoding and decoding operations for .xctestrun files

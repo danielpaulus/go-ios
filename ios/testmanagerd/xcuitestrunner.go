@@ -259,6 +259,12 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, testsT
 		return nil, err
 	}
 
+	// Verify that the FormatVersion is 1
+	if result.XCTestRunMetadata.FormatVersion != 1 {
+		log.Errorf("Invalid FormatVersion in .xctestrun file: got %d, expected 1", result.XCTestRunMetadata.FormatVersion)
+		return nil, fmt.Errorf("invalid FormatVersion in .xctestrun file: %d (expected 1)", result.XCTestRunMetadata.FormatVersion)
+	}
+
 	// Get the value of DYLD_INSERT_LIBRARIES from the parsed data
 	newLibPath := result.RunnerTests.TestingEnvironmentVariables.DYLD_INSERT_LIBRARIES
 

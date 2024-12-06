@@ -127,4 +127,7 @@ func TestParseXCTestRun(t *testing.T) {
 	// Assert TestingEnvironmentVariables values
 	assert.Equal(t, "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib", data.RunnerTests.TestingEnvironmentVariables.DYLD_INSERT_LIBRARIES, "DYLD_INSERT_LIBRARIES mismatch")
 	assert.Equal(t, "unused", data.RunnerTests.TestingEnvironmentVariables.XCInjectBundleInto, "XCInjectBundleInto mismatch")
+
+	// Assert XCTestRunMetadata values
+	assert.Equal(t, 1, data.XCTestRunMetadata.FormatVersion, "FormatVersion mismatch")
 }
