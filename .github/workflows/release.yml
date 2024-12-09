@@ -122,17 +122,14 @@ jobs:
 
       - name: Build
         run: |
-          go install github.com/konoui/lipo@v0.9.2
-
           sed -i 's/version \= \"local-build\"/version = \"${{ env.release_tag }}\"/' main.go
           mkdir bin
           GOARCH=arm64 go build -ldflags="-s -w" -o bin/ios-arm64
           GOARCH=amd64 go build -ldflags="-s -w" -o bin/ios-amd64
-          lipo bin/ios-amd64 bin/ios-arm64 -create -output bin/ios
 
           cp ./mac-bin/go-ios-mac.zip .
           cp ./win-bin/go-ios-win.zip .
-          zip -j go-ios-linux.zip bin/ios
+          zip -j go-ios-linux.zip bin/ios-arm64 bin/ios-amd64
 
       - uses: AButler/upload-release-assets@v2.0
         with:
@@ -153,8 +150,8 @@ jobs:
           cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-amd64_darwin_amd64/ios
           cp ./mac-bin/ios ./npm_publish/dist/go-ios-darwin-arm64_darwin_arm64/ios
           cp ./win-bin/ios.exe ./npm_publish/dist/go-ios-windows-amd64_windows_amd64/ios.exe
-          cp ./bin/ios ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
-          cp ./bin/ios ./npm_publish/dist/go-ios-linux-arm64_linux_arm64/ios
+          cp ./bin/ios-amd64 ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
+          cp ./bin/ios-arm64 ./npm_publish/dist/go-ios-linux-arm64_linux_arm64/ios
           echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" >> ~/.npmrc
           cd npm_publish
           sed -i 's/\"local-build\"/\"${{ env.release_tag }}\"/' package.json
