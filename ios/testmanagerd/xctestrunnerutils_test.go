@@ -1,20 +1,19 @@
 package testmanagerd
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseXCTestRun(t *testing.T) {
+func TestParseXCTestRunFormatVersion1(t *testing.T) {
 	// Arrange: Create a temporary .xctestrun file with mock data
 	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
 	assert.NoError(t, err, "Failed to create temp file")
 	defer os.Remove(tempFile.Name()) // Cleanup after test
 
-	mockData := `
+	xcTestRunFileFormatVersion1 := `
 		<?xml version="1.0" encoding="UTF-8"?>
 		<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 		<plist version="1.0">
@@ -89,6 +88,16 @@ func TestParseXCTestRun(t *testing.T) {
 					<array/>
 					<key>UserAttachmentLifetime</key>
 					<string>deleteOnSuccess</string>
+					<key>OnlyTestIdentifiers</key>
+					<array>
+						<string>TestClass1/testMethod1</string>
+						<string>TestClass2/testMethod1</string>
+					</array>
+					<key>SkipTestIdentifiers</key>
+					<array>
+						<string>TestClass1/testMethod2</string>
+						<string>TestClass2/testMethod2</string>
+					</array>
 				</dict>
 				<key>__xctestrun_metadata__</key>
 				<dict>
@@ -105,7 +114,7 @@ func TestParseXCTestRun(t *testing.T) {
 			</dict>
 		</plist>
 	`
-	_, err = tempFile.WriteString(mockData)
+	_, err = tempFile.WriteString(xcTestRunFileFormatVersion1)
 	assert.NoError(t, err, "Failed to write mock data to temp file")
 	tempFile.Close()
 
@@ -113,17 +122,74 @@ func TestParseXCTestRun(t *testing.T) {
 	codec := NewXCTestRunCodec()
 	data, err := codec.ParseFile(tempFile.Name())
 
-	// Print the parsed data before asserting
-	fmt.Printf("Parsed Data: %+v\n", data)
-
 	// Assert: Verify the parsed data
 	assert.NoError(t, err, "Failed to parse .xctestrun file")
 	assert.NotNil(t, data, "Parsed data should not be nil")
 
-	// Check specific fields in the parsed data
+	// Assert TestHostBundleIdentifier value
 	assert.Equal(t, "com.example.myApp", data.RunnerTests.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
+
+	// Assert TestBundlePath value
 	assert.Equal(t, "__TESTHOST__/PlugIns/RunnerTests.xctest", data.RunnerTests.TestBundlePath, "TestBundlePath mismatch")
+
+	// Assert EnvironmentVariables values
+	assert.Equal(t, map[string]string{
+		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
+		"OS_ACTIVITY_DT_MODE":             "YES",
+		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
+		"TERM":                            "dumb",
+	}, data.RunnerTests.EnvironmentVariables, "EnvironmentVariables mismatch")
+
+	// Assert CommandLineArguments values
+	assert.Equal(t, []string{}, data.RunnerTests.CommandLineArguments, "CommandLineArguments mismatch")
+
+	// Assert TestingEnvironmentVariables values
+	assert.Equal(t, "unused", data.RunnerTests.TestingEnvironmentVariables.XCInjectBundleInto, "XCInjectBundleInto mismatch")
+	assert.Equal(t, "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib", data.RunnerTests.TestingEnvironmentVariables.DYLD_INSERT_LIBRARIES, "DYLD_INSERT_LIBRARIES mismatch")
+
+	// Assert OnlyTestIdentifiers values
+	assert.Equal(t, []string{
+		"TestClass1/testMethod1",
+		"TestClass2/testMethod1",
+	}, data.RunnerTests.OnlyTestIdentifiers, "OnlyTestIdentifiers mismatch")
+
+	// Assert SkipTestIdentifiers values
+	assert.Equal(t, []string{
+		"TestClass1/testMethod2",
+		"TestClass2/testMethod2",
+	}, data.RunnerTests.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
 
 	// Assert XCTestRunMetadata values
 	assert.Equal(t, 1, data.XCTestRunMetadata.FormatVersion, "FormatVersion mismatch")
+}
+
+func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
+	// Arrange: Create a temporary .xctestrun file with mock data
+	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
+	assert.NoError(t, err, "Failed to create temp file")
+	defer os.Remove(tempFile.Name()) // Cleanup after test
+
+	xcTestRunFileFormatVersion2 := `
+		<?xml version="1.0" encoding="UTF-8"?>
+		<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+		<plist version="1.0">
+		<dict>
+			<key>__xctestrun_metadata__</key>
+			<dict>
+				<key>FormatVersion</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+		</plist>
+	`
+	_, err = tempFile.WriteString(xcTestRunFileFormatVersion2)
+	assert.NoError(t, err, "Failed to write mock data to temp file")
+	tempFile.Close()
+
+	// Act: Use the codec to parse the temp file
+	codec := NewXCTestRunCodec()
+	_, err = codec.ParseFile(tempFile.Name())
+
+	// Assert the Error Message
+	assert.Equal(t, "go-ios currently only supports .xctestrun files in formatVersion 1: The formatVersion of your xctestrun file is 2, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to add support", err.Error(), "Error Message mismatch")
 }

@@ -13,8 +13,16 @@ import (
 
 type XCTestRunData struct {
 	RunnerTests struct {
-		TestHostBundleIdentifier string `plist:"TestHostBundleIdentifier"`
-		TestBundlePath           string `plist:"TestBundlePath"`
+		TestHostBundleIdentifier    string            `plist:"TestHostBundleIdentifier"`
+		TestBundlePath              string            `plist:"TestBundlePath"`
+		SkipTestIdentifiers         []string          `plist:"SkipTestIdentifiers"`
+		OnlyTestIdentifiers         []string          `plist:"OnlyTestIdentifiers"`
+		CommandLineArguments        []string          `plist:"CommandLineArguments"`
+		EnvironmentVariables        map[string]string `plist:"EnvironmentVariables"`
+		TestingEnvironmentVariables struct {
+			DYLD_INSERT_LIBRARIES string `plist:"DYLD_INSERT_LIBRARIES"`
+			XCInjectBundleInto    string `plist:"XCInjectBundleInto"`
+		} `plist:"TestingEnvironmentVariables"`
 	} `plist:"RunnerTests"`
 	XCTestRunMetadata struct {
 		FormatVersion int `plist:"FormatVersion"`
@@ -37,7 +45,17 @@ func (codec XCTestRunCodec) ParseFile(filePath string) (XCTestRunData, error) {
 	}
 	defer file.Close()
 
-	return codec.Decode(file)
+	xctestRunDate, err := codec.Decode(file)
+
+	// Verify that the FormatVersion is 1
+	if xctestRunDate.XCTestRunMetadata.FormatVersion != 1 {
+		log.Errorf("Invalid FormatVersion in .xctestrun file: got %d, expected 1", xctestRunDate.XCTestRunMetadata.FormatVersion)
+		return xctestRunDate, fmt.Errorf("go-ios currently only supports .xctestrun files in formatVersion 1: "+
+			"The formatVersion of your xctestrun file is %d, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to "+
+			"add support", xctestRunDate.XCTestRunMetadata.FormatVersion)
+	}
+
+	return xctestRunDate, err
 }
 
 // Decode reads and decodes the binary xctestrun content from a reader
