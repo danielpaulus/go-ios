@@ -1,6 +1,7 @@
 package testmanagerd
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -83,6 +84,8 @@ func TestParseXCTestRunFormatVersion1(t *testing.T) {
 						<string>__TESTHOST__/Frameworks/libXCTestBundleInject.dylib</string>
 						<key>XCInjectBundleInto</key>
 						<string>unused</string>
+						<key>Test</key>
+						<string>xyz</string>
 					</dict>
 					<key>ToolchainsSettingValue</key>
 					<array/>
@@ -122,6 +125,9 @@ func TestParseXCTestRunFormatVersion1(t *testing.T) {
 	codec := NewXCTestRunCodec()
 	data, err := codec.ParseFile(tempFile.Name())
 
+	// Print the parsed data before asserting
+	fmt.Printf("Parsed Data: %+v\n", data)
+
 	// Assert: Verify the parsed data
 	assert.NoError(t, err, "Failed to parse .xctestrun file")
 	assert.NotNil(t, data, "Parsed data should not be nil")
@@ -144,8 +150,11 @@ func TestParseXCTestRunFormatVersion1(t *testing.T) {
 	assert.Equal(t, []string{}, data.RunnerTests.CommandLineArguments, "CommandLineArguments mismatch")
 
 	// Assert TestingEnvironmentVariables values
-	assert.Equal(t, "unused", data.RunnerTests.TestingEnvironmentVariables.XCInjectBundleInto, "XCInjectBundleInto mismatch")
-	assert.Equal(t, "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib", data.RunnerTests.TestingEnvironmentVariables.DYLD_INSERT_LIBRARIES, "DYLD_INSERT_LIBRARIES mismatch")
+	assert.Equal(t, map[string]string{
+		"DYLD_INSERT_LIBRARIES": "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
+		"XCInjectBundleInto":    "unused",
+		"Test":                  "xyz",
+	}, data.RunnerTests.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
 
 	// Assert OnlyTestIdentifiers values
 	assert.Equal(t, []string{

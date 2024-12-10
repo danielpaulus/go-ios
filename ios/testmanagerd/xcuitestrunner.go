@@ -280,8 +280,9 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 	}
 
 	// Add TestingEnvironmentVariables to the map
-	testEnv["DYLD_INSERT_LIBRARIES"] = result.RunnerTests.TestingEnvironmentVariables.DYLD_INSERT_LIBRARIES
-	testEnv["XCInjectBundleInto"] = result.RunnerTests.TestingEnvironmentVariables.XCInjectBundleInto
+	for key, value := range result.RunnerTests.TestingEnvironmentVariables {
+		testEnv[key] = value
+	}
 
 	// Extract only the file name
 	var testBundlePath = filepath.Base(result.RunnerTests.TestBundlePath)

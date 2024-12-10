@@ -19,10 +19,7 @@ type XCTestRunData struct {
 		OnlyTestIdentifiers         []string          `plist:"OnlyTestIdentifiers"`
 		CommandLineArguments        []string          `plist:"CommandLineArguments"`
 		EnvironmentVariables        map[string]string `plist:"EnvironmentVariables"`
-		TestingEnvironmentVariables struct {
-			DYLD_INSERT_LIBRARIES string `plist:"DYLD_INSERT_LIBRARIES"`
-			XCInjectBundleInto    string `plist:"XCInjectBundleInto"`
-		} `plist:"TestingEnvironmentVariables"`
+		TestingEnvironmentVariables map[string]string `plist:"TestingEnvironmentVariables"`
 	} `plist:"RunnerTests"`
 	XCTestRunMetadata struct {
 		FormatVersion int `plist:"FormatVersion"`
