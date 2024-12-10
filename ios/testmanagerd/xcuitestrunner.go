@@ -259,12 +259,6 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		return nil, err
 	}
 
-	// Verify that the FormatVersion is 1
-	if result.XCTestRunMetadata.FormatVersion != 1 {
-		log.Errorf("Invalid FormatVersion in .xctestrun file: got %d, expected 1", result.XCTestRunMetadata.FormatVersion)
-		return nil, fmt.Errorf("invalid FormatVersion in .xctestrun file: %d (expected 1)", result.XCTestRunMetadata.FormatVersion)
-	}
-
 	testsToRunArg := result.RunnerTests.OnlyTestIdentifiers
 	var testsToRun []string
 	if testsToRunArg != nil && len(testsToRunArg) > 0 {

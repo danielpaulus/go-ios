@@ -45,7 +45,17 @@ func (codec XCTestRunCodec) ParseFile(filePath string) (XCTestRunData, error) {
 	}
 	defer file.Close()
 
-	return codec.Decode(file)
+	xctestRunDate, err := codec.Decode(file)
+
+	// Verify that the FormatVersion is 1
+	if xctestRunDate.XCTestRunMetadata.FormatVersion != 1 {
+		log.Errorf("Invalid FormatVersion in .xctestrun file: got %d, expected 1", xctestRunDate.XCTestRunMetadata.FormatVersion)
+		return xctestRunDate, fmt.Errorf("go-ios currently only supports .xctestrun files in formatVersion 1: "+
+			"The formatVersion of your xctestrun file is %d, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to "+
+			"add support", xctestRunDate.XCTestRunMetadata.FormatVersion)
+	}
+
+	return xctestRunDate, err
 }
 
 // Decode reads and decodes the binary xctestrun content from a reader
