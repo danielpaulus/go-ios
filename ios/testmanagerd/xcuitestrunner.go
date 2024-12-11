@@ -251,14 +251,17 @@ type TestConfig struct {
 
 func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
 	codec := NewXCTestRunCodec()
-	testConfig, err := codec.ParseFileAndGetTestConfig(xctestrunFilePath)
+	results, err := codec.ParseFile(xctestrunFilePath)
 	if err != nil {
 		log.Errorf("Error parsing xctestrun file: %v", err)
 		return nil, err
 	}
 
-	testConfig.Device = device
-	testConfig.Listener = listener
+	testConfig, err := results.toTestConfig(device, listener)
+	if err != nil {
+		log.Errorf("Error while constructing the test config: %v", err)
+		return nil, err
+	}
 
 	return RunTestWithConfig(ctx, testConfig)
 }

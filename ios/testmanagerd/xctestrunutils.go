@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"github.com/danielpaulus/go-ios/ios"
 	"howett.net/plist"
 	"io"
 	"maps"
@@ -16,6 +16,33 @@ import (
 type XCTestRunData struct {
 	TestConfig        SchemeData        `plist:"-"`
 	XCTestRunMetadata XCTestRunMetadata `plist:"__xctestrun_metadata__"`
+}
+
+func (data XCTestRunData) toTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
+	testsToRun := data.TestConfig.OnlyTestIdentifiers
+	testsToSkip := data.TestConfig.SkipTestIdentifiers
+
+	testEnv := make(map[string]any)
+	maps.Copy(testEnv, data.TestConfig.EnvironmentVariables)
+	maps.Copy(testEnv, data.TestConfig.TestingEnvironmentVariables)
+
+	// Extract only the file name
+	var testBundlePath = filepath.Base(data.TestConfig.TestBundlePath)
+
+	// Build the TestConfig object from parsed data
+	testConfig := TestConfig{
+		TestRunnerBundleId: data.TestConfig.TestHostBundleIdentifier,
+		XctestConfigName:   testBundlePath,
+		Args:               data.TestConfig.CommandLineArguments,
+		Env:                testEnv,
+		TestsToRun:         testsToRun,
+		TestsToSkip:        testsToSkip,
+		XcTest:             !data.TestConfig.IsUITestBundle,
+		Device:             device,
+		Listener:           listener,
+	}
+
+	return testConfig, nil
 }
 
 // SchemeData represents the structure of a scheme-specific test configuration
@@ -47,38 +74,6 @@ type XCTestRunCodec struct{}
 // NewXCTestRunCodec creates a new instance of XCTestRunCodec
 func NewXCTestRunCodec() XCTestRunCodec {
 	return XCTestRunCodec{}
-}
-
-func (codec XCTestRunCodec) ParseFileAndGetTestConfig(filePath string) (TestConfig, error) {
-	// Parse the .xctestrun file to get the necessary details for TestConfig
-	result, err := codec.ParseFile(filePath)
-	if err != nil {
-		log.Errorf("Error parsing xctestrun file: %v", err)
-		return TestConfig{}, err
-	}
-
-	testsToRun := result.TestConfig.OnlyTestIdentifiers
-	testsToSkip := result.TestConfig.SkipTestIdentifiers
-
-	testEnv := make(map[string]any)
-	maps.Copy(testEnv, result.TestConfig.EnvironmentVariables)
-	maps.Copy(testEnv, result.TestConfig.TestingEnvironmentVariables)
-
-	// Extract only the file name
-	var testBundlePath = filepath.Base(result.TestConfig.TestBundlePath)
-
-	// Build the TestConfig object from parsed data
-	testConfig := TestConfig{
-		TestRunnerBundleId: result.TestConfig.TestHostBundleIdentifier,
-		XctestConfigName:   testBundlePath,
-		Args:               result.TestConfig.CommandLineArguments,
-		Env:                testEnv,
-		TestsToRun:         testsToRun,
-		TestsToSkip:        testsToSkip,
-		XcTest:             !result.TestConfig.IsUITestBundle,
-	}
-
-	return testConfig, nil
 }
 
 // ParseFile reads the .xctestrun file and decodes it into a map
