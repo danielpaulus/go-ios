@@ -17,14 +17,14 @@ type XCTestRunData struct {
 
 // SchemeData represents the structure of a scheme-specific test configuration
 type SchemeData struct {
-	TestHostBundleIdentifier    string            `plist:"TestHostBundleIdentifier"`
-	TestBundlePath              string            `plist:"TestBundlePath"`
-	SkipTestIdentifiers         []string          `plist:"SkipTestIdentifiers"`
-	OnlyTestIdentifiers         []string          `plist:"OnlyTestIdentifiers"`
-	IsUITestBundle              bool              `plist:"IsUITestBundle"`
-	CommandLineArguments        []string          `plist:"CommandLineArguments"`
-	EnvironmentVariables        map[string]string `plist:"EnvironmentVariables"`
-	TestingEnvironmentVariables map[string]string `plist:"TestingEnvironmentVariables"`
+	TestHostBundleIdentifier    string         `plist:"TestHostBundleIdentifier"`
+	TestBundlePath              string         `plist:"TestBundlePath"`
+	SkipTestIdentifiers         []string       `plist:"SkipTestIdentifiers"`
+	OnlyTestIdentifiers         []string       `plist:"OnlyTestIdentifiers"`
+	IsUITestBundle              bool           `plist:"IsUITestBundle"`
+	CommandLineArguments        []string       `plist:"CommandLineArguments"`
+	EnvironmentVariables        map[string]any `plist:"EnvironmentVariables"`
+	TestingEnvironmentVariables map[string]any `plist:"TestingEnvironmentVariables"`
 }
 
 // XCTestRunMetadata contains metadata about the .xctestrun file

@@ -263,16 +263,8 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 	testsToSkip := result.TestConfig.SkipTestIdentifiers
 
 	testEnv := make(map[string]any)
-
-	// Add EnvironmentVariables to the map
-	for key, value := range result.TestConfig.EnvironmentVariables {
-		testEnv[key] = value
-	}
-
-	// Add TestingEnvironmentVariables to the map
-	for key, value := range result.TestConfig.TestingEnvironmentVariables {
-		testEnv[key] = value
-	}
+	maps.Copy(testEnv, result.TestConfig.EnvironmentVariables)
+	maps.Copy(testEnv, result.TestConfig.TestingEnvironmentVariables)
 
 	// Extract only the file name
 	var testBundlePath = filepath.Base(result.TestConfig.TestBundlePath)
@@ -285,7 +277,7 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		Env:                testEnv,
 		TestsToRun:         testsToRun,
 		TestsToSkip:        testsToSkip,
-		XcTest:             true,
+		XcTest:             !result.TestConfig.IsUITestBundle,
 		Device:             device,
 		Listener:           listener,
 	}
