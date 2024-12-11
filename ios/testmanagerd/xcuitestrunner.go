@@ -259,18 +259,8 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		return nil, err
 	}
 
-	testsToRunArg := result.TestConfig.OnlyTestIdentifiers
-	var testsToRun []string
-	if testsToRunArg != nil && len(testsToRunArg) > 0 {
-		testsToRun = testsToRunArg
-	}
-
-	testsToSkipArg := result.TestConfig.SkipTestIdentifiers
-	var testsToSkip []string
-	testsToSkip = nil
-	if testsToSkipArg != nil && len(testsToSkipArg) > 0 {
-		testsToSkip = testsToSkipArg
-	}
+	testsToRun := result.TestConfig.OnlyTestIdentifiers
+	testsToSkip := result.TestConfig.SkipTestIdentifiers
 
 	testEnv := make(map[string]any)
 

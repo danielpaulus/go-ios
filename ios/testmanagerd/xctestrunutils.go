@@ -27,16 +27,16 @@ type SchemeData struct {
 	TestingEnvironmentVariables map[string]string `plist:"TestingEnvironmentVariables"`
 }
 
+// XCTestRunMetadata contains metadata about the .xctestrun file
+type XCTestRunMetadata struct {
+	FormatVersion int `plist:"FormatVersion"`
+}
+
 // XCTestRunCodec is a utility for parsing .xctestrun files with FormatVersion 1.
 // It extracts test configurations and metadata, providing a structured SchemeData object
 // that contains all the necessary information required to execute a test.
 // This includes details like test bundle paths, environment variables, command-line arguments,
 // and other configuration settings essential for running tests.
-
-// XCTestRunMetadata contains metadata about the .xctestrun file
-type XCTestRunMetadata struct {
-	FormatVersion int `plist:"FormatVersion"`
-}
 
 // XCTestRunCodec handles encoding and decoding operations for .xctestrun files
 type XCTestRunCodec struct{}
