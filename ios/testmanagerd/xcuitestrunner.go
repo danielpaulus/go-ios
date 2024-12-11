@@ -7,7 +7,6 @@ import (
 	"io"
 	"maps"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -251,36 +250,15 @@ type TestConfig struct {
 }
 
 func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
-	// Parse the .xctestrun file to get the necessary details for TestConfig
 	codec := NewXCTestRunCodec()
-	result, err := codec.ParseFile(xctestrunFilePath)
+	testConfig, err := codec.ParseFileAndGetTestConfig(xctestrunFilePath)
 	if err != nil {
 		log.Errorf("Error parsing xctestrun file: %v", err)
 		return nil, err
 	}
 
-	testsToRun := result.TestConfig.OnlyTestIdentifiers
-	testsToSkip := result.TestConfig.SkipTestIdentifiers
-
-	testEnv := make(map[string]any)
-	maps.Copy(testEnv, result.TestConfig.EnvironmentVariables)
-	maps.Copy(testEnv, result.TestConfig.TestingEnvironmentVariables)
-
-	// Extract only the file name
-	var testBundlePath = filepath.Base(result.TestConfig.TestBundlePath)
-
-	// Build the TestConfig object from parsed data
-	testConfig := TestConfig{
-		TestRunnerBundleId: result.TestConfig.TestHostBundleIdentifier,
-		XctestConfigName:   testBundlePath,
-		Args:               result.TestConfig.CommandLineArguments,
-		Env:                testEnv,
-		TestsToRun:         testsToRun,
-		TestsToSkip:        testsToSkip,
-		XcTest:             !result.TestConfig.IsUITestBundle,
-		Device:             device,
-		Listener:           listener,
-	}
+	testConfig.Device = device
+	testConfig.Listener = listener
 
 	return RunTestWithConfig(ctx, testConfig)
 }
