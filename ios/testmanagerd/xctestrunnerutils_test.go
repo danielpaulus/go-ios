@@ -101,6 +101,8 @@ func TestParseXCTestRunFormatVersion1(t *testing.T) {
 						<string>TestClass1/testMethod2</string>
 						<string>TestClass2/testMethod2</string>
 					</array>
+					<key>IsUITestBundle</key>
+					<true/>
 				</dict>
 				<key>__xctestrun_metadata__</key>
 				<dict>
@@ -133,10 +135,10 @@ func TestParseXCTestRunFormatVersion1(t *testing.T) {
 	assert.NotNil(t, data, "Parsed data should not be nil")
 
 	// Assert TestHostBundleIdentifier value
-	assert.Equal(t, "com.example.myApp", data.RunnerTests.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
+	assert.Equal(t, "com.example.myApp", data.TestConfig.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
 
 	// Assert TestBundlePath value
-	assert.Equal(t, "__TESTHOST__/PlugIns/RunnerTests.xctest", data.RunnerTests.TestBundlePath, "TestBundlePath mismatch")
+	assert.Equal(t, "__TESTHOST__/PlugIns/RunnerTests.xctest", data.TestConfig.TestBundlePath, "TestBundlePath mismatch")
 
 	// Assert EnvironmentVariables values
 	assert.Equal(t, map[string]string{
@@ -144,29 +146,29 @@ func TestParseXCTestRunFormatVersion1(t *testing.T) {
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"TERM":                            "dumb",
-	}, data.RunnerTests.EnvironmentVariables, "EnvironmentVariables mismatch")
+	}, data.TestConfig.EnvironmentVariables, "EnvironmentVariables mismatch")
 
 	// Assert CommandLineArguments values
-	assert.Equal(t, []string{}, data.RunnerTests.CommandLineArguments, "CommandLineArguments mismatch")
+	assert.Equal(t, []string{}, data.TestConfig.CommandLineArguments, "CommandLineArguments mismatch")
 
 	// Assert TestingEnvironmentVariables values
 	assert.Equal(t, map[string]string{
 		"DYLD_INSERT_LIBRARIES": "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
 		"XCInjectBundleInto":    "unused",
 		"Test":                  "xyz",
-	}, data.RunnerTests.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
+	}, data.TestConfig.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
 
 	// Assert OnlyTestIdentifiers values
 	assert.Equal(t, []string{
 		"TestClass1/testMethod1",
 		"TestClass2/testMethod1",
-	}, data.RunnerTests.OnlyTestIdentifiers, "OnlyTestIdentifiers mismatch")
+	}, data.TestConfig.OnlyTestIdentifiers, "OnlyTestIdentifiers mismatch")
 
 	// Assert SkipTestIdentifiers values
 	assert.Equal(t, []string{
 		"TestClass1/testMethod2",
 		"TestClass2/testMethod2",
-	}, data.RunnerTests.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
+	}, data.TestConfig.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
 
 	// Assert XCTestRunMetadata values
 	assert.Equal(t, 1, data.XCTestRunMetadata.FormatVersion, "FormatVersion mismatch")

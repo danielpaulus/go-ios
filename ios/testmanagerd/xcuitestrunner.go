@@ -259,13 +259,13 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		return nil, err
 	}
 
-	testsToRunArg := result.RunnerTests.OnlyTestIdentifiers
+	testsToRunArg := result.TestConfig.OnlyTestIdentifiers
 	var testsToRun []string
 	if testsToRunArg != nil && len(testsToRunArg) > 0 {
 		testsToRun = testsToRunArg
 	}
 
-	testsToSkipArg := result.RunnerTests.SkipTestIdentifiers
+	testsToSkipArg := result.TestConfig.SkipTestIdentifiers
 	var testsToSkip []string
 	testsToSkip = nil
 	if testsToSkipArg != nil && len(testsToSkipArg) > 0 {
@@ -275,23 +275,23 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 	testEnv := make(map[string]any)
 
 	// Add EnvironmentVariables to the map
-	for key, value := range result.RunnerTests.EnvironmentVariables {
+	for key, value := range result.TestConfig.EnvironmentVariables {
 		testEnv[key] = value
 	}
 
 	// Add TestingEnvironmentVariables to the map
-	for key, value := range result.RunnerTests.TestingEnvironmentVariables {
+	for key, value := range result.TestConfig.TestingEnvironmentVariables {
 		testEnv[key] = value
 	}
 
 	// Extract only the file name
-	var testBundlePath = filepath.Base(result.RunnerTests.TestBundlePath)
+	var testBundlePath = filepath.Base(result.TestConfig.TestBundlePath)
 
 	// Build the TestConfig object from parsed data
 	testConfig := TestConfig{
-		TestRunnerBundleId: result.RunnerTests.TestHostBundleIdentifier,
+		TestRunnerBundleId: result.TestConfig.TestHostBundleIdentifier,
 		XctestConfigName:   testBundlePath,
-		Args:               result.RunnerTests.CommandLineArguments,
+		Args:               result.TestConfig.CommandLineArguments,
 		Env:                testEnv,
 		TestsToRun:         testsToRun,
 		TestsToSkip:        testsToSkip,
