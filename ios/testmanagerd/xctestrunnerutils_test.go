@@ -1,14 +1,15 @@
 package testmanagerd
 
 import (
-	"fmt"
+	"github.com/danielpaulus/go-ios/ios"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseXCTestRunFormatVersion1(t *testing.T) {
+// Helper function to create mock data and parse the .xctestrun file
+func createAndParseXCTestRunFile(t *testing.T) XCTestRunData {
 	// Arrange: Create a temporary .xctestrun file with mock data
 	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
 	assert.NoError(t, err, "Failed to create temp file")
@@ -124,53 +125,68 @@ func TestParseXCTestRunFormatVersion1(t *testing.T) {
 	tempFile.Close()
 
 	// Act: Use the codec to parse the temp file
-	codec := NewXCTestRunCodec()
-	data, err := codec.ParseFile(tempFile.Name())
-
-	// Print the parsed data before asserting
-	fmt.Printf("Parsed Data: %+v\n", data)
+	data, err := parseFile(tempFile.Name())
 
 	// Assert: Verify the parsed data
 	assert.NoError(t, err, "Failed to parse .xctestrun file")
 	assert.NotNil(t, data, "Parsed data should not be nil")
 
-	// Assert TestHostBundleIdentifier value
+	return data
+}
+
+func TestTestHostBundleIdentifier(t *testing.T) {
+
+	data := createAndParseXCTestRunFile(t)
 	assert.Equal(t, "com.example.myApp", data.TestConfig.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
+}
 
-	// Assert TestBundlePath value
+func TestTestBundlePath(t *testing.T) {
+	data := createAndParseXCTestRunFile(t)
 	assert.Equal(t, "__TESTHOST__/PlugIns/RunnerTests.xctest", data.TestConfig.TestBundlePath, "TestBundlePath mismatch")
+}
 
-	// Assert EnvironmentVariables values
+func TestEnvironmentVariables(t *testing.T) {
+	data := createAndParseXCTestRunFile(t)
 	assert.Equal(t, map[string]any{
 		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"TERM":                            "dumb",
 	}, data.TestConfig.EnvironmentVariables, "EnvironmentVariables mismatch")
+}
 
-	// Assert TestingEnvironmentVariables values
+func TestTestingEnvironmentVariables(t *testing.T) {
+	data := createAndParseXCTestRunFile(t)
 	assert.Equal(t, map[string]any{
 		"DYLD_INSERT_LIBRARIES": "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
 		"XCInjectBundleInto":    "unused",
 		"Test":                  "xyz",
 	}, data.TestConfig.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
+}
 
-	// Assert CommandLineArguments values
+func TestCommandLineArguments(t *testing.T) {
+	data := createAndParseXCTestRunFile(t)
 	assert.Equal(t, []string{}, data.TestConfig.CommandLineArguments, "CommandLineArguments mismatch")
+}
 
-	// Assert OnlyTestIdentifiers values
+func TestOnlyTestIdentifiers(t *testing.T) {
+	data := createAndParseXCTestRunFile(t)
 	assert.Equal(t, []string{
 		"TestClass1/testMethod1",
 		"TestClass2/testMethod1",
 	}, data.TestConfig.OnlyTestIdentifiers, "OnlyTestIdentifiers mismatch")
+}
 
-	// Assert SkipTestIdentifiers values
+func TestSkipTestIdentifiers(t *testing.T) {
+	data := createAndParseXCTestRunFile(t)
 	assert.Equal(t, []string{
 		"TestClass1/testMethod2",
 		"TestClass2/testMethod2",
 	}, data.TestConfig.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
+}
 
-	// Assert XCTestRunMetadata values
+func TestFormatVersion(t *testing.T) {
+	data := createAndParseXCTestRunFile(t)
 	assert.Equal(t, 1, data.XCTestRunMetadata.FormatVersion, "FormatVersion mismatch")
 }
 
@@ -198,9 +214,50 @@ func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
 	tempFile.Close()
 
 	// Act: Use the codec to parse the temp file
-	codec := NewXCTestRunCodec()
-	_, err = codec.ParseFile(tempFile.Name())
+	_, err = parseFile(tempFile.Name())
 
 	// Assert the Error Message
 	assert.Equal(t, "go-ios currently only supports .xctestrun files in formatVersion 1: The formatVersion of your xctestrun file is 2, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to add support", err.Error(), "Error Message mismatch")
+}
+
+func TestToTestConfig(t *testing.T) {
+	// Arrange: Create parsed XCTestRunData using the helper function
+	data := createAndParseXCTestRunFile(t)
+
+	// Mock dependencies
+	mockDevice := ios.DeviceEntry{
+		DeviceID: 8110,
+	}
+	mockListener := &TestListener{}
+
+	// Act: Convert XCTestRunData to TestConfig
+	testConfig, err := data.buildTestConfig(mockDevice, mockListener)
+
+	// Assert: Validate the returned TestConfig
+	assert.NoError(t, err, "Error converting to TestConfig")
+
+	// Assertions for the TestConfig fields
+	assert.Equal(t, "com.example.myApp", testConfig.TestRunnerBundleId, "TestRunnerBundleId mismatch")
+	assert.Equal(t, "RunnerTests.xctest", testConfig.XctestConfigName, "XctestConfigName mismatch")
+	assert.Equal(t, []string{}, testConfig.Args, "CommandLineArguments mismatch")
+	assert.Equal(t, map[string]any{
+		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
+		"OS_ACTIVITY_DT_MODE":             "YES",
+		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
+		"TERM":                            "dumb",
+		"DYLD_INSERT_LIBRARIES":           "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
+		"XCInjectBundleInto":              "unused",
+		"Test":                            "xyz",
+	}, testConfig.Env, "EnvironmentVariables mismatch")
+	assert.Equal(t, []string{
+		"TestClass1/testMethod1",
+		"TestClass2/testMethod1",
+	}, testConfig.TestsToRun, "TestsToRun mismatch")
+	assert.Equal(t, []string{
+		"TestClass1/testMethod2",
+		"TestClass2/testMethod2",
+	}, testConfig.TestsToSkip, "TestsToSkip mismatch")
+	assert.Equal(t, false, testConfig.XcTest, "XcTest mismatch") // This assumes the test bundle is a UI test
+	assert.Equal(t, mockDevice, testConfig.Device, "Device mismatch")
+	assert.Equal(t, mockListener, testConfig.Listener, "Listener mismatch")
 }

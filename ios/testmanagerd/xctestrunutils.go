@@ -12,13 +12,40 @@ import (
 	"path/filepath"
 )
 
+// XCTestRunCodec is a utility for parsing `.xctestrun` files with FormatVersion 1.
+// It extracts test configurations and metadata into structured object (`XCTestRunData`),
+// simplifying the setup for iOS test execution.
+//
+// Features:
+// - Parses test configurations from `.xctestrun` file
+// - Builds `TestConfig` objects for running tests.
+//
+// Note: Only supports `.xctestrun` files with `FormatVersion` 1.
+
 // XCTestRunData represents the structure of an .xctestrun file
 type XCTestRunData struct {
 	TestConfig        SchemeData        `plist:"-"`
 	XCTestRunMetadata XCTestRunMetadata `plist:"__xctestrun_metadata__"`
 }
 
-func (data XCTestRunData) toTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
+// SchemeData represents the structure of a scheme-specific test configuration
+type SchemeData struct {
+	TestHostBundleIdentifier    string         `plist:"TestHostBundleIdentifier"`
+	TestBundlePath              string         `plist:"TestBundlePath"`
+	SkipTestIdentifiers         []string       `plist:"SkipTestIdentifiers"`
+	OnlyTestIdentifiers         []string       `plist:"OnlyTestIdentifiers"`
+	IsUITestBundle              bool           `plist:"IsUITestBundle"`
+	CommandLineArguments        []string       `plist:"CommandLineArguments"`
+	EnvironmentVariables        map[string]any `plist:"EnvironmentVariables"`
+	TestingEnvironmentVariables map[string]any `plist:"TestingEnvironmentVariables"`
+}
+
+// XCTestRunMetadata contains metadata about the .xctestrun file
+type XCTestRunMetadata struct {
+	FormatVersion int `plist:"FormatVersion"`
+}
+
+func (data XCTestRunData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
 	testsToRun := data.TestConfig.OnlyTestIdentifiers
 	testsToSkip := data.TestConfig.SkipTestIdentifiers
 
@@ -45,49 +72,18 @@ func (data XCTestRunData) toTestConfig(device ios.DeviceEntry, listener *TestLis
 	return testConfig, nil
 }
 
-// SchemeData represents the structure of a scheme-specific test configuration
-type SchemeData struct {
-	TestHostBundleIdentifier    string         `plist:"TestHostBundleIdentifier"`
-	TestBundlePath              string         `plist:"TestBundlePath"`
-	SkipTestIdentifiers         []string       `plist:"SkipTestIdentifiers"`
-	OnlyTestIdentifiers         []string       `plist:"OnlyTestIdentifiers"`
-	IsUITestBundle              bool           `plist:"IsUITestBundle"`
-	CommandLineArguments        []string       `plist:"CommandLineArguments"`
-	EnvironmentVariables        map[string]any `plist:"EnvironmentVariables"`
-	TestingEnvironmentVariables map[string]any `plist:"TestingEnvironmentVariables"`
-}
-
-// XCTestRunMetadata contains metadata about the .xctestrun file
-type XCTestRunMetadata struct {
-	FormatVersion int `plist:"FormatVersion"`
-}
-
-// XCTestRunCodec is a utility for parsing .xctestrun files with FormatVersion 1.
-// It extracts test configurations and metadata, providing a structured SchemeData object
-// that contains all the necessary information required to execute a test.
-// This includes details like test bundle paths, environment variables, command-line arguments,
-// and other configuration settings essential for running tests.
-
-// XCTestRunCodec handles encoding and decoding operations for .xctestrun files
-type XCTestRunCodec struct{}
-
-// NewXCTestRunCodec creates a new instance of XCTestRunCodec
-func NewXCTestRunCodec() XCTestRunCodec {
-	return XCTestRunCodec{}
-}
-
-// ParseFile reads the .xctestrun file and decodes it into a map
-func (codec XCTestRunCodec) ParseFile(filePath string) (XCTestRunData, error) {
+// parseFile reads the .xctestrun file and decodes it into a map
+func parseFile(filePath string) (XCTestRunData, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return XCTestRunData{}, fmt.Errorf("failed to open xctestrun file: %w", err)
 	}
 	defer file.Close()
-	return codec.Decode(file)
+	return decode(file)
 }
 
-// Decode decodes the binary xctestrun content into the XCTestRunData struct
-func (codec XCTestRunCodec) Decode(r io.Reader) (XCTestRunData, error) {
+// decode decodes the binary xctestrun content into the XCTestRunData struct
+func decode(r io.Reader) (XCTestRunData, error) {
 	// Read the entire content once
 	content, err := io.ReadAll(r)
 	if err != nil {
@@ -128,7 +124,7 @@ func (codec XCTestRunCodec) Decode(r io.Reader) (XCTestRunData, error) {
 	}
 
 	// Parse test schemes
-	if err := codec.parseTestSchemes(rawData, &result.TestConfig); err != nil {
+	if err := parseTestSchemes(rawData, &result.TestConfig); err != nil {
 		return XCTestRunData{}, err
 	}
 
@@ -136,7 +132,7 @@ func (codec XCTestRunCodec) Decode(r io.Reader) (XCTestRunData, error) {
 }
 
 // parseTestSchemes extracts and parses test schemes from the raw data
-func (codec XCTestRunCodec) parseTestSchemes(rawData map[string]interface{}, scheme *SchemeData) error {
+func parseTestSchemes(rawData map[string]interface{}, scheme *SchemeData) error {
 	// Dynamically find and parse test schemes
 	for key, value := range rawData {
 		// Skip metadata key
