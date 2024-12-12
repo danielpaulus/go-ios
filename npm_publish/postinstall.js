@@ -12,7 +12,8 @@ var path = require('path'),
 var ARCH_MAPPING = {
     "ia32": "386",
     "x64": "amd64",
-    "arm": "arm"
+    "arm": "arm",
+    "arm64": "arm64"
 };
 
 // Mapping between Node's `process.platform` to Golang's
