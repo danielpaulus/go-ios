@@ -114,7 +114,7 @@ Usage:
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios memlimitoff (--process=<processName>) [options]
   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
-  ios runxctest [--xctestrun-file-path=<xctestrunFilePath>] [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
+  ios runxctest [--xctestrun-file-path=<xctestrunFilePath>] [--log-output=<file>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [--font=<fontSize>] [options]
   ios debug [options] [--stop-at-entry] <app_path>
@@ -233,10 +233,8 @@ The commands work as following:
    >                                                                  If you provide '-' as log output, it prints resuts to stdout.
    >                                                                  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=(TestTarget.)TestClass/testMethod --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
    >                                                                  The method name can also be omitted and in this case all tests of the specified class are run
-   ios runxctest [--xctestrun-file-path=<xctestrunFilePath>]  [--log-output=<file>] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCTest. The --xctestrun-file-path specifies the path to the .xctestrun file to configure the test execution.
+   ios runxctest [--xctestrun-file-path=<xctestrunFilePath>]  [--log-output=<file>]... [options]                    Run a XCTest. The --xctestrun-file-path specifies the path to the .xctestrun file to configure the test execution.
    >                                                                  If you provide '-' as log output, it prints resuts to stdout.
-   >                                                                  To be able to filter for tests to run or skip, use one argument per test selector. Example: runxctest --test-to-run=(TestTarget.)TestClass/testMethod --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
-   >                                                                  The method name can also be omitted and in this case all tests of the specified class are run
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [--font=<fontSize>] [options]                               Access accessibility inspector features.
