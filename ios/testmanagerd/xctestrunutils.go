@@ -12,15 +12,16 @@ import (
 	"path/filepath"
 )
 
-// XCTestRunCodec is a utility for parsing `.xctestrun` files with FormatVersion 1.
-// It extracts test configurations and metadata into structured object (`XCTestRunData`),
-// simplifying the setup for iOS test execution.
+// xctestrunutils provides utilities for parsing `.xctestrun` files with FormatVersion 1.
+// It simplifies the extraction of test configurations and metadata into structured objects (`XCTestRunData`),
+// enabling efficient setup for iOS test execution.
 //
 // Features:
-// - Parses test configurations from `.xctestrun` file
-// - Builds `TestConfig` objects for running tests.
+// - Parses `.xctestrun` files to extract test metadata and configurations.
+// - Supports building `TestConfig` objects for test execution.
 //
-// Note: Only supports `.xctestrun` files with `FormatVersion` 1.
+// Note: Only `.xctestrun` files with `FormatVersion` 1 are supported. For other versions,
+// contributions or requests for support can be made in the relevant GitHub repository.
 
 // XCTestRunData represents the structure of an .xctestrun file
 type XCTestRunData struct {
