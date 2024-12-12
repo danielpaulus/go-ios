@@ -135,7 +135,6 @@ func createAndParseXCTestRunFile(t *testing.T) XCTestRunData {
 }
 
 func TestTestHostBundleIdentifier(t *testing.T) {
-
 	data := createAndParseXCTestRunFile(t)
 	assert.Equal(t, "com.example.myApp", data.TestConfig.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
 }
@@ -220,7 +219,7 @@ func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
 	assert.Equal(t, "go-ios currently only supports .xctestrun files in formatVersion 1: The formatVersion of your xctestrun file is 2, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to add support", err.Error(), "Error Message mismatch")
 }
 
-// Helper function to create mock data and parse the .xctestrun file
+// Helper function to create testConfig from parsed mock data
 func createTestConfigFromParsedMockData(t *testing.T) (TestConfig, ios.DeviceEntry, *TestListener) {
 	// Arrange: Create parsed XCTestRunData using the helper function
 	data := createAndParseXCTestRunFile(t)
