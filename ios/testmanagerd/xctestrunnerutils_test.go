@@ -220,7 +220,8 @@ func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
 	assert.Equal(t, "go-ios currently only supports .xctestrun files in formatVersion 1: The formatVersion of your xctestrun file is 2, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to add support", err.Error(), "Error Message mismatch")
 }
 
-func TestToTestConfig(t *testing.T) {
+// Helper function to create mock data and parse the .xctestrun file
+func createTestConfigFromParsedMockData(t *testing.T) (TestConfig, ios.DeviceEntry, *TestListener) {
 	// Arrange: Create parsed XCTestRunData using the helper function
 	data := createAndParseXCTestRunFile(t)
 
@@ -236,10 +237,26 @@ func TestToTestConfig(t *testing.T) {
 	// Assert: Validate the returned TestConfig
 	assert.NoError(t, err, "Error converting to TestConfig")
 
-	// Assertions for the TestConfig fields
-	assert.Equal(t, "com.example.myApp", testConfig.TestRunnerBundleId, "TestRunnerBundleId mismatch")
-	assert.Equal(t, "RunnerTests.xctest", testConfig.XctestConfigName, "XctestConfigName mismatch")
-	assert.Equal(t, []string{}, testConfig.Args, "CommandLineArguments mismatch")
+	return testConfig, mockDevice, mockListener
+}
+
+func TestConfigTestRunnerBundleId(t *testing.T) {
+	data, _, _ := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, "com.example.myApp", data.TestRunnerBundleId, "TestRunnerBundleId mismatch")
+}
+
+func TestConfigXctestConfigName(t *testing.T) {
+	data, _, _ := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, "RunnerTests.xctest", data.XctestConfigName, "XctestConfigName mismatch")
+}
+
+func TestConfigCommandLineArguments(t *testing.T) {
+	data, _, _ := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, []string{}, data.Args, "data mismatch")
+}
+
+func TestConfigEnvironmentVariables(t *testing.T) {
+	data, _, _ := createTestConfigFromParsedMockData(t)
 	assert.Equal(t, map[string]any{
 		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
 		"OS_ACTIVITY_DT_MODE":             "YES",
@@ -248,16 +265,36 @@ func TestToTestConfig(t *testing.T) {
 		"DYLD_INSERT_LIBRARIES":           "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
 		"XCInjectBundleInto":              "unused",
 		"Test":                            "xyz",
-	}, testConfig.Env, "EnvironmentVariables mismatch")
+	}, data.Env, "EnvironmentVariables mismatch")
+}
+
+func TestConfigTestsToRun(t *testing.T) {
+	data, _, _ := createTestConfigFromParsedMockData(t)
 	assert.Equal(t, []string{
 		"TestClass1/testMethod1",
 		"TestClass2/testMethod1",
-	}, testConfig.TestsToRun, "TestsToRun mismatch")
+	}, data.TestsToRun, "TestsToRun mismatch")
+}
+
+func TestConfigTestsToSkip(t *testing.T) {
+	data, _, _ := createTestConfigFromParsedMockData(t)
 	assert.Equal(t, []string{
 		"TestClass1/testMethod2",
 		"TestClass2/testMethod2",
-	}, testConfig.TestsToSkip, "TestsToSkip mismatch")
-	assert.Equal(t, false, testConfig.XcTest, "XcTest mismatch") // This assumes the test bundle is a UI test
-	assert.Equal(t, mockDevice, testConfig.Device, "Device mismatch")
-	assert.Equal(t, mockListener, testConfig.Listener, "Listener mismatch")
+	}, data.TestsToSkip, "TestsToSkip mismatch")
+}
+
+func TestConfigXcTest(t *testing.T) {
+	data, _, _ := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, false, data.XcTest, "XcTest mismatch")
+}
+
+func TestConfigDevice(t *testing.T) {
+	data, mockDevice, _ := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, mockDevice, data.Device, "Device mismatch")
+}
+
+func TestConfigListener(t *testing.T) {
+	data, _, mockListener := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, mockListener, data.Listener, "Listener mismatch")
 }
