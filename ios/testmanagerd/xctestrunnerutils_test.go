@@ -125,68 +125,68 @@ func createAndParseXCTestRunFile(t *testing.T) XCTestRunData {
 	tempFile.Close()
 
 	// Act: Use the codec to parse the temp file
-	data, err := parseFile(tempFile.Name())
+	xcTestRunData, err := parseFile(tempFile.Name())
 
 	// Assert: Verify the parsed data
 	assert.NoError(t, err, "Failed to parse .xctestrun file")
-	assert.NotNil(t, data, "Parsed data should not be nil")
+	assert.NotNil(t, xcTestRunData, "Parsed data should not be nil")
 
-	return data
+	return xcTestRunData
 }
 
 func TestTestHostBundleIdentifier(t *testing.T) {
-	data := createAndParseXCTestRunFile(t)
-	assert.Equal(t, "com.example.myApp", data.TestConfig.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
+	xcTestRunData := createAndParseXCTestRunFile(t)
+	assert.Equal(t, "com.example.myApp", xcTestRunData.TestConfig.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
 }
 
 func TestTestBundlePath(t *testing.T) {
-	data := createAndParseXCTestRunFile(t)
-	assert.Equal(t, "__TESTHOST__/PlugIns/RunnerTests.xctest", data.TestConfig.TestBundlePath, "TestBundlePath mismatch")
+	xcTestRunData := createAndParseXCTestRunFile(t)
+	assert.Equal(t, "__TESTHOST__/PlugIns/RunnerTests.xctest", xcTestRunData.TestConfig.TestBundlePath, "TestBundlePath mismatch")
 }
 
 func TestEnvironmentVariables(t *testing.T) {
-	data := createAndParseXCTestRunFile(t)
+	xcTestRunData := createAndParseXCTestRunFile(t)
 	assert.Equal(t, map[string]any{
 		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"TERM":                            "dumb",
-	}, data.TestConfig.EnvironmentVariables, "EnvironmentVariables mismatch")
+	}, xcTestRunData.TestConfig.EnvironmentVariables, "EnvironmentVariables mismatch")
 }
 
 func TestTestingEnvironmentVariables(t *testing.T) {
-	data := createAndParseXCTestRunFile(t)
+	xcTestRunData := createAndParseXCTestRunFile(t)
 	assert.Equal(t, map[string]any{
 		"DYLD_INSERT_LIBRARIES": "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
 		"XCInjectBundleInto":    "unused",
 		"Test":                  "xyz",
-	}, data.TestConfig.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
+	}, xcTestRunData.TestConfig.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
 }
 
 func TestCommandLineArguments(t *testing.T) {
-	data := createAndParseXCTestRunFile(t)
-	assert.Equal(t, []string{}, data.TestConfig.CommandLineArguments, "CommandLineArguments mismatch")
+	xcTestRunData := createAndParseXCTestRunFile(t)
+	assert.Equal(t, []string{}, xcTestRunData.TestConfig.CommandLineArguments, "CommandLineArguments mismatch")
 }
 
 func TestOnlyTestIdentifiers(t *testing.T) {
-	data := createAndParseXCTestRunFile(t)
+	xcTestRunData := createAndParseXCTestRunFile(t)
 	assert.Equal(t, []string{
 		"TestClass1/testMethod1",
 		"TestClass2/testMethod1",
-	}, data.TestConfig.OnlyTestIdentifiers, "OnlyTestIdentifiers mismatch")
+	}, xcTestRunData.TestConfig.OnlyTestIdentifiers, "OnlyTestIdentifiers mismatch")
 }
 
 func TestSkipTestIdentifiers(t *testing.T) {
-	data := createAndParseXCTestRunFile(t)
+	xcTestRunData := createAndParseXCTestRunFile(t)
 	assert.Equal(t, []string{
 		"TestClass1/testMethod2",
 		"TestClass2/testMethod2",
-	}, data.TestConfig.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
+	}, xcTestRunData.TestConfig.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
 }
 
 func TestFormatVersion(t *testing.T) {
-	data := createAndParseXCTestRunFile(t)
-	assert.Equal(t, 1, data.XCTestRunMetadata.FormatVersion, "FormatVersion mismatch")
+	xcTestRunData := createAndParseXCTestRunFile(t)
+	assert.Equal(t, 1, xcTestRunData.XCTestRunMetadata.FormatVersion, "FormatVersion mismatch")
 }
 
 func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
@@ -222,7 +222,7 @@ func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
 // Helper function to create testConfig from parsed mock data
 func createTestConfigFromParsedMockData(t *testing.T) (TestConfig, ios.DeviceEntry, *TestListener) {
 	// Arrange: Create parsed XCTestRunData using the helper function
-	data := createAndParseXCTestRunFile(t)
+	xcTestRunData := createAndParseXCTestRunFile(t)
 
 	// Mock dependencies
 	mockDevice := ios.DeviceEntry{
@@ -231,7 +231,7 @@ func createTestConfigFromParsedMockData(t *testing.T) (TestConfig, ios.DeviceEnt
 	mockListener := &TestListener{}
 
 	// Act: Convert XCTestRunData to TestConfig
-	testConfig, err := data.buildTestConfig(mockDevice, mockListener)
+	testConfig, err := xcTestRunData.buildTestConfig(mockDevice, mockListener)
 
 	// Assert: Validate the returned TestConfig
 	assert.NoError(t, err, "Error converting to TestConfig")
@@ -240,22 +240,22 @@ func createTestConfigFromParsedMockData(t *testing.T) (TestConfig, ios.DeviceEnt
 }
 
 func TestConfigTestRunnerBundleId(t *testing.T) {
-	data, _, _ := createTestConfigFromParsedMockData(t)
-	assert.Equal(t, "com.example.myApp", data.TestRunnerBundleId, "TestRunnerBundleId mismatch")
+	testConfig, _, _ := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, "com.example.myApp", testConfig.TestRunnerBundleId, "TestRunnerBundleId mismatch")
 }
 
 func TestConfigXctestConfigName(t *testing.T) {
-	data, _, _ := createTestConfigFromParsedMockData(t)
-	assert.Equal(t, "RunnerTests.xctest", data.XctestConfigName, "XctestConfigName mismatch")
+	testConfig, _, _ := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, "RunnerTests.xctest", testConfig.XctestConfigName, "XctestConfigName mismatch")
 }
 
 func TestConfigCommandLineArguments(t *testing.T) {
-	data, _, _ := createTestConfigFromParsedMockData(t)
-	assert.Equal(t, []string{}, data.Args, "data mismatch")
+	testConfig, _, _ := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, []string{}, testConfig.Args, "data mismatch")
 }
 
 func TestConfigEnvironmentVariables(t *testing.T) {
-	data, _, _ := createTestConfigFromParsedMockData(t)
+	testConfig, _, _ := createTestConfigFromParsedMockData(t)
 	assert.Equal(t, map[string]any{
 		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
 		"OS_ACTIVITY_DT_MODE":             "YES",
@@ -264,36 +264,36 @@ func TestConfigEnvironmentVariables(t *testing.T) {
 		"DYLD_INSERT_LIBRARIES":           "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
 		"XCInjectBundleInto":              "unused",
 		"Test":                            "xyz",
-	}, data.Env, "EnvironmentVariables mismatch")
+	}, testConfig.Env, "EnvironmentVariables mismatch")
 }
 
 func TestConfigTestsToRun(t *testing.T) {
-	data, _, _ := createTestConfigFromParsedMockData(t)
+	testConfig, _, _ := createTestConfigFromParsedMockData(t)
 	assert.Equal(t, []string{
 		"TestClass1/testMethod1",
 		"TestClass2/testMethod1",
-	}, data.TestsToRun, "TestsToRun mismatch")
+	}, testConfig.TestsToRun, "TestsToRun mismatch")
 }
 
 func TestConfigTestsToSkip(t *testing.T) {
-	data, _, _ := createTestConfigFromParsedMockData(t)
+	testConfig, _, _ := createTestConfigFromParsedMockData(t)
 	assert.Equal(t, []string{
 		"TestClass1/testMethod2",
 		"TestClass2/testMethod2",
-	}, data.TestsToSkip, "TestsToSkip mismatch")
+	}, testConfig.TestsToSkip, "TestsToSkip mismatch")
 }
 
 func TestConfigXcTest(t *testing.T) {
-	data, _, _ := createTestConfigFromParsedMockData(t)
-	assert.Equal(t, false, data.XcTest, "XcTest mismatch")
+	testConfig, _, _ := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, false, testConfig.XcTest, "XcTest mismatch")
 }
 
 func TestConfigDevice(t *testing.T) {
-	data, mockDevice, _ := createTestConfigFromParsedMockData(t)
-	assert.Equal(t, mockDevice, data.Device, "Device mismatch")
+	testConfig, mockDevice, _ := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, mockDevice, testConfig.Device, "Device mismatch")
 }
 
 func TestConfigListener(t *testing.T) {
-	data, _, mockListener := createTestConfigFromParsedMockData(t)
-	assert.Equal(t, mockListener, data.Listener, "Listener mismatch")
+	testConfig, _, mockListener := createTestConfigFromParsedMockData(t)
+	assert.Equal(t, mockListener, testConfig.Listener, "Listener mismatch")
 }
