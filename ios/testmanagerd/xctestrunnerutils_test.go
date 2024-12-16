@@ -189,6 +189,11 @@ func TestFormatVersion(t *testing.T) {
 	assert.Equal(t, 1, xcTestRunData.XCTestRunMetadata.FormatVersion, "FormatVersion mismatch")
 }
 
+func TestIsUITestBundle(t *testing.T) {
+	xcTestRunData := createAndParseXCTestRunFile(t)
+	assert.Equal(t, true, xcTestRunData.TestConfig.IsUITestBundle, "IsUITestBundle mismatch")
+}
+
 func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
 	// Arrange: Create a temporary .xctestrun file with mock data
 	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
