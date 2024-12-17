@@ -51,8 +51,10 @@ func (data XCTestRunData) buildTestConfig(device ios.DeviceEntry, listener *Test
 	testsToSkip := data.TestConfig.SkipTestIdentifiers
 
 	testEnv := make(map[string]any)
-	maps.Copy(testEnv, data.TestConfig.EnvironmentVariables)
-	maps.Copy(testEnv, data.TestConfig.TestingEnvironmentVariables)
+	if data.TestConfig.IsUITestBundle {
+		maps.Copy(testEnv, data.TestConfig.EnvironmentVariables)
+		maps.Copy(testEnv, data.TestConfig.TestingEnvironmentVariables)
+	}
 
 	// Extract only the file name
 	var testBundlePath = filepath.Base(data.TestConfig.TestBundlePath)
