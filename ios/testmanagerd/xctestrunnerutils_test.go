@@ -9,7 +9,7 @@ import (
 )
 
 // Helper function to create mock data and parse the .xctestrun file
-func createAndParseXCTestRunFile(t *testing.T) XCTestRunData {
+func createAndParseXCTestRunFile(t *testing.T) xCTestRunData {
 	// Arrange: Create a temporary .xctestrun file with mock data
 	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
 	assert.NoError(t, err, "Failed to create temp file")
