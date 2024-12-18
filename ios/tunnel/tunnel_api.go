@@ -382,6 +382,9 @@ func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.De
 		return ConnectTunnelLockdown(device)
 	}
 	if version.Major() >= 17 {
+		if userspaceTUN {
+			return Tunnel{}, errors.New("manualPairingTunnelStart: userspaceTUN not supported for iOS >=17 and < 17.4")
+		}
 		return ManualPairAndConnectToTunnel(ctx, device, p)
 	}
 	return Tunnel{}, fmt.Errorf("manualPairingTunnelStart: unsupported iOS version %s", version.String())
