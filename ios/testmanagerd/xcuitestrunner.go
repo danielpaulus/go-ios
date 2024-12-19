@@ -249,6 +249,22 @@ type TestConfig struct {
 	Listener *TestListener
 }
 
+func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
+	results, err := parseFile(xctestrunFilePath)
+	if err != nil {
+		log.Errorf("Error parsing xctestrun file: %v", err)
+		return nil, err
+	}
+
+	testConfig, err := results.buildTestConfig(device, listener)
+	if err != nil {
+		log.Errorf("Error while constructing the test config: %v", err)
+		return nil, err
+	}
+
+	return RunTestWithConfig(ctx, testConfig)
+}
+
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {
 	if len(testConfig.TestRunnerBundleId) == 0 {
 		return nil, fmt.Errorf("RunTestWithConfig: testConfig.TestRunnerBundleId can not be empty")
@@ -461,11 +477,14 @@ func startTestRunner17(appserviceConn *appservice.Connection, bundleID string, s
 			log.Debugf("adding extra env %s=%s", key, value)
 		}
 	}
+	var opts = map[string]interface{}{}
 
-	opts := map[string]interface{}{
-		"ActivateSuspended":   uint64(1),
-		"StartSuspendedKey":   uint64(0),
-		"__ActivateSuspended": uint64(1),
+	if !isXCTest {
+		opts = map[string]interface{}{
+			"ActivateSuspended":   uint64(1),
+			"StartSuspendedKey":   uint64(0),
+			"__ActivateSuspended": uint64(1),
+		}
 	}
 
 	appLaunch, err := appserviceConn.LaunchAppWithStdIo(
