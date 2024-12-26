@@ -46,9 +46,15 @@ func (iface *UserSpaceTUNInterface) TunnelRWCThroughInterface(localPort uint16, 
 	if err != nil {
 		return fmt.Errorf("TunnelRWCThroughInterface: NewEndpoint failed: %+v", err)
 	}
+
 	ep.SocketOptions().SetKeepAlive(true)
+	// Set keep alive idle value more aggresive than the gVisor's 2 hours. NAT and Firewalls can drop the idle connections more aggresive.
+	p := tcpip.KeepaliveIdleOption(30 * time.Second)
+	ep.SetSockOpt(&p)
+
 	o := tcpip.KeepaliveIntervalOption(1 * time.Second)
 	ep.SetSockOpt(&o)
+
 	// Bind if a port is specified.
 	if localPort != 0 {
 		if err := ep.Bind(tcpip.FullAddress{Port: localPort}); err != nil {
