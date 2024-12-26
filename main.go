@@ -112,6 +112,7 @@ Usage:
   ios apps [--system] [--all] [--list] [--filesharing] [options]
   ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
+  ios memlimitoff (--process=<processName>) [options]
   ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [--font=<fontSize>] [options]
@@ -126,7 +127,7 @@ Usage:
   ios resetlocation [options]
   ios assistivetouch (enable | disable | toggle | get) [--force] [options]
   ios voiceover (enable | disable | toggle | get) [--force] [options]
-  ios zoomtouch (enable | disable | toggle | get) [--force] [options]
+  ios zoom (enable | disable | toggle | get) [--force] [options]
   ios diskspace [options]
   ios batterycheck [options]
   ios batteryregistry [options]
@@ -226,6 +227,7 @@ The commands work as following:
    ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
    ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options] Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
+   ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
    >                                                                  If you provide '-' as log output, it prints resuts to stdout.
    >                                                                  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=(TestTarget.)TestClass/testMethod --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
@@ -323,6 +325,11 @@ The commands work as following:
 		return
 	}
 
+	tunnelInfoHost, err := arguments.String("--tunnel-info-host")
+	if err != nil {
+		tunnelInfoHost = ios.HttpApiHost()
+	}
+
 	tunnelInfoPort, err := arguments.Int("--tunnel-info-port")
 	if err != nil {
 		tunnelInfoPort = ios.HttpApiPort()
@@ -333,6 +340,11 @@ The commands work as following:
 	udid, _ := arguments.String("--udid")
 	address, addressErr := arguments.String("--address")
 	rsdPort, rsdErr := arguments.Int("--rsd-port")
+	userspaceTunnelHost, userspaceTunnelHostErr := arguments.String("--userspace-host")
+	if userspaceTunnelHostErr != nil {
+		userspaceTunnelHost = ios.HttpApiHost()
+	}
+
 	userspaceTunnelPort, userspaceTunnelErr := arguments.Int("--userspace-port")
 
 	device, err := ios.GetDevice(udid)
@@ -342,13 +354,15 @@ The commands work as following:
 		if addressErr == nil && rsdErr == nil {
 			if userspaceTunnelErr == nil {
 				device.UserspaceTUN = true
+				device.UserspaceTUNHost = userspaceTunnelHost
 				device.UserspaceTUNPort = userspaceTunnelPort
 			}
 			device = deviceWithRsdProvider(device, udid, address, rsdPort)
 		} else {
-			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoPort)
+			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoHost, tunnelInfoPort)
 			if err == nil {
 				device.UserspaceTUNPort = info.UserspaceTUNPort
+				device.UserspaceTUNHost = userspaceTunnelHost
 				device.UserspaceTUN = info.UserspaceTUN
 				device = deviceWithRsdProvider(device, udid, info.Address, info.RsdPort)
 			} else {
@@ -841,6 +855,28 @@ The commands work as following:
 		printSysmontapStats(device)
 	}
 
+	b, _ = arguments.Bool("memlimitoff")
+	if b {
+		processName, _ := arguments.String("--process")
+
+		pControl, err := instruments.NewProcessControl(device)
+		exitIfError("processcontrol failed", err)
+		defer pControl.Close()
+
+		svc, err := instruments.NewDeviceInfoService(device)
+		exitIfError("failed opening deviceInfoService for getting process list", err)
+		defer svc.Close()
+
+		processList, _ := svc.ProcessList()
+		for _, process := range processList {
+			if process.Pid > 1 && process.Name == processName {
+				disabled, err := pControl.DisableMemoryLimit(process.Pid)
+				exitIfError("DisableMemoryLimit failed", err)
+				log.WithFields(log.Fields{"process": process.Name, "pid": process.Pid}).Info("memory limit is off: ", disabled)
+			}
+		}
+	}
+
 	b, _ = arguments.Bool("kill")
 	if b {
 		var response []installationproxy.AppInfo
@@ -927,6 +963,17 @@ The commands work as following:
 		env := splitKeyValuePairs(arguments["--env"].([]string), "=")
 		isXCTest, _ := arguments.Bool("--xctest")
 
+		config := testmanagerd.TestConfig{
+			BundleId:           bundleID,
+			TestRunnerBundleId: testRunnerBundleId,
+			XctestConfigName:   xctestConfig,
+			Env:                env,
+			TestsToRun:         testsToRun,
+			TestsToSkip:        testsToSkip,
+			XcTest:             isXCTest,
+			Device:             device,
+		}
+
 		if rawTestlogErr == nil {
 			var writer *os.File = os.Stdout
 			if rawTestlog != "-" {
@@ -936,14 +983,17 @@ The commands work as following:
 			}
 			defer writer.Close()
 
-			testResults, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(writer, writer, os.TempDir()), isXCTest)
+			config.Listener = testmanagerd.NewTestListener(writer, writer, os.TempDir())
+
+			testResults, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
 
 			log.Info(fmt.Printf("%+v", testResults))
 		} else {
-			_, err := testmanagerd.RunXCUITest(bundleID, testRunnerBundleId, xctestConfig, device, env, testsToRun, testsToSkip, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()), isXCTest)
+			config.Listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
+			_, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
@@ -1092,7 +1142,7 @@ The commands work as following:
 			}
 			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, useUserspaceNetworking)
 		} else if listCommand {
-			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoPort)
+			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoHost, tunnelInfoPort)
 			if err != nil {
 				exitIfError("failed to get tunnel infos", err)
 			}
@@ -1275,7 +1325,15 @@ func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 		defer close(errorChannel)
 		ctx, stopWda := context.WithCancel(context.Background())
 		go func() {
-			_, err := testmanagerd.RunXCUIWithBundleIdsCtx(ctx, bundleID, testbundleID, xctestconfig, device, wdaargs, wdaenv, nil, nil, testmanagerd.NewTestListener(writer, writer, os.TempDir()), false)
+			_, err := testmanagerd.RunTestWithConfig(ctx, testmanagerd.TestConfig{
+				BundleId:           bundleID,
+				TestRunnerBundleId: testbundleID,
+				XctestConfigName:   xctestconfig,
+				Env:                wdaenv,
+				Args:               wdaargs,
+				Device:             device,
+				Listener:           testmanagerd.NewTestListener(writer, writer, os.TempDir()),
+			})
 			if err != nil {
 				errorChannel <- err
 			}
@@ -2242,6 +2300,7 @@ func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, 
 	rsdProvider, err := rsdService.Handshake()
 	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	device1.UserspaceTUN = device.UserspaceTUN
+	device1.UserspaceTUNHost = device.UserspaceTUNHost
 	device1.UserspaceTUNPort = device.UserspaceTUNPort
 	exitIfError("error getting devicelist", err)
 

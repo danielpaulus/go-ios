@@ -49,19 +49,31 @@ func (d *Channel) ReceiveMethodCall(selector string) Message {
 // MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 // DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
 func (d *Channel) MethodCall(selector string, args ...interface{}) (Message, error) {
-	payload, _ := nskeyedarchiver.ArchiveBin(selector)
 	auxiliary := NewPrimitiveDictionary()
 	for _, arg := range args {
 		auxiliary.AddNsKeyedArchivedObject(arg)
 	}
+
+	return d.methodCallWithReply(selector, auxiliary)
+}
+
+// MethodCallWithAuxiliary is a DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
+// DTXMessage payload, and the primitive arguments put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
+func (d *Channel) MethodCallWithAuxiliary(selector string, aux PrimitiveDictionary) (Message, error) {
+	return d.methodCallWithReply(selector, aux)
+}
+
+func (d *Channel) methodCallWithReply(selector string, auxiliary PrimitiveDictionary) (Message, error) {
+	payload, _ := nskeyedarchiver.ArchiveBin(selector)
 	msg, err := d.SendAndAwaitReply(true, Methodinvocation, payload, auxiliary)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed starting invoking method")
 		return msg, err
 	}
 	if msg.HasError() {
-		return msg, fmt.Errorf("Failed invoking method '%s' with error: %s", selector, msg.Payload[0])
+		return msg, fmt.Errorf("failed invoking method '%s' with error: %s", selector, msg.Payload[0])
 	}
+
 	return msg, nil
 }
 

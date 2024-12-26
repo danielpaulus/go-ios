@@ -23,8 +23,8 @@ func (p *ProcessControl) LaunchApp(bundleID string, my_opts map[string]any) (uin
 	}
 	maps.Copy(opts, my_opts)
 	// Xcode sends all these, no idea if we need them for sth. later.
-	//"CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0", "CA_DEBUG_TRANSACTIONS": "0", "LLVM_PROFILE_FILE": "/dev/null", "METAL_DEBUG_ERROR_MODE": "0", "METAL_DEVICE_WRAPPER_TYPE": "1",
-	//"OS_ACTIVITY_DT_MODE": "YES", "SQLITE_ENABLE_THREAD_ASSERTIONS": "1", "__XPC_LLVM_PROFILE_FILE": "/dev/null"
+	// "CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0", "CA_DEBUG_TRANSACTIONS": "0", "LLVM_PROFILE_FILE": "/dev/null", "METAL_DEBUG_ERROR_MODE": "0", "METAL_DEVICE_WRAPPER_TYPE": "1",
+	// "OS_ACTIVITY_DT_MODE": "YES", "SQLITE_ENABLE_THREAD_ASSERTIONS": "1", "__XPC_LLVM_PROFILE_FILE": "/dev/null"
 	// NSUnbufferedIO seems to make the app send its logs via instruments using the outputReceived:fromProcess:atTime: selector
 	// We'll supply per default to get logs
 	env := map[string]interface{}{"NSUnbufferedIO": "YES"}
@@ -40,8 +40,8 @@ func (p *ProcessControl) LaunchAppWithArgs(bundleID string, my_args []interface{
 	}
 	maps.Copy(opts, my_opts)
 	// Xcode sends all these, no idea if we need them for sth. later.
-	//"CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0", "CA_DEBUG_TRANSACTIONS": "0", "LLVM_PROFILE_FILE": "/dev/null", "METAL_DEBUG_ERROR_MODE": "0", "METAL_DEVICE_WRAPPER_TYPE": "1",
-	//"OS_ACTIVITY_DT_MODE": "YES", "SQLITE_ENABLE_THREAD_ASSERTIONS": "1", "__XPC_LLVM_PROFILE_FILE": "/dev/null"
+	// "CA_ASSERT_MAIN_THREAD_TRANSACTIONS": "0", "CA_DEBUG_TRANSACTIONS": "0", "LLVM_PROFILE_FILE": "/dev/null", "METAL_DEBUG_ERROR_MODE": "0", "METAL_DEVICE_WRAPPER_TYPE": "1",
+	// "OS_ACTIVITY_DT_MODE": "YES", "SQLITE_ENABLE_THREAD_ASSERTIONS": "1", "__XPC_LLVM_PROFILE_FILE": "/dev/null"
 	// NSUnbufferedIO seems to make the app send its logs via instruments using the outputReceived:fromProcess:atTime: selector
 	// We'll supply per default to get logs
 	env := map[string]interface{}{"NSUnbufferedIO": "YES"}
@@ -60,6 +60,20 @@ func NewProcessControl(device ios.DeviceEntry) (*ProcessControl, error) {
 	}
 	processControlChannel := dtxConn.RequestChannelIdentifier(procControlChannel, loggingDispatcher{dtxConn})
 	return &ProcessControl{processControlChannel: processControlChannel, conn: dtxConn}, nil
+}
+
+// DisableMemoryLimit disables the memory limit of a process.
+func (p ProcessControl) DisableMemoryLimit(pid uint64) (bool, error) {
+	aux := dtx.NewPrimitiveDictionary()
+	aux.AddInt32(int(pid))
+	msg, err := p.processControlChannel.MethodCallWithAuxiliary("requestDisableMemoryLimitsForPid:", aux)
+	if err != nil {
+		return false, err
+	}
+	if disabled, ok := msg.Payload[0].(bool); ok {
+		return disabled, nil
+	}
+	return false, fmt.Errorf("expected int 0 or 1 as payload of msg: %v", msg)
 }
 
 // KillProcess kills the process on the device.
