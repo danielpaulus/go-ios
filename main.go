@@ -118,8 +118,8 @@ Usage:
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
   ios ax [--font=<fontSize>] [options]
   ios debug [options] [--stop-at-entry] <app_path>
-  ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>
-  ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
+  ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
+  ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios reboot [options]
   ios -h | --help
   ios --version | version [options]
@@ -239,8 +239,8 @@ The commands work as following:
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
    ios ax [--font=<fontSize>] [options]                               Access accessibility inspector features.
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
-   ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
-   ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
+   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
+   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
@@ -1077,7 +1077,13 @@ The commands work as following:
 
 	b, _ = arguments.Bool("fsync")
 	if b {
-		afcService, err := afc.New(device)
+		containerBundleId, _ := arguments.String("--app")
+		var afcService *afc.Connection
+		if containerBundleId == "" {
+			afcService, err = afc.New(device)
+		} else {
+			afcService, err = afc.NewContainer(device, containerBundleId)
+		}
 		exitIfError("fsync: connect afc service failed", err)
 		b, _ = arguments.Bool("rm")
 		if b {
