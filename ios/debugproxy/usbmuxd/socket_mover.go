@@ -1,4 +1,4 @@
-package debugproxy
+package usbmuxd
 
 import (
 	"fmt"
