@@ -87,11 +87,9 @@ function validateConfiguration(packageJson) {
 }
 
 function parsePackageJson() {
-    if (process.arch !== "arm64" && process.platform !== "darwin") {
-        if (!(process.arch in ARCH_MAPPING)) {
-            console.error("Installation is not supported for this architecture: " + process.arch);
-            return;
-        }
+    if (!(process.arch in ARCH_MAPPING)) {
+        console.error("Installation is not supported for this architecture: " + process.arch);
+        return;
     }
 
     if (!(process.platform in PLATFORM_MAPPING)) {
@@ -147,10 +145,6 @@ async function install(callback) {
     mkdirp.sync(opts.binPath);
     console.info(`Copying the relevant binary for your platform ${process.platform}`);
     let src = `./dist/go-ios-${PLATFORM_MAPPING[process.platform]}-${ARCH_MAPPING[process.arch]}_${PLATFORM_MAPPING[process.platform]}_${ARCH_MAPPING[process.arch]}/${opts.binName}`;
-    if (process.arch === "arm64" && process.platform === "darwin") {
-        console.log("using amd64 build on M1 mac")
-        src = `./dist/go-ios-${process.platform}-amd64_${process.platform}_amd64/${opts.binName}`;
-    }
 
     if (process.arch === "ia32" && process.platform === "w32") {
         src = `./dist/go-ios-${PLATFORM_MAPPING[process.platform]}-amd64_${PLATFORM_MAPPING[process.platform]}_amd64/${opts.binName}`;
