@@ -3,6 +3,7 @@ package afc
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -445,7 +446,7 @@ func (conn *Connection) Pull(srcPath, dstPath string) error {
 	return nil
 }
 
-func (conn *Connection) Push(srcPath, dstPath string) error {
+func (conn *Connection) PushPath(srcPath, dstPath string) error {
 	ret, _ := ios.PathExists(srcPath)
 	if !ret {
 		return fmt.Errorf("%s: no such file.", srcPath)
@@ -464,6 +465,20 @@ func (conn *Connection) Push(srcPath, dstPath string) error {
 	}
 
 	return conn.WriteToFile(f, dstPath)
+}
+
+func (conn *Connection) Push(dstPathOnDevice string, src io.Reader) error {
+	return conn.writeToFileWithBuffer(src, dstPathOnDevice, nil)
+}
+
+func (conn *Connection) PushBuffer(dstPathOnDevice string, src io.Reader, buf []byte) error {
+	if buf == nil {
+		buf = make([]byte, 1024)
+	}
+	if len(buf) == 0 {
+		return errors.New("buffer must have a length greater than zero")
+	}
+	return conn.writeToFileWithBuffer(src, dstPathOnDevice, buf)
 }
 
 func (conn *Connection) WriteToFile(reader io.Reader, dstPath string) error {
@@ -490,6 +505,46 @@ func (conn *Connection) WriteToFile(reader io.Reader, dstPath string) error {
 			break
 		}
 		bytesRead := chunk[:n]
+		headerPayload := make([]byte, 8)
+		binary.LittleEndian.PutUint64(headerPayload, fd)
+		thisLength := Afc_header_size + 8
+		header := AfcPacketHeader{Magic: Afc_magic, Packet_num: conn.packageNumber, Operation: Afc_operation_file_write, This_length: thisLength, Entire_length: thisLength + uint64(n)}
+		conn.packageNumber++
+		packet := AfcPacket{Header: header, HeaderPayload: headerPayload, Payload: bytesRead}
+		response, err := conn.sendAfcPacketAndAwaitResponse(packet)
+		if err != nil {
+			return err
+		}
+		if err = conn.checkOperationStatus(response); err != nil {
+			return fmt.Errorf("write file: unexpected afc status: %v", err)
+		}
+
+	}
+	return nil
+}
+
+func (conn *Connection) writeToFileWithBuffer(reader io.Reader, dstPath string, buf []byte) error {
+	if fileInfo, _ := conn.Stat(dstPath); fileInfo != nil {
+		if fileInfo.IsDir() {
+			return fmt.Errorf("%s is a directory, cannot write to it as file", dstPath)
+		}
+	}
+
+	fd, err := conn.OpenFile(dstPath, Afc_Mode_WR)
+	if err != nil {
+		return err
+	}
+	defer conn.CloseFile(fd)
+
+	for {
+		n, err := reader.Read(buf)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		if n == 0 {
+			break
+		}
+		bytesRead := buf[:n]
 		headerPayload := make([]byte, 8)
 		binary.LittleEndian.PutUint64(headerPayload, fd)
 		thisLength := Afc_header_size + 8

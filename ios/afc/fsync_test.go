@@ -139,7 +139,7 @@ func TestConnection_Push(t *testing.T) {
 	srcPath := "fsync.go"
 	dstpath := "/DCIM/"
 
-	err = conn.Push(srcPath, dstpath)
+	err = conn.PushPath(srcPath, dstpath)
 	if err != nil {
 		log.Fatalf("push failed:%v", err)
 	}

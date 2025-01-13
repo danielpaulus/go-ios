@@ -242,7 +242,7 @@ The commands work as following:
    ios resetax [options]                                              Reset accessibility settings to defaults.
    ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
    ios fsync (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
-   ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
+   ios fsync (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or PushPath file from srcPath to dstPath.
    ios reboot [options]                                               Reboot the given device
    ios -h | --help                                                    Prints this screen.
    ios --version | version [options]                                  Prints the version
@@ -1133,7 +1133,7 @@ The commands work as following:
 		if b {
 			sp, _ := arguments.String("--srcPath")
 			dp, _ := arguments.String("--dstPath")
-			err = afcService.Push(sp, dp)
+			err = afcService.PushPath(sp, dp)
 			exitIfError("fsync: push failed", err)
 		}
 		afcService.Close()
