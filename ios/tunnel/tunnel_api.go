@@ -65,13 +65,13 @@ func RunAgent(mode string, args ...string) error {
 	}
 
 	var cmd *exec.Cmd
-
-	if mode == "kernel" {
+	switch mode {
+	case "kernel":
 		cmd = exec.Command(ex, append([]string{"tunnel", "start"}, args...)...)
-	}
-
-	if mode == "user" {
+	case "user":
 		cmd = exec.Command(ex, append([]string{"tunnel", "start", "--userspace"}, args...)...)
+	default:
+		return fmt.Errorf("RunAgent: unknown mode: %s. Only 'kernel' and 'user' are supported", mode)
 	}
 
 	err = cmd.Start()
