@@ -106,6 +106,39 @@ func (c *Connection) Uninstall(bundleId string) error {
 		}
 	}
 }
+func (c *Connection) Install(pathOnDevice string) error {
+	options := map[string]interface{}{}
+	uninstallCommand := map[string]interface{}{
+		"Command":       "Install",
+		"PackagePath":   pathOnDevice,
+		"ClientOptions": options,
+	}
+	b, err := c.plistCodec.Encode(uninstallCommand)
+	if err != nil {
+		return err
+	}
+	err = c.deviceConn.Send(b)
+	if err != nil {
+		return err
+	}
+	for {
+		response, err := c.plistCodec.Decode(c.deviceConn.Reader())
+		if err != nil {
+			return err
+		}
+		dict, err := ios.ParsePlist(response)
+		if err != nil {
+			return err
+		}
+		done, err := checkFinished(dict)
+		if err != nil {
+			return err
+		}
+		if done {
+			return nil
+		}
+	}
+}
 
 func checkFinished(dict map[string]interface{}) (bool, error) {
 	if val, ok := dict["Error"]; ok {

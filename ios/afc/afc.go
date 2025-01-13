@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/danielpaulus/go-ios/ios"
 )
 
 const (
@@ -186,4 +188,21 @@ func Encode(packet AfcPacket, writer io.Writer) error {
 		return err
 	}
 	return nil
+}
+
+func PushBuffer(d ios.DeviceEntry, dstPathOnDevice string, src io.Reader, buf []byte) error {
+	c, err := New(d)
+	if err != nil {
+		return fmt.Errorf("failed to connect to AFC: %w", err)
+	}
+	defer c.Close()
+	err = c.PushBuffer(dstPathOnDevice, src, buf)
+	if err != nil {
+		return fmt.Errorf("failed to push to the device: %w", err)
+	}
+	return nil
+}
+
+func Push(d ios.DeviceEntry, dstPathOnDevice string, src io.Reader) error {
+	return PushBuffer(d, dstPathOnDevice, src, nil)
 }
