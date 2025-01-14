@@ -295,11 +295,12 @@ The commands work as following:
 	log.Debug(arguments)
 
 	skipAgent, _ := os.LookupEnv("ENABLE_GO_IOS_AGENT")
-	if skipAgent == "yes" {
-		tunnel.RunAgent()
+	if skipAgent == "user" || skipAgent == "kernel" {
+		tunnel.RunAgent(skipAgent)
 	}
+
 	if !tunnel.IsAgentRunning() {
-		log.Warn("go-ios agent is not running. You might need to start it with 'ios tunnel start' for ios17+. Use ENABLE_GO_IOS_AGENT=yes for experimental daemon mode.")
+		log.Warn("go-ios agent is not running. You might need to start it with 'ios tunnel start' for ios17+. Use ENABLE_GO_IOS_AGENT=user for userspace tunnel or ENABLE_GO_IOS_AGENT=kernel for kernel tunnel for the experimental daemon mode.")
 	}
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
 	shouldPrintVersion, _ := arguments.Bool("--version")

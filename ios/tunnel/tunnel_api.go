@@ -54,7 +54,7 @@ func WaitUntilAgentReady() bool {
 	}
 }
 
-func RunAgent(args ...string) error {
+func RunAgent(mode string, args ...string) error {
 	if IsAgentRunning() {
 		return nil
 	}
@@ -64,8 +64,18 @@ func RunAgent(args ...string) error {
 		return fmt.Errorf("RunAgent: failed to get executable path: %w", err)
 	}
 
-	cmd := exec.Command(ex, append([]string{"tunnel", "start"}, args...)...)
+	var cmd *exec.Cmd
+	switch mode {
+	case "kernel":
+		cmd = exec.Command(ex, append([]string{"tunnel", "start"}, args...)...)
+	case "user":
+		cmd = exec.Command(ex, append([]string{"tunnel", "start", "--userspace"}, args...)...)
+	default:
+		return fmt.Errorf("RunAgent: unknown mode: %s. Only 'kernel' and 'user' are supported", mode)
+	}
+
 	err = cmd.Start()
+
 	if err != nil {
 		return fmt.Errorf("RunAgent: failed to start agent: %w", err)
 	}
