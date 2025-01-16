@@ -288,6 +288,32 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 			}
 
 			p.testListener.testCaseDidStartForClass(testClass, testMethod)
+		case "_XCT_testCaseDidStartWithIdentifier:iteration:":
+			argumentLengthErr := assertArgumentsLengthEqual(m, 2)
+			if argumentLengthErr != nil {
+				decoderErr = argumentLengthErr
+				break
+			}
+
+			testIdentifier, decoderErr := extractTestIdentifierArg(m, 0)
+			if decoderErr != nil {
+				break
+			}
+
+			p.testListener.testCaseDidStartForClass(testIdentifier.C[0], testIdentifier.C[1])
+		case "_XCT_testCaseDidStartWithIdentifier:":
+			argumentLengthErr := assertArgumentsLengthEqual(m, 1)
+			if argumentLengthErr != nil {
+				decoderErr = argumentLengthErr
+				break
+			}
+
+			testIdentifier, decoderErr := extractTestIdentifierArg(m, 0)
+			if decoderErr != nil {
+				break
+			}
+
+			p.testListener.testCaseDidStartForClass(testIdentifier.C[0], testIdentifier.C[1])
 		case "_XCT_testCaseDidStartWithIdentifier:testCaseRunConfiguration:":
 			argumentLengthErr := assertArgumentsLengthEqual(m, 2)
 			if argumentLengthErr != nil {
