@@ -122,7 +122,7 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 					"msg":  logmsg[0],
 					"pid":  msg.Auxiliary.GetArguments()[1],
 					"time": msg.Auxiliary.GetArguments()[2],
-				}).Info("outputReceived:fromProcess:atTime:")
+				}).Debug("outputReceived:fromProcess:atTime:")
 			}
 			return
 		}
