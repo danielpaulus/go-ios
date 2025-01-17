@@ -38,7 +38,7 @@ func (a ControlInterface) readhostInspectorNotificationReceived() {
 	}
 }
 
-// Init wires up event receivers and gets Info from the device
+// init wires up event receivers and gets Info from the device
 func (a ControlInterface) init() error {
 	a.channel.RegisterMethodForRemote("hostInspectorCurrentElementChanged:")
 	a.channel.RegisterMethodForRemote("hostInspectorMonitoredEventTypeChanged:")
@@ -150,6 +150,14 @@ func (a ControlInterface) UpdateAccessibilitySetting(name string, val interface{
 	log.Info("Setting Updated", resp)
 }
 
+func (a ControlInterface) ResetToDefaultAccessibilitySettings() error {
+	err := a.channel.MethodCallAsync("deviceResetToDefaultAccessibilitySettings")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
 	msg := a.channel.ReceiveMethodCall("hostInspectorCurrentElementChanged:")
 	log.Info("received hostInspectorCurrentElementChanged")
@@ -194,7 +202,7 @@ func (a ControlInterface) deviceCapabilities() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return convertToStringList(response.Payload), nil
+	return convertToStringList(response.Payload)
 }
 
 func (a ControlInterface) deviceAllAuditCaseIDs() ([]string, error) {
@@ -202,7 +210,7 @@ func (a ControlInterface) deviceAllAuditCaseIDs() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return convertToStringList(response.Payload), nil
+	return convertToStringList(response.Payload)
 }
 
 func (a ControlInterface) deviceAccessibilitySettings() (map[string]interface{}, error) {
