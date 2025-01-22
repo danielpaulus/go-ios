@@ -59,6 +59,11 @@ type Message struct {
 	Id    uint64
 }
 
+type MagicAndVersion struct {
+	magic   uint32
+	version uint32
+}
+
 func (m Message) IsFileOpen() bool {
 	return m.Flags&FileOpenFlag > 0
 }
@@ -114,10 +119,7 @@ func EncodeMessage(w io.Writer, message Message) error {
 	wrapper := struct {
 		magic uint32
 		h     wrapperHeader
-		body  struct {
-			magic   uint32
-			version uint32
-		}
+		body  MagicAndVersion
 	}{
 		magic: wrapperMagic,
 		h: wrapperHeader{
@@ -125,10 +127,7 @@ func EncodeMessage(w io.Writer, message Message) error {
 			BodyLen: uint64(buf.Len() + 8),
 			MsgId:   message.Id,
 		},
-		body: struct {
-			magic   uint32
-			version uint32
-		}{
+		body: MagicAndVersion{
 			magic:   objectMagic,
 			version: bodyVersion,
 		},
