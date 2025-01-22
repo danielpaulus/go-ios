@@ -1,4 +1,4 @@
-module github.com/danielpaulus/go-ios
+module github.com/cziter15/go-ios
 
 go 1.22.0
 
