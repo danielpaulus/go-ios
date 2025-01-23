@@ -1,4 +1,4 @@
-package debugproxy
+package usbmuxd
 
 import (
 	"encoding/json"
@@ -77,8 +77,8 @@ func (d *DebugProxy) retrieveServiceInfoByPort(port uint16) (PhoneServiceInforma
 }
 
 // NewDebugProxy creates a new Default proxy
-func NewDebugProxy() *DebugProxy {
-	return &DebugProxy{mux: sync.Mutex{}, serviceList: []PhoneServiceInformation{}}
+func NewDebugProxy(workdir string) *DebugProxy {
+	return &DebugProxy{mux: sync.Mutex{}, serviceList: []PhoneServiceInformation{}, WorkingDir: workdir}
 }
 
 // Launch moves the original /var/run/usbmuxd to /var/run/usbmuxd.real and starts the server at /var/run/usbmuxd
@@ -104,7 +104,6 @@ func (d *DebugProxy) Launch(device ios.DeviceEntry, binaryMode bool) error {
 		log.WithFields(log.Fields{"error": err, "socket": ios.GetUsbmuxdSocket()}).Error("Unable to move, lacking permissions?")
 		return err
 	}
-	d.setupDirectory()
 	listener, err := net.Listen("unix", ios.ToUnixSocketPath(ios.GetUsbmuxdSocket()))
 	if err != nil {
 		log.Error("Could not listen on usbmuxd socket, do I have access permissions?", err)
