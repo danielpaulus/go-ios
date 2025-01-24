@@ -2,7 +2,6 @@ package testmanagerd
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
 	"howett.net/plist"
@@ -25,8 +24,7 @@ import (
 
 // xCTestRunData represents the structure of an .xctestrun file
 type xCTestRunData struct {
-	TestConfig        schemeData        `plist:"-"`
-	XCTestRunMetadata xCTestRunMetadata `plist:"__xctestrun_metadata__"`
+	TestConfig schemeData `plist:"-"`
 }
 
 // schemeData represents the structure of a scheme-specific test configuration
@@ -41,9 +39,11 @@ type schemeData struct {
 	TestingEnvironmentVariables map[string]any
 }
 
-// XCTestRunMetadata contains metadata about the .xctestrun file
-type xCTestRunMetadata struct {
-	FormatVersion int `plist:"FormatVersion"`
+// All 'xctestrun' files are versioned. The parsing of the 'xctestrun' file depends on the version. This struct helps with reading the version.
+type xCTestRunFormatVersion struct {
+	XCTestRunMetadata struct {
+		FormatVersion int `plist:"FormatVersion"`
+	} `plist:"__xctestrun_metadata__"`
 }
 
 func (data xCTestRunData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
@@ -93,52 +93,35 @@ func decode(r io.Reader) (xCTestRunData, error) {
 		return xCTestRunData{}, fmt.Errorf("failed to read content: %w", err)
 	}
 
-	// Use a single map for initial parsing
-	var rawData map[string]interface{}
-	if _, err := plist.Unmarshal(content, &rawData); err != nil {
+	// First, we only parse the version property of the xctestrun file. The rest of the parsing depends on this version.
+	var xctestRunVersion xCTestRunFormatVersion
+	_, err = plist.Unmarshal(content, &xctestRunVersion)
+	if err != nil {
+		return xCTestRunData{}, fmt.Errorf("xctestrun file did not contain a format version, inside the '__xctestrun_metadata__': %w", err)
+	}
+
+	if xctestRunVersion.XCTestRunMetadata.FormatVersion != 1 {
+		return xCTestRunData{}, fmt.Errorf("go-ios currently only supports .xctestrun files in formatVersion 1: "+
+			"The formatVersion of your xctestrun file is %d, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to "+
+			"add support", xctestRunVersion.XCTestRunMetadata.FormatVersion)
+	}
+
+	if xctestRunVersion.XCTestRunMetadata.FormatVersion == 1 {
+		return parseVersion1(content)
+	}
+	return xCTestRunData{}, nil
+}
+
+func parseVersion1(content []byte) (xCTestRunData, error) {
+	// xctestrun files in version 1 use a dynamic key for the pListRoot of the TestConfig. We therefore need to jump through some hoopes when
+	// parsing the file. Here we need to iterate over the root objects of the xctestrun file and find the actual test config.
+	var pListRoot map[string]interface{}
+	if _, err := plist.Unmarshal(content, &pListRoot); err != nil {
 		return xCTestRunData{}, fmt.Errorf("failed to unmarshal plist: %w", err)
 	}
 
-	result := xCTestRunData{
-		TestConfig: schemeData{}, // Initialize TestConfig
-	}
-
-	// Parse metadata
-	metadataMap, ok := rawData["__xctestrun_metadata__"].(map[string]interface{})
-	if !ok {
-		return xCTestRunData{}, errors.New("invalid or missing __xctestrun_metadata__")
-	}
-
-	// Direct decoding of metadata to avoid additional conversion
-	switch v := metadataMap["FormatVersion"].(type) {
-	case int:
-		result.XCTestRunMetadata.FormatVersion = v
-	case uint64:
-		result.XCTestRunMetadata.FormatVersion = int(v)
-	default:
-		return xCTestRunData{}, fmt.Errorf("unexpected FormatVersion type: %T", metadataMap["FormatVersion"])
-	}
-
-	// Verify FormatVersion
-	if result.XCTestRunMetadata.FormatVersion != 1 {
-		return result, fmt.Errorf("go-ios currently only supports .xctestrun files in formatVersion 1: "+
-			"The formatVersion of your xctestrun file is %d, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to "+
-			"add support", result.XCTestRunMetadata.FormatVersion)
-	}
-
-	// Parse test schemes
-	if err := parseTestSchemes(rawData, &result.TestConfig); err != nil {
-		return xCTestRunData{}, err
-	}
-
-	return result, nil
-}
-
-// parseTestSchemes extracts and parses test schemes from the raw data
-func parseTestSchemes(rawData map[string]interface{}, scheme *schemeData) error {
-	// Dynamically find and parse test schemes
-	for key, value := range rawData {
-		// Skip metadata key
+	for key, value := range pListRoot {
+		// Skip the metadata object
 		if key == "__xctestrun_metadata__" {
 			continue
 		}
@@ -154,19 +137,15 @@ func parseTestSchemes(rawData map[string]interface{}, scheme *schemeData) error 
 		schemeBuf := new(bytes.Buffer)
 		encoder := plist.NewEncoder(schemeBuf)
 		if err := encoder.Encode(schemeMap); err != nil {
-			return fmt.Errorf("failed to encode scheme %s: %w", key, err)
+			return xCTestRunData{}, fmt.Errorf("failed to encode scheme %s: %w", key, err)
 		}
 
 		// Decode the plist buffer into schemeData
 		decoder := plist.NewDecoder(bytes.NewReader(schemeBuf.Bytes()))
 		if err := decoder.Decode(&schemeParsed); err != nil {
-			return fmt.Errorf("failed to decode scheme %s: %w", key, err)
+			return xCTestRunData{}, fmt.Errorf("failed to decode scheme %s: %w", key, err)
 		}
-
-		// Store the scheme in the result TestConfig
-		*scheme = schemeParsed
-		break // Only one scheme expected, break after the first valid scheme
+		return xCTestRunData{TestConfig: schemeParsed}, nil
 	}
-
-	return nil
+	return xCTestRunData{}, nil
 }
