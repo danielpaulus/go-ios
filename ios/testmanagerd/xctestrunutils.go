@@ -39,13 +39,6 @@ type schemeData struct {
 	TestingEnvironmentVariables map[string]any
 }
 
-// All 'xctestrun' files are versioned. The parsing of the 'xctestrun' file depends on the version. This struct helps with reading the version.
-type xCTestRunFormatVersion struct {
-	XCTestRunMetadata struct {
-		FormatVersion int `plist:"FormatVersion"`
-	} `plist:"__xctestrun_metadata__"`
-}
-
 func (data xCTestRunData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
 	testsToRun := data.TestConfig.OnlyTestIdentifiers
 	testsToSkip := data.TestConfig.SkipTestIdentifiers
@@ -88,33 +81,50 @@ func parseFile(filePath string) (xCTestRunData, error) {
 // decode decodes the binary xctestrun content into the xCTestRunData struct
 func decode(r io.Reader) (xCTestRunData, error) {
 	// Read the entire content once
-	content, err := io.ReadAll(r)
+	xctestrunFileContent, err := io.ReadAll(r)
 	if err != nil {
-		return xCTestRunData{}, fmt.Errorf("failed to read content: %w", err)
+		return xCTestRunData{}, fmt.Errorf("unable to read xctestrun content: %w", err)
 	}
 
 	// First, we only parse the version property of the xctestrun file. The rest of the parsing depends on this version.
-	var xctestRunVersion xCTestRunFormatVersion
-	_, err = plist.Unmarshal(content, &xctestRunVersion)
+	version, err := getFormatVersion(xctestrunFileContent)
 	if err != nil {
-		return xCTestRunData{}, fmt.Errorf("xctestrun file did not contain a format version, inside the '__xctestrun_metadata__': %w", err)
+		return xCTestRunData{}, err
 	}
 
-	if xctestRunVersion.XCTestRunMetadata.FormatVersion != 1 {
+	if version == 1 {
+		return parseVersion1(xctestrunFileContent)
+	}
+
+	if version != 1 {
 		return xCTestRunData{}, fmt.Errorf("go-ios currently only supports .xctestrun files in formatVersion 1: "+
 			"The formatVersion of your xctestrun file is %d, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to "+
-			"add support", xctestRunVersion.XCTestRunMetadata.FormatVersion)
+			"add support", version)
 	}
 
-	if xctestRunVersion.XCTestRunMetadata.FormatVersion == 1 {
-		return parseVersion1(content)
-	}
 	return xCTestRunData{}, nil
 }
 
+// Helper method to get the format version of the xctestrun file
+func getFormatVersion(xctestrunFileContent []byte) (int, error) {
+
+	type xCTestRunMetadata struct {
+		Metadata struct {
+			Version int `plist:"FormatVersion"`
+		} `plist:"__xctestrun_metadata__"`
+	}
+
+	var metadata xCTestRunMetadata
+	if _, err := plist.Unmarshal(xctestrunFileContent, &metadata); err != nil {
+		return 0, fmt.Errorf("failed to parse format version: %w", err)
+	}
+
+	return metadata.Metadata.Version, nil
+}
+
 func parseVersion1(content []byte) (xCTestRunData, error) {
-	// xctestrun files in version 1 use a dynamic key for the pListRoot of the TestConfig. We therefore need to jump through some hoopes when
-	// parsing the file. Here we need to iterate over the root objects of the xctestrun file and find the actual test config.
+	// xctestrun files in version 1 use a dynamic key for the pListRoot of the TestConfig. As in the 'key' for the TestConfig is the name
+	// of the app. This forces us to iterate over the root of the plist, instead of using a static struct to decode the xctestrun file.
 	var pListRoot map[string]interface{}
 	if _, err := plist.Unmarshal(content, &pListRoot); err != nil {
 		return xCTestRunData{}, fmt.Errorf("failed to unmarshal plist: %w", err)
