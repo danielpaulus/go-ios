@@ -9,7 +9,7 @@ import (
 )
 
 // Helper function to create mock data and parse the .xctestrun file
-func createAndParseXCTestRunFile(t *testing.T) xCTestRunData {
+func createAndParseXCTestRunFile(t *testing.T) schemeData {
 	// Arrange: Create a temporary .xctestrun file with mock data
 	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
 	assert.NoError(t, err, "Failed to create temp file")
@@ -136,12 +136,12 @@ func createAndParseXCTestRunFile(t *testing.T) xCTestRunData {
 
 func TestTestHostBundleIdentifier(t *testing.T) {
 	xcTestRunData := createAndParseXCTestRunFile(t)
-	assert.Equal(t, "com.example.myApp", xcTestRunData.TestConfig.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
+	assert.Equal(t, "com.example.myApp", xcTestRunData.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
 }
 
 func TestTestBundlePath(t *testing.T) {
 	xcTestRunData := createAndParseXCTestRunFile(t)
-	assert.Equal(t, "__TESTHOST__/PlugIns/RunnerTests.xctest", xcTestRunData.TestConfig.TestBundlePath, "TestBundlePath mismatch")
+	assert.Equal(t, "__TESTHOST__/PlugIns/RunnerTests.xctest", xcTestRunData.TestBundlePath, "TestBundlePath mismatch")
 }
 
 func TestEnvironmentVariables(t *testing.T) {
@@ -151,7 +151,7 @@ func TestEnvironmentVariables(t *testing.T) {
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"TERM":                            "dumb",
-	}, xcTestRunData.TestConfig.EnvironmentVariables, "EnvironmentVariables mismatch")
+	}, xcTestRunData.EnvironmentVariables, "EnvironmentVariables mismatch")
 }
 
 func TestTestingEnvironmentVariables(t *testing.T) {
@@ -160,12 +160,12 @@ func TestTestingEnvironmentVariables(t *testing.T) {
 		"DYLD_INSERT_LIBRARIES": "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
 		"XCInjectBundleInto":    "unused",
 		"Test":                  "xyz",
-	}, xcTestRunData.TestConfig.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
+	}, xcTestRunData.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
 }
 
 func TestCommandLineArguments(t *testing.T) {
 	xcTestRunData := createAndParseXCTestRunFile(t)
-	assert.Equal(t, []string{}, xcTestRunData.TestConfig.CommandLineArguments, "CommandLineArguments mismatch")
+	assert.Equal(t, []string{}, xcTestRunData.CommandLineArguments, "CommandLineArguments mismatch")
 }
 
 func TestOnlyTestIdentifiers(t *testing.T) {
@@ -173,7 +173,7 @@ func TestOnlyTestIdentifiers(t *testing.T) {
 	assert.Equal(t, []string{
 		"TestClass1/testMethod1",
 		"TestClass2/testMethod1",
-	}, xcTestRunData.TestConfig.OnlyTestIdentifiers, "OnlyTestIdentifiers mismatch")
+	}, xcTestRunData.OnlyTestIdentifiers, "OnlyTestIdentifiers mismatch")
 }
 
 func TestSkipTestIdentifiers(t *testing.T) {
@@ -181,12 +181,12 @@ func TestSkipTestIdentifiers(t *testing.T) {
 	assert.Equal(t, []string{
 		"TestClass1/testMethod2",
 		"TestClass2/testMethod2",
-	}, xcTestRunData.TestConfig.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
+	}, xcTestRunData.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
 }
 
 func TestIsUITestBundle(t *testing.T) {
 	xcTestRunData := createAndParseXCTestRunFile(t)
-	assert.Equal(t, true, xcTestRunData.TestConfig.IsUITestBundle, "IsUITestBundle mismatch")
+	assert.Equal(t, true, xcTestRunData.IsUITestBundle, "IsUITestBundle mismatch")
 }
 
 func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
@@ -216,7 +216,7 @@ func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
 	_, err = parseFile(tempFile.Name())
 
 	// Assert the Error Message
-	assert.Equal(t, "go-ios currently only supports .xctestrun files in formatVersion 1: The formatVersion of your xctestrun file is 2, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to add support", err.Error(), "Error Message mismatch")
+	assert.Equal(t, "the provided .xctestrun file used format version 2, which is not yet supported", err.Error(), "Error Message mismatch")
 }
 
 // Helper function to create testConfig from parsed mock data

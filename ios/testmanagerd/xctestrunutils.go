@@ -23,9 +23,6 @@ import (
 // contributions or requests for support can be made in the relevant GitHub repository.
 
 // xCTestRunData represents the structure of an .xctestrun file
-type xCTestRunData struct {
-	TestConfig schemeData `plist:"-"`
-}
 
 // schemeData represents the structure of a scheme-specific test configuration
 type schemeData struct {
@@ -39,28 +36,28 @@ type schemeData struct {
 	TestingEnvironmentVariables map[string]any
 }
 
-func (data xCTestRunData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
-	testsToRun := data.TestConfig.OnlyTestIdentifiers
-	testsToSkip := data.TestConfig.SkipTestIdentifiers
+func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
+	testsToRun := data.OnlyTestIdentifiers
+	testsToSkip := data.SkipTestIdentifiers
 
 	testEnv := make(map[string]any)
-	if data.TestConfig.IsUITestBundle {
-		maps.Copy(testEnv, data.TestConfig.EnvironmentVariables)
-		maps.Copy(testEnv, data.TestConfig.TestingEnvironmentVariables)
+	if data.IsUITestBundle {
+		maps.Copy(testEnv, data.EnvironmentVariables)
+		maps.Copy(testEnv, data.TestingEnvironmentVariables)
 	}
 
 	// Extract only the file name
-	var testBundlePath = filepath.Base(data.TestConfig.TestBundlePath)
+	var testBundlePath = filepath.Base(data.TestBundlePath)
 
 	// Build the TestConfig object from parsed data
 	testConfig := TestConfig{
-		TestRunnerBundleId: data.TestConfig.TestHostBundleIdentifier,
+		TestRunnerBundleId: data.TestHostBundleIdentifier,
 		XctestConfigName:   testBundlePath,
-		Args:               data.TestConfig.CommandLineArguments,
+		Args:               data.CommandLineArguments,
 		Env:                testEnv,
 		TestsToRun:         testsToRun,
 		TestsToSkip:        testsToSkip,
-		XcTest:             !data.TestConfig.IsUITestBundle,
+		XcTest:             !data.IsUITestBundle,
 		Device:             device,
 		Listener:           listener,
 	}
@@ -69,40 +66,37 @@ func (data xCTestRunData) buildTestConfig(device ios.DeviceEntry, listener *Test
 }
 
 // parseFile reads the .xctestrun file and decodes it into a map
-func parseFile(filePath string) (xCTestRunData, error) {
+func parseFile(filePath string) (schemeData, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return xCTestRunData{}, fmt.Errorf("failed to open xctestrun file: %w", err)
+		return schemeData{}, fmt.Errorf("failed to open xctestrun file: %w", err)
 	}
 	defer file.Close()
 	return decode(file)
 }
 
 // decode decodes the binary xctestrun content into the xCTestRunData struct
-func decode(r io.Reader) (xCTestRunData, error) {
+func decode(r io.Reader) (schemeData, error) {
 	// Read the entire content once
 	xctestrunFileContent, err := io.ReadAll(r)
 	if err != nil {
-		return xCTestRunData{}, fmt.Errorf("unable to read xctestrun content: %w", err)
+		return schemeData{}, fmt.Errorf("unable to read xctestrun content: %w", err)
 	}
 
 	// First, we only parse the version property of the xctestrun file. The rest of the parsing depends on this version.
 	version, err := getFormatVersion(xctestrunFileContent)
 	if err != nil {
-		return xCTestRunData{}, err
+		return schemeData{}, err
 	}
 
-	if version == 1 {
+	switch version {
+	case 1:
 		return parseVersion1(xctestrunFileContent)
+	case 2:
+		return schemeData{}, fmt.Errorf("the provided .xctestrun file used format version 2, which is not yet supported")
+	default:
+		return schemeData{}, fmt.Errorf("the provided .xctestrun format version %d is not supported", version)
 	}
-
-	if version != 1 {
-		return xCTestRunData{}, fmt.Errorf("go-ios currently only supports .xctestrun files in formatVersion 1: "+
-			"The formatVersion of your xctestrun file is %d, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to "+
-			"add support", version)
-	}
-
-	return xCTestRunData{}, nil
 }
 
 // Helper method to get the format version of the xctestrun file
@@ -122,12 +116,12 @@ func getFormatVersion(xctestrunFileContent []byte) (int, error) {
 	return metadata.Metadata.Version, nil
 }
 
-func parseVersion1(content []byte) (xCTestRunData, error) {
+func parseVersion1(content []byte) (schemeData, error) {
 	// xctestrun files in version 1 use a dynamic key for the pListRoot of the TestConfig. As in the 'key' for the TestConfig is the name
 	// of the app. This forces us to iterate over the root of the plist, instead of using a static struct to decode the xctestrun file.
 	var pListRoot map[string]interface{}
 	if _, err := plist.Unmarshal(content, &pListRoot); err != nil {
-		return xCTestRunData{}, fmt.Errorf("failed to unmarshal plist: %w", err)
+		return schemeData{}, fmt.Errorf("failed to unmarshal plist: %w", err)
 	}
 
 	for key, value := range pListRoot {
@@ -147,15 +141,15 @@ func parseVersion1(content []byte) (xCTestRunData, error) {
 		schemeBuf := new(bytes.Buffer)
 		encoder := plist.NewEncoder(schemeBuf)
 		if err := encoder.Encode(schemeMap); err != nil {
-			return xCTestRunData{}, fmt.Errorf("failed to encode scheme %s: %w", key, err)
+			return schemeData{}, fmt.Errorf("failed to encode scheme %s: %w", key, err)
 		}
 
 		// Decode the plist buffer into schemeData
 		decoder := plist.NewDecoder(bytes.NewReader(schemeBuf.Bytes()))
 		if err := decoder.Decode(&schemeParsed); err != nil {
-			return xCTestRunData{}, fmt.Errorf("failed to decode scheme %s: %w", key, err)
+			return schemeData{}, fmt.Errorf("failed to decode scheme %s: %w", key, err)
 		}
-		return xCTestRunData{TestConfig: schemeParsed}, nil
+		return schemeParsed, nil
 	}
-	return xCTestRunData{}, nil
+	return schemeData{}, nil
 }
