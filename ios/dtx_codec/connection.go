@@ -122,7 +122,7 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 					"msg":  logmsg[0],
 					"pid":  msg.Auxiliary.GetArguments()[1],
 					"time": msg.Auxiliary.GetArguments()[2],
-				}).Info("outputReceived:fromProcess:atTime:")
+				}).Debug("outputReceived:fromProcess:atTime:")
 			}
 			return
 		}
@@ -131,7 +131,7 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 	if msg.HasError() {
 		log.Error(msg.Payload[0])
 	}
-	if msg.PayloadHeader.MessageType == UnknownTypeOne {
+	if msg.PayloadHeader.MessageType == UnknownTypeOne || msg.PayloadHeader.MessageType == ResponseWithReturnValueInPayload {
 		g.dtxConnection.Dispatch(msg)
 	}
 }
