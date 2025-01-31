@@ -55,14 +55,14 @@ func NewContainer(device ios.DeviceEntry, bundleID string) (*Connection, error) 
 	if err != nil {
 		return nil, err
 	}
-	err = vendContainer(deviceConn, bundleID)
+	err = VendContainer(deviceConn, bundleID)
 	if err != nil {
 		return nil, err
 	}
 	return &Connection{deviceConn: deviceConn}, nil
 }
 
-func vendContainer(deviceConn ios.DeviceConnectionInterface, bundleID string) error {
+func VendContainer(deviceConn ios.DeviceConnectionInterface, bundleID string) error {
 	plistCodec := ios.NewPlistCodec()
 	vendContainer := map[string]interface{}{"Command": "VendContainer", "Identifier": bundleID}
 	msg, err := plistCodec.Encode(vendContainer)
