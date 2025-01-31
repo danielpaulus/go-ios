@@ -1,17 +1,13 @@
 package house_arrest
 
 import (
-	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/danielpaulus/go-ios/ios/afc"
 
 	"github.com/danielpaulus/go-ios/ios"
-
-	"howett.net/plist"
 )
 
 const serviceName = "com.apple.mobile.house_arrest"
@@ -26,60 +22,11 @@ func New(device ios.DeviceEntry, bundleID string) (*Connection, error) {
 	if err != nil {
 		return &Connection{}, err
 	}
-	err = vendContainer(deviceConn, bundleID)
+	err = afc.VendContainer(deviceConn, bundleID)
 	if err != nil {
 		return &Connection{}, err
 	}
 	return &Connection{deviceConn: deviceConn}, nil
-}
-
-func vendContainer(deviceConn ios.DeviceConnectionInterface, bundleID string) error {
-	plistCodec := ios.NewPlistCodec()
-	vendContainer := map[string]interface{}{"Command": "VendContainer", "Identifier": bundleID}
-	msg, err := plistCodec.Encode(vendContainer)
-	if err != nil {
-		return fmt.Errorf("VendContainer Encoding cannot fail unless the encoder is broken: %v", err)
-	}
-	err = deviceConn.Send(msg)
-	if err != nil {
-		return err
-	}
-	reader := deviceConn.Reader()
-	response, err := plistCodec.Decode(reader)
-	if err != nil {
-		return err
-	}
-	return checkResponse(response)
-}
-
-func checkResponse(vendContainerResponseBytes []byte) error {
-	response, err := plistFromBytes(vendContainerResponseBytes)
-	if err != nil {
-		return err
-	}
-	if "Complete" == response.Status {
-		return nil
-	}
-	if response.Error != "" {
-		return errors.New(response.Error)
-	}
-	return errors.New("unknown error during vendcontainer")
-}
-
-func plistFromBytes(plistBytes []byte) (vendContainerResponse, error) {
-	var vendResponse vendContainerResponse
-	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
-
-	err := decoder.Decode(&vendResponse)
-	if err != nil {
-		return vendResponse, err
-	}
-	return vendResponse, nil
-}
-
-type vendContainerResponse struct {
-	Status string
-	Error  string
 }
 
 func (c Connection) Close() {
@@ -133,7 +80,7 @@ func (conn *Connection) openFileForWriting(filePath string) (byte, error) {
 		return 0, err
 	}
 	if response.Header.Operation != afc.Afc_operation_file_open_result {
-		return 0, fmt.Errorf("Unexpected afc response, expected %x received %x", afc.Afc_operation_status, response.Header.Operation)
+		return 0, fmt.Errorf("unexpected afc response, expected %x received %x", afc.Afc_operation_status, response.Header.Operation)
 	}
 	return response.HeaderPayload[0], nil
 }
@@ -157,7 +104,7 @@ func (conn *Connection) sendFileContents(fileContents []byte, handle byte) error
 		return err
 	}
 	if response.Header.Operation != afc.Afc_operation_status {
-		return fmt.Errorf("Unexpected afc response, expected %x received %x", afc.Afc_operation_status, response.Header.Operation)
+		return fmt.Errorf("unexpected afc response, expected %x received %x", afc.Afc_operation_status, response.Header.Operation)
 	}
 	return nil
 }
@@ -174,7 +121,7 @@ func (conn *Connection) closeHandle(handle byte) error {
 		return err
 	}
 	if response.Header.Operation != afc.Afc_operation_status {
-		return fmt.Errorf("Unexpected afc response, expected %x received %x", afc.Afc_operation_status, response.Header.Operation)
+		return fmt.Errorf("unexpected afc response, expected %x received %x", afc.Afc_operation_status, response.Header.Operation)
 	}
 	return nil
 }
