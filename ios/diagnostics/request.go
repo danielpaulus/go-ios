@@ -44,6 +44,12 @@ type IORegistry struct {
 	Voltage         int
 	IsCharging      bool
 	CurrentCapacity int
+
+	DesignCapacity        uint64
+	NominalChargeCapacity uint64
+	CycleCount            uint64
+	AtCriticalLevel       bool
+	AtWarnLevel           bool
 }
 
 type WiFi struct {
