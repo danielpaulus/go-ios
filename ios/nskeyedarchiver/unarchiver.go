@@ -1,7 +1,9 @@
 package nskeyedarchiver
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"runtime/debug"
 
 	log "github.com/sirupsen/logrus"
@@ -13,6 +15,14 @@ import (
 // NSArray, NSMutableArray, NSSet and NSMutableSet will transformed into []interface{}
 // NSDictionary and NSMutableDictionary will be transformed into map[string] interface{}. I might add non string keys later.
 func Unarchive(xml []byte) (result []interface{}, err error) {
+	return UnarchiveReader(bytes.NewReader(xml))
+}
+
+// UnarchiveReader extracts NSKeyedArchiver Plists from an io.ReadSeeker, either in XML or Binary format, and returns an array of the archived objects converted to usable Go Types.
+// Primitives will be extracted just like regular Plist primitives (string, float64, int64, []uint8 etc.).
+// NSArray, NSMutableArray, NSSet and NSMutableSet will be transformed into []interface{}.
+// NSDictionary and NSMutableDictionary will be transformed into map[string]interface{}. Non-string keys might be added later.
+func UnarchiveReader(r io.ReadSeeker) (result []interface{}, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			stacktrace := string(debug.Stack())
@@ -21,7 +31,7 @@ func Unarchive(xml []byte) (result []interface{}, err error) {
 	}()
 
 	SetupDecoders()
-	plist, err := plistFromBytes(xml)
+	plist, err := plistFromReader(r)
 	if err != nil {
 		return nil, err
 	}
