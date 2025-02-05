@@ -25,15 +25,22 @@ import (
 // xCTestRunData represents the structure of an .xctestrun file
 
 // schemeData represents the structure of a scheme-specific test configuration
+type xCTestRunVersion2 struct {
+	TestConfigurations []struct {
+		TestTargets []schemeData `plist:"TestTargets"`
+	} `plist:"TestConfigurations"`
+}
+
 type schemeData struct {
-	TestHostBundleIdentifier    string
-	TestBundlePath              string
-	SkipTestIdentifiers         []string
-	OnlyTestIdentifiers         []string
-	IsUITestBundle              bool
-	CommandLineArguments        []string
-	EnvironmentVariables        map[string]any
-	TestingEnvironmentVariables map[string]any
+	TestHostBundleIdentifier        string
+	TestBundlePath                  string
+	SkipTestIdentifiers             []string
+	OnlyTestIdentifiers             []string
+	IsUITestBundle                  bool
+	CommandLineArguments            []string
+	EnvironmentVariables            map[string]any
+	TestingEnvironmentVariables     map[string]any
+	UITargetAppEnvironmentVariables map[string]any
 }
 
 func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
@@ -44,6 +51,7 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 	if data.IsUITestBundle {
 		maps.Copy(testEnv, data.EnvironmentVariables)
 		maps.Copy(testEnv, data.TestingEnvironmentVariables)
+		maps.Copy(testEnv, data.UITargetAppEnvironmentVariables)
 	}
 
 	// Extract only the file name
@@ -66,36 +74,36 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 }
 
 // parseFile reads the .xctestrun file and decodes it into a map
-func parseFile(filePath string) (schemeData, error) {
+func parseFile(filePath string) ([]schemeData, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return schemeData{}, fmt.Errorf("failed to open xctestrun file: %w", err)
+		return []schemeData{}, fmt.Errorf("failed to open xctestrun file: %w", err)
 	}
 	defer file.Close()
 	return decode(file)
 }
 
 // decode decodes the binary xctestrun content into the xCTestRunData struct
-func decode(r io.Reader) (schemeData, error) {
+func decode(r io.Reader) ([]schemeData, error) {
 	// Read the entire content once
 	xctestrunFileContent, err := io.ReadAll(r)
 	if err != nil {
-		return schemeData{}, fmt.Errorf("unable to read xctestrun content: %w", err)
+		return []schemeData{}, fmt.Errorf("unable to read xctestrun content: %w", err)
 	}
 
 	// First, we only parse the version property of the xctestrun file. The rest of the parsing depends on this version.
 	version, err := getFormatVersion(xctestrunFileContent)
 	if err != nil {
-		return schemeData{}, err
+		return []schemeData{}, err
 	}
 
 	switch version {
 	case 1:
-		return parseVersion1(xctestrunFileContent)
+		return parseXCTestRunFileFormatVersion1(xctestrunFileContent)
 	case 2:
-		return schemeData{}, fmt.Errorf("the provided .xctestrun file used format version 2, which is not yet supported")
+		return parseXCTestRunFileFormatVersion2(xctestrunFileContent)
 	default:
-		return schemeData{}, fmt.Errorf("the provided .xctestrun format version %d is not supported", version)
+		return []schemeData{}, fmt.Errorf("the provided .xctestrun format version %d is not supported", version)
 	}
 }
 
@@ -116,12 +124,12 @@ func getFormatVersion(xctestrunFileContent []byte) (int, error) {
 	return metadata.Metadata.Version, nil
 }
 
-func parseVersion1(content []byte) (schemeData, error) {
+func parseXCTestRunFileFormatVersion1(content []byte) ([]schemeData, error) {
 	// xctestrun files in version 1 use a dynamic key for the pListRoot of the TestConfig. As in the 'key' for the TestConfig is the name
 	// of the app. This forces us to iterate over the root of the plist, instead of using a static struct to decode the xctestrun file.
 	var pListRoot map[string]interface{}
 	if _, err := plist.Unmarshal(content, &pListRoot); err != nil {
-		return schemeData{}, fmt.Errorf("failed to unmarshal plist: %w", err)
+		return []schemeData{}, fmt.Errorf("failed to unmarshal plist: %w", err)
 	}
 
 	for key, value := range pListRoot {
@@ -141,15 +149,24 @@ func parseVersion1(content []byte) (schemeData, error) {
 		schemeBuf := new(bytes.Buffer)
 		encoder := plist.NewEncoder(schemeBuf)
 		if err := encoder.Encode(schemeMap); err != nil {
-			return schemeData{}, fmt.Errorf("failed to encode scheme %s: %w", key, err)
+			return []schemeData{}, fmt.Errorf("failed to encode scheme %s: %w", key, err)
 		}
 
 		// Decode the plist buffer into schemeData
 		decoder := plist.NewDecoder(bytes.NewReader(schemeBuf.Bytes()))
 		if err := decoder.Decode(&schemeParsed); err != nil {
-			return schemeData{}, fmt.Errorf("failed to decode scheme %s: %w", key, err)
+			return []schemeData{}, fmt.Errorf("failed to decode scheme %s: %w", key, err)
 		}
-		return schemeParsed, nil
+		return []schemeData{schemeParsed}, nil
 	}
-	return schemeData{}, nil
+	return []schemeData{}, nil
+}
+
+func parseXCTestRunFileFormatVersion2(content []byte) ([]schemeData, error) {
+	var testConfigs xCTestRunVersion2
+	if _, err := plist.Unmarshal(content, &testConfigs); err != nil {
+		return []schemeData{}, fmt.Errorf("failed to parse format version: %w", err)
+	}
+
+	return testConfigs.TestConfigurations[0].TestTargets, nil
 }

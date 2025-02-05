@@ -256,13 +256,31 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		return nil, err
 	}
 
-	testConfig, err := results.buildTestConfig(device, listener)
+	testConfig, err := results[0].buildTestConfig(device, listener)
 	if err != nil {
 		log.Errorf("Error while constructing the test config: %v", err)
 		return nil, err
 	}
 
-	return RunTestWithConfig(ctx, testConfig)
+	testConfig2, err := results[1].buildTestConfig(device, listener)
+	if err != nil {
+		log.Errorf("Error while constructing the test config: %v", err)
+		return nil, err
+	}
+
+	testSuites1, err := RunTestWithConfig(ctx, testConfig)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("############################## START SECOND TEST ############################")
+	testConfig2.BundleId = "saucelabs.FakeCounterApp"
+	testSuites2, err := RunTestWithConfig(ctx, testConfig2)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("############################## END SECOND TEST ############################")
+	return append(testSuites1, testSuites2...), nil
 }
 
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {
