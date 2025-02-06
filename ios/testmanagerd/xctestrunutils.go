@@ -10,6 +10,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // xctestrunutils provides utilities for parsing `.xctestrun` files with FormatVersion 1.
@@ -45,7 +46,7 @@ type schemeData struct {
 	EnvironmentVariables            map[string]any
 	TestingEnvironmentVariables     map[string]any
 	UITargetAppEnvironmentVariables map[string]any
-	BlueprintProviderName           string
+	UITargetAppPath                 string
 }
 
 func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener, allAps []installationproxy.AppInfo) (TestConfig, error) {
@@ -59,7 +60,7 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 		maps.Copy(testEnv, data.EnvironmentVariables)
 		maps.Copy(testEnv, data.TestingEnvironmentVariables)
 		maps.Copy(testEnv, data.UITargetAppEnvironmentVariables)
-		bundleId, _ = getBundleID(allAps, data.BlueprintProviderName)
+		bundleId, _ = getBundleID(allAps, data.UITargetAppPath)
 	}
 
 	// Extract only the file name
@@ -180,11 +181,13 @@ func parseXCTestRunFileFormatVersion2(content []byte) ([]schemeData, error) {
 	return testConfigs.TestConfigurations[0].TestTargets, nil
 }
 
-func getBundleID(apps []installationproxy.AppInfo, appName string) (string, error) {
+func getBundleID(apps []installationproxy.AppInfo, uiTargetAppPath string) (string, error) {
+	var appNameWithSuffix = filepath.Base(uiTargetAppPath)
+	var uiTargetAppName = strings.TrimSuffix(appNameWithSuffix, ".app")
 	for _, app := range apps {
-		if app.CFBundleName == appName {
+		if app.CFBundleName == uiTargetAppName {
 			return app.CFBundleIdentifier, nil
 		}
 	}
-	return "", fmt.Errorf("app %s not found", appName)
+	return "", fmt.Errorf("app %s not found", uiTargetAppName)
 }
