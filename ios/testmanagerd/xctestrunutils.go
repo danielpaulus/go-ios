@@ -45,7 +45,7 @@ type schemeData struct {
 	EnvironmentVariables            map[string]any
 	TestingEnvironmentVariables     map[string]any
 	UITargetAppEnvironmentVariables map[string]any
-	ContainerName                   string
+	BlueprintProviderName           string
 }
 
 func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener, allAps []installationproxy.AppInfo) (TestConfig, error) {
@@ -59,7 +59,7 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 		maps.Copy(testEnv, data.EnvironmentVariables)
 		maps.Copy(testEnv, data.TestingEnvironmentVariables)
 		maps.Copy(testEnv, data.UITargetAppEnvironmentVariables)
-		bundleId, _ = getBundleID(allAps, data.ContainerName)
+		bundleId, _ = getBundleID(allAps, data.BlueprintProviderName)
 	}
 
 	// Extract only the file name
@@ -177,12 +177,6 @@ func parseXCTestRunFileFormatVersion2(content []byte) ([]schemeData, error) {
 		return []schemeData{}, fmt.Errorf("failed to parse format version: %w", err)
 	}
 
-	containerName := testConfigs.ContainerInfo.ContainerName
-	for i := range testConfigs.TestConfigurations {
-		for j := range testConfigs.TestConfigurations[i].TestTargets {
-			testConfigs.TestConfigurations[i].TestTargets[j].ContainerName = containerName
-		}
-	}
 	return testConfigs.TestConfigurations[0].TestTargets, nil
 }
 
