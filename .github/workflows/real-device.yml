@@ -64,7 +64,7 @@ jobs:
       - name: compile
         run: go build
       - name: Download mac signed wda from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: signed-wda
 
@@ -104,7 +104,7 @@ jobs:
           cache: true
 
       - name: Download mac release from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: signed-wda
 
