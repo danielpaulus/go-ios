@@ -250,12 +250,15 @@ type TestConfig struct {
 }
 
 func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
+	svc, _ := installationproxy.New(device)
+	allApps, _ := svc.BrowseUserApps()
+
 	results, err := parseFile(xctestrunFilePath)
 	if err != nil {
 		log.Errorf("Error parsing xctestrun file: %v", err)
 		return nil, err
 	}
-	testConfig, err := results[0].buildTestConfig(device, listener)
+	testConfig, err := results[0].buildTestConfig(device, listener, allApps)
 	if err != nil {
 		log.Errorf("Error while constructing the test config: %v", err)
 		return nil, err
@@ -272,14 +275,14 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 	//var listener2 = NewTestListener(writer, writer, os.TempDir())
 	listener.reset()
 
-	testConfig2, err := results[1].buildTestConfig(device, listener)
+	testConfig2, err := results[1].buildTestConfig(device, listener, allApps)
 	if err != nil {
 		log.Errorf("Error while constructing the test config: %v", err)
 		return nil, err
 	}
-	log.Info("prroooooooffff: %v", testConfig2.XcTest)
+
 	fmt.Printf("############################## START SECOND TEST ############################")
-	testConfig2.BundleId = "saucelabs.FakeCounterApp"
+
 	testSuites2, err := RunTestWithConfig(ctx, testConfig2)
 	if err != nil {
 		return nil, err

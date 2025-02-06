@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"howett.net/plist"
 	"io"
 	"maps"
@@ -26,6 +27,9 @@ import (
 
 // schemeData represents the structure of a scheme-specific test configuration
 type xCTestRunVersion2 struct {
+	ContainerInfo struct {
+		ContainerName string `plist:"ContainerName"`
+	} `plist:"ContainerInfo"`
 	TestConfigurations []struct {
 		TestTargets []schemeData `plist:"TestTargets"`
 	} `plist:"TestConfigurations"`
@@ -41,17 +45,21 @@ type schemeData struct {
 	EnvironmentVariables            map[string]any
 	TestingEnvironmentVariables     map[string]any
 	UITargetAppEnvironmentVariables map[string]any
+	ContainerName                   string
 }
 
-func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
+func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener, allAps []installationproxy.AppInfo) (TestConfig, error) {
 	testsToRun := data.OnlyTestIdentifiers
 	testsToSkip := data.SkipTestIdentifiers
 
 	testEnv := make(map[string]any)
+	var bundleId string
+
 	if data.IsUITestBundle {
 		maps.Copy(testEnv, data.EnvironmentVariables)
 		maps.Copy(testEnv, data.TestingEnvironmentVariables)
 		maps.Copy(testEnv, data.UITargetAppEnvironmentVariables)
+		bundleId, _ = getBundleID(allAps, data.ContainerName)
 	}
 
 	// Extract only the file name
@@ -59,6 +67,7 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 
 	// Build the TestConfig object from parsed data
 	testConfig := TestConfig{
+		BundleId:           bundleId,
 		TestRunnerBundleId: data.TestHostBundleIdentifier,
 		XctestConfigName:   testBundlePath,
 		Args:               data.CommandLineArguments,
@@ -168,5 +177,20 @@ func parseXCTestRunFileFormatVersion2(content []byte) ([]schemeData, error) {
 		return []schemeData{}, fmt.Errorf("failed to parse format version: %w", err)
 	}
 
+	containerName := testConfigs.ContainerInfo.ContainerName
+	for i := range testConfigs.TestConfigurations {
+		for j := range testConfigs.TestConfigurations[i].TestTargets {
+			testConfigs.TestConfigurations[i].TestTargets[j].ContainerName = containerName
+		}
+	}
 	return testConfigs.TestConfigurations[0].TestTargets, nil
+}
+
+func getBundleID(apps []installationproxy.AppInfo, appName string) (string, error) {
+	for _, app := range apps {
+		if app.CFBundleName == appName {
+			return app.CFBundleIdentifier, nil
+		}
+	}
+	return "", fmt.Errorf("app %s not found", appName)
 }
