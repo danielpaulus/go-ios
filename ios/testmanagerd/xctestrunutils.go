@@ -64,7 +64,7 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 		// - allAps is provided
 		// - UITargetAppPath is populated since it can be empty for UI tests in some edge cases
 		if len(data.UITargetAppPath) > 0 && allAps != nil {
-			bundleId = getBundleID(allAps, data.UITargetAppPath)
+			bundleId = *getBundleID(allAps, data.UITargetAppPath)
 		}
 	}
 
@@ -197,13 +197,13 @@ func parseXCTestRunFileFormatVersion2(content []byte) ([]schemeData, error) {
 	return testConfigs.TestConfigurations[0].TestTargets, nil
 }
 
-func getBundleID(apps []installationproxy.AppInfo, uiTargetAppPath string) string {
+func getBundleID(apps []installationproxy.AppInfo, uiTargetAppPath string) *string {
 	var appNameWithSuffix = filepath.Base(uiTargetAppPath)
 	var uiTargetAppName = strings.TrimSuffix(appNameWithSuffix, ".app")
 	for _, app := range apps {
 		if app.CFBundleName == uiTargetAppName {
-			return app.CFBundleIdentifier
+			return &app.CFBundleIdentifier
 		}
 	}
-	return ""
+	return nil
 }
