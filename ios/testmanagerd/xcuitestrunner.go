@@ -251,13 +251,12 @@ type TestConfig struct {
 
 func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
 	xctestSpecification, err := parseFile(xctestrunFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("parsing file: %w", err)
-	}
+	svc, _ := installationproxy.New(device)
+	allApps, _ := svc.BrowseUserApps()
 
 	xcTestTargets := make([]TestConfig, len(xctestSpecification))
 	for i, r := range xctestSpecification {
-		tc, err := r.buildTestConfig(device, listener)
+		tc, err := r.buildTestConfig(device, listener, allApps)
 		if err != nil {
 			return nil, fmt.Errorf("building test config at index %d: %w", i, err)
 		}

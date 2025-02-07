@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"howett.net/plist"
 	"io"
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // xctestrunutils provides utilities for parsing `.xctestrun` files with FormatVersion 1.
@@ -26,6 +28,9 @@ import (
 
 // schemeData represents the structure of a scheme-specific test configuration
 type xCTestRunVersion2 struct {
+	ContainerInfo struct {
+		ContainerName string `plist:"ContainerName"`
+	} `plist:"ContainerInfo"`
 	TestConfigurations []struct {
 		TestTargets []schemeData `plist:"TestTargets"`
 	} `plist:"TestConfigurations"`
@@ -41,17 +46,24 @@ type schemeData struct {
 	EnvironmentVariables            map[string]any
 	TestingEnvironmentVariables     map[string]any
 	UITargetAppEnvironmentVariables map[string]any
+	UITargetAppPath                 string
 }
 
-func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
+func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener, allAps []installationproxy.AppInfo) (TestConfig, error) {
 	testsToRun := data.OnlyTestIdentifiers
 	testsToSkip := data.SkipTestIdentifiers
 
 	testEnv := make(map[string]any)
+	var bundleId string
+
 	if data.IsUITestBundle {
 		maps.Copy(testEnv, data.EnvironmentVariables)
 		maps.Copy(testEnv, data.TestingEnvironmentVariables)
 		maps.Copy(testEnv, data.UITargetAppEnvironmentVariables)
+		// Only call getBundleID if allAps is provided
+		if allAps != nil {
+			bundleId, _ = getBundleID(allAps, data.UITargetAppPath)
+		}
 	}
 
 	// Extract only the file name
@@ -59,6 +71,7 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 
 	// Build the TestConfig object from parsed data
 	testConfig := TestConfig{
+		BundleId:           bundleId,
 		TestRunnerBundleId: data.TestHostBundleIdentifier,
 		XctestConfigName:   testBundlePath,
 		Args:               data.CommandLineArguments,
@@ -169,4 +182,15 @@ func parseXCTestRunFileFormatVersion2(content []byte) ([]schemeData, error) {
 	}
 
 	return testConfigs.TestConfigurations[0].TestTargets, nil
+}
+
+func getBundleID(apps []installationproxy.AppInfo, uiTargetAppPath string) (string, error) {
+	var appNameWithSuffix = filepath.Base(uiTargetAppPath)
+	var uiTargetAppName = strings.TrimSuffix(appNameWithSuffix, ".app")
+	for _, app := range apps {
+		if app.CFBundleName == uiTargetAppName {
+			return app.CFBundleIdentifier, nil
+		}
+	}
+	return "", fmt.Errorf("app %s not found", uiTargetAppName)
 }
