@@ -190,7 +190,7 @@ func TestIsUITestBundle(t *testing.T) {
 	assert.Equal(t, true, xcTestRunData.IsUITestBundle, "IsUITestBundle mismatch")
 }
 
-func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
+func TestParseXCTestRunFormatV2ThrowsErrorForMissingTestConfigurations(t *testing.T) {
 	// Arrange: Create a temporary .xctestrun file with mock data
 	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
 	assert.NoError(t, err, "Failed to create temp file")
@@ -217,7 +217,210 @@ func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
 	_, err = parseFile(tempFile.Name())
 
 	// Assert the Error Message
-	assert.Equal(t, "the provided .xctestrun file used format version 2, which is not yet supported", err.Error(), "Error Message mismatch")
+	assert.Equal(t, "no TestConfigurations found in XCTestRun file(format version: 2); cannot proceed with test parsing", err.Error(), "Error Message mismatch")
+}
+
+func TestParseXCTestRunFormatV2ThrowsErrorForMultipleTestConfigurations(t *testing.T) {
+	// Arrange: Create a temporary .xctestrun file with mock data
+	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
+	assert.NoError(t, err, "Failed to create temp file")
+	defer os.Remove(tempFile.Name()) // Cleanup after test
+
+	xcTestRunFileFormatVersion2 := `
+		<?xml version="1.0" encoding="UTF-8"?>
+		<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+		<plist version="1.0">
+		<dict>
+			<key>TestConfigurations</key>
+			<array>
+				<dict>
+					<key>Name</key>
+					<string>Test Scheme Action</string>
+					<key>TestTargets</key>
+					<array>
+						<dict>
+							<key>BlueprintName</key>
+							<string>FakeCounterAppUITests</string>
+							<key>BlueprintProviderName</key>
+							<string>FakeCounterApp</string>
+							<key>BlueprintProviderRelativePath</key>
+							<string>FakeCounterApp.xcodeproj</string>
+							<key>BundleIdentifiersForCrashReportEmphasis</key>
+							<array>
+								<string>saucelabs.FakeCounterApp</string>
+								<string>saucelabs.FakeCounterAppUITests</string>
+							</array>
+							<key>ClangProfileDataDirectoryPath</key>
+							<string>__DERIVEDDATA__/Build/ProfileData</string>
+							<key>CommandLineArguments</key>
+							<array/>
+							<key>DefaultTestExecutionTimeAllowance</key>
+							<integer>600</integer>
+							<key>DependentProductPaths</key>
+							<array>
+								<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app</string>
+								<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app/PlugIns/FakeCounterAppTests.xctest</string>
+								<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app</string>
+								<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app/PlugIns/FakeCounterAppUITests.xctest</string>
+							</array>
+							<key>DiagnosticCollectionPolicy</key>
+							<integer>1</integer>
+							<key>EnvironmentVariables</key>
+							<dict>
+								<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
+								<string>com.apple.AppStore</string>
+								<key>OS_ACTIVITY_DT_MODE</key>
+								<string>YES</string>
+								<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
+								<string>1</string>
+								<key>TERM</key>
+								<string>dumb</string>
+							</dict>
+							<key>IsUITestBundle</key>
+							<true/>
+							<key>IsXCTRunnerHostedTestBundle</key>
+							<true/>
+							<key>ParallelizationEnabled</key>
+							<true/>
+							<key>PreferredScreenCaptureFormat</key>
+							<string>screenRecording</string>
+							<key>ProductModuleName</key>
+							<string>FakeCounterAppUITests</string>
+							<key>SystemAttachmentLifetime</key>
+							<string>deleteOnSuccess</string>
+							<key>TestBundlePath</key>
+							<string>__TESTHOST__/PlugIns/FakeCounterAppUITests.xctest</string>
+							<key>TestHostBundleIdentifier</key>
+							<string>saucelabs.FakeCounterAppUITests.xctrunner</string>
+							<key>TestHostPath</key>
+							<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app</string>
+							<key>TestLanguage</key>
+							<string></string>
+							<key>TestRegion</key>
+							<string></string>
+							<key>TestTimeoutsEnabled</key>
+							<false/>
+							<key>TestingEnvironmentVariables</key>
+							<dict/>
+							<key>ToolchainsSettingValue</key>
+							<array/>
+							<key>UITargetAppCommandLineArguments</key>
+							<array/>
+							<key>UITargetAppEnvironmentVariables</key>
+							<dict>
+								<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
+								<string>com.apple.AppStore</string>
+							</dict>
+							<key>UITargetAppPath</key>
+							<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app</string>
+							<key>UserAttachmentLifetime</key>
+							<string>deleteOnSuccess</string>
+						</dict>
+					</array>
+				</dict>
+				<dict>
+					<key>Name</key>
+					<string>Test Scheme Action</string>
+					<key>TestTargets</key>
+					<array>
+						<dict>
+							<key>BlueprintName</key>
+							<string>FakeCounterAppUITests</string>
+							<key>BlueprintProviderName</key>
+							<string>FakeCounterApp</string>
+							<key>BlueprintProviderRelativePath</key>
+							<string>FakeCounterApp.xcodeproj</string>
+							<key>BundleIdentifiersForCrashReportEmphasis</key>
+							<array>
+								<string>saucelabs.FakeCounterApp</string>
+								<string>saucelabs.FakeCounterAppUITests</string>
+							</array>
+							<key>ClangProfileDataDirectoryPath</key>
+							<string>__DERIVEDDATA__/Build/ProfileData</string>
+							<key>CommandLineArguments</key>
+							<array/>
+							<key>DefaultTestExecutionTimeAllowance</key>
+							<integer>600</integer>
+							<key>DependentProductPaths</key>
+							<array>
+								<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app</string>
+								<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app/PlugIns/FakeCounterAppTests.xctest</string>
+								<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app</string>
+								<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app/PlugIns/FakeCounterAppUITests.xctest</string>
+							</array>
+							<key>DiagnosticCollectionPolicy</key>
+							<integer>1</integer>
+							<key>EnvironmentVariables</key>
+							<dict>
+								<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
+								<string>com.apple.AppStore</string>
+								<key>OS_ACTIVITY_DT_MODE</key>
+								<string>YES</string>
+								<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
+								<string>1</string>
+								<key>TERM</key>
+								<string>dumb</string>
+							</dict>
+							<key>IsUITestBundle</key>
+							<true/>
+							<key>IsXCTRunnerHostedTestBundle</key>
+							<true/>
+							<key>ParallelizationEnabled</key>
+							<true/>
+							<key>PreferredScreenCaptureFormat</key>
+							<string>screenRecording</string>
+							<key>ProductModuleName</key>
+							<string>FakeCounterAppUITests</string>
+							<key>SystemAttachmentLifetime</key>
+							<string>deleteOnSuccess</string>
+							<key>TestBundlePath</key>
+							<string>__TESTHOST__/PlugIns/FakeCounterAppUITests.xctest</string>
+							<key>TestHostBundleIdentifier</key>
+							<string>saucelabs.FakeCounterAppUITests.xctrunner</string>
+							<key>TestHostPath</key>
+							<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app</string>
+							<key>TestLanguage</key>
+							<string></string>
+							<key>TestRegion</key>
+							<string></string>
+							<key>TestTimeoutsEnabled</key>
+							<false/>
+							<key>TestingEnvironmentVariables</key>
+							<dict/>
+							<key>ToolchainsSettingValue</key>
+							<array/>
+							<key>UITargetAppCommandLineArguments</key>
+							<array/>
+							<key>UITargetAppEnvironmentVariables</key>
+							<dict>
+								<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
+								<string>com.apple.AppStore</string>
+							</dict>
+							<key>UITargetAppPath</key>
+							<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app</string>
+							<key>UserAttachmentLifetime</key>
+							<string>deleteOnSuccess</string>
+						</dict>
+					</array>
+				</dict>
+			</array>
+			<key>__xctestrun_metadata__</key>
+			<dict>
+				<key>FormatVersion</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+		</plist>
+	`
+	_, err = tempFile.WriteString(xcTestRunFileFormatVersion2)
+	assert.NoError(t, err, "Failed to write mock data to temp file")
+	tempFile.Close()
+
+	// Act: Use the codec to parse the temp file
+	_, err = parseFile(tempFile.Name())
+
+	// Assert the Error Message
+	assert.Equal(t, "expected exactly one TestConfiguration in XCTestRun file(format version: 2), but found 2", err.Error(), "Error Message mismatch")
 }
 
 // Helper function to create testConfig from parsed mock data using .xctestrun file format v1

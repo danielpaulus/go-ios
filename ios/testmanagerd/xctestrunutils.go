@@ -183,6 +183,17 @@ func parseXCTestRunFileFormatVersion2(content []byte) ([]schemeData, error) {
 		return []schemeData{}, fmt.Errorf("failed to parse format version: %w", err)
 	}
 
+	// Check if TestConfigurations is empty
+	if len(testConfigs.TestConfigurations) == 0 {
+		return []schemeData{}, fmt.Errorf("no TestConfigurations found in XCTestRun file(format version: 2); cannot proceed with test parsing")
+	}
+
+	// Check if TestConfigurations contains more than one item
+	if len(testConfigs.TestConfigurations) > 1 {
+		return []schemeData{}, fmt.Errorf("expected exactly one TestConfiguration in XCTestRun file(format version: 2), but found %d", len(testConfigs.TestConfigurations))
+	}
+
+	// If we have exactly one TestConfiguration, return the TestTargets
 	return testConfigs.TestConfigurations[0].TestTargets, nil
 }
 
