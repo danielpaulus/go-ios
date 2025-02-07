@@ -60,9 +60,11 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 		maps.Copy(testEnv, data.EnvironmentVariables)
 		maps.Copy(testEnv, data.TestingEnvironmentVariables)
 		maps.Copy(testEnv, data.UITargetAppEnvironmentVariables)
-		// Only call getBundleID if allAps is provided
-		if allAps != nil {
-			bundleId, _ = getBundleID(allAps, data.UITargetAppPath)
+		// Only call getBundleID if :
+		// - allAps is provided
+		// - UITargetAppPath is populated since it can be empty for UI tests in some edge cases
+		if len(data.UITargetAppPath) > 0 && allAps != nil {
+			bundleId = getBundleID(allAps, data.UITargetAppPath)
 		}
 	}
 
@@ -184,13 +186,13 @@ func parseXCTestRunFileFormatVersion2(content []byte) ([]schemeData, error) {
 	return testConfigs.TestConfigurations[0].TestTargets, nil
 }
 
-func getBundleID(apps []installationproxy.AppInfo, uiTargetAppPath string) (string, error) {
+func getBundleID(apps []installationproxy.AppInfo, uiTargetAppPath string) string {
 	var appNameWithSuffix = filepath.Base(uiTargetAppPath)
 	var uiTargetAppName = strings.TrimSuffix(appNameWithSuffix, ".app")
 	for _, app := range apps {
 		if app.CFBundleName == uiTargetAppName {
-			return app.CFBundleIdentifier, nil
+			return app.CFBundleIdentifier
 		}
 	}
-	return "", fmt.Errorf("app %s not found", uiTargetAppName)
+	return ""
 }
