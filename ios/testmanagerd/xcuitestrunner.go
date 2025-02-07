@@ -250,13 +250,9 @@ type TestConfig struct {
 }
 
 func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
+	xctestSpecification, err := parseFile(xctestrunFilePath)
 	svc, _ := installationproxy.New(device)
 	allApps, _ := svc.BrowseUserApps()
-
-	xctestSpecification, err := parseFile(xctestrunFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("parsing file: %w", err)
-	}
 
 	xcTestTargets := make([]TestConfig, len(xctestSpecification))
 	for i, r := range xctestSpecification {
@@ -268,16 +264,13 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 	}
 
 	var results []TestSuite
-	for i, target := range xcTestTargets {
+	for _, target := range xcTestTargets {
 		suites, err := RunTestWithConfig(ctx, target)
 		if err != nil {
 			return nil, err
 		}
 		results = append(results, suites...)
-		// Call reset() only if this is NOT the last iteration
-		if i < len(xcTestTargets)-1 {
-			listener.reset()
-		}
+		listener.reset()
 	}
 	return results, err
 }
