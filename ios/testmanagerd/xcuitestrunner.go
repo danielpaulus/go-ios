@@ -250,49 +250,30 @@ type TestConfig struct {
 }
 
 func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
-	results, err := parseFile(xctestrunFilePath)
+	xctestSpecification, err := parseFile(xctestrunFilePath)
 	if err != nil {
-		log.Errorf("Error parsing xctestrun file: %v", err)
-		return nil, err
-	}
-	testConfig, err := results[0].buildTestConfig(device, listener)
-	if err != nil {
-		log.Errorf("Error while constructing the test config: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("parsing file: %w", err)
 	}
 
-	log.Info("prroooooooffff: %v", testConfig.XcTest)
-	testSuites1, err := RunTestWithConfig(ctx, testConfig)
-	if err != nil {
-		return nil, err
+	xcTestTargets := make([]TestConfig, len(xctestSpecification))
+	for i, r := range xctestSpecification {
+		tc, err := r.buildTestConfig(device, listener)
+		if err != nil {
+			return nil, fmt.Errorf("building test config at index %d: %w", i, err)
+		}
+		xcTestTargets[i] = tc
 	}
 
-	//var writer *os.File = os.Stdout
-	//defer writer.Close()
-	//var listener2 = NewTestListener(writer, writer, os.TempDir())
-	listener.reset()
-
-	testConfig2, err := results[1].buildTestConfig(device, listener)
-	if err != nil {
-		log.Errorf("Error while constructing the test config: %v", err)
-		return nil, err
+	var results []TestSuite
+	for _, target := range xcTestTargets {
+		suites, err := RunTestWithConfig(ctx, target)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, suites...)
+		listener.reset()
 	}
-	log.Info("prroooooooffff: %v", testConfig2.XcTest)
-	fmt.Printf("############################## START SECOND TEST ############################")
-	testConfig2.BundleId = "saucelabs.FakeCounterApp"
-	testSuites2, err := RunTestWithConfig(ctx, testConfig2)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("############################## END SECOND TEST ############################")
-
-	//testConfig2.Listener.Done()
-
-	return append(testSuites1, testSuites2...), nil
-
-	//fmt.Printf("############################## END SECOND TEST ############################")
-	//return testSuites1, nil
+	return results, err
 }
 
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {

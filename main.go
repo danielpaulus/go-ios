@@ -1028,7 +1028,7 @@ The commands work as following:
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xctest")
 			}
 
-			log.Info(fmt.Sprintf("%+v", testResults))
+			log.Info(fmt.Printf("%+v", testResults))
 		} else {
 			var listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
 			_, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, device, listener)
