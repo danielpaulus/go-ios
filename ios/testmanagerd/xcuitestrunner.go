@@ -264,15 +264,11 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		return nil, err
 	}
 
-	log.Info("prroooooooffff: %v", testConfig.XcTest)
 	testSuites1, err := RunTestWithConfig(ctx, testConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	//var writer *os.File = os.Stdout
-	//defer writer.Close()
-	//var listener2 = NewTestListener(writer, writer, os.TempDir())
 	listener.reset()
 
 	testConfig2, err := results[1].buildTestConfig(device, listener, allApps)
@@ -281,21 +277,12 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		return nil, err
 	}
 
-	fmt.Printf("############################## START SECOND TEST ############################")
-
 	testSuites2, err := RunTestWithConfig(ctx, testConfig2)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("############################## END SECOND TEST ############################")
-
-	//testConfig2.Listener.Done()
-
 	return append(testSuites1, testSuites2...), nil
-
-	//fmt.Printf("############################## END SECOND TEST ############################")
-	//return testSuites1, nil
 }
 
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {
