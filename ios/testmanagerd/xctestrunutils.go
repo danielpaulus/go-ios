@@ -60,7 +60,10 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 		maps.Copy(testEnv, data.EnvironmentVariables)
 		maps.Copy(testEnv, data.TestingEnvironmentVariables)
 		maps.Copy(testEnv, data.UITargetAppEnvironmentVariables)
-		bundleId, _ = getBundleID(allAps, data.UITargetAppPath)
+		// Only call getBundleID if allAps is provided
+		if allAps != nil {
+			bundleId, _ = getBundleID(allAps, data.UITargetAppPath)
+		}
 	}
 
 	// Extract only the file name

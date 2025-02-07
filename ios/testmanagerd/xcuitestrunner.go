@@ -253,36 +253,33 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 	svc, _ := installationproxy.New(device)
 	allApps, _ := svc.BrowseUserApps()
 
-	results, err := parseFile(xctestrunFilePath)
+	xctestSpecification, err := parseFile(xctestrunFilePath)
 	if err != nil {
-		log.Errorf("Error parsing xctestrun file: %v", err)
-		return nil, err
-	}
-	testConfig, err := results[0].buildTestConfig(device, listener, allApps)
-	if err != nil {
-		log.Errorf("Error while constructing the test config: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("parsing file: %w", err)
 	}
 
-	testSuites1, err := RunTestWithConfig(ctx, testConfig)
-	if err != nil {
-		return nil, err
+	xcTestTargets := make([]TestConfig, len(xctestSpecification))
+	for i, r := range xctestSpecification {
+		tc, err := r.buildTestConfig(device, listener, allApps)
+		if err != nil {
+			return nil, fmt.Errorf("building test config at index %d: %w", i, err)
+		}
+		xcTestTargets[i] = tc
 	}
 
-	listener.reset()
-
-	testConfig2, err := results[1].buildTestConfig(device, listener, allApps)
-	if err != nil {
-		log.Errorf("Error while constructing the test config: %v", err)
-		return nil, err
+	var results []TestSuite
+	for i, target := range xcTestTargets {
+		suites, err := RunTestWithConfig(ctx, target)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, suites...)
+		// Call reset() only if this is NOT the last iteration
+		if i < len(xcTestTargets)-1 {
+			listener.reset()
+		}
 	}
-
-	testSuites2, err := RunTestWithConfig(ctx, testConfig2)
-	if err != nil {
-		return nil, err
-	}
-
-	return append(testSuites1, testSuites2...), nil
+	return results, err
 }
 
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {
