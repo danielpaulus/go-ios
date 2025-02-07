@@ -190,6 +190,36 @@ func TestIsUITestBundle(t *testing.T) {
 	assert.Equal(t, true, xcTestRunData.IsUITestBundle, "IsUITestBundle mismatch")
 }
 
+func TestParseXCTestRunNotSupportedForFormatVersionOtherThanOne(t *testing.T) {
+	// Arrange: Create a temporary .xctestrun file with mock data
+	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
+	assert.NoError(t, err, "Failed to create temp file")
+	defer os.Remove(tempFile.Name()) // Cleanup after test
+
+	xcTestRunFileFormatVersion2 := `
+		<?xml version="1.0" encoding="UTF-8"?>
+		<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+		<plist version="1.0">
+		<dict>
+			<key>__xctestrun_metadata__</key>
+			<dict>
+				<key>FormatVersion</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+		</plist>
+	`
+	_, err = tempFile.WriteString(xcTestRunFileFormatVersion2)
+	assert.NoError(t, err, "Failed to write mock data to temp file")
+	tempFile.Close()
+
+	// Act: Use the codec to parse the temp file
+	_, err = parseFile(tempFile.Name())
+
+	// Assert the Error Message
+	assert.Equal(t, "the provided .xctestrun file used format version 2, which is not yet supported", err.Error(), "Error Message mismatch")
+}
+
 // Helper function to create testConfig from parsed mock data using .xctestrun file format v1
 func createTestConfigFromParsedMockDataUsingXCTestRunFileV1(t *testing.T) (TestConfig, ios.DeviceEntry, *TestListener) {
 	// Arrange: Create parsed XCTestRunData using the helper function
