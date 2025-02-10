@@ -869,13 +869,6 @@ func TestIsUITestBundle_XCTestRunFileVersion2_XCUITest(t *testing.T) {
 	assert.Equal(t, true, xcTestRunData.IsUITestBundle, "IsUITestBundle mismatch")
 }
 
-func TestUITargetAppEnvironmentVariables_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := FindParsedTestTarget(t, true)
-	assert.Equal(t, map[string]any{
-		"APP_DISTRIBUTOR_ID_OVERRIDE": "com.apple.AppStore",
-	}, xcTestRunData.UITargetAppEnvironmentVariables, "UITargetAppEnvironmentVariables mismatch")
-}
-
 // Helper function to create testConfig from parsed mock data using .xctestrun file format v2
 // If includeUITest is true, it returns a UI test configuration.
 // If includeUITest is false, it returns a non-UI test configuration.

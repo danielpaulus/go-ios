@@ -21,15 +21,14 @@ import (
 
 // schemeData represents the structure of a scheme-specific test configuration
 type schemeData struct {
-	TestHostBundleIdentifier        string
-	TestBundlePath                  string
-	SkipTestIdentifiers             []string
-	OnlyTestIdentifiers             []string
-	IsUITestBundle                  bool
-	CommandLineArguments            []string
-	EnvironmentVariables            map[string]any
-	TestingEnvironmentVariables     map[string]any
-	UITargetAppEnvironmentVariables map[string]any
+	TestHostBundleIdentifier    string
+	TestBundlePath              string
+	SkipTestIdentifiers         []string
+	OnlyTestIdentifiers         []string
+	IsUITestBundle              bool
+	CommandLineArguments        []string
+	EnvironmentVariables        map[string]any
+	TestingEnvironmentVariables map[string]any
 }
 
 func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
@@ -41,7 +40,6 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 	if data.IsUITestBundle {
 		maps.Copy(testEnv, data.EnvironmentVariables)
 		maps.Copy(testEnv, data.TestingEnvironmentVariables)
-		maps.Copy(testEnv, data.UITargetAppEnvironmentVariables)
 	}
 
 	// Extract only the file name
