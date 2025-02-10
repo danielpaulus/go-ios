@@ -184,13 +184,8 @@ func parseXCTestRunFileFormatVersion2(content []byte) ([]schemeData, error) {
 	}
 
 	// Check if TestConfigurations is empty
-	if len(testConfigs.TestConfigurations) == 0 {
-		return []schemeData{}, fmt.Errorf("no TestConfigurations found in XCTestRun file(format version: 2); cannot proceed with test parsing")
-	}
-
-	// Check if TestConfigurations contains more than one item
-	if len(testConfigs.TestConfigurations) > 1 {
-		return []schemeData{}, fmt.Errorf("expected exactly one TestConfiguration in XCTestRun file(format version: 2), but found %d", len(testConfigs.TestConfigurations))
+	if len(testConfigs.TestConfigurations) != 1 {
+		return []schemeData{}, fmt.Errorf("The .xctestrun file you provided contained %d entries in the TestConfiguration list. This list should contain exactly 1 entry. Please revisit your test configuration so that it only contains one entry.", len(testConfigs.TestConfigurations))
 	}
 
 	// If we have exactly one TestConfiguration, return the TestTargets
