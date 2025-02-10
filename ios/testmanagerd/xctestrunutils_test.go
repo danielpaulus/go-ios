@@ -471,107 +471,153 @@ func TestConfigListener(t *testing.T) {
 	assert.Equal(t, mockListener, testConfig.Listener, "Listener mismatch")
 }
 
-// Helper function to return a specific test target inside version 2 of a xctestrun file.
-// If includeUITest is true, it returns a UI test configuration.
-// If includeUITest is false, it returns a non-UI test configuration.
-func parseXCTestRunVersion2(t *testing.T, includeUITest bool) schemeData {
-	// Act: Use the codec to parse the temp file
-	xcTestRunData2, err := parseFile("testdata/format_version_2.xctestrun")
-
-	// Assert: Verify the parsed data
-	assert.NoError(t, err, "Failed to parse .xctestrun file")
-	assert.NotNil(t, xcTestRunData2, "Parsed data should not be nil")
-	xcTestRunData := xcTestRunData2
-	for _, d := range xcTestRunData {
-		if d.IsUITestBundle == includeUITest {
-			return d
-		}
-	}
-	return schemeData{}
-}
-
 // Test XCTest Config Parsing with format version 2
 
 func TestTestHostBundleIdentifier_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
-	assert.Equal(t, "saucelabs.FakeCounterApp", xcTestRunData.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
+	assert.Equal(t, "saucelabs.FakeCounterApp", xctestTarget.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
 }
 
 func TestTestBundlePath_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
-	assert.Equal(t, "__TESTHOST__/PlugIns/FakeCounterAppTests.xctest", xcTestRunData.TestBundlePath, "TestBundlePath mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
+	assert.Equal(t, "__TESTHOST__/PlugIns/FakeCounterAppTests.xctest", xctestTarget.TestBundlePath, "TestBundlePath mismatch")
 }
 
 func TestEnvironmentVariables_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
 	assert.Equal(t, map[string]any{
 		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"TERM":                            "dumb",
-	}, xcTestRunData.EnvironmentVariables, "EnvironmentVariables mismatch")
+	}, xctestTarget.EnvironmentVariables, "EnvironmentVariables mismatch")
 }
 
 func TestTestingEnvironmentVariables_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
 	assert.Equal(t, map[string]any{
 		"DYLD_INSERT_LIBRARIES": "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
 		"XCInjectBundleInto":    "unused",
-	}, xcTestRunData.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
+	}, xctestTarget.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
 }
 
 func TestCommandLineArguments_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
-	assert.Equal(t, []string{}, xcTestRunData.CommandLineArguments, "CommandLineArguments mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
+	assert.Equal(t, []string{}, xctestTarget.CommandLineArguments, "CommandLineArguments mismatch")
 }
 
 func TestSkipTestIdentifiers_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
 	assert.Equal(t, []string{
 		"SkippedTests", "SkippedTests/testThatAlwaysFailsAndShouldBeSkipped",
-	}, xcTestRunData.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
+	}, xctestTarget.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
 }
 
 func TestIsUITestBundle_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
-	assert.Equal(t, false, xcTestRunData.IsUITestBundle, "IsUITestBundle mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
+	assert.Equal(t, false, xctestTarget.IsUITestBundle, "IsUITestBundle mismatch")
 }
 
 // Test XCUITest Config Parsing with format version 2
 
 func TestTestHostBundleIdentifier_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
-	assert.Equal(t, "saucelabs.FakeCounterAppUITests.xctrunner", xcTestRunData.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
+	assert.Equal(t, "saucelabs.FakeCounterAppUITests.xctrunner", xcUITestTarget.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
 }
 
 func TestTestBundlePath_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
-	assert.Equal(t, "__TESTHOST__/PlugIns/FakeCounterAppUITests.xctest", xcTestRunData.TestBundlePath, "TestBundlePath mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
+	assert.Equal(t, "__TESTHOST__/PlugIns/FakeCounterAppUITests.xctest", xcUITestTarget.TestBundlePath, "TestBundlePath mismatch")
 }
 
 func TestEnvironmentVariables_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
 	assert.Equal(t, map[string]any{
 		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"TERM":                            "dumb",
-	}, xcTestRunData.EnvironmentVariables, "EnvironmentVariables mismatch")
+	}, xcUITestTarget.EnvironmentVariables, "EnvironmentVariables mismatch")
 }
 
 func TestTestingEnvironmentVariables_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
-	assert.Equal(t, map[string]any{}, xcTestRunData.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
+	assert.Equal(t, map[string]any{}, xcUITestTarget.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
 }
 
 func TestCommandLineArguments_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
-	assert.Equal(t, []string{}, xcTestRunData.CommandLineArguments, "CommandLineArguments mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
+	assert.Equal(t, []string{}, xcUITestTarget.CommandLineArguments, "CommandLineArguments mismatch")
 }
 
 func TestIsUITestBundle_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
-	assert.Equal(t, true, xcTestRunData.IsUITestBundle, "IsUITestBundle mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
+	assert.Equal(t, true, xcUITestTarget.IsUITestBundle, "IsUITestBundle mismatch")
 }
 
 // Helper function to create testConfig from parsed mock data using .xctestrun file format v2
@@ -579,8 +625,11 @@ func TestIsUITestBundle_XCTestRunFileVersion2_XCUITest(t *testing.T) {
 // If includeUITest is false, it returns a non-UI test configuration.
 func createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t *testing.T, includeUITest bool) (TestConfig, ios.DeviceEntry, *TestListener) {
 	// Arrange: Create parsed XCTestRunData using the helper function
-	xcTestRunData := parseXCTestRunVersion2(t, includeUITest)
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
 
+	// Assert
 	// Mock dependencies
 	mockDevice := ios.DeviceEntry{
 		DeviceID: 8110,
@@ -588,7 +637,7 @@ func createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t *testing.T, includ
 	mockListener := &TestListener{}
 
 	// Act: Convert XCTestRunData to TestConfig
-	testConfig, err := xcTestRunData.buildTestConfig(mockDevice, mockListener)
+	testConfig, err := xcUITestTarget.buildTestConfig(mockDevice, mockListener)
 
 	// Assert: Validate the returned TestConfig
 	assert.NoError(t, err, "Error converting to TestConfig")
