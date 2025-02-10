@@ -256,12 +256,10 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 			fmt.Errorf("error parsing xctestrun file: %w", err),
 		}
 	}
-	svc, _ := installationproxy.New(device)
-	allApps, _ := svc.BrowseUserApps()
 
 	xcTestTargets := make([]TestConfig, len(xctestSpecification))
 	for i, r := range xctestSpecification {
-		tc, err := r.buildTestConfig(device, listener, allApps)
+		tc, err := r.buildTestConfig(device, listener)
 		if err != nil {
 			return nil, []error{
 				fmt.Errorf("building test config at index %d: %w", i, err),
