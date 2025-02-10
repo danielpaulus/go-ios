@@ -74,11 +74,8 @@ func RunAgent(mode string, args ...string) error {
 		return fmt.Errorf("RunAgent: unknown mode: %s. Only 'kernel' and 'user' are supported", mode)
 	}
 
-	persistentAgent, _ := os.LookupEnv("ENABLE_PERSISTENT_GO_IOS_AGENT")
-	if persistentAgent == "yes" {
-		// OS specific SysProcAttr assignment
-		cmd.SysProcAttr = createSysProcAttr()
-	}
+	// OS specific SysProcAttr assignment
+	cmd.SysProcAttr = createSysProcAttr()
 
 	err = cmd.Start()
 

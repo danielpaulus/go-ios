@@ -302,10 +302,8 @@ The commands work as following:
 	}
 
 	if !tunnel.IsAgentRunning() {
-		log.Warn("go-ios agent is not running. You might need to start it with 'ios tunnel start' for ios17+. Use ENABLE_GO_IOS_AGENT=user for userspace tunnel or ENABLE_GO_IOS_AGENT=kernel for kernel tunnel.")
-		log.Warn("Additionally, for persistent go-ios agent which stays after the parent process terminates, you may use ENABLE_PERSISTENT_GO_IOS_AGENT=yes for the experimental daemon mode.")
+		log.Warn("go-ios agent is not running. You might need to start it with 'ios tunnel start' for ios17+. Use ENABLE_GO_IOS_AGENT=user for userspace tunnel or ENABLE_GO_IOS_AGENT=kernel for kernel tunnel for the experimental daemon mode.")
 	}
-
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
 	shouldPrintVersion, _ := arguments.Bool("--version")
 	if shouldPrintVersionNoDashes || shouldPrintVersion {
