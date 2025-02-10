@@ -97,6 +97,7 @@ func decode(r io.Reader) ([]schemeData, error) {
 
 // Helper method to get the format version of the xctestrun file
 func getFormatVersion(xctestrunFileContent []byte) (int, error) {
+
 	type xCTestRunMetadata struct {
 		Metadata struct {
 			Version int `plist:"FormatVersion"`
