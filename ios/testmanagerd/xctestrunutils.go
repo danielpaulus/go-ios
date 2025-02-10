@@ -139,7 +139,7 @@ func getFormatVersion(xctestrunFileContent []byte) (int, error) {
 	return metadata.Metadata.Version, nil
 }
 
-func parseXCTestRunFileFormatVersion1(content []byte) ([]schemeData, error) {
+func parseVersion1(xctestrunFile []byte) ([]schemeData, error) {
 	// xctestrun files in version 1 use a dynamic key for the pListRoot of the TestConfig. As in the 'key' for the TestConfig is the name
 	// of the app. This forces us to iterate over the root of the plist, instead of using a static struct to decode the xctestrun file.
 	var pListRoot map[string]interface{}
