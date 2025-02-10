@@ -271,12 +271,12 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 	var results []TestSuite
 	var targetErrors []error
 	for _, target := range xcTestTargets {
+		listener.reset()
 		suites, err := RunTestWithConfig(ctx, target)
 		if err != nil {
 			targetErrors = append(targetErrors, err)
 		}
 		results = append(results, suites...)
-		listener.reset()
 	}
 	return results, targetErrors
 }
