@@ -37,7 +37,6 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 	testsToSkip := data.SkipTestIdentifiers
 
 	testEnv := make(map[string]any)
-	var bundleId string
 
 	if data.IsUITestBundle {
 		maps.Copy(testEnv, data.EnvironmentVariables)
@@ -50,7 +49,6 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 
 	// Build the TestConfig object from parsed data
 	testConfig := TestConfig{
-		BundleId:           bundleId,
 		TestRunnerBundleId: data.TestHostBundleIdentifier,
 		XctestConfigName:   testBundlePath,
 		Args:               data.CommandLineArguments,
