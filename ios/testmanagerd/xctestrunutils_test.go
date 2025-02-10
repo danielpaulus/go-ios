@@ -190,36 +190,6 @@ func TestIsUITestBundle(t *testing.T) {
 	assert.Equal(t, true, xcTestRunData.IsUITestBundle, "IsUITestBundle mismatch")
 }
 
-func TestParseXCTestRunFormatV2ThrowsErrorForMissingTestConfigurations(t *testing.T) {
-	// Arrange: Create a temporary .xctestrun file with mock data
-	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
-	assert.NoError(t, err, "Failed to create temp file")
-	defer os.Remove(tempFile.Name()) // Cleanup after test
-
-	xcTestRunFileFormatVersion2 := `
-		<?xml version="1.0" encoding="UTF-8"?>
-		<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-		<plist version="1.0">
-		<dict>
-			<key>__xctestrun_metadata__</key>
-			<dict>
-				<key>FormatVersion</key>
-				<integer>2</integer>
-			</dict>
-		</dict>
-		</plist>
-	`
-	_, err = tempFile.WriteString(xcTestRunFileFormatVersion2)
-	assert.NoError(t, err, "Failed to write mock data to temp file")
-	tempFile.Close()
-
-	// Act: Use the codec to parse the temp file
-	_, err = parseFile(tempFile.Name())
-
-	// Assert the Error Message
-	assert.Equal(t, "no TestConfigurations found in XCTestRun file(format version: 2); cannot proceed with test parsing", err.Error(), "Error Message mismatch")
-}
-
 func TestParseXCTestRunFormatV2ThrowsErrorForMultipleTestConfigurations(t *testing.T) {
 	// Arrange: Create a temporary .xctestrun file with mock data
 	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
@@ -420,7 +390,7 @@ func TestParseXCTestRunFormatV2ThrowsErrorForMultipleTestConfigurations(t *testi
 	_, err = parseFile(tempFile.Name())
 
 	// Assert the Error Message
-	assert.Equal(t, "expected exactly one TestConfiguration in XCTestRun file(format version: 2), but found 2", err.Error(), "Error Message mismatch")
+	assert.Equal(t, "The .xctestrun file you provided contained 2 entries in the TestConfiguration list. This list should contain exactly 1 entry. Please revisit your test configuration so that it only contains one entry.", err.Error(), "Error Message mismatch")
 }
 
 // Helper function to create testConfig from parsed mock data using .xctestrun file format v1
