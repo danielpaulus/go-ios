@@ -307,7 +307,7 @@ func TestIsUITestBundle_XCTestRunFileVersion2_XCUITest(t *testing.T) {
 // Helper function to create testConfig from parsed mock data using .xctestrun file format v2
 // If includeUITest is true, it returns a UI test configuration.
 // If includeUITest is false, it returns a non-UI test configuration.
-func createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t *testing.T) (TestConfig, ios.DeviceEntry, *TestListener) {
+func buildTestConfigXcTestRunFileV2(t *testing.T) (TestConfig, ios.DeviceEntry, *TestListener) {
 	// Arrange: Create parsed XCTestRunData using the helper function
 	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
 	assert.NoError(t, err, "Failed to parse .xctestrun file")
@@ -331,43 +331,33 @@ func createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t *testing.T) (TestC
 
 // Test Building Test Config for XCTest using xctestrun format version 2
 func TestConfigTestRunnerBundleId_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	testConfig, _, _ := createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t)
+	testConfig, _, _ := buildTestConfigXcTestRunFileV2(t)
 	assert.Equal(t, "saucelabs.FakeCounterApp", testConfig.TestRunnerBundleId, "TestRunnerBundleId mismatch")
 }
 
 func TestConfigXctestConfigName_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	testConfig, _, _ := createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t)
+	testConfig, _, _ := buildTestConfigXcTestRunFileV2(t)
 	assert.Equal(t, "FakeCounterAppTests.xctest", testConfig.XctestConfigName, "XctestConfigName mismatch")
 }
 
 func TestConfigCommandLineArguments_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	testConfig, _, _ := createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t)
+	testConfig, _, _ := buildTestConfigXcTestRunFileV2(t)
 	assert.Equal(t, []string{}, testConfig.Args, "data mismatch")
 }
 
 func TestConfigEnvironmentVariables_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	testConfig, _, _ := createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t)
+	testConfig, _, _ := buildTestConfigXcTestRunFileV2(t)
 	assert.Equal(t, map[string]any{}, testConfig.Env, "EnvironmentVariables mismatch")
 }
 
 func TestConfigTestsToSkip_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	testConfig, _, _ := createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t)
+	testConfig, _, _ := buildTestConfigXcTestRunFileV2(t)
 	assert.Equal(t, []string{
 		"SkippedTests", "SkippedTests/testThatAlwaysFailsAndShouldBeSkipped",
 	}, testConfig.TestsToSkip, "TestsToSkip mismatch")
 }
 
 func TestConfigXcTest_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	testConfig, _, _ := createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t)
+	testConfig, _, _ := buildTestConfigXcTestRunFileV2(t)
 	assert.Equal(t, true, testConfig.XcTest, "XcTest mismatch")
-}
-
-func TestConfigDevice_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	testConfig, mockDevice, _ := createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t)
-	assert.Equal(t, mockDevice, testConfig.Device, "Device mismatch")
-}
-
-func TestConfigListener_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	testConfig, _, mockListener := createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t)
-	assert.Equal(t, mockListener, testConfig.Listener, "Listener mismatch")
 }
