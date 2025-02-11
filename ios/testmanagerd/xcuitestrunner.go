@@ -7,7 +7,6 @@ import (
 	"io"
 	"maps"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -258,11 +257,11 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		}
 	}
 	svc, _ := installationproxy.New(device)
-	allApps, _ := svc.BrowseUserApps()
+	installedApps, _ := svc.BrowseUserApps()
 
 	var xcTestTargets []TestConfig
 	for i, r := range xctestSpecification {
-		tc, err := r.buildTestConfig(device, listener, allApps)
+		tc, err := r.buildTestConfig(device, listener, installedApps)
 		if err != nil {
 			return nil, []error{
 				fmt.Errorf("building test config at index %d: %w", i, err),
@@ -621,15 +620,4 @@ func getappInfo(bundleID string, apps []installationproxy.AppInfo) (appInfo, err
 	}
 
 	return appInfo{}, fmt.Errorf("Did not find test app for '%s' on device. Is it installed?", bundleID)
-}
-
-func getBundleID(apps []installationproxy.AppInfo, uiTargetAppPath string) *string {
-	var appNameWithSuffix = filepath.Base(uiTargetAppPath)
-	var uiTargetAppName = strings.TrimSuffix(appNameWithSuffix, ".app")
-	for _, app := range apps {
-		if app.CFBundleName == uiTargetAppName {
-			return &app.CFBundleIdentifier
-		}
-	}
-	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // xctestrunutils provides utilities for parsing `.xctestrun` files.
@@ -34,7 +35,7 @@ type schemeData struct {
 	UITargetAppPath                 string
 }
 
-func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener, allAps []installationproxy.AppInfo) (TestConfig, error) {
+func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener, installedApps []installationproxy.AppInfo) (TestConfig, error) {
 	testsToRun := data.OnlyTestIdentifiers
 	testsToSkip := data.SkipTestIdentifiers
 
@@ -48,8 +49,8 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 		// Only call getBundleID if :
 		// - allAps is provided
 		// - UITargetAppPath is populated since it can be empty for UI tests in some edge cases
-		if len(data.UITargetAppPath) > 0 && allAps != nil {
-			bundleId = *getBundleID(allAps, data.UITargetAppPath)
+		if len(data.UITargetAppPath) > 0 && installedApps != nil {
+			bundleId = getBundleId(installedApps, data.UITargetAppPath)
 		}
 	}
 
@@ -184,4 +185,15 @@ func parseVersion2(content []byte) ([]schemeData, error) {
 
 	// If we have exactly one TestConfiguration, return the TestTargets
 	return testConfigs.TestConfigurations[0].TestTargets, nil
+}
+
+func getBundleId(installedApps []installationproxy.AppInfo, uiTargetAppPath string) string {
+	var appNameWithSuffix = filepath.Base(uiTargetAppPath)
+	var uiTargetAppName = strings.TrimSuffix(appNameWithSuffix, ".app")
+	for _, app := range installedApps {
+		if app.CFBundleName == uiTargetAppName {
+			return app.CFBundleIdentifier
+		}
+	}
+	return ""
 }
