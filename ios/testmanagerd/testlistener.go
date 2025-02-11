@@ -297,4 +297,13 @@ func (t *TestListener) reset() {
 
 	// Reset the sync.Once instance so it can be used again
 	t.finishedOnce = sync.Once{}
+
+	// Clear error from the previous test run
+	t.err = nil
+
+	// Reset test results
+	t.TestSuites = nil
+
+	// Clear the reference to the running test suite
+	t.runningTestSuite = nil
 }
