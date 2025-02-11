@@ -249,20 +249,40 @@ type TestConfig struct {
 	Listener *TestListener
 }
 
-func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
-	results, err := parseFile(xctestrunFilePath)
+func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, []error) {
+	xctestSpecification, err := parseFile(xctestrunFilePath)
 	if err != nil {
-		log.Errorf("Error parsing xctestrun file: %v", err)
-		return nil, err
+		return nil, []error{
+			fmt.Errorf("error parsing xctestrun file: %w", err),
+		}
 	}
 
-	testConfig, err := results.buildTestConfig(device, listener)
-	if err != nil {
-		log.Errorf("Error while constructing the test config: %v", err)
-		return nil, err
+	var xcTestTargets []TestConfig
+	for i, r := range xctestSpecification {
+		if r.IsUITestBundle {
+			log.Info("go-ios currently only supports XCTests to run with xctestrun files")
+			continue
+		}
+		tc, err := r.buildTestConfig(device, listener)
+		if err != nil {
+			return nil, []error{
+				fmt.Errorf("building test config at index %d: %w", i, err),
+			}
+		}
+		xcTestTargets = append(xcTestTargets, tc)
 	}
 
-	return RunTestWithConfig(ctx, testConfig)
+	var results []TestSuite
+	var targetErrors []error
+	for _, target := range xcTestTargets {
+		listener.reset()
+		suites, err := RunTestWithConfig(ctx, target)
+		if err != nil {
+			targetErrors = append(targetErrors, err)
+		}
+		results = append(results, suites...)
+	}
+	return results, targetErrors
 }
 
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {
