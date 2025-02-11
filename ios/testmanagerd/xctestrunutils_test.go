@@ -17,31 +17,33 @@ func setupParsing(t *testing.T, filePath string) []schemeData {
 // Test Parsing an xctestrun file with format version 1
 func TestParsingV1(t *testing.T) {
 	xcTestRunData := setupParsing(t, "testdata/format_version_1.xctestrun")
-	var expected = []schemeData{{
-		TestHostBundleIdentifier: "com.example.myApp",
-		TestBundlePath:           "__TESTHOST__/PlugIns/RunnerTests.xctest",
-		EnvironmentVariables: map[string]any{
-			"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
-			"OS_ACTIVITY_DT_MODE":             "YES",
-			"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
-			"TERM":                            "dumb",
+	var expected = []schemeData{
+		{
+			TestHostBundleIdentifier: "com.example.myApp",
+			TestBundlePath:           "__TESTHOST__/PlugIns/RunnerTests.xctest",
+			EnvironmentVariables: map[string]any{
+				"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
+				"OS_ACTIVITY_DT_MODE":             "YES",
+				"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
+				"TERM":                            "dumb",
+			},
+			TestingEnvironmentVariables: map[string]any{
+				"DYLD_INSERT_LIBRARIES": "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
+				"XCInjectBundleInto":    "unused",
+				"Test":                  "xyz",
+			},
+			CommandLineArguments: []string{},
+			OnlyTestIdentifiers: []string{
+				"TestClass1/testMethod1",
+				"TestClass2/testMethod1",
+			},
+			SkipTestIdentifiers: []string{
+				"TestClass1/testMethod2",
+				"TestClass2/testMethod2",
+			},
+			IsUITestBundle: true,
 		},
-		TestingEnvironmentVariables: map[string]any{
-			"DYLD_INSERT_LIBRARIES": "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
-			"XCInjectBundleInto":    "unused",
-			"Test":                  "xyz",
-		},
-		CommandLineArguments: []string{},
-		OnlyTestIdentifiers: []string{
-			"TestClass1/testMethod1",
-			"TestClass2/testMethod1",
-		},
-		SkipTestIdentifiers: []string{
-			"TestClass1/testMethod2",
-			"TestClass2/testMethod2",
-		},
-		IsUITestBundle: true,
-	}}
+	}
 	assert.Equal(t, expected, xcTestRunData)
 }
 
@@ -63,31 +65,33 @@ func TestBuildTestConfigV1(t *testing.T) {
 		testConfigs = append(testConfigs, tc)
 	}
 
-	var expected = []TestConfig{{
-		TestRunnerBundleId: "com.example.myApp",
-		XctestConfigName:   "RunnerTests.xctest",
-		Args:               []string{},
-		Env: map[string]any{
-			"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
-			"OS_ACTIVITY_DT_MODE":             "YES",
-			"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
-			"TERM":                            "dumb",
-			"DYLD_INSERT_LIBRARIES":           "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
-			"XCInjectBundleInto":              "unused",
-			"Test":                            "xyz",
+	var expected = []TestConfig{
+		{
+			TestRunnerBundleId: "com.example.myApp",
+			XctestConfigName:   "RunnerTests.xctest",
+			Args:               []string{},
+			Env: map[string]any{
+				"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
+				"OS_ACTIVITY_DT_MODE":             "YES",
+				"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
+				"TERM":                            "dumb",
+				"DYLD_INSERT_LIBRARIES":           "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
+				"XCInjectBundleInto":              "unused",
+				"Test":                            "xyz",
+			},
+			TestsToRun: []string{
+				"TestClass1/testMethod1",
+				"TestClass2/testMethod1",
+			},
+			TestsToSkip: []string{
+				"TestClass1/testMethod2",
+				"TestClass2/testMethod2",
+			},
+			XcTest:   false,
+			Device:   mockDevice,
+			Listener: mockListener,
 		},
-		TestsToRun: []string{
-			"TestClass1/testMethod1",
-			"TestClass2/testMethod1",
-		},
-		TestsToSkip: []string{
-			"TestClass1/testMethod2",
-			"TestClass2/testMethod2",
-		},
-		XcTest:   false,
-		Device:   mockDevice,
-		Listener: mockListener,
-	}}
+	}
 	assert.Equal(t, expected, testConfigs)
 }
 
