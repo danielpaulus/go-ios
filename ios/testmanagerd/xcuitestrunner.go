@@ -257,7 +257,7 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		}
 	}
 
-	xcTestTargets := make([]TestConfig, len(xctestSpecification))
+	var xcTestTargets []TestConfig
 	for i, r := range xctestSpecification {
 		if r.IsUITestBundle {
 			log.Info("go-ios currently only supports XCTests to run with xctestrun files")
@@ -269,13 +269,14 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 				fmt.Errorf("building test config at index %d: %w", i, err),
 			}
 		}
-		xcTestTargets[i] = tc
+		xcTestTargets = append(xcTestTargets, tc)
 	}
 
 	var results []TestSuite
 	var targetErrors []error
 	for _, target := range xcTestTargets {
 		listener.reset()
+		log.Infof("target is: %v", target)
 		suites, err := RunTestWithConfig(ctx, target)
 		if err != nil {
 			targetErrors = append(targetErrors, err)
