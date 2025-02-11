@@ -2,150 +2,30 @@ package testmanagerd
 
 import (
 	"github.com/danielpaulus/go-ios/ios"
-	"os"
 	"testing"
-
 	"github.com/stretchr/testify/assert"
 )
 
 // Helper function to create mock data and parse the .xctestrun file format v1
-func createAndParseXCTestRunFileVersion1(t *testing.T) schemeData {
-	// Arrange: Create a temporary .xctestrun file with mock data
-	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
-	assert.NoError(t, err, "Failed to create temp file")
-	defer os.Remove(tempFile.Name()) // Cleanup after test
-
-	xcTestRunFileFormatVersion1 := `
-		<?xml version="1.0" encoding="UTF-8"?>
-		<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-		<plist version="1.0">
-			<dict>
-				<key>RunnerTests</key>
-				<dict>
-					<key>BlueprintName</key>
-					<string>RunnerTests</string>
-					<key>BlueprintProviderName</key>
-					<string>Runner</string>
-					<key>BlueprintProviderRelativePath</key>
-					<string>Runner.xcodeproj</string>
-					<key>BundleIdentifiersForCrashReportEmphasis</key>
-					<array>
-						<string>com.example.myApp</string>
-						<string>com.example.myApp.RunnerTests</string>
-					</array>
-					<key>CommandLineArguments</key>
-					<array/>
-					<key>DefaultTestExecutionTimeAllowance</key>
-					<integer>600</integer>
-					<key>DependentProductPaths</key>
-					<array>
-						<string>__TESTROOT__/Release-iphoneos/Runner.app</string>
-						<string>__TESTROOT__/Release-iphoneos/Runner.app/PlugIns/RunnerTests.xctest</string>
-					</array>
-					<key>DiagnosticCollectionPolicy</key>
-					<integer>1</integer>
-					<key>EnvironmentVariables</key>
-					<dict>
-						<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
-						<string>com.apple.AppStore</string>
-						<key>OS_ACTIVITY_DT_MODE</key>
-						<string>YES</string>
-						<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
-						<string>1</string>
-						<key>TERM</key>
-						<string>dumb</string>
-					</dict>
-					<key>IsAppHostedTestBundle</key>
-					<true/>
-					<key>ParallelizationEnabled</key>
-					<true/>
-					<key>PreferredScreenCaptureFormat</key>
-					<string>screenRecording</string>
-					<key>ProductModuleName</key>
-					<string>RunnerTests</string>
-					<key>RunOrder</key>
-					<integer>0</integer>
-					<key>SystemAttachmentLifetime</key>
-					<string>deleteOnSuccess</string>
-					<key>TestBundlePath</key>
-					<string>__TESTHOST__/PlugIns/RunnerTests.xctest</string>
-					<key>TestHostBundleIdentifier</key>
-					<string>com.example.myApp</string>
-					<key>TestHostPath</key>
-					<string>__TESTROOT__/Release-iphoneos/Runner.app</string>
-					<key>TestLanguage</key>
-					<string></string>
-					<key>TestRegion</key>
-					<string></string>
-					<key>TestTimeoutsEnabled</key>
-					<false/>
-					<key>TestingEnvironmentVariables</key>
-					<dict>
-						<key>DYLD_INSERT_LIBRARIES</key>
-						<string>__TESTHOST__/Frameworks/libXCTestBundleInject.dylib</string>
-						<key>XCInjectBundleInto</key>
-						<string>unused</string>
-						<key>Test</key>
-						<string>xyz</string>
-					</dict>
-					<key>ToolchainsSettingValue</key>
-					<array/>
-					<key>UserAttachmentLifetime</key>
-					<string>deleteOnSuccess</string>
-					<key>OnlyTestIdentifiers</key>
-					<array>
-						<string>TestClass1/testMethod1</string>
-						<string>TestClass2/testMethod1</string>
-					</array>
-					<key>SkipTestIdentifiers</key>
-					<array>
-						<string>TestClass1/testMethod2</string>
-						<string>TestClass2/testMethod2</string>
-					</array>
-					<key>IsUITestBundle</key>
-					<true/>
-				</dict>
-				<key>__xctestrun_metadata__</key>
-				<dict>
-					<key>ContainerInfo</key>
-					<dict>
-						<key>ContainerName</key>
-						<string>Runner</string>
-						<key>SchemeName</key>
-						<string>Runner</string>
-					</dict>
-					<key>FormatVersion</key>
-					<integer>1</integer>
-				</dict>
-			</dict>
-		</plist>
-	`
-	_, err = tempFile.WriteString(xcTestRunFileFormatVersion1)
-	assert.NoError(t, err, "Failed to write mock data to temp file")
-	tempFile.Close()
-
-	// Act: Use the codec to parse the temp file
-	xcTestRunData, err := parseFile(tempFile.Name())
-
-	// Assert: Verify the parsed data
+func parseXCTestRunFileVersion1(t *testing.T) schemeData {
+	// Act: parse version 1 of xctestrun file
+	xcTestRunData, err := parseFile("testdata/format_version_1.xctestrun")
 	assert.NoError(t, err, "Failed to parse .xctestrun file")
-	assert.NotNil(t, xcTestRunData, "Parsed data should not be nil")
-
 	return xcTestRunData[0]
 }
 
 func TestTestHostBundleIdentifier(t *testing.T) {
-	xcTestRunData := createAndParseXCTestRunFileVersion1(t)
+	xcTestRunData := parseXCTestRunFileVersion1(t)
 	assert.Equal(t, "com.example.myApp", xcTestRunData.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
 }
 
 func TestTestBundlePath(t *testing.T) {
-	xcTestRunData := createAndParseXCTestRunFileVersion1(t)
+	xcTestRunData := parseXCTestRunFileVersion1(t)
 	assert.Equal(t, "__TESTHOST__/PlugIns/RunnerTests.xctest", xcTestRunData.TestBundlePath, "TestBundlePath mismatch")
 }
 
 func TestEnvironmentVariables(t *testing.T) {
-	xcTestRunData := createAndParseXCTestRunFileVersion1(t)
+	xcTestRunData := parseXCTestRunFileVersion1(t)
 	assert.Equal(t, map[string]any{
 		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
 		"OS_ACTIVITY_DT_MODE":             "YES",
@@ -155,7 +35,7 @@ func TestEnvironmentVariables(t *testing.T) {
 }
 
 func TestTestingEnvironmentVariables(t *testing.T) {
-	xcTestRunData := createAndParseXCTestRunFileVersion1(t)
+	xcTestRunData := parseXCTestRunFileVersion1(t)
 	assert.Equal(t, map[string]any{
 		"DYLD_INSERT_LIBRARIES": "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
 		"XCInjectBundleInto":    "unused",
@@ -164,12 +44,12 @@ func TestTestingEnvironmentVariables(t *testing.T) {
 }
 
 func TestCommandLineArguments(t *testing.T) {
-	xcTestRunData := createAndParseXCTestRunFileVersion1(t)
+	xcTestRunData := parseXCTestRunFileVersion1(t)
 	assert.Equal(t, []string{}, xcTestRunData.CommandLineArguments, "CommandLineArguments mismatch")
 }
 
 func TestOnlyTestIdentifiers(t *testing.T) {
-	xcTestRunData := createAndParseXCTestRunFileVersion1(t)
+	xcTestRunData := parseXCTestRunFileVersion1(t)
 	assert.Equal(t, []string{
 		"TestClass1/testMethod1",
 		"TestClass2/testMethod1",
@@ -177,7 +57,7 @@ func TestOnlyTestIdentifiers(t *testing.T) {
 }
 
 func TestSkipTestIdentifiers(t *testing.T) {
-	xcTestRunData := createAndParseXCTestRunFileVersion1(t)
+	xcTestRunData := parseXCTestRunFileVersion1(t)
 	assert.Equal(t, []string{
 		"TestClass1/testMethod2",
 		"TestClass2/testMethod2",
@@ -185,209 +65,13 @@ func TestSkipTestIdentifiers(t *testing.T) {
 }
 
 func TestIsUITestBundle(t *testing.T) {
-	xcTestRunData := createAndParseXCTestRunFileVersion1(t)
+	xcTestRunData := parseXCTestRunFileVersion1(t)
 	assert.Equal(t, true, xcTestRunData.IsUITestBundle, "IsUITestBundle mismatch")
 }
 
 func TestParseXCTestRunFormatV2ThrowsErrorForMultipleTestConfigurations(t *testing.T) {
-	// Arrange: Create a temporary .xctestrun file with mock data
-	tempFile, err := os.CreateTemp("", "testfile*.xctestrun")
-	assert.NoError(t, err, "Failed to create temp file")
-	defer os.Remove(tempFile.Name()) // Cleanup after test
-
-	xcTestRunFileFormatVersion2 := `
-		<?xml version="1.0" encoding="UTF-8"?>
-		<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-		<plist version="1.0">
-		<dict>
-			<key>TestConfigurations</key>
-			<array>
-				<dict>
-					<key>Name</key>
-					<string>Test Scheme Action</string>
-					<key>TestTargets</key>
-					<array>
-						<dict>
-							<key>BlueprintName</key>
-							<string>FakeCounterAppUITests</string>
-							<key>BlueprintProviderName</key>
-							<string>FakeCounterApp</string>
-							<key>BlueprintProviderRelativePath</key>
-							<string>FakeCounterApp.xcodeproj</string>
-							<key>BundleIdentifiersForCrashReportEmphasis</key>
-							<array>
-								<string>saucelabs.FakeCounterApp</string>
-								<string>saucelabs.FakeCounterAppUITests</string>
-							</array>
-							<key>ClangProfileDataDirectoryPath</key>
-							<string>__DERIVEDDATA__/Build/ProfileData</string>
-							<key>CommandLineArguments</key>
-							<array/>
-							<key>DefaultTestExecutionTimeAllowance</key>
-							<integer>600</integer>
-							<key>DependentProductPaths</key>
-							<array>
-								<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app</string>
-								<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app/PlugIns/FakeCounterAppTests.xctest</string>
-								<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app</string>
-								<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app/PlugIns/FakeCounterAppUITests.xctest</string>
-							</array>
-							<key>DiagnosticCollectionPolicy</key>
-							<integer>1</integer>
-							<key>EnvironmentVariables</key>
-							<dict>
-								<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
-								<string>com.apple.AppStore</string>
-								<key>OS_ACTIVITY_DT_MODE</key>
-								<string>YES</string>
-								<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
-								<string>1</string>
-								<key>TERM</key>
-								<string>dumb</string>
-							</dict>
-							<key>IsUITestBundle</key>
-							<true/>
-							<key>IsXCTRunnerHostedTestBundle</key>
-							<true/>
-							<key>ParallelizationEnabled</key>
-							<true/>
-							<key>PreferredScreenCaptureFormat</key>
-							<string>screenRecording</string>
-							<key>ProductModuleName</key>
-							<string>FakeCounterAppUITests</string>
-							<key>SystemAttachmentLifetime</key>
-							<string>deleteOnSuccess</string>
-							<key>TestBundlePath</key>
-							<string>__TESTHOST__/PlugIns/FakeCounterAppUITests.xctest</string>
-							<key>TestHostBundleIdentifier</key>
-							<string>saucelabs.FakeCounterAppUITests.xctrunner</string>
-							<key>TestHostPath</key>
-							<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app</string>
-							<key>TestLanguage</key>
-							<string></string>
-							<key>TestRegion</key>
-							<string></string>
-							<key>TestTimeoutsEnabled</key>
-							<false/>
-							<key>TestingEnvironmentVariables</key>
-							<dict/>
-							<key>ToolchainsSettingValue</key>
-							<array/>
-							<key>UITargetAppCommandLineArguments</key>
-							<array/>
-							<key>UITargetAppEnvironmentVariables</key>
-							<dict>
-								<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
-								<string>com.apple.AppStore</string>
-							</dict>
-							<key>UITargetAppPath</key>
-							<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app</string>
-							<key>UserAttachmentLifetime</key>
-							<string>deleteOnSuccess</string>
-						</dict>
-					</array>
-				</dict>
-				<dict>
-					<key>Name</key>
-					<string>Test Scheme Action</string>
-					<key>TestTargets</key>
-					<array>
-						<dict>
-							<key>BlueprintName</key>
-							<string>FakeCounterAppUITests</string>
-							<key>BlueprintProviderName</key>
-							<string>FakeCounterApp</string>
-							<key>BlueprintProviderRelativePath</key>
-							<string>FakeCounterApp.xcodeproj</string>
-							<key>BundleIdentifiersForCrashReportEmphasis</key>
-							<array>
-								<string>saucelabs.FakeCounterApp</string>
-								<string>saucelabs.FakeCounterAppUITests</string>
-							</array>
-							<key>ClangProfileDataDirectoryPath</key>
-							<string>__DERIVEDDATA__/Build/ProfileData</string>
-							<key>CommandLineArguments</key>
-							<array/>
-							<key>DefaultTestExecutionTimeAllowance</key>
-							<integer>600</integer>
-							<key>DependentProductPaths</key>
-							<array>
-								<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app</string>
-								<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app/PlugIns/FakeCounterAppTests.xctest</string>
-								<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app</string>
-								<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app/PlugIns/FakeCounterAppUITests.xctest</string>
-							</array>
-							<key>DiagnosticCollectionPolicy</key>
-							<integer>1</integer>
-							<key>EnvironmentVariables</key>
-							<dict>
-								<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
-								<string>com.apple.AppStore</string>
-								<key>OS_ACTIVITY_DT_MODE</key>
-								<string>YES</string>
-								<key>SQLITE_ENABLE_THREAD_ASSERTIONS</key>
-								<string>1</string>
-								<key>TERM</key>
-								<string>dumb</string>
-							</dict>
-							<key>IsUITestBundle</key>
-							<true/>
-							<key>IsXCTRunnerHostedTestBundle</key>
-							<true/>
-							<key>ParallelizationEnabled</key>
-							<true/>
-							<key>PreferredScreenCaptureFormat</key>
-							<string>screenRecording</string>
-							<key>ProductModuleName</key>
-							<string>FakeCounterAppUITests</string>
-							<key>SystemAttachmentLifetime</key>
-							<string>deleteOnSuccess</string>
-							<key>TestBundlePath</key>
-							<string>__TESTHOST__/PlugIns/FakeCounterAppUITests.xctest</string>
-							<key>TestHostBundleIdentifier</key>
-							<string>saucelabs.FakeCounterAppUITests.xctrunner</string>
-							<key>TestHostPath</key>
-							<string>__TESTROOT__/Debug-iphoneos/FakeCounterAppUITests-Runner.app</string>
-							<key>TestLanguage</key>
-							<string></string>
-							<key>TestRegion</key>
-							<string></string>
-							<key>TestTimeoutsEnabled</key>
-							<false/>
-							<key>TestingEnvironmentVariables</key>
-							<dict/>
-							<key>ToolchainsSettingValue</key>
-							<array/>
-							<key>UITargetAppCommandLineArguments</key>
-							<array/>
-							<key>UITargetAppEnvironmentVariables</key>
-							<dict>
-								<key>APP_DISTRIBUTOR_ID_OVERRIDE</key>
-								<string>com.apple.AppStore</string>
-							</dict>
-							<key>UITargetAppPath</key>
-							<string>__TESTROOT__/Debug-iphoneos/FakeCounterApp.app</string>
-							<key>UserAttachmentLifetime</key>
-							<string>deleteOnSuccess</string>
-						</dict>
-					</array>
-				</dict>
-			</array>
-			<key>__xctestrun_metadata__</key>
-			<dict>
-				<key>FormatVersion</key>
-				<integer>2</integer>
-			</dict>
-		</dict>
-		</plist>
-	`
-	_, err = tempFile.WriteString(xcTestRunFileFormatVersion2)
-	assert.NoError(t, err, "Failed to write mock data to temp file")
-	tempFile.Close()
-
 	// Act: Use the codec to parse the temp file
-	_, err = parseFile(tempFile.Name())
-
+	_, err := parseFile("testdata/contains_invalid_test_configuration.xctestrun")
 	// Assert the Error Message
 	assert.Equal(t, "The .xctestrun file you provided contained 2 entries in the TestConfiguration list. This list should contain exactly 1 entry. Please revisit your test configuration so that it only contains one entry.", err.Error(), "Error Message mismatch")
 }
@@ -395,7 +79,7 @@ func TestParseXCTestRunFormatV2ThrowsErrorForMultipleTestConfigurations(t *testi
 // Helper function to create testConfig from parsed mock data using .xctestrun file format v1
 func createTestConfigFromParsedMockDataUsingXCTestRunFileV1(t *testing.T) (TestConfig, ios.DeviceEntry, *TestListener) {
 	// Arrange: Create parsed XCTestRunData using the helper function
-	xcTestRunData := createAndParseXCTestRunFileVersion1(t)
+	xcTestRunData := parseXCTestRunFileVersion1(t)
 
 	// Mock dependencies
 	mockDevice := ios.DeviceEntry{
@@ -471,107 +155,153 @@ func TestConfigListener(t *testing.T) {
 	assert.Equal(t, mockListener, testConfig.Listener, "Listener mismatch")
 }
 
-// Helper function to return a specific test target inside version 2 of a xctestrun file.
-// If includeUITest is true, it returns a UI test configuration.
-// If includeUITest is false, it returns a non-UI test configuration.
-func parseXCTestRunVersion2(t *testing.T, includeUITest bool) schemeData {
-	// Act: Use the codec to parse the temp file
-	xcTestRunData2, err := parseFile("testdata/format_version_2.xctestrun")
-
-	// Assert: Verify the parsed data
-	assert.NoError(t, err, "Failed to parse .xctestrun file")
-	assert.NotNil(t, xcTestRunData2, "Parsed data should not be nil")
-	xcTestRunData := xcTestRunData2
-	for _, d := range xcTestRunData {
-		if d.IsUITestBundle == includeUITest {
-			return d
-		}
-	}
-	return schemeData{}
-}
-
 // Test XCTest Config Parsing with format version 2
 
 func TestTestHostBundleIdentifier_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
-	assert.Equal(t, "saucelabs.FakeCounterApp", xcTestRunData.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
+	assert.Equal(t, "saucelabs.FakeCounterApp", xctestTarget.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
 }
 
 func TestTestBundlePath_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
-	assert.Equal(t, "__TESTHOST__/PlugIns/FakeCounterAppTests.xctest", xcTestRunData.TestBundlePath, "TestBundlePath mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
+	assert.Equal(t, "__TESTHOST__/PlugIns/FakeCounterAppTests.xctest", xctestTarget.TestBundlePath, "TestBundlePath mismatch")
 }
 
 func TestEnvironmentVariables_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
 	assert.Equal(t, map[string]any{
 		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"TERM":                            "dumb",
-	}, xcTestRunData.EnvironmentVariables, "EnvironmentVariables mismatch")
+	}, xctestTarget.EnvironmentVariables, "EnvironmentVariables mismatch")
 }
 
 func TestTestingEnvironmentVariables_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
 	assert.Equal(t, map[string]any{
 		"DYLD_INSERT_LIBRARIES": "__TESTHOST__/Frameworks/libXCTestBundleInject.dylib",
 		"XCInjectBundleInto":    "unused",
-	}, xcTestRunData.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
+	}, xctestTarget.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
 }
 
 func TestCommandLineArguments_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
-	assert.Equal(t, []string{}, xcTestRunData.CommandLineArguments, "CommandLineArguments mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
+	assert.Equal(t, []string{}, xctestTarget.CommandLineArguments, "CommandLineArguments mismatch")
 }
 
 func TestSkipTestIdentifiers_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
 	assert.Equal(t, []string{
 		"SkippedTests", "SkippedTests/testThatAlwaysFailsAndShouldBeSkipped",
-	}, xcTestRunData.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
+	}, xctestTarget.SkipTestIdentifiers, "SkipTestIdentifiers mismatch")
 }
 
 func TestIsUITestBundle_XCTestRunFileVersion2_XCTest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, false)
-	assert.Equal(t, false, xcTestRunData.IsUITestBundle, "IsUITestBundle mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCTest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xctestTarget := testTargets[0]
+
+	// Assert
+	assert.Equal(t, false, xctestTarget.IsUITestBundle, "IsUITestBundle mismatch")
 }
 
 // Test XCUITest Config Parsing with format version 2
 
 func TestTestHostBundleIdentifier_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
-	assert.Equal(t, "saucelabs.FakeCounterAppUITests.xctrunner", xcTestRunData.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
+	assert.Equal(t, "saucelabs.FakeCounterAppUITests.xctrunner", xcUITestTarget.TestHostBundleIdentifier, "TestHostBundleIdentifier mismatch")
 }
 
 func TestTestBundlePath_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
-	assert.Equal(t, "__TESTHOST__/PlugIns/FakeCounterAppUITests.xctest", xcTestRunData.TestBundlePath, "TestBundlePath mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
+	assert.Equal(t, "__TESTHOST__/PlugIns/FakeCounterAppUITests.xctest", xcUITestTarget.TestBundlePath, "TestBundlePath mismatch")
 }
 
 func TestEnvironmentVariables_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
 	assert.Equal(t, map[string]any{
 		"APP_DISTRIBUTOR_ID_OVERRIDE":     "com.apple.AppStore",
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"TERM":                            "dumb",
-	}, xcTestRunData.EnvironmentVariables, "EnvironmentVariables mismatch")
+	}, xcUITestTarget.EnvironmentVariables, "EnvironmentVariables mismatch")
 }
 
 func TestTestingEnvironmentVariables_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
-	assert.Equal(t, map[string]any{}, xcTestRunData.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
+	assert.Equal(t, map[string]any{}, xcUITestTarget.TestingEnvironmentVariables, "TestingEnvironmentVariables mismatch")
 }
 
 func TestCommandLineArguments_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
-	assert.Equal(t, []string{}, xcTestRunData.CommandLineArguments, "CommandLineArguments mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
+	assert.Equal(t, []string{}, xcUITestTarget.CommandLineArguments, "CommandLineArguments mismatch")
 }
 
 func TestIsUITestBundle_XCTestRunFileVersion2_XCUITest(t *testing.T) {
-	xcTestRunData := parseXCTestRunVersion2(t, true)
-	assert.Equal(t, true, xcTestRunData.IsUITestBundle, "IsUITestBundle mismatch")
+	// Arrange: parse version 2 of xctestrun file and get the XCUITest target from the 'Test Target' array.
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
+
+	// Assert
+	assert.Equal(t, true, xcUITestTarget.IsUITestBundle, "IsUITestBundle mismatch")
 }
 
 // Helper function to create testConfig from parsed mock data using .xctestrun file format v2
@@ -579,8 +309,11 @@ func TestIsUITestBundle_XCTestRunFileVersion2_XCUITest(t *testing.T) {
 // If includeUITest is false, it returns a non-UI test configuration.
 func createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t *testing.T, includeUITest bool) (TestConfig, ios.DeviceEntry, *TestListener) {
 	// Arrange: Create parsed XCTestRunData using the helper function
-	xcTestRunData := parseXCTestRunVersion2(t, includeUITest)
+	testTargets, err := parseFile("testdata/format_version_2.xctestrun")
+	assert.NoError(t, err, "Failed to parse .xctestrun file")
+	xcUITestTarget := testTargets[1]
 
+	// Assert
 	// Mock dependencies
 	mockDevice := ios.DeviceEntry{
 		DeviceID: 8110,
@@ -588,7 +321,7 @@ func createTestConfigFromParsedMockDataUsingXCTestRunFileV2(t *testing.T, includ
 	mockListener := &TestListener{}
 
 	// Act: Convert XCTestRunData to TestConfig
-	testConfig, err := xcTestRunData.buildTestConfig(mockDevice, mockListener)
+	testConfig, err := xcUITestTarget.buildTestConfig(mockDevice, mockListener)
 
 	// Assert: Validate the returned TestConfig
 	assert.NoError(t, err, "Error converting to TestConfig")
