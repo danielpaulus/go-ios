@@ -276,7 +276,6 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 	var targetErrors []error
 	for _, target := range xcTestTargets {
 		listener.reset()
-		log.Infof("target is: %v", target)
 		suites, err := RunTestWithConfig(ctx, target)
 		if err != nil {
 			targetErrors = append(targetErrors, err)
