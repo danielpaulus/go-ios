@@ -74,6 +74,9 @@ func RunAgent(mode string, args ...string) error {
 		return fmt.Errorf("RunAgent: unknown mode: %s. Only 'kernel' and 'user' are supported", mode)
 	}
 
+	// OS specific SysProcAttr assignment
+	cmd.SysProcAttr = createSysProcAttr()
+
 	err = cmd.Start()
 
 	if err != nil {
