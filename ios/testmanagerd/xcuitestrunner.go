@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -256,14 +257,12 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 			fmt.Errorf("error parsing xctestrun file: %w", err),
 		}
 	}
+	svc, _ := installationproxy.New(device)
+	allApps, _ := svc.BrowseUserApps()
 
 	var xcTestTargets []TestConfig
 	for i, r := range xctestSpecification {
-		if r.IsUITestBundle {
-			log.Info("go-ios currently only supports XCTests to run with xctestrun files")
-			continue
-		}
-		tc, err := r.buildTestConfig(device, listener)
+		tc, err := r.buildTestConfig(device, listener, allApps)
 		if err != nil {
 			return nil, []error{
 				fmt.Errorf("building test config at index %d: %w", i, err),
@@ -622,4 +621,15 @@ func getappInfo(bundleID string, apps []installationproxy.AppInfo) (appInfo, err
 	}
 
 	return appInfo{}, fmt.Errorf("Did not find test app for '%s' on device. Is it installed?", bundleID)
+}
+
+func getBundleID(apps []installationproxy.AppInfo, uiTargetAppPath string) *string {
+	var appNameWithSuffix = filepath.Base(uiTargetAppPath)
+	var uiTargetAppName = strings.TrimSuffix(appNameWithSuffix, ".app")
+	for _, app := range apps {
+		if app.CFBundleName == uiTargetAppName {
+			return &app.CFBundleIdentifier
+		}
+	}
+	return nil
 }

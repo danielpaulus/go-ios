@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"howett.net/plist"
 	"io"
 	"maps"
@@ -21,25 +22,35 @@ import (
 
 // schemeData represents the structure of a scheme-specific test configuration
 type schemeData struct {
-	TestHostBundleIdentifier    string
-	TestBundlePath              string
-	SkipTestIdentifiers         []string
-	OnlyTestIdentifiers         []string
-	IsUITestBundle              bool
-	CommandLineArguments        []string
-	EnvironmentVariables        map[string]any
-	TestingEnvironmentVariables map[string]any
+	TestHostBundleIdentifier        string
+	TestBundlePath                  string
+	SkipTestIdentifiers             []string
+	OnlyTestIdentifiers             []string
+	IsUITestBundle                  bool
+	CommandLineArguments            []string
+	EnvironmentVariables            map[string]any
+	TestingEnvironmentVariables     map[string]any
+	UITargetAppEnvironmentVariables map[string]any
+	UITargetAppPath                 string
 }
 
-func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
+func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener, allAps []installationproxy.AppInfo) (TestConfig, error) {
 	testsToRun := data.OnlyTestIdentifiers
 	testsToSkip := data.SkipTestIdentifiers
 
 	testEnv := make(map[string]any)
+	var bundleId string
 
 	if data.IsUITestBundle {
 		maps.Copy(testEnv, data.EnvironmentVariables)
 		maps.Copy(testEnv, data.TestingEnvironmentVariables)
+		maps.Copy(testEnv, data.UITargetAppEnvironmentVariables)
+		// Only call getBundleID if :
+		// - allAps is provided
+		// - UITargetAppPath is populated since it can be empty for UI tests in some edge cases
+		if len(data.UITargetAppPath) > 0 && allAps != nil {
+			bundleId = *getBundleID(allAps, data.UITargetAppPath)
+		}
 	}
 
 	// Extract only the file name
@@ -47,6 +58,7 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 
 	// Build the TestConfig object from parsed data
 	testConfig := TestConfig{
+		BundleId:           bundleId,
 		TestRunnerBundleId: data.TestHostBundleIdentifier,
 		XctestConfigName:   testBundlePath,
 		Args:               data.CommandLineArguments,

@@ -2,6 +2,7 @@ package testmanagerd
 
 import (
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -61,7 +62,7 @@ func TestBuildTestConfigV1(t *testing.T) {
 	// Act: Convert testConfigSpecification to TestConfig
 	var testConfigs []TestConfig
 	for _, r := range testConfigSpecification {
-		tc, _ := r.buildTestConfig(mockDevice, mockListener)
+		tc, _ := r.buildTestConfig(mockDevice, mockListener, nil)
 		testConfigs = append(testConfigs, tc)
 	}
 
@@ -118,7 +119,9 @@ func TestParsingV2(t *testing.T) {
 			SkipTestIdentifiers: []string{
 				"SkippedTests", "SkippedTests/testThatAlwaysFailsAndShouldBeSkipped",
 			},
-			IsUITestBundle: false,
+			IsUITestBundle:                  false,
+			UITargetAppEnvironmentVariables: nil,
+			UITargetAppPath:                 "",
 		},
 		{
 			TestHostBundleIdentifier: "saucelabs.FakeCounterAppUITests.xctrunner",
@@ -134,6 +137,10 @@ func TestParsingV2(t *testing.T) {
 			OnlyTestIdentifiers:         nil,
 			SkipTestIdentifiers:         nil,
 			IsUITestBundle:              true,
+			UITargetAppEnvironmentVariables: map[string]any{
+				"APP_DISTRIBUTOR_ID_OVERRIDE": "com.apple.AppStore",
+			},
+			UITargetAppPath: "__TESTROOT__/Debug-iphoneos/FakeCounterApp.app",
 		},
 	}
 
@@ -148,10 +155,16 @@ func TestBuildTestConfigV2(t *testing.T) {
 		DeviceID: 8110,
 	}
 	mockListener := &TestListener{}
-
+	// Build allApps mock data to verify the getBundleID function
+	allAppsMockData := []installationproxy.AppInfo{
+		{
+			CFBundleName:       "FakeCounterApp",
+			CFBundleIdentifier: "saucelabs.FakeCounterApp",
+		},
+	}
 	var testConfigs []TestConfig
 	for _, r := range testConfigSpecification {
-		tc, _ := r.buildTestConfig(mockDevice, mockListener)
+		tc, _ := r.buildTestConfig(mockDevice, mockListener, allAppsMockData)
 		testConfigs = append(testConfigs, tc)
 	}
 
@@ -168,6 +181,7 @@ func TestBuildTestConfigV2(t *testing.T) {
 			Listener:           mockListener,
 		},
 		{
+			BundleId:           "saucelabs.FakeCounterApp",
 			TestRunnerBundleId: "saucelabs.FakeCounterAppUITests.xctrunner",
 			XctestConfigName:   "FakeCounterAppUITests.xctest",
 			Args:               []string{},
