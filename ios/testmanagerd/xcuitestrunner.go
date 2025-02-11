@@ -249,12 +249,10 @@ type TestConfig struct {
 	Listener *TestListener
 }
 
-func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, []error) {
+func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
 	xctestSpecification, err := parseFile(xctestrunFilePath)
 	if err != nil {
-		return nil, []error{
-			fmt.Errorf("error parsing xctestrun file: %w", err),
-		}
+		return nil, fmt.Errorf("error parsing xctestrun file: %w", err)
 	}
 
 	xcTestTargets := make([]TestConfig, len(xctestSpecification))
@@ -265,9 +263,7 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		}
 		tc, err := r.buildTestConfig(device, listener)
 		if err != nil {
-			return nil, []error{
-				fmt.Errorf("building test config at index %d: %w", i, err),
-			}
+			return nil, fmt.Errorf("building test config at index %d: %w", i, err)
 		}
 		xcTestTargets[i] = tc
 	}
@@ -282,7 +278,7 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 		}
 		results = append(results, suites...)
 	}
-	return results, targetErrors
+	return results, targetErrors[0]
 }
 
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {
