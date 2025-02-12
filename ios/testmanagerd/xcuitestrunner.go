@@ -256,14 +256,10 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 			fmt.Errorf("error parsing xctestrun file: %w", err),
 		}
 	}
-
+	installedApps := getUserInstalledApps(err, device)
 	var xcTestTargets []TestConfig
 	for i, r := range xctestSpecification {
-		if r.IsUITestBundle {
-			log.Info("go-ios currently only supports XCTests to run with xctestrun files")
-			continue
-		}
-		tc, err := r.buildTestConfig(device, listener)
+		tc, err := r.buildTestConfig(device, listener, installedApps)
 		if err != nil {
 			return nil, []error{
 				fmt.Errorf("building test config at index %d: %w", i, err),
@@ -622,4 +618,19 @@ func getappInfo(bundleID string, apps []installationproxy.AppInfo) (appInfo, err
 	}
 
 	return appInfo{}, fmt.Errorf("Did not find test app for '%s' on device. Is it installed?", bundleID)
+}
+
+func getUserInstalledApps(err error, device ios.DeviceEntry) []installationproxy.AppInfo {
+	svc, err := installationproxy.New(device)
+	if err != nil {
+		log.WithError(err).Debug("we couldn't create ios device connection")
+		return nil
+	}
+	defer svc.Close()
+	installedApps, err := svc.BrowseUserApps()
+	if err != nil {
+		log.WithError(err).Debug("we couldn't fetch the installed user apps")
+		return nil
+	}
+	return installedApps
 }
