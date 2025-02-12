@@ -256,9 +256,7 @@ func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device
 			fmt.Errorf("error parsing xctestrun file: %w", err),
 		}
 	}
-	svc, _ := installationproxy.New(device)
-	installedApps, _ := svc.BrowseUserApps()
-
+	installedApps := getUserInstalledApps(err, device)
 	var xcTestTargets []TestConfig
 	for i, r := range xctestSpecification {
 		tc, err := r.buildTestConfig(device, listener, installedApps)
@@ -620,4 +618,19 @@ func getappInfo(bundleID string, apps []installationproxy.AppInfo) (appInfo, err
 	}
 
 	return appInfo{}, fmt.Errorf("Did not find test app for '%s' on device. Is it installed?", bundleID)
+}
+
+func getUserInstalledApps(err error, device ios.DeviceEntry) []installationproxy.AppInfo {
+	svc, err := installationproxy.New(device)
+	if err != nil {
+		log.Debugf("we countn't connect to ios device: %w", err)
+		return nil
+	}
+	installedApps, err := svc.BrowseUserApps()
+	if err != nil {
+		log.Debugf("we couldn't fetch the installed user apps: %w", err)
+		return nil
+	}
+	svc.Close()
+	return installedApps
 }
