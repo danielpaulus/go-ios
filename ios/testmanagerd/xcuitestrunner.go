@@ -626,8 +626,8 @@ func getUserInstalledApps(err error, device ios.DeviceEntry) []installationproxy
 		log.WithError(err).Debug("we couldn't create ios device connection")
 		return nil
 	}
+	defer svc.Close()
 	installedApps, err := svc.BrowseUserApps()
-	svc.Close()
 	if err != nil {
 		log.WithError(err).Debug("we couldn't fetch the installed user apps")
 		return nil
