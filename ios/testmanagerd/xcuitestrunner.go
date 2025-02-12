@@ -623,12 +623,12 @@ func getappInfo(bundleID string, apps []installationproxy.AppInfo) (appInfo, err
 func getUserInstalledApps(err error, device ios.DeviceEntry) []installationproxy.AppInfo {
 	svc, err := installationproxy.New(device)
 	if err != nil {
-		log.Debugf("we countn't connect to ios device: %+v", err)
+		log.WithError(err).Debug("we couldn't create ios device connection")
 		return nil
 	}
 	installedApps, err := svc.BrowseUserApps()
 	if err != nil {
-		log.Debugf("we couldn't fetch the installed user apps: %+v", err)
+		log.WithError(err).Debug("we couldn't fetch the installed user apps")
 		return nil
 	}
 	svc.Close()
