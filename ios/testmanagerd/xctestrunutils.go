@@ -2,72 +2,71 @@ package testmanagerd
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"howett.net/plist"
 	"io"
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-// xctestrunutils provides utilities for parsing `.xctestrun` files with FormatVersion 1.
+// xctestrunutils provides utilities for parsing `.xctestrun` files.
 // It simplifies the extraction of test configurations and metadata into structured objects (`xCTestRunData`),
 // enabling efficient setup for iOS test execution.
 //
 // Features:
 // - Parses `.xctestrun` files to extract test metadata and configurations.
 // - Supports building `TestConfig` objects for test execution.
-//
-// Note: Only `.xctestrun` files with `FormatVersion` 1 are supported. For other versions,
-// contributions or requests for support can be made in the relevant GitHub repository.
-
-// xCTestRunData represents the structure of an .xctestrun file
-type xCTestRunData struct {
-	TestConfig        schemeData        `plist:"-"`
-	XCTestRunMetadata xCTestRunMetadata `plist:"__xctestrun_metadata__"`
-}
 
 // schemeData represents the structure of a scheme-specific test configuration
 type schemeData struct {
-	TestHostBundleIdentifier    string
-	TestBundlePath              string
-	SkipTestIdentifiers         []string
-	OnlyTestIdentifiers         []string
-	IsUITestBundle              bool
-	CommandLineArguments        []string
-	EnvironmentVariables        map[string]any
-	TestingEnvironmentVariables map[string]any
+	TestHostBundleIdentifier        string
+	TestBundlePath                  string
+	SkipTestIdentifiers             []string
+	OnlyTestIdentifiers             []string
+	IsUITestBundle                  bool
+	CommandLineArguments            []string
+	EnvironmentVariables            map[string]any
+	TestingEnvironmentVariables     map[string]any
+	UITargetAppEnvironmentVariables map[string]any
+	UITargetAppPath                 string
 }
 
-// XCTestRunMetadata contains metadata about the .xctestrun file
-type xCTestRunMetadata struct {
-	FormatVersion int `plist:"FormatVersion"`
-}
-
-func (data xCTestRunData) buildTestConfig(device ios.DeviceEntry, listener *TestListener) (TestConfig, error) {
-	testsToRun := data.TestConfig.OnlyTestIdentifiers
-	testsToSkip := data.TestConfig.SkipTestIdentifiers
+func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener, installedApps []installationproxy.AppInfo) (TestConfig, error) {
+	testsToRun := data.OnlyTestIdentifiers
+	testsToSkip := data.SkipTestIdentifiers
 
 	testEnv := make(map[string]any)
-	if data.TestConfig.IsUITestBundle {
-		maps.Copy(testEnv, data.TestConfig.EnvironmentVariables)
-		maps.Copy(testEnv, data.TestConfig.TestingEnvironmentVariables)
+	var bundleId string
+
+	if data.IsUITestBundle {
+		maps.Copy(testEnv, data.EnvironmentVariables)
+		maps.Copy(testEnv, data.TestingEnvironmentVariables)
+		maps.Copy(testEnv, data.UITargetAppEnvironmentVariables)
+		// Only call getBundleID if :
+		// - allAps is provided
+		// - UITargetAppPath is populated since it can be empty for UI tests in some edge cases
+		if len(data.UITargetAppPath) > 0 && installedApps != nil {
+			bundleId = getBundleId(installedApps, data.UITargetAppPath)
+		}
 	}
 
 	// Extract only the file name
-	var testBundlePath = filepath.Base(data.TestConfig.TestBundlePath)
+	var testBundlePath = filepath.Base(data.TestBundlePath)
 
 	// Build the TestConfig object from parsed data
 	testConfig := TestConfig{
-		TestRunnerBundleId: data.TestConfig.TestHostBundleIdentifier,
+		BundleId:           bundleId,
+		TestRunnerBundleId: data.TestHostBundleIdentifier,
 		XctestConfigName:   testBundlePath,
-		Args:               data.TestConfig.CommandLineArguments,
+		Args:               data.CommandLineArguments,
 		Env:                testEnv,
 		TestsToRun:         testsToRun,
 		TestsToSkip:        testsToSkip,
-		XcTest:             !data.TestConfig.IsUITestBundle,
+		XcTest:             !data.IsUITestBundle,
 		Device:             device,
 		Listener:           listener,
 	}
@@ -76,69 +75,66 @@ func (data xCTestRunData) buildTestConfig(device ios.DeviceEntry, listener *Test
 }
 
 // parseFile reads the .xctestrun file and decodes it into a map
-func parseFile(filePath string) (xCTestRunData, error) {
+func parseFile(filePath string) ([]schemeData, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return xCTestRunData{}, fmt.Errorf("failed to open xctestrun file: %w", err)
+		return []schemeData{}, fmt.Errorf("failed to open xctestrun file: %w", err)
 	}
 	defer file.Close()
 	return decode(file)
 }
 
 // decode decodes the binary xctestrun content into the xCTestRunData struct
-func decode(r io.Reader) (xCTestRunData, error) {
+func decode(r io.Reader) ([]schemeData, error) {
 	// Read the entire content once
-	content, err := io.ReadAll(r)
+	xctestrunFileContent, err := io.ReadAll(r)
 	if err != nil {
-		return xCTestRunData{}, fmt.Errorf("failed to read content: %w", err)
+		return []schemeData{}, fmt.Errorf("unable to read xctestrun content: %w", err)
 	}
 
-	// Use a single map for initial parsing
-	var rawData map[string]interface{}
-	if _, err := plist.Unmarshal(content, &rawData); err != nil {
-		return xCTestRunData{}, fmt.Errorf("failed to unmarshal plist: %w", err)
+	// First, we only parse the version property of the xctestrun file. The rest of the parsing depends on this version.
+	version, err := getFormatVersion(xctestrunFileContent)
+	if err != nil {
+		return []schemeData{}, err
 	}
 
-	result := xCTestRunData{
-		TestConfig: schemeData{}, // Initialize TestConfig
-	}
-
-	// Parse metadata
-	metadataMap, ok := rawData["__xctestrun_metadata__"].(map[string]interface{})
-	if !ok {
-		return xCTestRunData{}, errors.New("invalid or missing __xctestrun_metadata__")
-	}
-
-	// Direct decoding of metadata to avoid additional conversion
-	switch v := metadataMap["FormatVersion"].(type) {
-	case int:
-		result.XCTestRunMetadata.FormatVersion = v
-	case uint64:
-		result.XCTestRunMetadata.FormatVersion = int(v)
+	switch version {
+	case 1:
+		return parseVersion1(xctestrunFileContent)
+	case 2:
+		return parseVersion2(xctestrunFileContent)
 	default:
-		return xCTestRunData{}, fmt.Errorf("unexpected FormatVersion type: %T", metadataMap["FormatVersion"])
+		return []schemeData{}, fmt.Errorf("the provided .xctestrun format version %d is not supported", version)
 	}
-
-	// Verify FormatVersion
-	if result.XCTestRunMetadata.FormatVersion != 1 {
-		return result, fmt.Errorf("go-ios currently only supports .xctestrun files in formatVersion 1: "+
-			"The formatVersion of your xctestrun file is %d, feel free to open an issue in https://github.com/danielpaulus/go-ios/issues to "+
-			"add support", result.XCTestRunMetadata.FormatVersion)
-	}
-
-	// Parse test schemes
-	if err := parseTestSchemes(rawData, &result.TestConfig); err != nil {
-		return xCTestRunData{}, err
-	}
-
-	return result, nil
 }
 
-// parseTestSchemes extracts and parses test schemes from the raw data
-func parseTestSchemes(rawData map[string]interface{}, scheme *schemeData) error {
-	// Dynamically find and parse test schemes
-	for key, value := range rawData {
-		// Skip metadata key
+// Helper method to get the format version of the xctestrun file
+func getFormatVersion(xctestrunFileContent []byte) (int, error) {
+
+	type xCTestRunMetadata struct {
+		Metadata struct {
+			Version int `plist:"FormatVersion"`
+		} `plist:"__xctestrun_metadata__"`
+	}
+
+	var metadata xCTestRunMetadata
+	if _, err := plist.Unmarshal(xctestrunFileContent, &metadata); err != nil {
+		return 0, fmt.Errorf("failed to parse format version: %w", err)
+	}
+
+	return metadata.Metadata.Version, nil
+}
+
+func parseVersion1(xctestrunFile []byte) ([]schemeData, error) {
+	// xctestrun files in version 1 use a dynamic key for the pListRoot of the TestConfig. As in the 'key' for the TestConfig is the name
+	// of the app. This forces us to iterate over the root of the plist, instead of using a static struct to decode the xctestrun file.
+	var pListRoot map[string]interface{}
+	if _, err := plist.Unmarshal(xctestrunFile, &pListRoot); err != nil {
+		return []schemeData{}, fmt.Errorf("failed to unmarshal plist: %w", err)
+	}
+
+	for key, value := range pListRoot {
+		// Skip the metadata object
 		if key == "__xctestrun_metadata__" {
 			continue
 		}
@@ -154,19 +150,50 @@ func parseTestSchemes(rawData map[string]interface{}, scheme *schemeData) error 
 		schemeBuf := new(bytes.Buffer)
 		encoder := plist.NewEncoder(schemeBuf)
 		if err := encoder.Encode(schemeMap); err != nil {
-			return fmt.Errorf("failed to encode scheme %s: %w", key, err)
+			return []schemeData{}, fmt.Errorf("failed to encode scheme %s: %w", key, err)
 		}
 
 		// Decode the plist buffer into schemeData
 		decoder := plist.NewDecoder(bytes.NewReader(schemeBuf.Bytes()))
 		if err := decoder.Decode(&schemeParsed); err != nil {
-			return fmt.Errorf("failed to decode scheme %s: %w", key, err)
+			return []schemeData{}, fmt.Errorf("failed to decode scheme %s: %w", key, err)
 		}
+		return []schemeData{schemeParsed}, nil
+	}
+	return []schemeData{}, nil
+}
 
-		// Store the scheme in the result TestConfig
-		*scheme = schemeParsed
-		break // Only one scheme expected, break after the first valid scheme
+func parseVersion2(content []byte) ([]schemeData, error) {
+	type xCTestRunVersion2 struct {
+		ContainerInfo struct {
+			ContainerName string `plist:"ContainerName"`
+		} `plist:"ContainerInfo"`
+		TestConfigurations []struct {
+			TestTargets []schemeData `plist:"TestTargets"`
+		} `plist:"TestConfigurations"`
 	}
 
-	return nil
+	var testConfigs xCTestRunVersion2
+	if _, err := plist.Unmarshal(content, &testConfigs); err != nil {
+		return []schemeData{}, fmt.Errorf("failed to parse format version: %w", err)
+	}
+
+	// Check if TestConfigurations is empty
+	if len(testConfigs.TestConfigurations) != 1 {
+		return []schemeData{}, fmt.Errorf("The .xctestrun file you provided contained %d entries in the TestConfiguration list. This list should contain exactly 1 entry. Please revisit your test configuration so that it only contains one entry.", len(testConfigs.TestConfigurations))
+	}
+
+	// If we have exactly one TestConfiguration, return the TestTargets
+	return testConfigs.TestConfigurations[0].TestTargets, nil
+}
+
+func getBundleId(installedApps []installationproxy.AppInfo, uiTargetAppPath string) string {
+	var appNameWithSuffix = filepath.Base(uiTargetAppPath)
+	var uiTargetAppName = strings.TrimSuffix(appNameWithSuffix, ".app")
+	for _, app := range installedApps {
+		if app.CFBundleName == uiTargetAppName {
+			return app.CFBundleIdentifier
+		}
+	}
+	return ""
 }

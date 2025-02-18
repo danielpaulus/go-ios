@@ -3,6 +3,7 @@ package afc
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	log "github.com/sirupsen/logrus"
+	"howett.net/plist"
 )
 
 const serviceName = "com.apple.afc"
@@ -46,6 +48,67 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 		return nil, err
 	}
 	return &Connection{deviceConn: deviceConn}, nil
+}
+
+func NewContainer(device ios.DeviceEntry, bundleID string) (*Connection, error) {
+	deviceConn, err := ios.ConnectToService(device, "com.apple.mobile.house_arrest")
+	if err != nil {
+		return nil, err
+	}
+	err = VendContainer(deviceConn, bundleID)
+	if err != nil {
+		return nil, err
+	}
+	return &Connection{deviceConn: deviceConn}, nil
+}
+
+func VendContainer(deviceConn ios.DeviceConnectionInterface, bundleID string) error {
+	plistCodec := ios.NewPlistCodec()
+	vendContainer := map[string]interface{}{"Command": "VendContainer", "Identifier": bundleID}
+	msg, err := plistCodec.Encode(vendContainer)
+	if err != nil {
+		return fmt.Errorf("VendContainer Encoding cannot fail unless the encoder is broken: %v", err)
+	}
+	err = deviceConn.Send(msg)
+	if err != nil {
+		return err
+	}
+	reader := deviceConn.Reader()
+	response, err := plistCodec.Decode(reader)
+	if err != nil {
+		return err
+	}
+	return checkResponse(response)
+}
+
+func checkResponse(vendContainerResponseBytes []byte) error {
+	response, err := plistFromBytes(vendContainerResponseBytes)
+	if err != nil {
+		return err
+	}
+	if "Complete" == response.Status {
+		return nil
+	}
+	if response.Error != "" {
+		return errors.New(response.Error)
+	}
+	return errors.New("unknown error during vendcontainer")
+}
+
+func plistFromBytes(plistBytes []byte) (vendContainerResponse, error) {
+	var vendResponse vendContainerResponse
+	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
+
+	err := decoder.Decode(&vendResponse)
+	if err != nil {
+		return vendResponse, err
+	}
+	return vendResponse, nil
+}
+
+type vendContainerResponse struct {
+	Status string
+	Error  string
 }
 
 // NewFromConn allows to use AFC on a DeviceConnectionInterface, see crashreport for an example
