@@ -250,19 +250,32 @@ type TestConfig struct {
 }
 
 func StartXCTestWithConfig(ctx context.Context, xctestrunFilePath string, device ios.DeviceEntry, listener *TestListener) ([]TestSuite, error) {
-	results, err := parseFile(xctestrunFilePath)
+	xctestSpecification, err := parseFile(xctestrunFilePath)
 	if err != nil {
-		log.Errorf("Error parsing xctestrun file: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("error parsing xctestrun file: %w", err)
+	}
+	installedApps := getUserInstalledApps(err, device)
+	var xcTestTargets []TestConfig
+	for i, r := range xctestSpecification {
+		tc, err := r.buildTestConfig(device, listener, installedApps)
+		if err != nil {
+			return nil, fmt.Errorf("building test config at index %d: %w", i, err)
+		}
+		xcTestTargets = append(xcTestTargets, tc)
 	}
 
-	testConfig, err := results.buildTestConfig(device, listener)
-	if err != nil {
-		log.Errorf("Error while constructing the test config: %v", err)
-		return nil, err
+	var results []TestSuite
+	var targetErrors []error
+	for _, target := range xcTestTargets {
+		listener.reset()
+		suites, err := RunTestWithConfig(ctx, target)
+		if err != nil {
+			targetErrors = append(targetErrors, err)
+		}
+		results = append(results, suites...)
 	}
 
-	return RunTestWithConfig(ctx, testConfig)
+	return results, errors.Join(targetErrors...)
 }
 
 func RunTestWithConfig(ctx context.Context, testConfig TestConfig) ([]TestSuite, error) {
@@ -602,4 +615,19 @@ func getappInfo(bundleID string, apps []installationproxy.AppInfo) (appInfo, err
 	}
 
 	return appInfo{}, fmt.Errorf("Did not find test app for '%s' on device. Is it installed?", bundleID)
+}
+
+func getUserInstalledApps(err error, device ios.DeviceEntry) []installationproxy.AppInfo {
+	svc, err := installationproxy.New(device)
+	if err != nil {
+		log.WithError(err).Debug("we couldn't create ios device connection")
+		return nil
+	}
+	defer svc.Close()
+	installedApps, err := svc.BrowseUserApps()
+	if err != nil {
+		log.WithError(err).Debug("we couldn't fetch the installed user apps")
+		return nil
+	}
+	return installedApps
 }
