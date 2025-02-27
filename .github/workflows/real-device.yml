@@ -41,11 +41,12 @@ jobs:
           rm testdata/test1*
 
       - name: upload the macos build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: signed-wda
           path: testdata/wda-signed.ipa
           retention-days: 1
+          overwrite: true
 
   test_on_windows:
     runs-on: windows-latest
@@ -64,7 +65,7 @@ jobs:
       - name: compile
         run: go build
       - name: Download mac signed wda from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: signed-wda
 
@@ -104,7 +105,7 @@ jobs:
           cache: true
 
       - name: Download mac release from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: signed-wda
 
