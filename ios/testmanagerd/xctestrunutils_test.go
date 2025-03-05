@@ -8,7 +8,7 @@ import (
 )
 
 // Helper function to create mock data and parse the .xctestrun file
-func setupParsing(t *testing.T, filePath string) []TestConfiguration {
+func setupParsing(t *testing.T, filePath string) []testConfiguration {
 	// Act: parse version 1 of xctestrun file
 	xcTestRunData, err := parseFile(filePath)
 	assert.NoError(t, err, "Failed to parse .xctestrun file")
@@ -18,7 +18,7 @@ func setupParsing(t *testing.T, filePath string) []TestConfiguration {
 // Test Parsing an xctestrun file with format version 1
 func TestParsingV1(t *testing.T) {
 	xcTestRunData := setupParsing(t, "testdata/format_version_1.xctestrun")
-	var expectedTestConfigurations = []TestConfiguration{
+	var expectedTestConfigurations = []testConfiguration{
 		{
 			Name: "",
 			TestTargets: []schemeData{
@@ -107,7 +107,7 @@ func TestBuildTestConfigV1(t *testing.T) {
 func TestParsingV2(t *testing.T) {
 	testTargets := setupParsing(t, "testdata/format_version_2.xctestrun")
 
-	var expectedTestConfigurations = []TestConfiguration{
+	var expectedTestConfigurations = []testConfiguration{
 		{
 			Name: "Test Scheme Action",
 			TestTargets: []schemeData{
@@ -163,7 +163,7 @@ func TestParsingV2(t *testing.T) {
 func TestParsingV2_Multiple(t *testing.T) {
 	testTargets := setupParsing(t, "testdata/format_version_2_multiple.xctestrun")
 
-	var expectedTestConfigurations = []TestConfiguration{
+	var expectedTestConfigurations = []testConfiguration{
 		{
 			Name: "TestCounterApp_1",
 			TestTargets: []schemeData{
