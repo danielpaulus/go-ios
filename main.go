@@ -407,7 +407,7 @@ The commands work as following:
 			} else {
 				b, err := marshalJSON(services)
 				exitIfError("failed json conversion", err)
-				println(string(b))
+				fmt.Println(string(b))
 			}
 			return
 		}
@@ -491,7 +491,7 @@ The commands work as following:
 	if b {
 		ip, err := pcap.FindIp(device)
 		exitIfError("failed", err)
-		println(convertToJSONString(ip))
+		fmt.Println(convertToJSONString(ip))
 		return
 	}
 
@@ -1424,7 +1424,7 @@ func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 					return
 				}
 				s, _ := json.Marshal(notification)
-				println(string(s))
+				fmt.Println(string(s))
 			}
 		}()
 		c := make(chan os.Signal, 1)
@@ -1470,7 +1470,7 @@ func crashCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			}
 			files, err := crashreport.ListReports(device, pattern)
 			exitIfError("failed listing crashreports", err)
-			println(
+			fmt.Println(
 				convertToJSONString(
 					map[string]interface{}{"files": files, "length": len(files)},
 				),
@@ -1507,7 +1507,7 @@ func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId s
 		} else {
 			b, err := marshalJSON(profileTypes)
 			exitIfError("failed json conversion", err)
-			println(string(b))
+			fmt.Println(string(b))
 		}
 		return
 	}
