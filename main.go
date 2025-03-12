@@ -996,13 +996,15 @@ The commands work as following:
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
 
-			log.Info(fmt.Printf("%+v", testResults))
+			fmt.Println(convertToJSONString(testResults))
 		} else {
 			config.Listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
-			_, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
+			testResults, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xcuitest")
 			}
+
+			fmt.Println(convertToJSONString(testResults))
 		}
 		return
 	}
@@ -1028,13 +1030,15 @@ The commands work as following:
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xctest")
 			}
 
-			log.Info(fmt.Printf("%+v", testResults))
+			fmt.Println(convertToJSONString(testResults))
 		} else {
 			var listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
-			_, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, device, listener)
+			testResults, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, device, listener)
 			if err != nil {
 				log.WithFields(log.Fields{"error": err}).Info("Failed running Xctest")
 			}
+
+			fmt.Println(convertToJSONString(testResults))
 		}
 		return
 	}
