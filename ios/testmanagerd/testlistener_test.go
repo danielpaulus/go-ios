@@ -226,6 +226,26 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 
 		assert.Equal(t, "test", string(attachment), "Attachment content should be put in a file")
 	})
+
+	t.Run("Check test case without suite initialization", func(t *testing.T) {
+		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
+
+		// This should trigger the nil pointer dereference error if not handled properly
+		// Call testCaseDidStartForClass without first calling testSuiteDidStart
+		assert.NotPanics(t, func() {
+			testListener.testCaseDidStartForClass("mysuite", "mymethod")
+		})
+
+		// Verify that a new suite was created automatically
+		assert.Equal(t, 1, len(testListener.TestSuites), "A test suite should be created automatically")
+
+		// Verify the test case was added to the newly created suite
+		assert.Equal(t, 1, len(testListener.TestSuites[0].TestCases), "TestCase must be appended to list of test cases")
+		assert.Equal(t, TestCase{
+			ClassName:  "mysuite",
+			MethodName: "mymethod",
+		}, testListener.TestSuites[0].TestCases[0])
+	})
 }
 
 type assertionWriter struct {
