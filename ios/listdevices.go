@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"time"
 
 	plist "howett.net/plist"
 )
@@ -102,7 +103,45 @@ func (muxConn *UsbMuxConnection) ListDevices() (DeviceList, error) {
 	if err != nil {
 		return DeviceList{}, fmt.Errorf("Failed getting devicelist: %v", err)
 	}
+	muxResponse := MuxResponsefromBytes(response.Payload)
+	if muxResponse.Number == 4294967295 {
+		// get list of devices from Listen
+		// this is a workaround for the case where connected devices more than 34
+		return muxConn.ListDevicesFromListen()
+	}
 	return DeviceListfromBytes(response.Payload), nil
+}
+
+func (muxConn *UsbMuxConnection) ListDevicesFromListen() (DeviceList, error) {
+	attachedReceiver, err := muxConn.Listen()
+	if err != nil {
+		return DeviceList{}, fmt.Errorf("Failed to start listening: %v", err)
+	}
+	defer muxConn.Close()
+
+	deviceEntryChan := make(chan DeviceEntry)
+	go func() {
+		for {
+			msg, err := attachedReceiver()
+			if err != nil {
+				break
+			}
+			if msg.DeviceAttached() {
+				deviceEntryChan <- msg.DeviceEntry()
+			}
+		}
+	}()
+	var deviceList = DeviceList{
+		DeviceList: make([]DeviceEntry, 0, 40),
+	}
+	for {
+		select {
+		case entry := <-deviceEntryChan:
+			deviceList.DeviceList = append(deviceList.DeviceList, entry)
+		case <-time.After(100 * time.Millisecond):
+			return deviceList, nil
+		}
+	}
 }
 
 // ListDevices returns a DeviceList containing data about all
