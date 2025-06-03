@@ -164,7 +164,31 @@ func (t *TestListener) testSuiteDidStart(suiteName string, date string) {
 }
 
 func (t *TestListener) testCaseDidStartForClass(testClass string, testMethod string) {
+	// Find the existing test suite or create a new one if not found
 	ts := t.findTestSuite(testClass)
+	if ts == nil {
+		// If no test suite is found and we're not in a running test suite,
+		// we should use the runningTestSuite instead of creating a new one.
+		// This handles cases where testCaseDidStartForClass is called before
+		// testSuiteDidStart, which would otherwise result in a nil pointer dereference.
+
+		if t.runningTestSuite != nil {
+			ts = t.runningTestSuite
+		} else {
+			// Create a new test suite for this class if no running suite exists.
+			// We initialize TestCases as an empty slice to avoid potential issues with nil slices.
+			d := time.Now()
+			newSuite := TestSuite{
+				Name:      testClass,
+				StartDate: d,
+				TestCases: []TestCase{},
+			}
+			t.TestSuites = append(t.TestSuites, newSuite)
+			ts = &t.TestSuites[len(t.TestSuites)-1]
+		}
+	}
+
+	// Add the test case to the suite
 	ts.TestCases = append(ts.TestCases, TestCase{
 		ClassName:  testClass,
 		MethodName: testMethod,
