@@ -12,6 +12,11 @@ import (
 
 const serviceName = "com.apple.mobile.installation_proxy"
 
+const (
+	DTXcode      = "DTXcode"
+	DTXcodeBuild = "DTXcodeBuild"
+)
+
 type Connection struct {
 	deviceConn ios.DeviceConnectionInterface
 	plistCodec ios.PlistCodec

@@ -1978,14 +1978,14 @@ func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool
 
 	if list {
 		for _, v := range response {
-			fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString())
+			fmt.Printf("%s %s %s\n", v.CFBundleIdentifier(), v.CFBundleName(), v.CFBundleShortVersionString())
 		}
 		return
 	}
 	if filesharing {
 		for _, v := range response {
 			if v.UIFileSharingEnabled() {
-				fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString())
+				fmt.Printf("%s %s %s\n", v.CFBundleIdentifier(), v.CFBundleName(), v.CFBundleShortVersionString())
 			}
 		}
 		return
