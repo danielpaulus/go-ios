@@ -134,30 +134,7 @@ func plistFromBytes(plistBytes []byte) (BrowseResponse, error) {
 }
 
 func browseApps(applicationType string, showLaunchProhibitedApps bool) map[string]interface{} {
-	returnAttributes := []string{
-		"ApplicationDSID",
-		"ApplicationType",
-		"CFBundleDisplayName",
-		"CFBundleExecutable",
-		"CFBundleIdentifier",
-		"CFBundleName",
-		"CFBundleShortVersionString",
-		"CFBundleVersion",
-		"Container",
-		"Entitlements",
-		"EnvironmentVariables",
-		"MinimumOSVersion",
-		"Path",
-		"ProfileValidated",
-		"SBAppTags",
-		"SignerIdentity",
-		"UIDeviceFamily",
-		"UIRequiredDeviceCapabilities",
-		"UIFileSharingEnabled",
-	}
-	clientOptions := map[string]interface{}{
-		"ReturnAttributes": returnAttributes,
-	}
+	clientOptions := map[string]any{}
 	if applicationType != "" && applicationType != "Filesharing" {
 		clientOptions["ApplicationType"] = applicationType
 	}
@@ -173,24 +150,53 @@ type BrowseResponse struct {
 	Status        string
 	CurrentList   []AppInfo
 }
-type AppInfo struct {
-	ApplicationDSID              int
-	ApplicationType              string
-	CFBundleDisplayName          string
-	CFBundleExecutable           string
-	CFBundleIdentifier           string
-	CFBundleName                 string
-	CFBundleShortVersionString   string
-	CFBundleVersion              string
-	Container                    string
-	Entitlements                 map[string]interface{}
-	EnvironmentVariables         map[string]interface{}
-	MinimumOSVersion             string
-	Path                         string
-	ProfileValidated             bool
-	SBAppTags                    []string
-	SignerIdentity               string
-	UIDeviceFamily               []int
-	UIRequiredDeviceCapabilities []string
-	UIFileSharingEnabled         bool
+type AppInfo map[string]any
+
+func (a AppInfo) CFBundleIdentifier() string {
+	if bundleId, ok := a["CFBundleIdentifier"].(string); ok {
+		return bundleId
+	}
+	return ""
+}
+
+func (a AppInfo) Path() string {
+	if path, ok := a["Path"].(string); ok {
+		return path
+	}
+	return ""
+}
+
+func (a AppInfo) CFBundleName() string {
+	if bundleName, ok := a["CFBundleName"].(string); ok {
+		return bundleName
+	}
+	return ""
+}
+
+func (a AppInfo) EnvironmentVariables() map[string]any {
+	if envVars, ok := a["EnvironmentVariables"].(map[string]any); ok {
+		return envVars
+	}
+	return make(map[string]any)
+}
+
+func (a AppInfo) CFBundleExecutable() string {
+	if executable, ok := a["CFBundleExecutable"].(string); ok {
+		return executable
+	}
+	return ""
+}
+
+func (a AppInfo) CFBundleShortVersionString() string {
+	if shortVersion, ok := a["CFBundleShortVersionString"].(string); ok {
+		return shortVersion
+	}
+	return ""
+}
+
+func (a AppInfo) UIFileSharingEnabled() bool {
+	if fileSharingEnabled, ok := a["UIFileSharingEnabled"].(bool); ok {
+		return fileSharingEnabled
+	}
+	return false
 }
