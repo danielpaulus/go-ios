@@ -13,8 +13,28 @@ import (
 const serviceName = "com.apple.mobile.installation_proxy"
 
 const (
-	DTXcode      = "DTXcode"
-	DTXcodeBuild = "DTXcodeBuild"
+	// ApplicationType shows if this is a 'User', 'System' or 'Hidden' app
+	ApplicationType            = "ApplicationType"
+	CFBundleDisplayName        = "CFBundleDisplayName"
+	CFBundleExecutable         = "CFBundleExecutable"
+	CFBundleIdentifier         = "CFBundleIdentifier"
+	CFBundleName               = "CFBundleName"
+	CFBundleNumericVersion     = "CFBundleNumericVersion"
+	CFBundleShortVersionString = "CFBundleShortVersionString"
+	CFBundleSupportedPlatforms = "CFBundleSupportedPlatforms"
+	CFBundleVersion            = "CFBundleVersion"
+	// DTXcode is the Xcode version the app was built with (e.g. Xcode 16.4 is '1640')
+	DTXcode = "DTXcode"
+	// DTXcodeBuild is the Xcode build version the app was built with
+	DTXcodeBuild         = "DTXcodeBuild"
+	Entitlements         = "Entitlements"
+	EnvironmentVariables = "EnvironmentVariables"
+	// MinimumOSVersion defines the minimum supported iOS version
+	MinimumOSVersion = "MinimumOSVersion"
+	Path             = "Path"
+	// UIDeviceFamily slice of integers for supported devices types where a value of '1' means iPhone, and '2' iPad
+	UIDeviceFamily       = "UIDeviceFamily"
+	UIFileSharingEnabled = "UIFileSharingEnabled"
 )
 
 type Connection struct {
@@ -158,49 +178,49 @@ type BrowseResponse struct {
 type AppInfo map[string]any
 
 func (a AppInfo) CFBundleIdentifier() string {
-	if bundleId, ok := a["CFBundleIdentifier"].(string); ok {
+	if bundleId, ok := a[CFBundleIdentifier].(string); ok {
 		return bundleId
 	}
 	return ""
 }
 
 func (a AppInfo) Path() string {
-	if path, ok := a["Path"].(string); ok {
+	if path, ok := a[Path].(string); ok {
 		return path
 	}
 	return ""
 }
 
 func (a AppInfo) CFBundleName() string {
-	if bundleName, ok := a["CFBundleName"].(string); ok {
+	if bundleName, ok := a[CFBundleName].(string); ok {
 		return bundleName
 	}
 	return ""
 }
 
 func (a AppInfo) EnvironmentVariables() map[string]any {
-	if envVars, ok := a["EnvironmentVariables"].(map[string]any); ok {
+	if envVars, ok := a[EnvironmentVariables].(map[string]any); ok {
 		return envVars
 	}
 	return make(map[string]any)
 }
 
 func (a AppInfo) CFBundleExecutable() string {
-	if executable, ok := a["CFBundleExecutable"].(string); ok {
+	if executable, ok := a[CFBundleExecutable].(string); ok {
 		return executable
 	}
 	return ""
 }
 
 func (a AppInfo) CFBundleShortVersionString() string {
-	if shortVersion, ok := a["CFBundleShortVersionString"].(string); ok {
+	if shortVersion, ok := a[CFBundleShortVersionString].(string); ok {
 		return shortVersion
 	}
 	return ""
 }
 
 func (a AppInfo) UIFileSharingEnabled() bool {
-	if fileSharingEnabled, ok := a["UIFileSharingEnabled"].(bool); ok {
+	if fileSharingEnabled, ok := a[UIFileSharingEnabled].(bool); ok {
 		return fileSharingEnabled
 	}
 	return false
