@@ -1,10 +1,11 @@
 package testmanagerd
 
 import (
+	"testing"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 // Helper function to create mock data and parse the .xctestrun file
@@ -270,8 +271,8 @@ func TestBuildTestConfigV2(t *testing.T) {
 	// Build allApps mock data to verify the getBundleID function
 	allAppsMockData := []installationproxy.AppInfo{
 		{
-			CFBundleName:       "FakeCounterApp",
-			CFBundleIdentifier: "saucelabs.FakeCounterApp",
+			"CFBundleName":       "FakeCounterApp",
+			"CFBundleIdentifier": "saucelabs.FakeCounterApp",
 		},
 	}
 	var testConfigs []TestConfig

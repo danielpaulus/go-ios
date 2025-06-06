@@ -906,8 +906,8 @@ The commands work as following:
 			exitIfError("browsing apps failed", err)
 
 			for _, app := range response {
-				if app.CFBundleIdentifier == bundleID {
-					processName = app.CFBundleExecutable
+				if app.CFBundleIdentifier() == bundleID {
+					processName = app.CFBundleExecutable()
 					break
 				}
 			}
@@ -1978,14 +1978,14 @@ func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool
 
 	if list {
 		for _, v := range response {
-			fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString)
+			fmt.Printf("%s %s %s\n", v.CFBundleIdentifier(), v.CFBundleName(), v.CFBundleShortVersionString())
 		}
 		return
 	}
 	if filesharing {
 		for _, v := range response {
-			if v.UIFileSharingEnabled {
-				fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString)
+			if v.UIFileSharingEnabled() {
+				fmt.Printf("%s %s %s\n", v.CFBundleIdentifier(), v.CFBundleName(), v.CFBundleShortVersionString())
 			}
 		}
 		return
@@ -2157,7 +2157,7 @@ func outputProcessListNoJSON(device ios.DeviceEntry, processes []instruments.Pro
 		log.Error("browsing installed apps failed. bundleID will not be included in output")
 	} else {
 		for _, app := range response {
-			appInfoByExecutableName[app.CFBundleExecutable] = app
+			appInfoByExecutableName[app.CFBundleExecutable()] = app
 		}
 	}
 
@@ -2179,7 +2179,7 @@ func outputProcessListNoJSON(device ios.DeviceEntry, processes []instruments.Pro
 		bundleID := ""
 		appInfo, exists := appInfoByExecutableName[processInfo.Name]
 		if exists {
-			bundleID = appInfo.CFBundleIdentifier
+			bundleID = appInfo.CFBundleIdentifier()
 		}
 		fmt.Printf("%*d %-*s %s  %s\n", maxPidLength, processInfo.Pid, maxNameLength, processInfo.Name, processInfo.StartDate.Format("2006-01-02 15:04:05"), bundleID)
 	}

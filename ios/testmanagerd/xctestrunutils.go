@@ -3,14 +3,15 @@ package testmanagerd
 import (
 	"bytes"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/installationproxy"
-	"howett.net/plist"
 	"io"
 	"maps"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/installationproxy"
+	"howett.net/plist"
 )
 
 // xctestrunutils provides utilities for parsing `.xctestrun` files.
@@ -198,8 +199,8 @@ func getBundleId(installedApps []installationproxy.AppInfo, uiTargetAppPath stri
 	var appNameWithSuffix = filepath.Base(uiTargetAppPath)
 	var uiTargetAppName = strings.TrimSuffix(appNameWithSuffix, ".app")
 	for _, app := range installedApps {
-		if app.CFBundleName == uiTargetAppName {
-			return app.CFBundleIdentifier
+		if app.CFBundleName() == uiTargetAppName {
+			return app.CFBundleIdentifier()
 		}
 	}
 	return ""
