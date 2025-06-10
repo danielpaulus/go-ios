@@ -176,8 +176,8 @@ func Start(device ios.DeviceEntry, appPath string, stopAtEntry bool) error {
 	}
 	var container string
 	for _, ai := range appinfo {
-		if ai.CFBundleIdentifier == bundleId {
-			container = ai.Path
+		if ai.CFBundleIdentifier() == bundleId {
+			container = ai.Path()
 			break
 		}
 	}
