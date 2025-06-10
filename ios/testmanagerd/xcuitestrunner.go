@@ -320,35 +320,11 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 	defer conn2.Close()
 
-	installationProxy, err := installationproxy.New(config.Device)
-	if err != nil {
-		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot connect to installation proxy: %w", err)
-	}
-	defer installationProxy.Close()
-	apps, err := installationProxy.BrowseUserApps()
-	if err != nil {
-		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot browse user apps: %w", err)
-	}
-
-	testAppInfo, err := getappInfo(config.TestRunnerBundleId, apps)
-	if err != nil {
-		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot get test app information: %w", err)
-	}
-
-	info := testInfo{
-		testApp: testAppInfo,
-	}
-
-	if config.BundleId != "" {
-		appInfo, err := getappInfo(config.BundleId, apps)
-		if err != nil {
-			return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot get app information: %w", err)
-		}
-
-		info.targetApp = appInfo
-	}
-
 	testSessionID := uuid.New()
+	info, err := getTestInfo(config.Device, config.BundleId, config.TestRunnerBundleId)
+	if err != nil {
+		return make([]TestSuite, 0), fmt.Errorf("runXUITestWithBundleIdsXcode15Ctx: cannot build test info: %w", err)
+	}
 	testconfig := createTestConfig(info, testSessionID, config.XctestConfigName, config.TestsToRun, config.TestsToSkip, config.XcTest, version)
 	ideDaemonProxy1 := newDtxProxyWithConfig(conn1, testconfig, config.Listener)
 
@@ -517,22 +493,21 @@ func startTestRunner17(appserviceConn *appservice.Connection, bundleID string, s
 	return appLaunch, nil
 }
 
-func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string, testsToRun []string, testsToSkip []string, isXCTest bool, version *semver.Version) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
-	testSessionID := uuid.New()
+func getTestInfo(device ios.DeviceEntry, bundleID string, testRunnerBundleID string) (testInfo, error) {
 	installationProxy, err := installationproxy.New(device)
 	if err != nil {
-		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return testInfo{}, fmt.Errorf("cannot connect to installation proxy: %w", err)
 	}
 	defer installationProxy.Close()
 
 	apps, err := installationProxy.BrowseUserApps()
 	if err != nil {
-		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return testInfo{}, fmt.Errorf("cannot browse user apps: %w", err)
 	}
 
 	testAppInfo, err := getappInfo(testRunnerBundleID, apps)
 	if err != nil {
-		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		return testInfo{}, fmt.Errorf("cannot get test app information: %w", err)
 	}
 
 	info := testInfo{
@@ -542,25 +517,76 @@ func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID s
 	if bundleID != "" {
 		appInfo, err := getappInfo(bundleID, apps)
 		if err != nil {
-			return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+			return testInfo{}, fmt.Errorf("cannot get app information: %w", err)
 		}
 		log.Debugf("app info found: %+v", appInfo)
 
 		info.targetApp = appInfo
 	}
 
-	houseArrestService, err := house_arrest.New(device, testRunnerBundleID)
-	defer houseArrestService.Close()
+	return info, nil
+}
+
+func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string, testsToRun []string,
+	testsToSkip []string, isXCTest bool, version *semver.Version,
+) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
+	info, err := getTestInfo(device, bundleID, testRunnerBundleID)
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
+
+	houseArrestService, err := house_arrest.New(device, testRunnerBundleID)
+	if err != nil {
+		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+	}
+	defer houseArrestService.Close()
+
 	log.Debugf("creating test config")
+	testSessionID := uuid.New()
 	testConfigPath, testConfig, err := createTestConfigOnDevice(testSessionID, info, houseArrestService, xctestConfigFileName, testsToRun, testsToSkip, isXCTest, version)
 	if err != nil {
 		return uuid.UUID{}, "", nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
 	}
 
 	return testSessionID, testConfigPath, testConfig, info, nil
+}
+
+func setupXcuiTest12(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string, testsToRun []string, testsToSkip []string, isXCTest bool, version *semver.Version) (uuid.UUID, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
+	testSessionID := uuid.New()
+	installationProxy, err := installationproxy.New(device)
+	if err != nil {
+		return uuid.UUID{}, nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+	}
+	defer installationProxy.Close()
+
+	apps, err := installationProxy.BrowseUserApps()
+	if err != nil {
+		return uuid.UUID{}, nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+	}
+
+	testAppInfo, err := getappInfo(testRunnerBundleID, apps)
+	if err != nil {
+		return uuid.UUID{}, nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+	}
+
+	info := testInfo{
+		testApp: testAppInfo,
+	}
+
+	if bundleID != "" {
+		appInfo, err := getappInfo(bundleID, apps)
+		if err != nil {
+			return uuid.UUID{}, nskeyedarchiver.XCTestConfiguration{}, testInfo{}, err
+		}
+		log.Debugf("app info found: %+v", appInfo)
+
+		info.targetApp = appInfo
+	}
+
+	log.Debugf("creating test config")
+	testConfig := createTestConfig(info, testSessionID, xctestConfigFileName, testsToRun, testsToSkip, isXCTest, version)
+
+	return testSessionID, testConfig, info, nil
 }
 
 func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *house_arrest.Connection, xctestConfigFileName string, testsToRun []string, testsToSkip []string, isXCTest bool, version *semver.Version) (string, nskeyedarchiver.XCTestConfiguration, error) {
