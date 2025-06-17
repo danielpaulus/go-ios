@@ -280,6 +280,10 @@ func (t *TestListener) TestRunnerKilled() {
 }
 
 func (t *TestListener) FinishWithError(err error) {
+	if t.runningTestSuite != nil {
+		t.TestSuites = append(t.TestSuites, *t.runningTestSuite)
+		t.runningTestSuite = nil
+	}
 	t.err = err
 	t.executionFinished()
 }
