@@ -1,6 +1,7 @@
 package testmanagerd
 
 import (
+	"errors"
 	"io"
 	"os"
 	"sync"
@@ -147,6 +148,18 @@ func TestFinishExecutingTestPlan(t *testing.T) {
 		testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
 		testListener.testCaseDidStartForClass("mysuite", "mymethod")
 		testListener.testCaseDidFinishForTest("mysuite", "mymethod", "passed", 1.0)
+
+		t.Run("Check running test suite is saved on FinishWithError", func(t *testing.T) {
+			testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
+
+			testListener.testSuiteDidStart("mysuite", "2024-01-16 15:36:43 +0000")
+			testListener.testCaseDidStartForClass("mysuite", "mymethod")
+			testListener.FinishWithError(errors.New("test error"))
+
+			assert.Equal(t, 1, len(testListener.TestSuites))
+			assert.Equal(t, "mysuite", testListener.TestSuites[0].Name)
+			assert.Equal(t, 1, len(testListener.TestSuites[0].TestCases))
+		})
 
 		assert.Equal(t, 1, len(testListener.runningTestSuite.TestCases), "TestCase must be appended to list of test cases")
 		assert.Equal(t, TestCaseStatus("passed"), testListener.runningTestSuite.TestCases[0].Status)
