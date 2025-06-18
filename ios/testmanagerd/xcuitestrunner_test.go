@@ -90,6 +90,7 @@ func TestXcuiTest(t *testing.T) {
 	select {
 	case <-time.After(time.Second * 50):
 		t.Error("timeout")
+		stopWda()
 		return
 	case <-wdaStarted:
 		log.Info("wda started successfully")
