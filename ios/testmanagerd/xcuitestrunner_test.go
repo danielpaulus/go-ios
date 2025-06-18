@@ -123,7 +123,7 @@ func signAndInstall(device ios.DeviceEntry) error {
 	svc, _ := installationproxy.New(device)
 	response, err := svc.BrowseUserApps()
 	for _, info := range response {
-		if bundleId == info.CFBundleIdentifier {
+		if bundleId == info.CFBundleIdentifier() {
 			log.Info("wda installed, skipping installation")
 			return nil
 		}
