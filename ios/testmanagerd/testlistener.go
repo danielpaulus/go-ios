@@ -306,8 +306,14 @@ func (t *TestListener) findTestCase(className string, methodName string) *TestCa
 }
 
 func (t *TestListener) findTestSuite(className string) *TestSuite {
-	if t.runningTestSuite != nil && t.runningTestSuite.Name == className {
-		return t.runningTestSuite
+	if t.runningTestSuite != nil {
+		if t.runningTestSuite.Name == className {
+			return t.runningTestSuite
+		}
+		// Check if className ends with "|suiteName"
+		if strings.HasSuffix(className, "|"+t.runningTestSuite.Name) {
+			return t.runningTestSuite
+		}
 	}
 
 	return nil
