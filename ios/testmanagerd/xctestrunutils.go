@@ -37,7 +37,7 @@ type schemeData struct {
 }
 
 type testConfiguration struct {
-	Name        string       `plist:"Name"`
+	Name        string       `plist:"DiplayName"`
 	TestTargets []schemeData `plist:"TestTargets"`
 }
 
