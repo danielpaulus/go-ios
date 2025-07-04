@@ -277,49 +277,49 @@ func TestFindTestSuite(t *testing.T) {
 	t.Run("Exact match finds test suite", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 		testListener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
-		
+
 		result := testListener.findTestSuite("ShowAlert")
 		assert.NotNil(t, result)
 		assert.Equal(t, "ShowAlert", result.Name)
 	})
-	
+
 	t.Run("Suffix match with delimiter finds test suite", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 		testListener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
-		
+
 		result := testListener.findTestSuite("HelloButton|ShowAlert")
 		assert.NotNil(t, result)
 		assert.Equal(t, "ShowAlert", result.Name)
 	})
-	
+
 	t.Run("Suffix match with multiple delimiters finds test suite", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 		testListener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
-		
+
 		result := testListener.findTestSuite("Feature|Scenario|ShowAlert")
 		assert.NotNil(t, result)
 		assert.Equal(t, "ShowAlert", result.Name)
 	})
-	
+
 	t.Run("No match returns nil", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 		testListener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
-		
+
 		result := testListener.findTestSuite("DifferentTest")
 		assert.Nil(t, result)
 	})
-	
+
 	t.Run("Partial match without delimiter returns nil", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
 		testListener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
-		
+
 		result := testListener.findTestSuite("ShowAlertTest")
 		assert.Nil(t, result)
 	})
-	
+
 	t.Run("No running test suite returns nil", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
-		
+
 		result := testListener.findTestSuite("ShowAlert")
 		assert.Nil(t, result)
 	})
@@ -328,38 +328,38 @@ func TestFindTestSuite(t *testing.T) {
 func TestFindTestSuiteIntegration(t *testing.T) {
 	t.Run("Test case status is updated with suffix matching", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
-		
+
 		// Start test suite
 		testListener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
-		
+
 		// Start test case with prefixed class name
 		testListener.testCaseDidStartForClass("HelloButton|ShowAlert", "GivenILaunchTheApp")
-		
+
 		// Finish test case - this should now work with suffix matching
 		testListener.testCaseDidFinishForTest("HelloButton|ShowAlert", "GivenILaunchTheApp", "passed", 1.0)
-		
+
 		// Verify the test case was found and status updated
 		assert.Equal(t, 1, len(testListener.runningTestSuite.TestCases))
 		assert.Equal(t, TestCaseStatus("passed"), testListener.runningTestSuite.TestCases[0].Status)
 		assert.Equal(t, 1.0, testListener.runningTestSuite.TestCases[0].Duration.Seconds())
 	})
-	
+
 	t.Run("Multiple test cases with suffix matching", func(t *testing.T) {
 		testListener := NewTestListener(io.Discard, io.Discard, os.TempDir())
-		
+
 		// Start test suite
 		testListener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
-		
+
 		// Start multiple test cases
 		testListener.testCaseDidStartForClass("HelloButton|ShowAlert", "GivenILaunchTheApp")
 		testListener.testCaseDidFinishForTest("HelloButton|ShowAlert", "GivenILaunchTheApp", "passed", 1.0)
-		
+
 		testListener.testCaseDidStartForClass("HelloButton|ShowAlert", "WhenITapTheHelloButton")
 		testListener.testCaseDidFinishForTest("HelloButton|ShowAlert", "WhenITapTheHelloButton", "passed", 2.0)
-		
+
 		testListener.testCaseDidStartForClass("HelloButton|ShowAlert", "ThenISeeHelloWorldAlert")
 		testListener.testCaseDidFinishForTest("HelloButton|ShowAlert", "ThenISeeHelloWorldAlert", "passed", 3.0)
-		
+
 		// Verify all test cases have correct status
 		assert.Equal(t, 3, len(testListener.runningTestSuite.TestCases))
 		for i, testCase := range testListener.runningTestSuite.TestCases {
