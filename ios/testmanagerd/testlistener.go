@@ -293,25 +293,31 @@ func (t *TestListener) Done() <-chan struct{} {
 }
 
 func (t *TestListener) findTestCase(className string, methodName string) *TestCase {
-	ts := t.findTestSuite(className)
-
-	if ts != nil && len(ts.TestCases) > 0 {
-		tc := &ts.TestCases[len(ts.TestCases)-1]
-		if tc.ClassName == className && tc.MethodName == methodName {
-			return tc
+	if ts := t.findTestSuite(className); ts != nil {
+		if len(ts.TestCases) > 0 {
+			tc := &ts.TestCases[len(ts.TestCases)-1]
+			if tc.ClassName == className && tc.MethodName == methodName {
+				return tc
+			}
 		}
 	}
-
+	
+	if t.runningTestSuite != nil {
+		// Search backwards to find the most recent matching test case without status
+		for i := len(t.runningTestSuite.TestCases) - 1; i >= 0; i-- {
+			tc := &t.runningTestSuite.TestCases[i]
+			if tc.ClassName == className && tc.MethodName == methodName && tc.Status == "" {
+				return tc
+			}
+		}
+	}
+	
 	return nil
 }
 
 func (t *TestListener) findTestSuite(className string) *TestSuite {
 	if t.runningTestSuite != nil {
 		if t.runningTestSuite.Name == className {
-			return t.runningTestSuite
-		}
-		// Check if className ends with "|suiteName"
-		if strings.HasSuffix(className, "|"+t.runningTestSuite.Name) {
 			return t.runningTestSuite
 		}
 	}
