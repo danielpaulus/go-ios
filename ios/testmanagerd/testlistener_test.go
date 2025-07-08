@@ -366,7 +366,7 @@ func TestTestCaseLookup(t *testing.T) {
 
 		cases := listener.runningTestSuite.TestCases
 		assert.Len(t, cases, 3)
-		
+
 		for _, testCase := range cases {
 			assert.NotEqual(t, TestCaseStatus(""), testCase.Status)
 			assert.Greater(t, testCase.Duration.Seconds(), 0.0)
