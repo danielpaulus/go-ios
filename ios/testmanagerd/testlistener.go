@@ -301,7 +301,7 @@ func (t *TestListener) findTestCase(className string, methodName string) *TestCa
 			}
 		}
 	}
-	
+
 	if t.runningTestSuite != nil {
 		// Search backwards to find the most recent matching test case without status
 		for i := len(t.runningTestSuite.TestCases) - 1; i >= 0; i-- {
@@ -311,7 +311,7 @@ func (t *TestListener) findTestCase(className string, methodName string) *TestCa
 			}
 		}
 	}
-	
+
 	return nil
 }
 
