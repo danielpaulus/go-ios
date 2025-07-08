@@ -272,3 +272,104 @@ func (w *assertionWriter) Write(p []byte) (n int, err error) {
 
 	return len(p), nil
 }
+
+func TestFindTestSuite(t *testing.T) {
+	t.Run("finds suite by exact name", func(t *testing.T) {
+		listener := NewTestListener(io.Discard, io.Discard, os.TempDir())
+		listener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
+
+		suite := listener.findTestSuite("ShowAlert")
+		assert.NotNil(t, suite)
+		assert.Equal(t, "ShowAlert", suite.Name)
+	})
+
+	t.Run("returns nil for class names that don't match suite", func(t *testing.T) {
+		listener := NewTestListener(io.Discard, io.Discard, os.TempDir())
+		listener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
+
+		suite := listener.findTestSuite("HelloButton|ShowAlert")
+		assert.Nil(t, suite)
+	})
+
+	t.Run("returns nil for unrelated test names", func(t *testing.T) {
+		listener := NewTestListener(io.Discard, io.Discard, os.TempDir())
+		listener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
+
+		suite := listener.findTestSuite("SomeOtherTest")
+		assert.Nil(t, suite)
+	})
+
+	t.Run("returns nil when no suite is running", func(t *testing.T) {
+		listener := NewTestListener(io.Discard, io.Discard, os.TempDir())
+
+		suite := listener.findTestSuite("ShowAlert")
+		assert.Nil(t, suite)
+	})
+}
+
+func TestTestCaseLookup(t *testing.T) {
+	t.Run("finds test case in different class within same suite", func(t *testing.T) {
+		listener := NewTestListener(io.Discard, io.Discard, os.TempDir())
+		listener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
+		listener.testCaseDidStartForClass("HelloButton|ShowAlert", "GivenILaunchTheApp")
+
+		listener.testCaseDidFinishForTest("HelloButton|ShowAlert", "GivenILaunchTheApp", "passed", 1.0)
+
+		testCase := listener.runningTestSuite.TestCases[0]
+		assert.Equal(t, TestCaseStatus("passed"), testCase.Status)
+		assert.Equal(t, 1.0, testCase.Duration.Seconds())
+	})
+
+	t.Run("handles BDD scenario tests", func(t *testing.T) {
+		listener := NewTestListener(io.Discard, io.Discard, os.TempDir())
+		listener.testSuiteDidStart("ShowAlert", "2024-01-16 15:36:43 +0000")
+
+		listener.testCaseDidStartForClass("HelloButton|ShowAlert", "GivenILaunchTheApp")
+		listener.testCaseDidStartForClass("HelloButton|ShowAlert", "WhenITapTheHelloButton")
+		listener.testCaseDidStartForClass("HelloButton|ShowAlert", "ThenISeeHelloWorldAlert")
+
+		listener.testCaseDidFinishForTest("HelloButton|ShowAlert", "GivenILaunchTheApp", "passed", 1.0)
+		listener.testCaseDidFinishForTest("HelloButton|ShowAlert", "WhenITapTheHelloButton", "passed", 2.0)
+		listener.testCaseDidFinishForTest("HelloButton|ShowAlert", "ThenISeeHelloWorldAlert", "passed", 3.0)
+
+		cases := listener.runningTestSuite.TestCases
+		assert.Len(t, cases, 3)
+		for _, testCase := range cases {
+			assert.Equal(t, TestCaseStatus("passed"), testCase.Status)
+			assert.Greater(t, testCase.Duration.Seconds(), 0.0)
+		}
+	})
+
+	t.Run("works with unrelated class names in suite", func(t *testing.T) {
+		listener := NewTestListener(io.Discard, io.Discard, os.TempDir())
+		listener.testSuiteDidStart("WidgetExpanderTest", "2024-01-16 15:36:43 +0000")
+		listener.testCaseDidStartForClass("MagicTest", "verifyBlablabla")
+
+		listener.testCaseDidFinishForTest("MagicTest", "verifyBlablabla", "passed", 1.0)
+
+		testCase := listener.runningTestSuite.TestCases[0]
+		assert.Equal(t, TestCaseStatus("passed"), testCase.Status)
+		assert.Equal(t, 1.0, testCase.Duration.Seconds())
+	})
+
+	t.Run("handles repeated test executions", func(t *testing.T) {
+		listener := NewTestListener(io.Discard, io.Discard, os.TempDir())
+		listener.testSuiteDidStart("WidgetExpanderTest", "2024-01-16 15:36:43 +0000")
+
+		listener.testCaseDidStartForClass("MagicTest", "verifyBlablabla")
+		listener.testCaseDidStartForClass("MagicTest", "verifyBlablabla")
+		listener.testCaseDidStartForClass("MagicTest", "verifyBlablabla")
+
+		listener.testCaseDidFinishForTest("MagicTest", "verifyBlablabla", "passed", 1.0)
+		listener.testCaseDidFinishForTest("MagicTest", "verifyBlablabla", "passed", 2.0)
+		listener.testCaseDidFinishForTest("MagicTest", "verifyBlablabla", "failed", 3.0)
+
+		cases := listener.runningTestSuite.TestCases
+		assert.Len(t, cases, 3)
+
+		for _, testCase := range cases {
+			assert.NotEqual(t, TestCaseStatus(""), testCase.Status)
+			assert.Greater(t, testCase.Duration.Seconds(), 0.0)
+		}
+	})
+}
