@@ -2,11 +2,13 @@ package springboard
 
 import "fmt"
 
-// internalUnmarshaler is a helper struct that knows how to unmarshal a plist that represents an icon.
+// internalUnmarshaler is a helper struct that knows how to unmarshal a plist that represents an Icon.
 type internalUnmarshaler struct {
 	icon Icon
 }
 
+// UnmarshalPlist will try to unmarshall the different types of Icons we have and populate the icon field
+// with the detected type of Icon
 func (t *internalUnmarshaler) UnmarshalPlist(unmarshal func(interface{}) error) error {
 	var app AppIcon
 	err := unmarshal(&app)

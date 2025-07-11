@@ -17,18 +17,15 @@ func TestListIcons(t *testing.T) {
 		t.Skip("No devices found")
 		return
 	}
-
 	device := list.DeviceList[0]
 
 	client, err := NewClient(device)
-
 	assert.NoError(t, err)
+	defer client.Close()
 
 	screens, err := client.ListIcons()
 
 	assert.NoError(t, err)
-
+	// As the contents are individual to each device, we can only check that something gets returned
 	assert.Greater(t, len(screens), 0)
-
-	defer client.Close()
 }
