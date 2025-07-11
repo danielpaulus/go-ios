@@ -76,7 +76,7 @@ func read(c *Connection) error {
 		if command, ok := message["Command"].(string); ok {
 			switch command {
 			case "RelayNotification":
-				c.notificationChannel <- message["DiplayName"].(string)
+				c.notificationChannel <- message["Name"].(string)
 			case "ProxyDeath":
 				var signal interface{}
 				c.proxyDeathChannel <- signal
@@ -141,5 +141,5 @@ func (c *Connection) newNotification(notification string) bool {
 
 type notificationProxyRequest struct {
 	Command string
-	Name    string `plist:"DiplayName,omitempty"`
+	Name    string `plist:"Name,omitempty"`
 }

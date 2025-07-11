@@ -50,11 +50,11 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 		},
 
 		"PersonalizedDMG": map[string]interface{}{
-			"Digest":     identity.Manifest.PersonalizedDmg.Digest,
-			"EPRO":       true,
-			"ESEC":       true,
-			"DiplayName": "DeveloperDiskImage",
-			"Trusted":    true,
+			"Digest":  identity.Manifest.PersonalizedDmg.Digest,
+			"EPRO":    true,
+			"ESEC":    true,
+			"Name":    "DeveloperDiskImage",
+			"Trusted": true,
 		},
 
 		"SepNonce": make([]byte, 20),
