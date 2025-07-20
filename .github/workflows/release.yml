@@ -8,9 +8,9 @@ jobs:
   build_on_windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Create Release
+      - name: Create release
         id: create_release
         uses: zendesk/action-create-release@v1
         env:
@@ -19,10 +19,9 @@ jobs:
           tag_schema: semantic
 
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
 
       - name: Build
         run: |
@@ -44,13 +43,12 @@ jobs:
     runs-on: macos-latest
     needs: build_on_windows
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
 
       - name: Download win release from previous job
         uses: actions/download-artifact@v4
@@ -87,13 +85,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: build_on_mac
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
 
       - name: Download mac release from previous job
         uses: actions/download-artifact@v4

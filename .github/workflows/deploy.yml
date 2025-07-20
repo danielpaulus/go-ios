@@ -20,18 +20,18 @@ jobs:
         name: Create GitHub deployment
         id: deployment
         with:
-          token: '${{ github.token }}'
+          token: ${{ github.token }}
           environment-url: ${{ env.NGROK_URL }}
           environment: staging
 
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
 
       - name: kill old server
         run: systemctl --user stop goios
+
       - name: compile
         run: |
           cd restapi
@@ -52,16 +52,16 @@ jobs:
         if: success()
         uses: chrnorm/deployment-status@v2
         with:
-          token: '${{ github.token }}'
+          token: ${{ github.token }}
           environment-url: ${{ steps.deployment.outputs.environment_url }}
           deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-          state: 'success'
+          state: success"
 
       - name: Update deployment status (failure)
         if: failure()
         uses: chrnorm/deployment-status@v2
         with:
-          token: '${{ github.token }}'
+          token: ${{ github.token }}
           environment-url: ${{ steps.deployment.outputs.environment_url }}
           deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-          state: 'failure'
+          state: failure
