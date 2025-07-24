@@ -22,7 +22,7 @@ func New(device ios.DeviceEntry, bundleID string) (*Connection, error) {
 	if err != nil {
 		return &Connection{}, err
 	}
-	err = afc.VendContainer(deviceConn, bundleID)
+	err = afc.VendDocuments(deviceConn, bundleID)
 	if err != nil {
 		return &Connection{}, err
 	}
