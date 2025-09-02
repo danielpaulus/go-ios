@@ -13,6 +13,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	device.Use(DeviceMiddleware())
 	simpleDeviceRoutes(device)
 	appRoutes(device)
+	axServiceRoutes(device)
 }
 
 func simpleDeviceRoutes(device *gin.RouterGroup) {
@@ -51,4 +52,19 @@ func appRoutes(group *gin.RouterGroup) {
 	router.POST("/kill", KillApp)
 	router.POST("/install", InstallApp)
 	router.POST("/uninstall", UninstallApp)
+}
+
+func axServiceRoutes(group *gin.RouterGroup) {
+	router := group.Group("/accessibility")
+	router.Use(LimitNumClientsUDID())
+	router.GET("/enable", enableAXService)
+	router.GET("/disable", disableAXService)
+	router.POST("/next", navigateToNextElement)
+	router.POST("/previous", navigateToPrevElement)
+	// ax service performs action
+	router.POST("/perform-action", performDtxAction)
+	// wda performs action
+	router.POST("/wda/perform-action", performWDAAction)
+	// audits
+	router.POST("/audit/run", runAccessibilityAudit)
 }

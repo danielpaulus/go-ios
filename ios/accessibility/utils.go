@@ -3,6 +3,9 @@ package accessibility
 import "fmt"
 
 func convertToStringList(payload []interface{}) ([]string, error) {
+	if payload == nil {
+		return nil, fmt.Errorf("payload is nil")
+	}
 	if len(payload) != 1 {
 		return nil, fmt.Errorf("invalid payload length %d", len(payload))
 	}

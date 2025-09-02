@@ -1,0 +1,681 @@
+definitions:
+  api.GenericResponse:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  api.WdaConfig:
+    properties:
+      args:
+        items:
+          type: string
+        type: array
+      bundleId:
+        type: string
+      env:
+        additionalProperties: true
+        type: object
+      testBundleId:
+        type: string
+      xcTestConfig:
+        type: string
+    required:
+    - bundleId
+    - testBundleId
+    - xcTestConfig
+    type: object
+  api.WdaSession:
+    properties:
+      config:
+        $ref: '#/definitions/api.WdaConfig'
+      sessionId:
+        type: string
+      udid:
+        type: string
+    required:
+    - config
+    - sessionId
+    - udid
+    type: object
+  installationproxy.AppInfo:
+    additionalProperties: {}
+    type: object
+  instruments.Profile:
+    properties:
+      description:
+        type: string
+      identifier:
+        type: string
+      name:
+        type: string
+    type: object
+  instruments.ProfileType:
+    properties:
+      activeProfile:
+        type: string
+      identifier:
+        type: string
+      isActive:
+        type: boolean
+      isDestructive:
+        type: boolean
+      isInternal:
+        type: boolean
+      name:
+        type: string
+      profiles:
+        items:
+          $ref: '#/definitions/instruments.Profile'
+        type: array
+      profilesSorted:
+        type: boolean
+    type: object
+info:
+  contact: {}
+paths:
+  /device/{udid}/accessibility/disable:
+    get:
+      description: Turns off the accessibility session on the device
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Disable accessibility service
+      tags:
+      - accessibility
+  /device/{udid}/accessibility/enable:
+    get:
+      description: Starts an accessibility session on the device and enables selection
+        mode
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Enable accessibility service
+      tags:
+      - accessibility
+  /device/{udid}/accessibility/next:
+    post:
+      description: Moves the selection to the next element using accessibility service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Navigate to next accessible element
+      tags:
+      - accessibility
+  /device/{udid}/accessibility/perform-action:
+    post:
+      description: Performs the default action on the current focused element using
+        DTX
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Perform accessibility action via DTX
+      tags:
+      - accessibility
+  /device/{udid}/accessibility/previous:
+    post:
+      description: Moves the selection to the previous element using accessibility
+        service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Navigate to previous accessible element
+      tags:
+      - accessibility
+  /device/{udid}/accessibility/wda/perform-action:
+    post:
+      description: Performs an action using WebDriverAgent and returns action UUID
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Perform accessibility action via WDA
+      tags:
+      - accessibility
+  /device/{udid}/activate:
+    post:
+      description: Returns and error if activation fails. Otherwise  {"message":"Activation
+        successful"}
+      parameters:
+      - description: Device UDID
+        in: path
+        name: udid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Activate the device by udid
+      tags:
+      - general_device_specific
+      - activation
+  /device/{udid}/apps:
+    post:
+      description: List the installed apps on a device
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/installationproxy.AppInfo'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: List apps on a device
+      tags:
+      - apps
+  /device/{udid}/apps/install:
+    post:
+      description: Install app on a device by uploading an ipa file
+      parameters:
+      - description: ipa file to install
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Install app on a device
+      tags:
+      - apps
+  /device/{udid}/apps/kill:
+    post:
+      description: Kill running app on a device by provided bundleID
+      parameters:
+      - description: bundle identifier of the targeted app
+        in: query
+        name: bundleID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Kill running app on a device
+      tags:
+      - apps
+  /device/{udid}/apps/launch:
+    post:
+      description: Launch app on a device by provided bundleID
+      parameters:
+      - description: bundle identifier of the targeted app
+        in: query
+        name: bundleID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Launch app on a device
+      tags:
+      - apps
+  /device/{udid}/conditions:
+    get:
+      description: Get a list of the available conditions that can be applied on the
+        device
+      parameters:
+      - description: Device UDID
+        in: path
+        name: udid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/instruments.ProfileType'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Get a list of available device conditions
+      tags:
+      - general_device_specific
+  /device/{udid}/disable-condition:
+    post:
+      description: Disable the currently active condition on a device
+      parameters:
+      - description: Device UDID
+        in: path
+        name: udid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Disable the currently active condition on a device
+      tags:
+      - general_device_specific
+  /device/{udid}/enable-condition:
+    put:
+      description: Enable condition on a device by provided profileTypeID and profileID
+      parameters:
+      - description: Device UDID
+        in: path
+        name: udid
+        required: true
+        type: string
+      - description: Identifier of the profile type, eg. SlowNetworkCondition
+        in: query
+        name: profileTypeID
+        required: true
+        type: string
+      - description: Identifier of the sub-profile, eg. SlowNetwork100PctLoss
+        in: query
+        name: profileID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Enable condition on a device
+      tags:
+      - general_device_specific
+  /device/{udid}/info:
+    get:
+      description: Returns all lockdown values and additional instruments properties
+        for development enabled devices.
+      parameters:
+      - description: device udid
+        in: path
+        name: udid
+        required: true
+        type: string
+      - description: Device UDID
+        in: path
+        name: udid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get lockdown info for a device by udid
+      tags:
+      - general_device_specific
+  /device/{udid}/pair:
+    post:
+      description: Pair a device with/without supervision
+      parameters:
+      - description: Device UDID
+        in: path
+        name: udid
+        required: true
+        type: string
+      - description: Set if device is supervised - true/false
+        in: query
+        name: supervised
+        required: true
+        type: string
+      - description: Supervision *.p12 file
+        in: formData
+        name: p12file
+        type: file
+      - description: Supervision password
+        in: formData
+        name: supervision_password
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Pair a device with/without supervision
+      tags:
+      - general_device_specific
+  /device/{udid}/profiles:
+    get:
+      description: get the list of installed profiles from the ios device
+      parameters:
+      - description: Device UDID
+        in: path
+        name: udid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: get the list of profiles
+      tags:
+      - general_device_specific
+  /device/{udid}/resetlocation:
+    post:
+      description: Reset the changed device location to the actual one
+      parameters:
+      - description: Device UDID
+        in: path
+        name: udid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Reset the changed device location
+      tags:
+      - general_device_specific
+  /device/{udid}/screenshot:
+    get:
+      description: Takes a png screenshot and returns it.
+      parameters:
+      - description: device udid
+        in: path
+        name: udid
+        required: true
+        type: string
+      - description: Device UDID
+        in: path
+        name: udid
+        required: true
+        type: string
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              format: int32
+              type: integer
+            type: array
+      summary: Get screenshot for device
+      tags:
+      - general_device_specific
+  /device/{udid}/setlocation:
+    post:
+      description: Change the current device location to provided latitude and longtitude
+      parameters:
+      - description: Location latitude
+        in: query
+        name: latitude
+        required: true
+        type: string
+      - description: Location longtitude
+        in: query
+        name: longtitude
+        required: true
+        type: string
+      - description: Device UDID
+        in: path
+        name: udid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Change the current device location
+      tags:
+      - general_device_specific
+  /list:
+    get:
+      description: get device list of currently connected devices.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get device list
+      tags:
+      - general
+  /listen:
+    get:
+      description: Uses SSE to connect to the LISTEN command
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Uses SSE to connect to the LISTEN command
+      tags:
+      - general
+  /notifications:
+    get:
+      description: uses instruments to get application state change events
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: uses instruments to get application state change events
+      tags:
+      - general
+  /wda/session:
+    post:
+      consumes:
+      - application/json
+      description: Create a new WebDriverAgent session for the specified device
+      parameters:
+      - description: WebDriverAgent Configuration
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/api.WdaConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WdaSession'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Create a new WDA session
+      tags:
+      - WebDriverAgent
+  /wda/session/{sessionId}:
+    delete:
+      description: Delete a WebDriverAgent session by sessionId
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WdaSession'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Delete a WebDriverAgent session
+      tags:
+      - WebDriverAgent
+    get:
+      description: Get a WebDriverAgent session by sessionId
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.WdaSession'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.GenericResponse'
+      summary: Get a WebDriverAgent session
+      tags:
+      - WebDriverAgent
+swagger: "2.0"
