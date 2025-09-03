@@ -104,7 +104,7 @@ func (muxConn *UsbMuxConnection) ListDevices() (DeviceList, error) {
 		return DeviceList{}, fmt.Errorf("Failed getting devicelist: %v", err)
 	}
 	muxResponse := MuxResponsefromBytes(response.Payload)
-	if muxResponse.Number == 4294967295 {
+	if muxResponse.Number == 0xffffffff {
 		// get list of devices from Listen
 		// this is a workaround for the case where connected devices more than 34
 		return muxConn.ListDevicesFromListen()

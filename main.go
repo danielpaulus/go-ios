@@ -297,9 +297,6 @@ The commands work as following:
 	log.Debug(arguments)
 
 	skipAgent, _ := os.LookupEnv("ENABLE_GO_IOS_AGENT")
-	if skipAgent == "yes" {
-		skipAgent = "user"
-	}
 	if skipAgent == "user" || skipAgent == "kernel" {
 		tunnel.RunAgent(skipAgent)
 	}
