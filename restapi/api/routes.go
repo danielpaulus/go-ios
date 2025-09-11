@@ -61,10 +61,16 @@ func axServiceRoutes(group *gin.RouterGroup) {
 	router.GET("/disable", disableAXService)
 	router.POST("/next", navigateToNextElement)
 	router.POST("/previous", navigateToPrevElement)
+	router.POST("/first", navigateToFirstElement)
+	router.POST("/last", navigateToLastElement)
 	// ax service performs action
 	router.POST("/perform-action", performDtxAction)
 	// wda performs action
 	router.POST("/wda/perform-action", performWDAAction)
+	// wda status
+	router.GET("/wda/status", getWDAHostStatus)
+	// timeout configuration
+	router.POST("/timeout", setElementChangeTimeout)
 	// audits
 	router.POST("/audit/run", runAccessibilityAudit)
 }

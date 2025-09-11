@@ -25,6 +25,9 @@ type ControlInterface struct {
 	currentFocusedLabel         string
 	lastFetchAt                 time.Time
 	labelTraverseCount          map[string]int
+	wdaHost                     string        // WDA host for alert detection and actions
+	wdaActionWaitTime           time.Duration // Wait time after WDA action before checking alerts again
+	elementChangeTimeout        time.Duration // Timeout for waiting for element changes
 }
 
 // Direction represents navigation direction values used by AX service
@@ -34,6 +37,44 @@ const (
 	DirectionFirst    int32 = 5
 	DirectionLast     int32 = 6
 )
+
+// NewControlInterface creates a new ControlInterface with the given channel and optional WDA host
+func NewControlInterface(channel *dtx.Channel, wdaHost string) *ControlInterface {
+	return &ControlInterface{
+		channel:              channel,
+		wdaHost:              wdaHost,
+		labelTraverseCount:   make(map[string]int),
+		wdaActionWaitTime:    100 * time.Millisecond, // Default wait time
+		elementChangeTimeout: 1 * time.Second,        // Default timeout for element changes
+	}
+}
+
+// SetWDAHost sets the WDA host for alert detection and actions
+func (a *ControlInterface) SetWDAHost(wdaHost string) {
+	log.Infof("Setting WDA host to: %q", wdaHost)
+	a.wdaHost = wdaHost
+}
+
+// ClearWDAHost clears the WDA host, disabling alert detection
+func (a *ControlInterface) ClearWDAHost() {
+	log.Infof("Clearing WDA host (was: %q)", a.wdaHost)
+	a.wdaHost = ""
+}
+
+// SetWDAActionWaitTime sets the wait time after WDA action before checking alerts again
+func (a *ControlInterface) SetWDAActionWaitTime(waitTime time.Duration) {
+	a.wdaActionWaitTime = waitTime
+}
+
+// SetElementChangeTimeout sets the timeout for waiting for element changes
+func (a *ControlInterface) SetElementChangeTimeout(timeout time.Duration) {
+	a.elementChangeTimeout = timeout
+}
+
+// GetWDAHost returns the current WDA host configuration
+func (a *ControlInterface) GetWDAHost() string {
+	return a.wdaHost
+}
 
 func (a ControlInterface) readhostAppStateChanged() {
 	for {
@@ -295,11 +336,96 @@ func (a *ControlInterface) GetElement() {
 	// }
 	// log.Infof("cursor position: %#v", pos)
 }
+
+// checkForAlerts checks if there are any XCUIElementTypeAlert elements present using WDA
+func (a *ControlInterface) checkForAlerts() (bool, error) {
+	if a.wdaHost == "" {
+		return false, fmt.Errorf("WDA host not configured")
+	}
+
+	findURL := fmt.Sprintf("%s/wda/elementsWithCoords", a.wdaHost)
+	payload := map[string]string{
+		"using": "predicate string",
+		"value": "type == \"XCUIElementTypeAlert\"",
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := http.Post(findURL, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(resp.Body)
+		return false, fmt.Errorf("WDA /elementsWithCoords %d: %s", resp.StatusCode, string(b))
+	}
+
+	var result struct {
+		Value []struct {
+			Element     string             `json:"ELEMENT"`
+			ElementUUID string             `json:"element-6066-11e4-a52e-4f735466cecf"`
+			Rect        map[string]float64 `json:"rect"`
+		} `json:"value"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return false, err
+	}
+
+	// Return true if any alert elements are found
+	return len(result.Value) > 0, nil
+}
+
 func (a *ControlInterface) PerformAction(actionName string) error {
 	if a.currentPlatformElementValue == "" {
 		return fmt.Errorf("no selected element to perform action on")
 	}
 
+	log.Infof("PerformAction called with WDA host: %q", a.wdaHost)
+
+	// Check for alerts first - if alerts are present, use WDA action instead
+	if a.wdaHost != "" {
+		hasAlerts, err := a.checkForAlerts()
+		if err != nil {
+			log.Warnf("Failed to check for alerts, falling back to default action: %v", err)
+		} else if hasAlerts {
+			log.Info("Alert detected, switching to WDA action")
+			_, err := a.PerformWDAAction()
+			if err != nil {
+				return err
+			}
+
+			// After WDA action, check again for alerts to determine next action
+			// Wait for UI to update after the action
+			// time.Sleep(a.wdaActionWaitTime)
+
+			// hasAlertsAfter, err := a.checkForAlerts()
+			// if err != nil {
+			// 	log.Warnf("Failed to check for alerts after WDA action: %v", err)
+			// 	return nil // WDA action succeeded, just log the warning
+			// }
+
+			// if hasAlertsAfter {
+			// 	log.Info("Alert still present after WDA action")
+			// 	return nil // Alert still there, WDA action completed
+			// } else {
+			// 	log.Info("Alert dismissed, switching back to default action")
+			// 	// Alert was dismissed, now perform the original action
+			// 	return a.performDefaultAction(actionName)
+			// }
+		}
+	}
+
+	// If no alerts detected or WDA not configured, perform default action
+	return a.performDefaultAction(actionName)
+}
+
+// performDefaultAction performs the standard accessibility action without alert checking
+func (a *ControlInterface) performDefaultAction(actionName string) error {
 	platformBytes, err := base64.StdEncoding.DecodeString(a.currentPlatformElementValue)
 	if err != nil {
 		return fmt.Errorf("invalid PlatformElementValue_v1 base64: %w", err)
@@ -378,7 +504,12 @@ func (a ControlInterface) ResetToDefaultAccessibilitySettings() error {
 }
 
 func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
-	msg := a.channel.ReceiveMethodCall("hostInspectorCurrentElementChanged:")
+	// Use configurable timeout to prevent indefinite blocking
+	msg, err := a.channel.ReceiveMethodCallWithTimeout("hostInspectorCurrentElementChanged:", a.elementChangeTimeout)
+	if err != nil {
+		log.Errorf("Timeout waiting for hostInspectorCurrentElementChanged (timeout: %v): %v", a.elementChangeTimeout, err)
+		panic(fmt.Sprintf("Timeout waiting for hostInspectorCurrentElementChanged: %s", err))
+	}
 	log.Info("received hostInspectorCurrentElementChanged")
 	result, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 	if err != nil {
@@ -729,6 +860,7 @@ func (a *ControlInterface) getLabelForPlatformElement(platformBase64 string) (st
 }
 
 func (a *ControlInterface) GetElementLabel() (string, error) {
+
 	val, err := a.GetElementAttribute("Label")
 	if err != nil {
 		return "", err
@@ -1166,15 +1298,20 @@ func (a *ControlInterface) ProbeAttributes(attributeNames []string) {
 
 func (a *ControlInterface) ProbeDefaultGeometryAttributes() {
 	defaultAttrs := []string{
-		"AXFrame",
-		"AXActivationPoint",
-		"AXPosition",
-		"AXSize",
-		"AXBounds",
-		"AXFrameInContainerSpace",
+		// "AXFrame",
+		// "AXActivationPoint",
+		// "AXPosition",
+		// "AXSize",
+		// "AXBounds",
+		// "AXFrameInContainerSpace",
 		// sanity checks
+		"axElement",
+		"elementRef",
 		"Label",
 		"Value",
+		"Title",
+		"Name",
+		"Header",
 		"Identifier",
 	}
 	a.ProbeAttributes(defaultAttrs)
@@ -1743,7 +1880,7 @@ func hasAnyKey(m map[string]interface{}, keys ...string) bool {
 }
 
 // Removed WDAElementInfo usage; PerformWDAAction returns uuid after tapping the element
-func (a *ControlInterface) PerformWDAAction(wdaHost string) (string, error) {
+func (a *ControlInterface) PerformWDAAction() (string, error) {
 	// Use the currently focused label captured during GetElement()
 	lastLabel := a.currentFocusedLabel
 	if lastLabel == "" {
@@ -1766,7 +1903,7 @@ func (a *ControlInterface) PerformWDAAction(wdaHost string) (string, error) {
 	}
 
 	// 1) find elements by label predicate via WDA
-	findURL := fmt.Sprintf("%s/wda/elementsWithCoords", wdaHost)
+	findURL := fmt.Sprintf("%s/wda/elementsWithCoords", a.wdaHost)
 	payload := map[string]string{"using": "predicate string", "value": fmt.Sprintf("label == \"%s\"", lastLabel)}
 	body, _ := json.Marshal(payload)
 	resp, err := http.Post(findURL, "application/json", bytes.NewReader(body))
@@ -1818,7 +1955,7 @@ func (a *ControlInterface) PerformWDAAction(wdaHost string) (string, error) {
 	if h, ok := rect["height"]; ok {
 		y += h / 2.0
 	}
-	testObjectURL := fmt.Sprintf("%s/testobject/tap", wdaHost)
+	testObjectURL := fmt.Sprintf("%s/testobject/tap", a.wdaHost)
 	tapArgs := map[string]float64{
 		"x":        x,
 		"y":        y,
@@ -1908,6 +2045,8 @@ func (a *ControlInterface) Move(direction int32) {
 		a.currentFocusedLabel = label
 		log.Infof("label '%s' traverse count=%d", label, current)
 	}
+
+	a.ProbeDefaultGeometryAttributes()
 
 	// issues, err := a.RunAudit()
 	// if err != nil {

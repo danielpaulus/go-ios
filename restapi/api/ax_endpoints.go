@@ -1,12 +1,16 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/accessibility"
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -17,10 +21,11 @@ var (
 
 // enableAXService enables the accessibility service session for the device
 // @Summary      Enable accessibility service
-// @Description  Starts an accessibility session on the device and enables selection mode
+// @Description  Starts an accessibility session on the device and enables selection mode. Optionally accepts WDA host for alert detection.
 // @Tags         accessibility
 // @Produce      json
 // @Param        udid path string true "Device UDID"
+// @Param        wda_host query string false "WDA host for alert detection (e.g., http://192.168.2.196:8100)"
 // @Success      200  {object}  map[string]string
 // @Failure      500  {object}  GenericResponse
 // @Router       /device/{udid}/accessibility/enable [get]
@@ -28,13 +33,34 @@ func enableAXService(c *gin.Context) {
 	axConnMux.Lock()
 	defer axConnMux.Unlock()
 
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+
+	// Get WDA host from query parameter
+	wdaHost := c.Query("wda_host")
+	log.Infof("enableAXService called with wda_host: %q", wdaHost)
+
+	// If service is already enabled, just update WDA host if provided
 	if isAXEnabled && axConn != nil {
-		c.JSON(http.StatusOK, map[string]string{"message": "Accessibility service already enabled"})
+		log.Infof("Service already enabled, updating WDA host to: %q", wdaHost)
+		if wdaHost != "" {
+			axConn.SetWDAHost(wdaHost)
+			c.JSON(http.StatusOK, map[string]string{"message": "Accessibility service already enabled, WDA host updated"})
+		} else {
+			axConn.ClearWDAHost()
+			c.JSON(http.StatusOK, map[string]string{"message": "Accessibility service already enabled, WDA host cleared"})
+		}
 		return
 	}
 
-	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	conn, err := accessibility.New(device)
+	// Create new connection with or without WDA host
+	var conn *accessibility.ControlInterface
+	var err error
+	if wdaHost != "" {
+		conn, err = accessibility.NewWithWDA(device, wdaHost)
+	} else {
+		conn, err = accessibility.New(device)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 		return
@@ -44,7 +70,7 @@ func enableAXService(c *gin.Context) {
 
 	conn.EnableSelectionMode()
 
-	axConn = &conn
+	axConn = conn
 	isAXEnabled = true
 	c.JSON(http.StatusOK, map[string]string{"message": "Accessibility service enabled"})
 }
@@ -122,28 +148,85 @@ func navigateToPrevElement(c *gin.Context) {
 	})
 }
 
-// performDtxAction performs an accessibility action via the DTX channel
-// @Summary      Perform accessibility action via DTX
-// @Description  Performs the default action on the current focused element using DTX
+// navigateToFirstElement moves VoiceOver focus to the first element
+// @Summary      Navigate to first accessible element
+// @Description  Moves the selection to the first element using accessibility service
 // @Tags         accessibility
 // @Produce      json
 // @Param        udid path string true "Device UDID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  GenericResponse
+// @Router       /device/{udid}/accessibility/first [post]
+func navigateToFirstElement(c *gin.Context) {
+	axConnMux.RLock()
+	defer axConnMux.RUnlock()
+
+	if !isAXEnabled || axConn == nil {
+		c.JSON(http.StatusBadRequest, GenericResponse{Error: "Accessibility service not enabled. Call /enable first"})
+		return
+	}
+
+	axConn.Navigate(accessibility.DirectionFirst)
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "Navigated to first element",
+	})
+}
+
+// navigateToLastElement moves VoiceOver focus to the last element
+// @Summary      Navigate to last accessible element
+// @Description  Moves the selection to the last element using accessibility service
+// @Tags         accessibility
+// @Produce      json
+// @Param        udid path string true "Device UDID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  GenericResponse
+// @Router       /device/{udid}/accessibility/last [post]
+func navigateToLastElement(c *gin.Context) {
+	axConnMux.RLock()
+	defer axConnMux.RUnlock()
+
+	if !isAXEnabled || axConn == nil {
+		c.JSON(http.StatusBadRequest, GenericResponse{Error: "Accessibility service not enabled. Call /enable first"})
+		return
+	}
+
+	axConn.Navigate(accessibility.DirectionLast)
+
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "Navigated to last element",
+	})
+}
+
+// performDtxAction performs an accessibility action via the DTX channel
+// @Summary      Perform accessibility action via DTX
+// @Description  Performs the default action on the current focused element using DTX. Optionally accepts WDA host for alert detection.
+// @Tags         accessibility
+// @Produce      json
+// @Param        udid path string true "Device UDID"
+// @Param        wda_host query string false "WDA host for alert detection (e.g., http://192.168.2.196:8100)"
 // @Success      200  {object}  map[string]string
 // @Failure      400  {object}  GenericResponse
 // @Failure      500  {object}  GenericResponse
 // @Router       /device/{udid}/accessibility/perform-action [post]
 func performDtxAction(c *gin.Context) {
-	axConnMux.RLock()
-	defer axConnMux.RUnlock()
+	axConnMux.Lock()
+	defer axConnMux.Unlock()
 
 	if !isAXEnabled || axConn == nil {
 		c.JSON(http.StatusBadRequest, GenericResponse{Error: "Accessibility service not enabled"})
 		return
 	}
 
-	// Construct and send the DTX message using the stored platform value
-	// Example: axConn.PerformAction(currentPlatformElementValue, "Activate")
-	// You'll need to implement PerformAction in your accessibility library
+	// Get WDA host from query parameter
+	wdaHost := c.Query("wda_host")
+	log.Infof("performDtxAction called with wda_host: %q", wdaHost)
+
+	// Only set WDA host if explicitly provided
+	if wdaHost != "" {
+		axConn.SetWDAHost(wdaHost)
+	}
+	// Note: We don't clear the WDA host if not provided - we keep the existing value
 
 	err := axConn.PerformAction("AXAction-2010")
 	if err != nil {
@@ -173,18 +256,81 @@ func performWDAAction(c *gin.Context) {
 		return
 	}
 
-	host := "http://10.15.47.131:8100"
-	if host == "" {
-		c.JSON(http.StatusBadRequest, GenericResponse{Error: "missing X-WDA-Host header (e.g. http://<ip>:8100)"})
-		return
-	}
-
-	uuid, err := axConn.PerformWDAAction(host)
+	uuid, err := axConn.PerformWDAAction()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"uuid": uuid})
+}
+
+// getWDAHostStatus returns the current WDA host configuration
+// @Summary      Get WDA host status
+// @Description  Returns the current WDA host configuration for alert detection
+// @Tags         accessibility
+// @Produce      json
+// @Param        udid path string true "Device UDID"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  GenericResponse
+// @Router       /device/{udid}/accessibility/wda/status [get]
+func getWDAHostStatus(c *gin.Context) {
+	axConnMux.RLock()
+	defer axConnMux.RUnlock()
+
+	if !isAXEnabled || axConn == nil {
+		c.JSON(http.StatusBadRequest, GenericResponse{Error: "Accessibility service not enabled"})
+		return
+	}
+
+	wdaHost := axConn.GetWDAHost()
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"wda_host": wdaHost,
+		"enabled":  wdaHost != "",
+	})
+}
+
+// setElementChangeTimeout sets the timeout for waiting for element changes
+// @Summary      Set element change timeout
+// @Description  Sets the timeout for waiting for element changes in accessibility navigation
+// @Tags         accessibility
+// @Produce      json
+// @Param        udid path string true "Device UDID"
+// @Param        timeout query int false "Timeout in seconds (default: 10)"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  GenericResponse
+// @Router       /device/{udid}/accessibility/timeout [post]
+func setElementChangeTimeout(c *gin.Context) {
+	axConnMux.Lock()
+	defer axConnMux.Unlock()
+
+	if !isAXEnabled || axConn == nil {
+		c.JSON(http.StatusBadRequest, GenericResponse{Error: "Accessibility service not enabled"})
+		return
+	}
+
+	timeoutStr := c.Query("timeout")
+	if timeoutStr == "" {
+		c.JSON(http.StatusBadRequest, GenericResponse{Error: "timeout parameter is required"})
+		return
+	}
+
+	timeoutSeconds, err := strconv.Atoi(timeoutStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, GenericResponse{Error: "invalid timeout value, must be a number"})
+		return
+	}
+
+	if timeoutSeconds <= 0 {
+		c.JSON(http.StatusBadRequest, GenericResponse{Error: "timeout must be greater than 0"})
+		return
+	}
+
+	timeout := time.Duration(timeoutSeconds) * time.Second
+	axConn.SetElementChangeTimeout(timeout)
+
+	c.JSON(http.StatusOK, map[string]string{
+		"message": fmt.Sprintf("Element change timeout set to %d seconds", timeoutSeconds),
+	})
 }
 
 // runAccessibilityAudit triggers an accessibility audit and returns found issues
