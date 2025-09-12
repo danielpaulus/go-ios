@@ -23,6 +23,7 @@ type ControlInterface struct {
 	channel                     *dtx.Channel
 	currentPlatformElementValue string
 	currentFocusedLabel         string
+	currentCaptionText          string
 	lastFetchAt                 time.Time
 	labelTraverseCount          map[string]int
 	wdaHost                     string        // WDA host for alert detection and actions
@@ -45,7 +46,7 @@ func NewControlInterface(channel *dtx.Channel, wdaHost string) *ControlInterface
 		wdaHost:              wdaHost,
 		labelTraverseCount:   make(map[string]int),
 		wdaActionWaitTime:    100 * time.Millisecond, // Default wait time
-		elementChangeTimeout: 1 * time.Second,        // Default timeout for element changes
+		elementChangeTimeout: 5 * time.Second,        // Default timeout for element changes
 	}
 }
 
@@ -242,6 +243,17 @@ func (a *ControlInterface) GetElement() {
 	if !ok {
 		log.Warn("Value[\"Value\"] is not a map")
 		return
+	}
+
+	// Capture caption text if present
+	if capRaw, ok := innerValue["CaptionTextValue_v1"]; ok {
+		capVal := a.deserializeObject(capRaw)
+		if s, ok := capVal.(string); ok && s != "" {
+			a.currentCaptionText = s
+			log.Infof("caption: %q", s)
+		} else if capVal != nil {
+			a.currentCaptionText = fmt.Sprintf("%v", capVal)
+		}
 	}
 
 	elementValue, ok := innerValue["ElementValue_v1"].(map[string]interface{})
@@ -1902,7 +1914,23 @@ func (a *ControlInterface) PerformWDAAction() (string, error) {
 		}
 	}
 
+	// Check if we're dealing with a switch based on currentCaptionText
+	isSwitch := false
+	if a.currentCaptionText != "" {
+		// Look for patterns like "Airplane Mode, 0, Button, Toggle" or "Airplane Mode, 0, Button,"
+		caption := strings.ToLower(a.currentCaptionText)
+		if strings.Contains(caption, "toggle") ||
+			(strings.Contains(caption, "button") && strings.Contains(caption, ",")) {
+			isSwitch = true
+			log.Infof("Detected switch element based on caption: %q", a.currentCaptionText)
+		}
+	}
+
 	// 1) find elements by label predicate via WDA
+	log.Infof("PerformWDAAction: WDA host is: %q", a.wdaHost)
+	if a.wdaHost == "" {
+		return "", fmt.Errorf("WDA host is not set - please enable accessibility service with wda_host parameter")
+	}
 	findURL := fmt.Sprintf("%s/wda/elementsWithCoords", a.wdaHost)
 	payload := map[string]string{"using": "predicate string", "value": fmt.Sprintf("label == \"%s\"", lastLabel)}
 	body, _ := json.Marshal(payload)
@@ -1920,6 +1948,7 @@ func (a *ControlInterface) PerformWDAAction() (string, error) {
 			Element     string             `json:"ELEMENT"`
 			ElementUUID string             `json:"element-6066-11e4-a52e-4f735466cecf"`
 			Rect        map[string]float64 `json:"rect"`
+			Type        string             `json:"type"`
 		} `json:"value"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -1937,6 +1966,29 @@ func (a *ControlInterface) PerformWDAAction() (string, error) {
 	if idx >= len(result.Value) {
 		idx = len(result.Value) - 1
 	}
+
+	// 3) If we detected a switch, look for XCUIElementTypeSwitch in the results
+	if isSwitch {
+		// First try to find a switch element at the same index
+		if idx < len(result.Value) && result.Value[idx].Type == "XCUIElementTypeSwitch" {
+			log.Infof("Found switch element at index %d", idx)
+		} else {
+			// Look for any switch element in the results
+			switchFound := false
+			for i, elem := range result.Value {
+				if elem.Type == "XCUIElementTypeSwitch" {
+					idx = i
+					switchFound = true
+					log.Infof("Found switch element at index %d (was %d)", i, lastCount-1)
+					break
+				}
+			}
+			if !switchFound {
+				log.Warnf("Switch detected but no XCUIElementTypeSwitch found in %d elements", len(result.Value))
+			}
+		}
+	}
+
 	uuid := result.Value[idx].ElementUUID
 	if uuid == "" {
 		uuid = result.Value[idx].Element
@@ -1945,33 +1997,67 @@ func (a *ControlInterface) PerformWDAAction() (string, error) {
 		return "", fmt.Errorf("element uuid not present in WDA reply")
 	}
 
-	// 4) use rect from elementsWithCoords to get x,y and call testobject tap with arguments {x,y,duration}
-	rect := result.Value[idx].Rect
-	x := rect["x"]
-	y := rect["y"]
-	if w, ok := rect["width"]; ok {
-		x += w / 2.0
-	}
-	if h, ok := rect["height"]; ok {
-		y += h / 2.0
-	}
-	testObjectURL := fmt.Sprintf("%s/testobject/tap", a.wdaHost)
-	tapArgs := map[string]float64{
-		"x":        x,
-		"y":        y,
-		"duration": 0,
-	}
-	tapBody, _ := json.Marshal(tapArgs)
-	tapResp, err := http.Post(testObjectURL, "application/json", bytes.NewReader(tapBody))
-	if err != nil {
-		return "", err
-	}
-	defer tapResp.Body.Close()
-	if tapResp.StatusCode < 200 || tapResp.StatusCode >= 300 {
-		b, _ := io.ReadAll(tapResp.Body)
-		return "", fmt.Errorf("testobject/tap %d: %s", tapResp.StatusCode, string(b))
+	// 4) If it's a switch, use WDA click method; otherwise use testobject tap
+	if isSwitch {
+		log.Infof("Clicking switch element with UUID: %s", uuid)
+		err := a.clickElementByUUID(uuid)
+		if err != nil {
+			return "", fmt.Errorf("failed to click switch element: %w", err)
+		}
+	} else {
+		// use rect from elementsWithCoords to get x,y and call testobject tap with arguments {x,y,duration}
+		rect := result.Value[idx].Rect
+		x := rect["x"]
+		y := rect["y"]
+		if w, ok := rect["width"]; ok {
+			x += w / 2.0
+		}
+		if h, ok := rect["height"]; ok {
+			y += h / 2.0
+		}
+		testObjectURL := fmt.Sprintf("%s/testobject/tap", a.wdaHost)
+		tapArgs := map[string]float64{
+			"x":        x,
+			"y":        y,
+			"duration": 0,
+		}
+		tapBody, _ := json.Marshal(tapArgs)
+		tapResp, err := http.Post(testObjectURL, "application/json", bytes.NewReader(tapBody))
+		if err != nil {
+			return "", err
+		}
+		defer tapResp.Body.Close()
+		if tapResp.StatusCode < 200 || tapResp.StatusCode >= 300 {
+			b, _ := io.ReadAll(tapResp.Body)
+			return "", fmt.Errorf("testobject/tap %d: %s", tapResp.StatusCode, string(b))
+		}
 	}
 	return uuid, nil
+}
+
+// clickElementByUUID clicks on an element using WDA's element click method
+func (a *ControlInterface) clickElementByUUID(uuid string) error {
+	if a.wdaHost == "" {
+		return fmt.Errorf("WDA host is not set")
+	}
+
+	// Use WDA's element click method
+	clickURL := fmt.Sprintf("%s/element/%s/click", a.wdaHost, uuid)
+	log.Infof("Clicking element via WDA: %s", clickURL)
+
+	resp, err := http.Post(clickURL, "application/json", nil)
+	if err != nil {
+		return fmt.Errorf("failed to send click request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("WDA element click failed %d: %s", resp.StatusCode, string(b))
+	}
+
+	log.Infof("Element %s clicked successfully", uuid)
+	return nil
 }
 
 func (a ControlInterface) deviceInspectorShowVisuals(val bool) error {
@@ -1999,6 +2085,17 @@ func (a *ControlInterface) Move(direction int32) {
 	if !ok {
 		log.Warn("Value[\"Value\"] is not a map")
 		return
+	}
+
+	// Capture caption text if present
+	if capRaw, ok := innerValue["CaptionTextValue_v1"]; ok {
+		capVal := a.deserializeObject(capRaw)
+		if s, ok := capVal.(string); ok && s != "" {
+			a.currentCaptionText = s
+			log.Infof("caption: %q", s)
+		} else if capVal != nil {
+			a.currentCaptionText = fmt.Sprintf("%v", capVal)
+		}
 	}
 
 	elementValue, ok := innerValue["ElementValue_v1"].(map[string]interface{})

@@ -56,8 +56,10 @@ func enableAXService(c *gin.Context) {
 	var conn *accessibility.ControlInterface
 	var err error
 	if wdaHost != "" {
+		log.Infof("Creating connection with WDA host: %q", wdaHost)
 		conn, err = accessibility.NewWithWDA(device, wdaHost)
 	} else {
+		log.Infof("Creating connection without WDA host")
 		conn, err = accessibility.New(device)
 	}
 
@@ -66,12 +68,16 @@ func enableAXService(c *gin.Context) {
 		return
 	}
 
+	// Verify WDA host was set correctly
+	log.Infof("Connection created, WDA host is: %q", conn.GetWDAHost())
+
 	conn.SwitchToDevice()
 
 	conn.EnableSelectionMode()
 
 	axConn = conn
 	isAXEnabled = true
+	log.Infof("Accessibility service enabled, final WDA host: %q", axConn.GetWDAHost())
 	c.JSON(http.StatusOK, map[string]string{"message": "Accessibility service enabled"})
 }
 
@@ -256,6 +262,7 @@ func performWDAAction(c *gin.Context) {
 		return
 	}
 
+	log.Infof("performWDAAction: Current WDA host is: %q", axConn.GetWDAHost())
 	uuid, err := axConn.PerformWDAAction()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
