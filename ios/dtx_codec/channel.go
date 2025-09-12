@@ -46,6 +46,18 @@ func (d *Channel) ReceiveMethodCall(selector string) Message {
 	return <-channel
 }
 
+func (d *Channel) ReceiveMethodCallWithTimeout(selector string, timeout time.Duration) (Message, error) {
+	d.mutex.Lock()
+	channel := d.registeredMethods[selector]
+	d.mutex.Unlock()
+	select {
+	case msg := <-channel:
+		return msg, nil
+	case <-time.After(timeout):
+		return Message{}, fmt.Errorf("timeout waiting for selector %s", selector)
+	}
+}
+
 // MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 // DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
 func (d *Channel) MethodCall(selector string, args ...interface{}) (Message, error) {
@@ -80,9 +92,14 @@ func (d *Channel) methodCallWithReply(selector string, auxiliary PrimitiveDictio
 func (d *Channel) MethodCallAsync(selector string, args ...interface{}) error {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
 	auxiliary := NewPrimitiveDictionary()
+	log.Infof("Sending async method call: selector=%s args=%#v", selector, args)
 	for _, arg := range args {
 		auxiliary.AddNsKeyedArchivedObject(arg)
 	}
+	log.WithFields(log.Fields{"channel_id": d.channelName, "methodselector": selector}).Trace("Sending async method call")
+	defer log.WithFields(log.Fields{"channel_id": d.channelName, "methodselector": selector}).Trace("Async method call sent")
+
+	log.Infof("Sending async method call: payload=%v auxiliary=%v", payload, auxiliary)
 	err := d.Send(false, Methodinvocation, payload, auxiliary)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed starting invoking method")
@@ -97,6 +114,8 @@ func (d *Channel) Send(expectsReply bool, messageType MessageType, payloadBytes 
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
 	d.mutex.Unlock()
+
+	log.Infof("Sending message: identifier=%d expectsReply=%v messageType=%v payloadBytes=%v auxiliary=%v", identifier, expectsReply, messageType, payloadBytes, auxiliary)
 
 	bytes, err := Encode(identifier, 0, d.channelCode, expectsReply, messageType, payloadBytes, auxiliary)
 	if err != nil {

@@ -1,0 +1,33 @@
+{
+  "DtxMessage": {
+    "AuxiliaryContents": "[{t:binary, v:{\"ObjectType\":\"AXAuditElement_v1\",\"Value\":{\"ObjectType\":\"passthrough\",\"Value\":{\"AccessibilityIdentifier_v1\":{\"ObjectType\":\"passthrough\",\"Value\":\"axpasswordField\"},\"PlatformElementValue_v1\":{\"ObjectType\":\"passthrough\",\"Value\":\"mw4AAODknoICAAAAMAAAAAAAAAA=\"}}}}},{t:binary, v:{\"ObjectType\":\"AXAuditElementAttribute_v1\",\"Value\":{\"ObjectType\":\"passthrough\",\"Value\":{\"AttributeNameValue_v1\":{\"ObjectType\":\"passthrough\",\"Value\":\"AXAction-2010\"},\"DisplayAsTree_v1\":{\"ObjectType\":\"passthrough\",\"Value\":false},\"DisplayInlineValue_v1\":{\"ObjectType\":\"passthrough\",\"Value\":false},\"HumanReadableNameValue_v1\":{\"ObjectType\":\"passthrough\",\"Value\":\"Activate\"},\"IsInternal_v1\":{\"ObjectType\":\"passthrough\",\"Value\":false},\"PerformsActionValue_v1\":{\"ObjectType\":\"passthrough\",\"Value\":true},\"SettableValue_v1\":{\"ObjectType\":\"passthrough\",\"Value\":false},\"ValueTypeValue_v1\":{\"ObjectType\":\"passthrough\",\"Value\":1}}}}},{t:binary, v:{}},]",
+    "Fragments": 1,
+    "FragmentIndex": 0,
+    "MessageLength": 2224,
+    "Identifier": 82,
+    "ConversationIndex": 0,
+    "ChannelCode": 0,
+    "ExpectsReply": true,
+    "PayloadHeader": {
+      "MessageType": 2,
+      "AuxiliaryLength": 2030,
+      "TotalPayloadLength": 2208,
+      "Flags": 0
+    },
+    "Payload": [
+      "deviceElement:performAction:withValue:"
+    ],
+    "AuxiliaryHeader": {
+      "BufferSize": 2032,
+      "Unknown": 0,
+      "AuxiliarySize": 2014,
+      "Unknown2": 0
+    },
+    "Auxiliary": {},
+    "RawBytes": null
+  },
+  "MessageType": "dtx",
+  "TimeReceived": "2025-08-13T13:29:14.791596+02:00",
+  "OffsetInDump": 98254,
+  "Length": 0
+}

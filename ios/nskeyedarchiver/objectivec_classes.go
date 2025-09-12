@@ -68,6 +68,7 @@ func SetupEncoders() {
 			"NSSet":                archiveNSSet,
 			"XCTTestIdentifier":    archiveXCTTestIdentifier,
 			"XCTTestIdentifierSet": archiveXCTTestIdentifierSet,
+			"NSValuePoint":         archiveNSValuePoint,
 		}
 	}
 }
@@ -466,6 +467,38 @@ func NewNSValue(object map[string]interface{}, objects []interface{}) interface{
 	rectval, _ := objects[ref].(string)
 	special := object["NS.special"].(uint64)
 	return NSValue{NSRectval: rectval, NSSpecial: special}
+}
+
+// NSValuePoint encodes a CGPoint as NSValue for archiving.
+type NSValuePoint struct {
+	X float64
+	Y float64
+}
+
+func NewNSValuePoint(x, y float64) NSValuePoint { return NSValuePoint{X: x, Y: y} }
+
+func archiveNSValuePoint(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+	p := object.(NSValuePoint)
+
+	// Create the NSValue dictionary object
+	dict := map[string]interface{}{}
+	dictIdx := len(objects)
+	objects = append(objects, dict)
+
+	// Create the point string object as a separate entry and reference it via UID
+	pointStrIdx := len(objects)
+	objects = append(objects, fmt.Sprintf("{%g, %g}", p.X, p.Y))
+
+	// Append the class dictionary for NSValue and reference it from the dict
+	classIdx := len(objects)
+	objects = append(objects, buildClassDict("NSValue", "NSObject"))
+	dict["$class"] = plist.UID(classIdx)
+
+	// Encode as NS.pointval (string reference) and NS.special=1
+	dict["NS.pointval"] = plist.UID(pointStrIdx)
+	dict["NS.special"] = uint64(1)
+
+	return objects, plist.UID(dictIdx)
 }
 
 type NSArray struct {
