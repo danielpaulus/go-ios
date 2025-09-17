@@ -35,34 +35,34 @@ const (
 )
 
 const (
-	Afc_Err_Success                = 0
-	Afc_Err_UnknownError           = 1
-	Afc_Err_OperationHeaderInvalid = 2
-	Afc_Err_NoResources            = 3
-	Afc_Err_ReadError              = 4
-	Afc_Err_WriteError             = 5
-	Afc_Err_UnknownPacketType      = 6
-	Afc_Err_InvalidArgument        = 7
-	Afc_Err_ObjectNotFound         = 8
-	Afc_Err_ObjectIsDir            = 9
-	Afc_Err_PermDenied             = 10
-	Afc_Err_ServiceNotConnected    = 11
-	Afc_Err_OperationTimeout       = 12
-	Afc_Err_TooMuchData            = 13
-	Afc_Err_EndOfData              = 14
-	Afc_Err_OperationNotSupported  = 15
-	Afc_Err_ObjectExists           = 16
-	Afc_Err_ObjectBusy             = 17
-	Afc_Err_NoSpaceLeft            = 18
-	Afc_Err_OperationWouldBlock    = 19
-	Afc_Err_IoError                = 20
-	Afc_Err_OperationInterrupted   = 21
-	Afc_Err_OperationInProgress    = 22
-	Afc_Err_InternalError          = 23
-	Afc_Err_MuxError               = 30
-	Afc_Err_NoMemory               = 31
-	Afc_Err_NotEnoughData          = 32
-	Afc_Err_DirNotEmpty            = 33
+	errSuccess                = 0
+	errUnknown                = 1
+	errOperationHeaderInvalid = 2
+	errNoResources            = 3
+	errReadError              = 4
+	errWriteError             = 5
+	errUnknownPacketType      = 6
+	errInvalidArgument        = 7
+	errObjectNotFound         = 8
+	errObjectIsDir            = 9
+	errPermDenied             = 10
+	errServiceNotConnected    = 11
+	errOperationTimeout       = 12
+	errTooMuchData            = 13
+	errEndOfData              = 14
+	errOperationNotSupported  = 15
+	errObjectExists           = 16
+	errObjectBusy             = 17
+	errNoSpaceLeft            = 18
+	errOperationWouldBlock    = 19
+	errIoError                = 20
+	errOperationInterrupted   = 21
+	errOperationInProgress    = 22
+	errInternalError          = 23
+	errMuxError               = 30
+	errNoMemory               = 31
+	errNotEnoughData          = 32
+	errDirNotEmpty            = 33
 )
 
 type AFCDeviceInfo struct {
@@ -74,59 +74,59 @@ type AFCDeviceInfo struct {
 
 func getError(errorCode uint64) error {
 	switch errorCode {
-	case Afc_Err_UnknownError:
+	case errUnknown:
 		return errors.New("UnknownError")
-	case Afc_Err_OperationHeaderInvalid:
+	case errOperationHeaderInvalid:
 		return errors.New("OperationHeaderInvalid")
-	case Afc_Err_NoResources:
+	case errNoResources:
 		return errors.New("NoResources")
-	case Afc_Err_ReadError:
+	case errReadError:
 		return errors.New("ReadError")
-	case Afc_Err_WriteError:
+	case errWriteError:
 		return errors.New("WriteError")
-	case Afc_Err_UnknownPacketType:
+	case errUnknownPacketType:
 		return errors.New("UnknownPacketType")
-	case Afc_Err_InvalidArgument:
+	case errInvalidArgument:
 		return errors.New("InvalidArgument")
-	case Afc_Err_ObjectNotFound:
+	case errObjectNotFound:
 		return errors.New("ObjectNotFound")
-	case Afc_Err_ObjectIsDir:
+	case errObjectIsDir:
 		return errors.New("ObjectIsDir")
-	case Afc_Err_PermDenied:
+	case errPermDenied:
 		return errors.New("PermDenied")
-	case Afc_Err_ServiceNotConnected:
+	case errServiceNotConnected:
 		return errors.New("ServiceNotConnected")
-	case Afc_Err_OperationTimeout:
+	case errOperationTimeout:
 		return errors.New("OperationTimeout")
-	case Afc_Err_TooMuchData:
+	case errTooMuchData:
 		return errors.New("TooMuchData")
-	case Afc_Err_EndOfData:
+	case errEndOfData:
 		return errors.New("EndOfData")
-	case Afc_Err_OperationNotSupported:
+	case errOperationNotSupported:
 		return errors.New("OperationNotSupported")
-	case Afc_Err_ObjectExists:
+	case errObjectExists:
 		return errors.New("ObjectExists")
-	case Afc_Err_ObjectBusy:
+	case errObjectBusy:
 		return errors.New("ObjectBusy")
-	case Afc_Err_NoSpaceLeft:
+	case errNoSpaceLeft:
 		return errors.New("NoSpaceLeft")
-	case Afc_Err_OperationWouldBlock:
+	case errOperationWouldBlock:
 		return errors.New("OperationWouldBlock")
-	case Afc_Err_IoError:
+	case errIoError:
 		return errors.New("IoError")
-	case Afc_Err_OperationInterrupted:
+	case errOperationInterrupted:
 		return errors.New("OperationInterrupted")
-	case Afc_Err_OperationInProgress:
+	case errOperationInProgress:
 		return errors.New("OperationInProgress")
-	case Afc_Err_InternalError:
+	case errInternalError:
 		return errors.New("InternalError")
-	case Afc_Err_MuxError:
+	case errMuxError:
 		return errors.New("MuxError")
-	case Afc_Err_NoMemory:
+	case errNoMemory:
 		return errors.New("NoMemory")
-	case Afc_Err_NotEnoughData:
+	case errNotEnoughData:
 		return errors.New("NotEnoughData")
-	case Afc_Err_DirNotEmpty:
+	case errDirNotEmpty:
 		return errors.New("DirNotEmpty")
 	default:
 		return nil

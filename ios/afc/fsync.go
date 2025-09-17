@@ -127,7 +127,7 @@ func (conn *Connection) sendAfcPacketAndAwaitResponse(packet AfcPacket) (AfcPack
 func (conn *Connection) checkOperationStatus(packet AfcPacket) error {
 	if packet.Header.Operation == Afc_operation_status {
 		errorCode := binary.LittleEndian.Uint64(packet.HeaderPayload)
-		if errorCode != Afc_Err_Success {
+		if errorCode != errSuccess {
 			return getError(errorCode)
 		}
 	}

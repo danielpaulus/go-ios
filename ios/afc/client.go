@@ -193,7 +193,7 @@ func (c *Client) readPacket() (packet, error) {
 
 	if p.Header.Operation == Afc_operation_status {
 		code := binary.LittleEndian.Uint64(p.HeaderPayload)
-		if code == Afc_Err_Success {
+		if code == errSuccess {
 			return p, nil
 		}
 		return p, fmt.Errorf("error processing afc status: %d", code)
