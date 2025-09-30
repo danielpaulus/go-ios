@@ -30,16 +30,23 @@ type Client struct {
 	packetNum  atomic.Int64
 }
 
+// NewAfcConnection creates a connection to the afc service
 func NewAfcConnection(d ios.DeviceEntry) (*Client, error) {
 	deviceConn, err := ios.ConnectToService(d, serviceName)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to service '%s': %w", serviceName, err)
 	}
-	return &Client{
-		connection: deviceConn,
-	}, nil
+	return NewAfcConnectionWithDeviceConnection(deviceConn), nil
 }
 
+// NewAfcConnectionWithDeviceConnection establishes a new AFC client connection from an existing device connection
+func NewAfcConnectionWithDeviceConnection(d ios.DeviceConnectionInterface) *Client {
+	return &Client{
+		connection: d,
+	}
+}
+
+// Close the afc client
 func (c *Client) Close() error {
 	err := c.connection.Close()
 	if err != nil {
@@ -73,6 +80,7 @@ func (c *Client) List(p string) ([]string, error) {
 	return list, nil
 }
 
+// Open opens a file with the specified name in the given mode
 func (c *Client) Open(p string, mode Mode) (*File, error) {
 	pathBytes := []byte(p)
 	pathBytes = append(pathBytes, 0)
@@ -96,7 +104,7 @@ func (c *Client) Open(p string, mode Mode) (*File, error) {
 	}, nil
 }
 
-// CreateDir
+// CreateDir creates a directory at the specified path
 func (c *Client) CreateDir(p string) error {
 	headerPayload := []byte(p)
 	headerPayload = append(headerPayload, 0)
@@ -112,9 +120,25 @@ func (c *Client) CreateDir(p string) error {
 	return nil
 }
 
+// Delete deletes the file at the given path
+// If the path is a non-empty directory, an error will be returned
 func (c *Client) Delete(p string) error {
+	return c.delete(p, false)
+}
+
+// DeleteRecursive deletes the file at the given path
+// If the path is a non-empty directory, the directory and its contents will be deleted
+func (c *Client) DeleteRecursive(p string) error {
+	return c.delete(p, true)
+}
+
+func (c *Client) delete(p string, recursive bool) error {
 	headerPayload := []byte(p)
-	err := c.sendPacket(Afc_operation_remove_path_and_contents, headerPayload, nil)
+	var opcode = Afc_operation_remove_path
+	if recursive {
+		opcode = Afc_operation_remove_path_and_contents
+	}
+	err := c.sendPacket(opcode, headerPayload, nil)
 	if err != nil {
 		return fmt.Errorf("error deleting file: %w", err)
 	}
@@ -196,7 +220,9 @@ func (c *Client) readPacket() (packet, error) {
 		if code == errSuccess {
 			return p, nil
 		}
-		return p, fmt.Errorf("error processing afc status: %d", code)
+		return p, afcError{
+			code: int(code),
+		}
 	}
 
 	return p, nil
@@ -218,6 +244,7 @@ type FileInfo struct {
 	Size int64
 }
 
+// Stat retrieves information about a given file path
 func (c *Client) Stat(s string) (FileInfo, error) {
 	err := c.sendPacket(Afc_operation_file_info, []byte(s), nil)
 	if err != nil {
@@ -271,9 +298,15 @@ func (c *Client) Stat(s string) (FileInfo, error) {
 	return info, nil
 }
 
+// WalkDir traverses the filesystem starting at the provided path
+// It calls the WalkFunc for each file, and if the file is a directory,
+// it recursively traverses the directory
 func (c *Client) WalkDir(p string, f WalkFunc) error {
 	files, err := c.List(p)
 	if err != nil {
+		if isPermissionDeniedError(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -284,6 +317,9 @@ func (c *Client) WalkDir(p string, f WalkFunc) error {
 		}
 		info, err := c.Stat(path.Join(p, file))
 		if err != nil {
+			if isPermissionDeniedError(err) {
+				continue
+			}
 			return err
 		}
 		fnErr := f(path.Join(p, file), info, nil)
@@ -306,6 +342,7 @@ func (c *Client) WalkDir(p string, f WalkFunc) error {
 	return nil
 }
 
+// DeviceInfo retrieves information about the filesystem of the device
 func (c *Client) DeviceInfo() (AFCDeviceInfo, error) {
 	err := c.sendPacket(Afc_operation_device_info, nil, nil)
 	if err != nil {
@@ -425,3 +462,16 @@ const (
 	WRITE_ONLY_CREATE_APPEND = Mode(0x00000005)
 	READ_WRITE_CREATE_APPEND = Mode(0x00000006)
 )
+
+type afcError struct {
+	code int
+}
+
+func (a afcError) Error() string {
+	return fmt.Sprintf("afc error code: %d", a.code)
+}
+
+func isPermissionDeniedError(err error) bool {
+	var aError afcError
+	return errors.As(err, &aError) && aError.code == errPermDenied
+}
