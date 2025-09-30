@@ -367,6 +367,9 @@ type File struct {
 }
 
 func (f *File) Read(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
 	headerPayload := make([]byte, 16)
 	binary.LittleEndian.PutUint64(headerPayload, f.handle)
 	binary.LittleEndian.PutUint64(headerPayload[8:], uint64(len(p)))
@@ -377,7 +380,11 @@ func (f *File) Read(p []byte) (int, error) {
 	}
 	resp, err := f.client.readPacket()
 	copy(p, resp.Payload)
-	return len(resp.Payload), nil
+	l := len(resp.Payload)
+	if l == 0 {
+		return 0, io.EOF
+	}
+	return l, nil
 }
 
 func (f *File) Write(p []byte) (int, error) {
