@@ -88,7 +88,7 @@ func RemoveReports(device ios.DeviceEntry, cwd string, pattern string) error {
 		if !matched {
 			return nil
 		}
-		return afcClient.Delete(path)
+		return afcClient.Remove(path)
 	})
 }
 

@@ -65,7 +65,7 @@ const (
 	errDirNotEmpty            = 33
 )
 
-type AFCDeviceInfo struct {
+type DeviceInfo struct {
 	Model      string
 	TotalBytes uint64
 	FreeBytes  uint64

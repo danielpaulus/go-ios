@@ -1090,7 +1090,7 @@ The commands work as following:
 		containerBundleId, _ := arguments.String("--app")
 		var afcService *afc.Client
 		if containerBundleId == "" {
-			afcService, err = afc.NewAfcConnection(device)
+			afcService, err = afc.New(device)
 		} else {
 			afcService, err = house_arrest.New(device, containerBundleId)
 		}
@@ -1100,9 +1100,9 @@ The commands work as following:
 			path, _ := arguments.String("--path")
 			isRecursive, _ := arguments.Bool("--r")
 			if isRecursive {
-				err = afcService.DeleteRecursive(path)
+				err = afcService.RemoveAll(path)
 			} else {
-				err = afcService.Delete(path)
+				err = afcService.Remove(path)
 			}
 			exitIfError("fsync: remove failed", err)
 		}
@@ -1129,7 +1129,7 @@ The commands work as following:
 		b, _ = arguments.Bool("mkdir")
 		if b {
 			path, _ := arguments.String("--path")
-			err = afcService.CreateDir(path)
+			err = afcService.MkDir(path)
 			exitIfError("fsync: mkdir failed", err)
 		}
 
@@ -1176,7 +1176,7 @@ The commands work as following:
 
 	b, _ = arguments.Bool("diskspace")
 	if b {
-		afcService, err := afc.NewAfcConnection(device)
+		afcService, err := afc.New(device)
 		exitIfError("connect afc service failed", err)
 		info, err := afcService.DeviceInfo()
 		if err != nil {

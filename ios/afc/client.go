@@ -30,17 +30,17 @@ type Client struct {
 	packetNum  atomic.Int64
 }
 
-// NewAfcConnection creates a connection to the afc service
-func NewAfcConnection(d ios.DeviceEntry) (*Client, error) {
+// New creates a connection to the afc service
+func New(d ios.DeviceEntry) (*Client, error) {
 	deviceConn, err := ios.ConnectToService(d, serviceName)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to service '%s': %w", serviceName, err)
 	}
-	return NewAfcConnectionWithDeviceConnection(deviceConn), nil
+	return NewFromConn(deviceConn), nil
 }
 
-// NewAfcConnectionWithDeviceConnection establishes a new AFC client connection from an existing device connection
-func NewAfcConnectionWithDeviceConnection(d ios.DeviceConnectionInterface) *Client {
+// NewFromConn establishes a new AFC client connection from an existing device connection
+func NewFromConn(d ios.DeviceConnectionInterface) *Client {
 	return &Client{
 		connection: d,
 	}
@@ -104,8 +104,8 @@ func (c *Client) Open(p string, mode Mode) (*File, error) {
 	}, nil
 }
 
-// CreateDir creates a directory at the specified path
-func (c *Client) CreateDir(p string) error {
+// MkDir creates a directory at the specified path
+func (c *Client) MkDir(p string) error {
 	headerPayload := []byte(p)
 	headerPayload = append(headerPayload, 0)
 
@@ -120,19 +120,19 @@ func (c *Client) CreateDir(p string) error {
 	return nil
 }
 
-// Delete deletes the file at the given path
+// Remove deletes the file at the given path
 // If the path is a non-empty directory, an error will be returned
-func (c *Client) Delete(p string) error {
-	return c.delete(p, false)
+func (c *Client) Remove(p string) error {
+	return c.remove(p, false)
 }
 
-// DeleteRecursive deletes the file at the given path
+// RemoveAll deletes the file at the given path
 // If the path is a non-empty directory, the directory and its contents will be deleted
-func (c *Client) DeleteRecursive(p string) error {
-	return c.delete(p, true)
+func (c *Client) RemoveAll(p string) error {
+	return c.remove(p, true)
 }
 
-func (c *Client) delete(p string, recursive bool) error {
+func (c *Client) remove(p string, recursive bool) error {
 	headerPayload := []byte(p)
 	var opcode = Afc_operation_remove_path
 	if recursive {
@@ -234,14 +234,24 @@ const (
 	// S_IFDIR marks a directory
 	S_IFDIR FileType = "S_IFDIR"
 	// S_IFDIR marks a regular file
-	S_IFMT FileType = "S_IFMT"
+	S_IFMT  FileType = "S_IFMT"
+	S_IFLNK FileType = "S_IFLNK"
 )
 
 type FileInfo struct {
-	Name string
-	Type FileType
-	Mode uint32
-	Size int64
+	Name       string
+	Type       FileType
+	Mode       uint32
+	Size       int64
+	LinkTarget string
+}
+
+func (f FileInfo) IsDir() bool {
+	return f.Type == S_IFDIR
+}
+
+func (f FileInfo) IsLink() bool {
+	return f.Type == S_IFLNK
 }
 
 // Stat retrieves information about a given file path
@@ -286,6 +296,8 @@ func (c *Client) Stat(s string) (FileInfo, error) {
 		case "st_mode":
 			mode, _ := strconv.ParseUint(value, 8, 32)
 			info.Mode = uint32(mode)
+		case "st_linktarget":
+			info.LinkTarget = value
 		}
 	}
 
@@ -343,19 +355,19 @@ func (c *Client) WalkDir(p string, f WalkFunc) error {
 }
 
 // DeviceInfo retrieves information about the filesystem of the device
-func (c *Client) DeviceInfo() (AFCDeviceInfo, error) {
+func (c *Client) DeviceInfo() (DeviceInfo, error) {
 	err := c.sendPacket(Afc_operation_device_info, nil, nil)
 	if err != nil {
-		return AFCDeviceInfo{}, fmt.Errorf("error getting device info: %w", err)
+		return DeviceInfo{}, fmt.Errorf("error getting device info: %w", err)
 	}
 	resp, err := c.readPacket()
 	if err != nil {
-		return AFCDeviceInfo{}, fmt.Errorf("error getting device info: %w", err)
+		return DeviceInfo{}, fmt.Errorf("error getting device info: %w", err)
 	}
 
 	bs := bytes.Split(resp.Payload, []byte{0})
 
-	var info AFCDeviceInfo
+	var info DeviceInfo
 	for i := 0; i+1 < len(bs); i += 2 {
 		key := string(bs[i])
 		if key == "Model" {
@@ -366,17 +378,17 @@ func (c *Client) DeviceInfo() (AFCDeviceInfo, error) {
 		switch key {
 		case "FSTotalBytes":
 			if intParseErr != nil {
-				return AFCDeviceInfo{}, fmt.Errorf("error parsing %s: %w", key, intParseErr)
+				return DeviceInfo{}, fmt.Errorf("error parsing %s: %w", key, intParseErr)
 			}
 			info.TotalBytes = value
 		case "FSFreeBytes":
 			if intParseErr != nil {
-				return AFCDeviceInfo{}, fmt.Errorf("error parsing %s: %w", key, intParseErr)
+				return DeviceInfo{}, fmt.Errorf("error parsing %s: %w", key, intParseErr)
 			}
 			info.FreeBytes = value
 		case "FSBlockSize":
 			if intParseErr != nil {
-				return AFCDeviceInfo{}, fmt.Errorf("error parsing %s: %w", key, intParseErr)
+				return DeviceInfo{}, fmt.Errorf("error parsing %s: %w", key, intParseErr)
 			}
 			info.BlockSize = value
 		}

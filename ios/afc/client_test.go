@@ -30,7 +30,7 @@ func TestAfc(t *testing.T) {
 
 		t.Run(fmt.Sprintf("device %s", device.Properties.SerialNumber), func(t *testing.T) {
 
-			client, err := NewAfcConnection(device)
+			client, err := New(device)
 			assert.NoError(t, err)
 
 			defer client.Close()
@@ -52,7 +52,7 @@ func TestAfc(t *testing.T) {
 					return strings.Contains(s, "test-file")
 				})
 				if hasFile {
-					err = client.Delete("./test-file")
+					err = client.Remove("./test-file")
 					assert.NoError(t, err)
 				}
 				f, err := client.Open("./test-file", READ_WRITE_CREATE_TRUNC)
@@ -61,7 +61,7 @@ func TestAfc(t *testing.T) {
 				err = f.Close()
 				assert.NoError(t, err)
 
-				err = client.Delete("./test-file")
+				err = client.Remove("./test-file")
 				assert.NoError(t, err)
 			})
 
@@ -80,7 +80,7 @@ func TestAfc(t *testing.T) {
 
 				assert.EqualValues(t, 4, info.Size)
 
-				err = client.Delete("./test-file")
+				err = client.Remove("./test-file")
 				assert.NoError(t, err)
 			})
 
@@ -103,12 +103,12 @@ func TestAfc(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, []byte("test"), b[:n])
 
-				err = client.Delete("./test-file")
+				err = client.Remove("./test-file")
 				assert.NoError(t, err)
 			})
 
-			t.Run("created and delete nested directory", func(t *testing.T) {
-				err = client.CreateDir("./some/nested/directory")
+			t.Run("create and delete nested directory", func(t *testing.T) {
+				err = client.MkDir("./some/nested/directory")
 				assert.NoError(t, err)
 
 				var info FileInfo
@@ -124,7 +124,7 @@ func TestAfc(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, S_IFDIR, info.Type)
 
-				err = client.Delete("./some")
+				err = client.RemoveAll("./some")
 				assert.NoError(t, err)
 
 				_, err = client.Stat("./some")
@@ -206,7 +206,7 @@ func TestAfc(t *testing.T) {
 }
 
 func mustCreateDir(c *Client, dir string) {
-	err := c.CreateDir(dir)
+	err := c.MkDir(dir)
 	if err != nil {
 		panic(err)
 	}

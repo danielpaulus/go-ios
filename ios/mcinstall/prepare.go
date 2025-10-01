@@ -196,11 +196,11 @@ func setupSkipSetup(device ios.DeviceEntry) error {
 		return err
 	}
 	defer afcConn.Close()
-	err = afcConn.DeleteRecursive(skipSetupFilePath)
+	err = afcConn.RemoveAll(skipSetupFilePath)
 	if err != nil {
 		log.Debug("skip setup: nothing to remove")
 	}
-	err = afcConn.CreateDir(skipSetupDirPath)
+	err = afcConn.MkDir(skipSetupDirPath)
 	if err != nil {
 		log.Warn("error creating dir")
 	}
