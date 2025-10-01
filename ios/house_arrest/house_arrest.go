@@ -13,35 +13,24 @@ import (
 
 const serviceName = "com.apple.mobile.house_arrest"
 
-type Connection struct {
-	deviceConn    ios.DeviceConnectionInterface
-	packageNumber uint64
-}
-
 func New(device ios.DeviceEntry, bundleID string) (*afc.Client, error) {
 	deviceConn, err := ios.ConnectToService(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
-	err = VendContainer(deviceConn, bundleID)
+	err = vendContainer(deviceConn, bundleID)
 	if err != nil {
 		return nil, err
 	}
-	return afc.NewAfcConnectionWithDeviceConnection(deviceConn), nil
+	return afc.NewFromConn(deviceConn), nil
 }
 
-func (c Connection) Close() {
-	if c.deviceConn != nil {
-		c.deviceConn.Close()
-	}
-}
-
-func VendContainer(deviceConn ios.DeviceConnectionInterface, bundleID string) error {
+func vendContainer(deviceConn ios.DeviceConnectionInterface, bundleID string) error {
 	plistCodec := ios.NewPlistCodec()
-	vendContainer := map[string]interface{}{"Command": "VendContainer", "Identifier": bundleID}
+	vendContainer := map[string]interface{}{"Command": "vendContainer", "Identifier": bundleID}
 	msg, err := plistCodec.Encode(vendContainer)
 	if err != nil {
-		return fmt.Errorf("VendContainer Encoding cannot fail unless the encoder is broken: %v", err)
+		return fmt.Errorf("vendContainer Encoding cannot fail unless the encoder is broken: %v", err)
 	}
 	err = deviceConn.Send(msg)
 	if err != nil {
