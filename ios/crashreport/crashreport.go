@@ -32,7 +32,7 @@ func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) e
 	if err != nil {
 		return err
 	}
-	afcConn := afc.NewAfcConnectionWithDeviceConnection(deviceConn)
+	afcConn := afc.NewFromConn(deviceConn)
 	err = afcConn.WalkDir(".", func(p string, info afc.FileInfo, err error) error {
 		matched, err := filepath.Match(pattern, p)
 		if err != nil {
@@ -76,7 +76,7 @@ func RemoveReports(device ios.DeviceEntry, cwd string, pattern string) error {
 	if err != nil {
 		return err
 	}
-	afcClient := afc.NewAfcConnectionWithDeviceConnection(deviceConn)
+	afcClient := afc.NewFromConn(deviceConn)
 	return afcClient.WalkDir(".", func(path string, info afc.FileInfo, err error) error {
 		if info.Type == afc.S_IFDIR {
 			return nil
@@ -101,7 +101,7 @@ func ListReports(device ios.DeviceEntry, pattern string) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
-	afcClient := afc.NewAfcConnectionWithDeviceConnection(deviceConn)
+	afcClient := afc.NewFromConn(deviceConn)
 
 	var files []string
 	err = afcClient.WalkDir(".", func(path string, info afc.FileInfo, err error) error {
