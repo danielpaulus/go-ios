@@ -57,7 +57,7 @@ func (c *Client) Close() error {
 
 // List all entries of the provided path
 func (c *Client) List(p string) ([]string, error) {
-	err := c.sendPacket(Afc_operation_read_dir, []byte(p), nil)
+	err := c.sendPacket(readDir, []byte(p), nil)
 	if err != nil {
 		return nil, fmt.Errorf("error listing afc dir: %w", err)
 	}
@@ -88,7 +88,7 @@ func (c *Client) Open(p string, mode Mode) (*File, error) {
 	headerPayload := make([]byte, headerLength)
 	binary.LittleEndian.PutUint64(headerPayload, uint64(mode))
 	copy(headerPayload[8:], pathBytes)
-	err := c.sendPacket(Afc_operation_file_open, headerPayload, nil)
+	err := c.sendPacket(fileOpen, headerPayload, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error opening file: %w", err)
 	}
@@ -109,7 +109,7 @@ func (c *Client) MkDir(p string) error {
 	headerPayload := []byte(p)
 	headerPayload = append(headerPayload, 0)
 
-	err := c.sendPacket(Afc_operation_make_dir, headerPayload, nil)
+	err := c.sendPacket(makeDir, headerPayload, nil)
 	if err != nil {
 		return fmt.Errorf("error creating dir: %w", err)
 	}
@@ -134,9 +134,9 @@ func (c *Client) RemoveAll(p string) error {
 
 func (c *Client) remove(p string, recursive bool) error {
 	headerPayload := []byte(p)
-	var opcode = Afc_operation_remove_path
+	var opcode = removePath
 	if recursive {
-		opcode = Afc_operation_remove_path_and_contents
+		opcode = removePathAndContents
 	}
 	err := c.sendPacket(opcode, headerPayload, nil)
 	if err != nil {
@@ -149,13 +149,13 @@ func (c *Client) remove(p string, recursive bool) error {
 	return nil
 }
 
-func (c *Client) sendPacket(operation uint64, headerPayload []byte, payload []byte) error {
+func (c *Client) sendPacket(operation opcode, headerPayload []byte, payload []byte) error {
 	num := c.packetNum.Add(1)
 
-	thisLen := Afc_header_size + uint64(len(headerPayload))
+	thisLen := headerSize + uint64(len(headerPayload))
 	p := packet{
 		Header: header{
-			Magic:     Afc_magic,
+			Magic:     magic,
 			EntireLen: thisLen + uint64(len(payload)),
 			ThisLen:   thisLen,
 			PacketNum: uint64(num),
@@ -190,7 +190,7 @@ func (c *Client) readPacket() (packet, error) {
 	if err != nil {
 		return packet{}, fmt.Errorf("error reading header: %w", err)
 	}
-	headerPayloadLen := h.ThisLen - Afc_header_size
+	headerPayloadLen := h.ThisLen - headerSize
 	payloadLen := h.EntireLen - h.ThisLen
 
 	headerpayload := make([]byte, headerPayloadLen)
@@ -215,7 +215,7 @@ func (c *Client) readPacket() (packet, error) {
 		}
 	}
 
-	if p.Header.Operation == Afc_operation_status {
+	if p.Header.Operation == status {
 		code := binary.LittleEndian.Uint64(p.HeaderPayload)
 		if code == errSuccess {
 			return p, nil
@@ -256,7 +256,7 @@ func (f FileInfo) IsLink() bool {
 
 // Stat retrieves information about a given file path
 func (c *Client) Stat(s string) (FileInfo, error) {
-	err := c.sendPacket(Afc_operation_file_info, []byte(s), nil)
+	err := c.sendPacket(fileInfo, []byte(s), nil)
 	if err != nil {
 		return FileInfo{}, fmt.Errorf("error getting file info: %w", err)
 	}
@@ -356,7 +356,7 @@ func (c *Client) WalkDir(p string, f WalkFunc) error {
 
 // DeviceInfo retrieves information about the filesystem of the device
 func (c *Client) DeviceInfo() (DeviceInfo, error) {
-	err := c.sendPacket(Afc_operation_device_info, nil, nil)
+	err := c.sendPacket(deviceInfo, nil, nil)
 	if err != nil {
 		return DeviceInfo{}, fmt.Errorf("error getting device info: %w", err)
 	}
@@ -401,7 +401,7 @@ type header struct {
 	EntireLen uint64
 	ThisLen   uint64
 	PacketNum uint64
-	Operation uint64
+	Operation opcode
 }
 
 type packet struct {
@@ -410,6 +410,7 @@ type packet struct {
 	Payload       []byte
 }
 
+// File is a reference to a file on the devices filesystem
 type File struct {
 	client *Client
 	handle uint64
@@ -423,7 +424,7 @@ func (f *File) Read(p []byte) (int, error) {
 	binary.LittleEndian.PutUint64(headerPayload, f.handle)
 	binary.LittleEndian.PutUint64(headerPayload[8:], uint64(len(p)))
 
-	err := f.client.sendPacket(Afc_operation_file_read, headerPayload, nil)
+	err := f.client.sendPacket(fileRead, headerPayload, nil)
 	if err != nil {
 		return 0, fmt.Errorf("error reading data: %w", err)
 	}
@@ -439,7 +440,7 @@ func (f *File) Read(p []byte) (int, error) {
 func (f *File) Write(p []byte) (int, error) {
 	headerPayload := make([]byte, 8)
 	binary.LittleEndian.PutUint64(headerPayload, f.handle)
-	err := f.client.sendPacket(Afc_operation_file_write, headerPayload, p)
+	err := f.client.sendPacket(fileWrite, headerPayload, p)
 	if err != nil {
 		return 0, fmt.Errorf("error writing data: %w", err)
 	}
@@ -453,7 +454,7 @@ func (f *File) Write(p []byte) (int, error) {
 func (f *File) Close() error {
 	headerPayload := make([]byte, 8)
 	binary.LittleEndian.PutUint64(headerPayload, f.handle)
-	err := f.client.sendPacket(Afc_operation_file_close, headerPayload, nil)
+	err := f.client.sendPacket(fileClose, headerPayload, nil)
 	if err != nil {
 		return fmt.Errorf("error closing file: %w", err)
 	}
@@ -474,16 +475,3 @@ const (
 	WRITE_ONLY_CREATE_APPEND = Mode(0x00000005)
 	READ_WRITE_CREATE_APPEND = Mode(0x00000006)
 )
-
-type afcError struct {
-	code int
-}
-
-func (a afcError) Error() string {
-	return fmt.Sprintf("afc error code: %d", a.code)
-}
-
-func isPermissionDeniedError(err error) bool {
-	var aError afcError
-	return errors.As(err, &aError) && aError.code == errPermDenied
-}
