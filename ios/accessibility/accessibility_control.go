@@ -64,7 +64,7 @@ func (a ControlInterface) init() error {
 	}
 	log.Info("Api version:", apiVersion)
 
-	auditCaseIds, err := a.deviceAllAuditCaseIDs()
+	auditCaseIds, err := a.deviceAllAuditCaseIDs(apiVersion)
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,8 @@ func (a ControlInterface) init() error {
 	for _, v := range auditCaseIds {
 		name, err := a.deviceHumanReadableDescriptionForAuditCaseID(v)
 		if err != nil {
-			return err
+			log.Warnf("Failed to get human readable description for audit case ID %s: %v", v, err)
+			continue
 		}
 		log.Infof("%s -- %s", v, name)
 	}
@@ -205,8 +206,14 @@ func (a ControlInterface) deviceCapabilities() ([]string, error) {
 	return convertToStringList(response.Payload)
 }
 
-func (a ControlInterface) deviceAllAuditCaseIDs() ([]string, error) {
-	response, err := a.channel.MethodCall("deviceAllAuditCaseIDs")
+func (a ControlInterface) deviceAllAuditCaseIDs(api uint64) ([]string, error) {
+	var response dtx.Message
+	var err error
+	if api >= 15 {
+		response, err = a.channel.MethodCall("deviceAllSupportedAuditTypes")
+	} else {
+		response, err = a.channel.MethodCall("deviceAllAuditCaseIDs")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +306,14 @@ func (a ControlInterface) deviceHumanReadableDescriptionForAuditCaseID(auditCase
 	if err != nil {
 		return "", err
 	}
-	return response.Payload[0].(string), nil
+	if len(response.Payload) == 0 {
+		return "", fmt.Errorf("no payload in response")
+	}
+	str, ok := response.Payload[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected payload type: %T", response.Payload[0])
+	}
+	return str, nil
 }
 
 func (a ControlInterface) deviceInspectorShowIgnoredElements(val bool) error {
