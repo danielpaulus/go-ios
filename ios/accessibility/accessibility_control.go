@@ -306,12 +306,12 @@ func (a ControlInterface) deviceHumanReadableDescriptionForAuditCaseID(auditCase
 	if err != nil {
 		return "", err
 	}
-	if response.Payload == nil {
+	if len(response.Payload) == 0 {
 		return "", fmt.Errorf("no payload in response")
 	}
 	str, ok := response.Payload[0].(string)
 	if !ok {
-		return "", fmt.Errorf("payload[0] is not a string")
+		return "", fmt.Errorf("unexpected payload type: %T", response.Payload[0])
 	}
 	return str, nil
 }
