@@ -1,6 +1,7 @@
 package accessibility
 
 import (
+	"encoding/base64"
 	"fmt"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -13,6 +14,14 @@ import (
 type ControlInterface struct {
 	channel *dtx.Channel
 }
+
+// Direction represents navigation direction values used by AX service
+const (
+	DirectionPrevious int32 = 3
+	DirectionNext     int32 = 4
+	DirectionFirst    int32 = 5
+	DirectionLast     int32 = 6
+)
 
 func (a ControlInterface) readhostAppStateChanged() {
 	for {
@@ -131,14 +140,69 @@ func (a ControlInterface) TurnOff() {
 	a.deviceInspectorShowVisuals(false)
 }
 
-// GetElement moves the green selection rectangle one element further
-func (a ControlInterface) GetElement() {
+// Move navigates focus using the given direction and returns selected fields as a map.
+func (a ControlInterface) Move(direction int32) map[string]interface{} {
 	log.Info("changing")
-	a.deviceInspectorMoveWithOptions()
-	// a.deviceInspectorMoveWithOptions()
+	a.deviceInspectorMoveWithOptions(direction)
+	log.Info("before changed")
 
 	resp := a.awaitHostInspectorCurrentElementChanged()
-	log.Info("item changed", resp)
+
+	result := make(map[string]interface{})
+
+	// Extraction path for platform element bytes:
+	// Value -> Value -> ElementValue_v1 -> Value -> Value -> PlatformElementValue_v1 -> Value ([]byte)
+	value, ok := resp["Value"].(map[string]interface{})
+	if !ok {
+		log.Warn("resp[\"Value\"] is not a map")
+		return result
+	}
+
+	innerValue, ok := value["Value"].(map[string]interface{})
+	if !ok {
+		log.Warn("Value[\"Value\"] is not a map")
+		return result
+	}
+
+	elementValue, ok := innerValue["ElementValue_v1"].(map[string]interface{})
+	if !ok {
+		log.Warn("ElementValue_v1 is not a map")
+		return result
+	}
+
+	axElement, ok := elementValue["Value"].(map[string]interface{})
+	if !ok {
+		log.Warn("ElementValue_v1[\"Value\"] is not a map")
+		return result
+	}
+
+	// Split assertions for safety/readability
+	valMap, ok := axElement["Value"].(map[string]interface{})
+	if !ok {
+		log.Warn("AX element inner \"Value\" is not a map")
+		return result
+	}
+	platformElement, ok := valMap["PlatformElementValue_v1"].(map[string]interface{})
+	if !ok {
+		log.Warn("PlatformElementValue_v1 is not a map")
+		return result
+	}
+
+	byteArray, ok := platformElement["Value"].([]byte)
+	if !ok {
+		log.Warn("PlatformElementValue_v1[\"Value\"] is not a []byte")
+		return result
+	}
+	encoded := base64.StdEncoding.EncodeToString(byteArray)
+
+	result["platformElementValue"] = encoded
+
+	return result
+}
+
+// GetElement moves the green selection rectangle one element further
+func (a ControlInterface) GetElement() {
+	a.Move(DirectionNext)
 }
 
 func (a ControlInterface) UpdateAccessibilitySetting(name string, val interface{}) {
@@ -175,13 +239,13 @@ func (a ControlInterface) awaitHostInspectorMonitoredEventTypeChanged() {
 	log.Infof("hostInspectorMonitoredEventTypeChanged: was set to %d by the device", n[0])
 }
 
-func (a ControlInterface) deviceInspectorMoveWithOptions() {
+func (a ControlInterface) deviceInspectorMoveWithOptions(direction int32) {
 	method := "deviceInspectorMoveWithOptions:"
 	options := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 		"ObjectType": "passthrough",
 		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 			"allowNonAX":        nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": false}),
-			"direction":         nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": int32(4)}),
+			"direction":         nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": direction}),
 			"includeContainers": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": true}),
 		}),
 	})
