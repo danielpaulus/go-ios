@@ -46,6 +46,18 @@ func (d *Channel) ReceiveMethodCall(selector string) Message {
 	return <-channel
 }
 
+func (d *Channel) ReceiveMethodCallWithTimeout(selector string, timeout time.Duration) (Message, error) {
+	d.mutex.Lock()
+	channel := d.registeredMethods[selector]
+	d.mutex.Unlock()
+	select {
+	case msg := <-channel:
+		return msg, nil
+	case <-time.After(timeout):
+		return Message{}, fmt.Errorf("timeout waiting for selector %s", selector)
+	}
+}
+
 // MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 // DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
 func (d *Channel) MethodCall(selector string, args ...interface{}) (Message, error) {

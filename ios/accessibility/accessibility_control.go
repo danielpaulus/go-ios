@@ -3,6 +3,7 @@ package accessibility
 import (
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
@@ -145,10 +146,9 @@ func (a ControlInterface) Move(direction int32) map[string]interface{} {
 	log.Info("changing")
 	a.deviceInspectorMoveWithOptions(direction)
 	log.Info("before changed")
+	result := make(map[string]interface{})
 
 	resp := a.awaitHostInspectorCurrentElementChanged()
-
-	result := make(map[string]interface{})
 
 	// Extraction path for platform element bytes:
 	// Value -> Value -> ElementValue_v1 -> Value -> Value -> PlatformElementValue_v1 -> Value ([]byte)
@@ -224,7 +224,12 @@ func (a ControlInterface) ResetToDefaultAccessibilitySettings() error {
 }
 
 func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
-	msg := a.channel.ReceiveMethodCall("hostInspectorCurrentElementChanged:")
+	timeout := 2 * time.Second
+	msg, err := a.channel.ReceiveMethodCallWithTimeout("hostInspectorCurrentElementChanged:", timeout)
+	if err != nil {
+		log.Errorf("Timeout waiting for hostInspectorCurrentElementChanged (timeout: %v): %v", timeout, err)
+		panic(fmt.Sprintf("Timeout waiting for hostInspectorCurrentElementChanged: %s", err))
+	}
 	log.Info("received hostInspectorCurrentElementChanged")
 	result, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 	if err != nil {
