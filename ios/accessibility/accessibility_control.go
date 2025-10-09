@@ -125,7 +125,10 @@ func (a ControlInterface) SwitchToDevice() {
 	a.deviceInspectorShowIgnoredElements(false)
 	a.deviceSetAuditTargetPid(0)
 	a.deviceInspectorFocusOnElement()
-	a.awaitHostInspectorCurrentElementChanged()
+	_, err := a.awaitHostInspectorCurrentElementChanged()
+	if err != nil {
+		log.Warnf("await element change failed during SwitchToDevice: %v", err)
+	}
 	a.deviceInspectorPreviewOnElement()
 	a.deviceHighlightIssue()
 }
@@ -135,69 +138,75 @@ func (a ControlInterface) TurnOff() {
 	a.deviceInspectorSetMonitoredEventType(0)
 	a.awaitHostInspectorMonitoredEventTypeChanged()
 	a.deviceInspectorFocusOnElement()
-	a.awaitHostInspectorCurrentElementChanged()
+	_, err := a.awaitHostInspectorCurrentElementChanged()
+	if err != nil {
+		log.Warnf("await element change failed during TurnOff: %v", err)
+	}
 	a.deviceInspectorPreviewOnElement()
 	a.deviceHighlightIssue()
 	a.deviceInspectorShowVisuals(false)
 }
 
 // Move navigates focus using the given direction and returns selected PlatformElementValue_v1 as a map.
-func (a ControlInterface) Move(direction int32) map[string]interface{} {
+func (a ControlInterface) Move(direction int32) (map[string]interface{}, error) {
 	log.Info("changing")
 	a.deviceInspectorMoveWithOptions(direction)
 	log.Info("before changed")
 	result := make(map[string]interface{})
 
-	resp := a.awaitHostInspectorCurrentElementChanged()
+	resp, err := a.awaitHostInspectorCurrentElementChanged()
+	if err != nil {
+		return result, err
+	}
 
 	// Extraction path for platform element bytes:
 	// Value -> Value -> ElementValue_v1 -> Value -> Value -> PlatformElementValue_v1 -> Value ([]byte)
 	value, ok := resp["Value"].(map[string]interface{})
 	if !ok {
 		log.Warn("resp[\"Value\"] is not a map")
-		return result
+		return result, nil
 	}
 
 	innerValue, ok := value["Value"].(map[string]interface{})
 	if !ok {
 		log.Warn("Value[\"Value\"] is not a map")
-		return result
+		return result, nil
 	}
 
 	elementValue, ok := innerValue["ElementValue_v1"].(map[string]interface{})
 	if !ok {
 		log.Warn("ElementValue_v1 is not a map")
-		return result
+		return result, nil
 	}
 
 	axElement, ok := elementValue["Value"].(map[string]interface{})
 	if !ok {
 		log.Warn("ElementValue_v1[\"Value\"] is not a map")
-		return result
+		return result, nil
 	}
 
 	// Split assertions for safety/readability
 	valMap, ok := axElement["Value"].(map[string]interface{})
 	if !ok {
 		log.Warn("AX element inner \"Value\" is not a map")
-		return result
+		return result, nil
 	}
 	platformElement, ok := valMap["PlatformElementValue_v1"].(map[string]interface{})
 	if !ok {
 		log.Warn("PlatformElementValue_v1 is not a map")
-		return result
+		return result, nil
 	}
 
 	byteArray, ok := platformElement["Value"].([]byte)
 	if !ok {
 		log.Warn("PlatformElementValue_v1[\"Value\"] is not a []byte")
-		return result
+		return result, nil
 	}
 	encoded := base64.StdEncoding.EncodeToString(byteArray)
 
 	result["platformElementValue"] = encoded
 
-	return result
+	return result, nil
 }
 
 // GetElement moves the green selection rectangle one element further
@@ -223,19 +232,19 @@ func (a ControlInterface) ResetToDefaultAccessibilitySettings() error {
 	return nil
 }
 
-func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
+func (a ControlInterface) awaitHostInspectorCurrentElementChanged() (map[string]interface{}, error) {
 	timeout := 2 * time.Second
 	msg, err := a.channel.ReceiveMethodCallWithTimeout("hostInspectorCurrentElementChanged:", timeout)
 	if err != nil {
 		log.Errorf("Timeout waiting for hostInspectorCurrentElementChanged (timeout: %v): %v", timeout, err)
-		panic(fmt.Sprintf("Timeout waiting for hostInspectorCurrentElementChanged: %s", err))
+		return nil, fmt.Errorf("timeout waiting for hostInspectorCurrentElementChanged: %w", err)
 	}
 	log.Info("received hostInspectorCurrentElementChanged")
 	result, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 	if err != nil {
 		panic(fmt.Sprintf("Failed unarchiving: %s this is a bug and should not happen", err))
 	}
-	return result[0].(map[string]interface{})
+	return result[0].(map[string]interface{}), nil
 }
 
 func (a ControlInterface) awaitHostInspectorMonitoredEventTypeChanged() {
