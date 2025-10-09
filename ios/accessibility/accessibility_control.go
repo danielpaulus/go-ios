@@ -141,7 +141,7 @@ func (a ControlInterface) TurnOff() {
 	a.deviceInspectorShowVisuals(false)
 }
 
-// Move navigates focus using the given direction and returns selected fields as a map.
+// Move navigates focus using the given direction and returns selected PlatformElementValue_v1 as a map.
 func (a ControlInterface) Move(direction int32) map[string]interface{} {
 	log.Info("changing")
 	a.deviceInspectorMoveWithOptions(direction)
