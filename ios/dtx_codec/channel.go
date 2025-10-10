@@ -1,6 +1,7 @@
 package dtx
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -46,7 +47,24 @@ func (d *Channel) ReceiveMethodCall(selector string) Message {
 	return <-channel
 }
 
-func (d *Channel) ReceiveMethodCallWithTimeout(selector string, timeout time.Duration) (Message, error) {
+func (d *Channel) ReceiveMethodCallWithTimeout(selector string, ctx context.Context) (Message, error) {
+	select {
+	case <-ctx.Done():
+		return Message{}, ctx.Err()
+	default:
+	}
+
+	var timeout time.Duration
+	if deadline, ok := ctx.Deadline(); ok {
+		timeout = time.Until(deadline)
+		if timeout <= 0 {
+			return Message{}, context.DeadlineExceeded
+		}
+	} else {
+		// default 5 seconds for dtx channel
+		timeout = d.timeout
+	}
+
 	d.mutex.Lock()
 	channel := d.registeredMethods[selector]
 	d.mutex.Unlock()
