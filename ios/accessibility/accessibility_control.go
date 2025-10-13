@@ -174,44 +174,37 @@ func (a ControlInterface) Move(direction MoveDirection) (AXElementData, error) {
 	// Value -> Value -> ElementValue_v1 -> Value -> Value -> PlatformElementValue_v1 -> Value ([]byte)
 	value, ok := resp["Value"].(map[string]interface{})
 	if !ok {
-		log.Warn("resp[\"Value\"] is not a map")
-		return AXElementData{}, nil
+		return AXElementData{}, fmt.Errorf("resp[\"Value\"] is not a map, got %T", resp["Value"])
 	}
 
 	innerValue, ok := value["Value"].(map[string]interface{})
 	if !ok {
-		log.Warn("Value[\"Value\"] is not a map")
-		return AXElementData{}, nil
+		return AXElementData{}, fmt.Errorf("Value[\"Value\"] is not a map, got %T", value["Value"])
 	}
 
 	elementValue, ok := innerValue["ElementValue_v1"].(map[string]interface{})
 	if !ok {
-		log.Warn("ElementValue_v1 is not a map")
-		return AXElementData{}, nil
+		return AXElementData{}, fmt.Errorf("ElementValue_v1 is not a map, got %T", innerValue["ElementValue_v1"])
 	}
 
 	axElement, ok := elementValue["Value"].(map[string]interface{})
 	if !ok {
-		log.Warn("ElementValue_v1[\"Value\"] is not a map")
-		return AXElementData{}, nil
+		return AXElementData{}, fmt.Errorf("ElementValue_v1[\"Value\"] is not a map, got %T", elementValue["Value"])
 	}
 
-	// Split assertions for safety/readability
 	valMap, ok := axElement["Value"].(map[string]interface{})
 	if !ok {
-		log.Warn("AX element inner \"Value\" is not a map")
-		return AXElementData{}, nil
+		return AXElementData{}, fmt.Errorf("AX element inner \"Value\" is not a map, got %T", axElement["Value"])
 	}
+
 	platformElement, ok := valMap["PlatformElementValue_v1"].(map[string]interface{})
 	if !ok {
-		log.Warn("PlatformElementValue_v1 is not a map")
-		return AXElementData{}, nil
+		return AXElementData{}, fmt.Errorf("PlatformElementValue_v1 is not a map, got %T", valMap["PlatformElementValue_v1"])
 	}
 
 	byteArray, ok := platformElement["Value"].([]byte)
 	if !ok {
-		log.Warn("PlatformElementValue_v1[\"Value\"] is not a []byte")
-		return AXElementData{}, nil
+		return AXElementData{}, fmt.Errorf("PlatformElementValue_v1[\"Value\"] is not a []byte, got %T", platformElement["Value"])
 	}
 	encoded := base64.StdEncoding.EncodeToString(byteArray)
 
@@ -244,7 +237,7 @@ func (a ControlInterface) ResetToDefaultAccessibilitySettings() error {
 }
 
 func (a ControlInterface) awaitHostInspectorCurrentElementChanged(ctx context.Context) (map[string]interface{}, error) {
-	msg, err := a.channel.ReceiveMethodCallWithTimeout("hostInspectorCurrentElementChanged:", ctx)
+	msg, err := a.channel.ReceiveMethodCallWithTimeout(ctx, "hostInspectorCurrentElementChanged:")
 	if err != nil {
 		log.Errorf("Failed to receive hostInspectorCurrentElementChanged: %v", err)
 		return nil, fmt.Errorf("failed to receive hostInspectorCurrentElementChanged: %w", err)
