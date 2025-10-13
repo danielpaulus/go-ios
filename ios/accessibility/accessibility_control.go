@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"time"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
@@ -156,11 +155,7 @@ func (a ControlInterface) TurnOff() {
 }
 
 // Move navigates focus using the given direction and returns selected element data.
-func (a ControlInterface) Move(direction MoveDirection) (AXElementData, error) {
-
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-
+func (a ControlInterface) Move(ctx context.Context, direction MoveDirection) (AXElementData, error) {
 	log.Info("changing")
 	a.deviceInspectorMoveWithOptions(direction)
 	log.Info("before changed")
@@ -214,8 +209,8 @@ func (a ControlInterface) Move(direction MoveDirection) (AXElementData, error) {
 }
 
 // GetElement moves the green selection rectangle one element further
-func (a ControlInterface) GetElement() (AXElementData, error) {
-	return a.Move(DirectionNext)
+func (a ControlInterface) GetElement(ctx context.Context) (AXElementData, error) {
+	return a.Move(ctx, DirectionNext)
 }
 
 func (a ControlInterface) UpdateAccessibilitySetting(name string, val interface{}) {
