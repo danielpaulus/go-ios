@@ -47,32 +47,16 @@ func (d *Channel) ReceiveMethodCall(selector string) Message {
 	return <-channel
 }
 
-func (d *Channel) ReceiveMethodCallWithTimeout(selector string, ctx context.Context) (Message, error) {
-	select {
-	case <-ctx.Done():
-		return Message{}, ctx.Err()
-	default:
-	}
-
-	var timeout time.Duration
-	if deadline, ok := ctx.Deadline(); ok {
-		timeout = time.Until(deadline)
-		if timeout <= 0 {
-			return Message{}, context.DeadlineExceeded
-		}
-	} else {
-		// default 5 seconds for dtx channel
-		timeout = d.timeout
-	}
-
+func (d *Channel) ReceiveMethodCallWithTimeout(ctx context.Context, selector string) (Message, error) {
 	d.mutex.Lock()
 	channel := d.registeredMethods[selector]
 	d.mutex.Unlock()
 	select {
 	case msg := <-channel:
 		return msg, nil
-	case <-time.After(timeout):
-		return Message{}, fmt.Errorf("timeout waiting for selector %s", selector)
+	// context is cancelled because the timeout is exceeded
+	case <-ctx.Done():
+		return Message{}, ctx.Err()
 	}
 }
 
