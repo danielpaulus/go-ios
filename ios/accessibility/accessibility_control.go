@@ -1,6 +1,8 @@
 package accessibility
 
 import (
+	"context"
+	"encoding/base64"
 	"fmt"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -12,6 +14,21 @@ import (
 // It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
 	channel *dtx.Channel
+}
+
+// Direction represents navigation direction values used by AX service
+type MoveDirection int32
+
+const (
+	DirectionPrevious MoveDirection = 3
+	DirectionNext     MoveDirection = 4
+	DirectionFirst    MoveDirection = 5
+	DirectionLast     MoveDirection = 6
+)
+
+// AXElementData represents the data returned from Move operations
+type AXElementData struct {
+	PlatformElementValue string `json:"platformElementValue"` // Base64-encoded platform element data
 }
 
 func (a ControlInterface) readhostAppStateChanged() {
@@ -115,7 +132,10 @@ func (a ControlInterface) SwitchToDevice() {
 	a.deviceInspectorShowIgnoredElements(false)
 	a.deviceSetAuditTargetPid(0)
 	a.deviceInspectorFocusOnElement()
-	a.awaitHostInspectorCurrentElementChanged()
+	_, err := a.awaitHostInspectorCurrentElementChanged(context.Background())
+	if err != nil {
+		log.Warnf("await element change failed during SwitchToDevice: %v", err)
+	}
 	a.deviceInspectorPreviewOnElement()
 	a.deviceHighlightIssue()
 }
@@ -125,20 +145,72 @@ func (a ControlInterface) TurnOff() {
 	a.deviceInspectorSetMonitoredEventType(0)
 	a.awaitHostInspectorMonitoredEventTypeChanged()
 	a.deviceInspectorFocusOnElement()
-	a.awaitHostInspectorCurrentElementChanged()
+	_, err := a.awaitHostInspectorCurrentElementChanged(context.Background())
+	if err != nil {
+		log.Warnf("await element change failed during TurnOff: %v", err)
+	}
 	a.deviceInspectorPreviewOnElement()
 	a.deviceHighlightIssue()
 	a.deviceInspectorShowVisuals(false)
 }
 
-// GetElement moves the green selection rectangle one element further
-func (a ControlInterface) GetElement() {
+// Move navigates focus using the given direction and returns selected element data.
+func (a ControlInterface) Move(ctx context.Context, direction MoveDirection) (AXElementData, error) {
 	log.Info("changing")
-	a.deviceInspectorMoveWithOptions()
-	// a.deviceInspectorMoveWithOptions()
+	a.deviceInspectorMoveWithOptions(direction)
+	log.Info("before changed")
 
-	resp := a.awaitHostInspectorCurrentElementChanged()
-	log.Info("item changed", resp)
+	resp, err := a.awaitHostInspectorCurrentElementChanged(ctx)
+	if err != nil {
+		return AXElementData{}, err
+	}
+
+	// Extraction path for platform element bytes:
+	// Value -> Value -> ElementValue_v1 -> Value -> Value -> PlatformElementValue_v1 -> Value ([]byte)
+	value, ok := resp["Value"].(map[string]interface{})
+	if !ok {
+		return AXElementData{}, fmt.Errorf("resp[\"Value\"] is not a map, got %T", resp["Value"])
+	}
+
+	innerValue, ok := value["Value"].(map[string]interface{})
+	if !ok {
+		return AXElementData{}, fmt.Errorf("Value[\"Value\"] is not a map, got %T", value["Value"])
+	}
+
+	elementValue, ok := innerValue["ElementValue_v1"].(map[string]interface{})
+	if !ok {
+		return AXElementData{}, fmt.Errorf("ElementValue_v1 is not a map, got %T", innerValue["ElementValue_v1"])
+	}
+
+	axElement, ok := elementValue["Value"].(map[string]interface{})
+	if !ok {
+		return AXElementData{}, fmt.Errorf("ElementValue_v1[\"Value\"] is not a map, got %T", elementValue["Value"])
+	}
+
+	valMap, ok := axElement["Value"].(map[string]interface{})
+	if !ok {
+		return AXElementData{}, fmt.Errorf("AX element inner \"Value\" is not a map, got %T", axElement["Value"])
+	}
+
+	platformElement, ok := valMap["PlatformElementValue_v1"].(map[string]interface{})
+	if !ok {
+		return AXElementData{}, fmt.Errorf("PlatformElementValue_v1 is not a map, got %T", valMap["PlatformElementValue_v1"])
+	}
+
+	byteArray, ok := platformElement["Value"].([]byte)
+	if !ok {
+		return AXElementData{}, fmt.Errorf("PlatformElementValue_v1[\"Value\"] is not a []byte, got %T", platformElement["Value"])
+	}
+	encoded := base64.StdEncoding.EncodeToString(byteArray)
+
+	return AXElementData{
+		PlatformElementValue: encoded,
+	}, nil
+}
+
+// GetElement moves the green selection rectangle one element further
+func (a ControlInterface) GetElement(ctx context.Context) (AXElementData, error) {
+	return a.Move(ctx, DirectionNext)
 }
 
 func (a ControlInterface) UpdateAccessibilitySetting(name string, val interface{}) {
@@ -159,14 +231,18 @@ func (a ControlInterface) ResetToDefaultAccessibilitySettings() error {
 	return nil
 }
 
-func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
-	msg := a.channel.ReceiveMethodCall("hostInspectorCurrentElementChanged:")
+func (a ControlInterface) awaitHostInspectorCurrentElementChanged(ctx context.Context) (map[string]interface{}, error) {
+	msg, err := a.channel.ReceiveMethodCallWithTimeout(ctx, "hostInspectorCurrentElementChanged:")
+	if err != nil {
+		log.Errorf("Failed to receive hostInspectorCurrentElementChanged: %v", err)
+		return nil, fmt.Errorf("failed to receive hostInspectorCurrentElementChanged: %w", err)
+	}
 	log.Info("received hostInspectorCurrentElementChanged")
 	result, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 	if err != nil {
 		panic(fmt.Sprintf("Failed unarchiving: %s this is a bug and should not happen", err))
 	}
-	return result[0].(map[string]interface{})
+	return result[0].(map[string]interface{}), nil
 }
 
 func (a ControlInterface) awaitHostInspectorMonitoredEventTypeChanged() {
@@ -175,13 +251,13 @@ func (a ControlInterface) awaitHostInspectorMonitoredEventTypeChanged() {
 	log.Infof("hostInspectorMonitoredEventTypeChanged: was set to %d by the device", n[0])
 }
 
-func (a ControlInterface) deviceInspectorMoveWithOptions() {
+func (a ControlInterface) deviceInspectorMoveWithOptions(direction MoveDirection) {
 	method := "deviceInspectorMoveWithOptions:"
 	options := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 		"ObjectType": "passthrough",
 		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 			"allowNonAX":        nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": false}),
-			"direction":         nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": int32(4)}),
+			"direction":         nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": int32(direction)}),
 			"includeContainers": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": true}),
 		}),
 	})
