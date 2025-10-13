@@ -1798,7 +1798,7 @@ func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 		}
 
 		for i := 0; i < 3; i++ {
-			conn.GetElement()
+			conn.GetElement(context.Background())
 			time.Sleep(time.Second)
 		}
 		/*	conn.GetElement()
