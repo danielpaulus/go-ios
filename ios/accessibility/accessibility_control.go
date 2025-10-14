@@ -16,11 +16,28 @@ type ControlInterface struct {
 	channel *dtx.Channel
 }
 
-type Action string
+type Action int
 
 const (
-	TapAction Action = "AXAction-2010"
+	TapAction Action = iota
 )
+
+type ActionMeta struct {
+	AttributeName string
+	HumanReadable string
+}
+
+// actionMetadata holds known actions and their metadata.
+var actionMetadata = map[Action]ActionMeta{
+	TapAction: {AttributeName: "AXAction-2010", HumanReadable: "Activate"},
+}
+
+func getActionMeta(action Action) ActionMeta {
+	if meta, ok := actionMetadata[action]; ok {
+		return meta
+	}
+	return ActionMeta{AttributeName: "", HumanReadable: "Activate"}
+}
 
 // Direction represents navigation direction values used by AX service
 type MoveDirection int32
@@ -234,16 +251,18 @@ func (a *ControlInterface) PerformAction(actionName Action, currentPlatformEleme
 		}),
 	})
 
+	meta := getActionMeta(actionName)
+
 	attributeArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 		"ObjectType": "AXAuditElementAttribute_v1",
 		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 			"ObjectType": "passthrough",
 			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 				"AttributeNameValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
-					"ObjectType": "passthrough", "Value": string(actionName),
+					"ObjectType": "passthrough", "Value": meta.AttributeName,
 				}),
 				"HumanReadableNameValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
-					"ObjectType": "passthrough", "Value": "Activate",
+					"ObjectType": "passthrough", "Value": meta.HumanReadable,
 				}),
 				"PerformsActionValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 					"ObjectType": "passthrough", "Value": true,
