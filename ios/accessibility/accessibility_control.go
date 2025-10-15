@@ -19,24 +19,24 @@ type ControlInterface struct {
 type Action int
 
 const (
-	TapAction Action = iota
+	ActionTap Action = iota
 )
 
-type ActionMeta struct {
+type actionMeta struct {
 	AttributeName string
 	HumanReadable string
 }
 
 // actionMetadata holds known actions and their metadata.
-var actionMetadata = map[Action]ActionMeta{
-	TapAction: {AttributeName: "AXAction-2010", HumanReadable: "Activate"},
+var actionMetadata = map[Action]actionMeta{
+	ActionTap: {AttributeName: "AXAction-2010", HumanReadable: "Activate"},
 }
 
-func getActionMeta(action Action) ActionMeta {
+func getActionMeta(action Action) actionMeta {
 	if meta, ok := actionMetadata[action]; ok {
 		return meta
 	}
-	return ActionMeta{AttributeName: "", HumanReadable: "Activate"}
+	return actionMeta{AttributeName: "", HumanReadable: ""}
 }
 
 // Direction represents navigation direction values used by AX service
