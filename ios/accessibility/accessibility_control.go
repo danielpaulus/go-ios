@@ -27,16 +27,13 @@ type actionMeta struct {
 	HumanReadable string
 }
 
-// actionMetadata holds known actions and their metadata.
-var actionMetadata = map[Action]actionMeta{
-	ActionTap: {AttributeName: "AXAction-2010", HumanReadable: "Activate"},
-}
-
 func getActionMeta(action Action) actionMeta {
-	if meta, ok := actionMetadata[action]; ok {
-		return meta
+	switch action {
+	case ActionTap:
+		return actionMeta{AttributeName: "AXAction-2010", HumanReadable: "Activate"}
+	default:
+		return actionMeta{}
 	}
-	return actionMeta{AttributeName: "", HumanReadable: ""}
 }
 
 // Direction represents navigation direction values used by AX service
