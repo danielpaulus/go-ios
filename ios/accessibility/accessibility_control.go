@@ -16,6 +16,26 @@ type ControlInterface struct {
 	channel *dtx.Channel
 }
 
+type Action int
+
+const (
+	ActionTap Action = iota
+)
+
+type actionMeta struct {
+	AttributeName string
+	HumanReadable string
+}
+
+func getActionMeta(action Action) actionMeta {
+	switch action {
+	case ActionTap:
+		return actionMeta{AttributeName: "AXAction-2010", HumanReadable: "Activate"}
+	default:
+		return actionMeta{}
+	}
+}
+
 // Direction represents navigation direction values used by AX service
 type MoveDirection int32
 
@@ -206,6 +226,69 @@ func (a ControlInterface) Move(ctx context.Context, direction MoveDirection) (AX
 	return AXElementData{
 		PlatformElementValue: encoded,
 	}, nil
+}
+
+// performAction performs the standard accessibility action without alert checking
+func (a *ControlInterface) PerformAction(actionName Action, currentPlatformElementValue string) error {
+	platformBytes, err := base64.StdEncoding.DecodeString(currentPlatformElementValue)
+	if err != nil {
+		return fmt.Errorf("invalid currentPlatformElementValue base64: %w", err)
+	}
+
+	elementArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditElement_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"PlatformElementValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough",
+					"Value":      platformBytes,
+				}),
+			}),
+		}),
+	})
+
+	meta := getActionMeta(actionName)
+
+	attributeArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditElementAttribute_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"AttributeNameValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": meta.AttributeName,
+				}),
+				"HumanReadableNameValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": meta.HumanReadable,
+				}),
+				"PerformsActionValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": true,
+				}),
+				"SettableValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": false,
+				}),
+				"DisplayAsTree_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": false,
+				}),
+				"DisplayInlineValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": false,
+				}),
+				"IsInternal_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": false,
+				}),
+				"ValueTypeValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": int32(1),
+				}),
+			}),
+		}),
+	})
+
+	valueArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{})
+
+	if _, err := a.channel.MethodCall("deviceElement:performAction:withValue:", elementArg, attributeArg, valueArg); err != nil {
+		return fmt.Errorf("failed to send performAction DTX message: %w", err)
+	}
+	return nil
 }
 
 // GetElement moves the green selection rectangle one element further
