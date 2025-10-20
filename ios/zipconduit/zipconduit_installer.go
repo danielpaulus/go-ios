@@ -45,7 +45,9 @@ const (
 	shimServiceName    string = "com.apple.streaming_zip_conduit.shim.remote"
 )
 
-// those permissions were observed by capturing Xcode traffic and we use exactly the same values
+// those permissions were observed by capturing Xcode traffic, and we use exactly the same values.
+// we also tried using only the last three numbers in octal representation. This worked fine, but we sill use the same
+// values as Xcode
 const (
 	stdDirPerm  = 16877  // 0o40755 -> 0o755
 	stdFilePerm = -32348 // 0o37777700644 -> 0o644
