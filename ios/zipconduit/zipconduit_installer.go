@@ -1,7 +1,10 @@
 package zipconduit
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/binary"
+	"hash"
 	"hash/crc32"
 	"io"
 	"os"
@@ -42,10 +45,18 @@ const (
 	shimServiceName    string = "com.apple.streaming_zip_conduit.shim.remote"
 )
 
+// those permissions were observed by capturing Xcode traffic, and we use exactly the same values.
+// we also tried using only the last three numbers in octal representation. This worked fine, but we still use the same
+// values as Xcode
+const (
+	stdDirPerm  = 16877  // 0o40755 -> 0o755
+	stdFilePerm = -32348 // 0o37777700644 -> 0o644
+)
+
 // Connection exposes functions to interoperate with zipconduit
 type Connection struct {
 	deviceConn io.ReadWriteCloser
-	plistCodec ios.PlistCodec
+	plistCodec ios.PlistCodecReadWriter
 }
 
 // New returns a new ZipConduit Connection for the given DeviceID and Udid
@@ -65,7 +76,7 @@ func NewWithUsbmuxdConnection(device ios.DeviceEntry) (*Connection, error) {
 
 	return &Connection{
 		deviceConn: deviceConn,
-		plistCodec: ios.NewPlistCodec(),
+		plistCodec: ios.NewPlistCodecReadWriter(deviceConn.Reader(), deviceConn.Writer()),
 	}, nil
 }
 
@@ -79,7 +90,7 @@ func NewWithShimConnection(device ios.DeviceEntry) (*Connection, error) {
 
 	return &Connection{
 		deviceConn: deviceConn,
-		plistCodec: ios.NewPlistCodec(),
+		plistCodec: ios.NewPlistCodecReadWriter(deviceConn.Reader(), deviceConn.Writer()),
 	}, nil
 }
 
@@ -135,29 +146,26 @@ func (conn Connection) sendDirectory(dir string) error {
 		return err
 	}
 
-	metainfFolder, metainfFile, err := addMetaInf(tmpDir, unzippedFiles, uint64(totalBytes))
+	metainfFolder, metainfFile, err := addMetaInf(tmpDir, len(unzippedFiles), uint64(totalBytes))
 	if err != nil {
 		return err
 	}
 
 	init := newInitTransfer(dir + ".ipa")
 	log.Debugf("sending inittransfer %+v", init)
-	bytes, err := conn.plistCodec.Encode(init)
+	err = conn.plistCodec.Write(init)
 	if err != nil {
 		return err
 	}
 
-	_, err = conn.deviceConn.Write(bytes)
-	if err != nil {
-		return err
-	}
+	hasher := crc32.NewIEEE()
 
 	log.Debug("writing meta inf")
-	err = AddFileToZip(conn.deviceConn, metainfFolder, tmpDir)
+	err = addFileToZip(conn.deviceConn, metainfFolder, tmpDir, hasher)
 	if err != nil {
 		return err
 	}
-	err = AddFileToZip(conn.deviceConn, metainfFile, tmpDir)
+	err = addFileToZip(conn.deviceConn, metainfFile, tmpDir, hasher)
 	if err != nil {
 		return err
 	}
@@ -166,7 +174,7 @@ func (conn Connection) sendDirectory(dir string) error {
 	log.Debug("sending files....")
 
 	for _, file := range unzippedFiles {
-		err := AddFileToZip(conn.deviceConn, file, dir)
+		err := addFileToZip(conn.deviceConn, file, dir, hasher)
 		if err != nil {
 			return err
 		}
@@ -181,59 +189,56 @@ func (conn Connection) sendDirectory(dir string) error {
 }
 
 func (conn Connection) sendIpaFile(ipaFile string) error {
-	tmpDir, err := os.MkdirTemp("", "prefix")
+	ipa, err := zip.OpenReader(ipaFile)
 	if err != nil {
 		return err
 	}
-	log.Debugf("created tempdir: %s", tmpDir)
-	defer func() {
-		err := os.RemoveAll(tmpDir)
-		if err != nil {
-			log.WithFields(log.Fields{"dir": tmpDir}).Warn("failed removing tempdir")
-		}
-	}()
-	log.Debug("unzipping..")
-	unzippedFiles, totalBytes, err := ios.Unzip(ipaFile, tmpDir)
-	if err != nil {
-		return err
-	}
+	defer ipa.Close()
 
-	metainfFolder, metainfFile, err := addMetaInf(tmpDir, unzippedFiles, totalBytes)
-	if err != nil {
-		return err
-	}
+	totalBytes, numFiles := zipFilesSize(ipa)
 
 	init := newInitTransfer(ipaFile)
 	log.Debugf("sending inittransfer %+v", init)
-	bytes, err := conn.plistCodec.Encode(init)
+	err = conn.plistCodec.Write(init)
 	if err != nil {
 		return err
 	}
 
-	_, err = conn.deviceConn.Write(bytes)
+	err = transferDirectory(conn.deviceConn, "META-INF/")
 	if err != nil {
 		return err
 	}
 
-	log.Debug("writing meta inf")
-	err = AddFileToZip(conn.deviceConn, metainfFolder, tmpDir)
+	metaInfBytes := createMetaInfFile(numFiles, totalBytes)
+	crc, err := calculateCrc32(bytes.NewReader(metaInfBytes), crc32.NewIEEE())
 	if err != nil {
 		return err
 	}
-	err = AddFileToZip(conn.deviceConn, metainfFile, tmpDir)
+	err = transferFile(conn.deviceConn, bytes.NewReader(metaInfBytes), crc, uint32(len(metaInfBytes)), path.Join("META-INF", metainfFileName))
 	if err != nil {
 		return err
 	}
-	log.Debug("meta inf send successfully")
 
-	log.Debug("sending files....")
+	for _, f := range ipa.File {
+		if f.FileInfo().IsDir() {
+			err := transferDirectory(conn.deviceConn, f.Name)
+			if err != nil {
+				return err
+			}
+			continue
+		}
 
-	for _, file := range unzippedFiles {
-		err := AddFileToZip(conn.deviceConn, file, tmpDir)
+		uncompressedFile, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		err = transferFile(conn.deviceConn, uncompressedFile, f.CRC32, uint32(f.UncompressedSize64), f.Name)
 		if err != nil {
 			return err
 		}
 	}
+
 	log.Debug("files sent, sending central header....")
 	_, err = conn.deviceConn.Write(centralDirectoryHeader)
 	if err != nil {
@@ -245,8 +250,8 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 
 func (conn Connection) waitForInstallation() error {
 	for {
-		msg, _ := conn.plistCodec.Decode(conn.deviceConn)
-		plist, _ := ios.ParsePlist(msg)
+		var plist map[string]interface{}
+		err := conn.plistCodec.Read(&plist)
 		log.Debugf("%+v", plist)
 		done, percent, status, err := evaluateProgress(plist)
 		if err != nil {
@@ -262,8 +267,8 @@ func (conn Connection) waitForInstallation() error {
 
 const metainfFileName = "com.apple.ZipMetadata.plist"
 
-func addMetaInf(metainfPath string, files []string, totalBytes uint64) (string, string, error) {
-	folderPath := path.Join(metainfPath, "META-INF")
+func addMetaInf(metainfPath string, numFiles int, totalBytes uint64) (string, string, error) {
+	folderPath := path.Join(metainfPath, "META-INF/")
 	ret, _ := ios.PathExists(folderPath)
 	if !ret {
 		err := os.Mkdir(folderPath, 0o777)
@@ -271,9 +276,7 @@ func addMetaInf(metainfPath string, files []string, totalBytes uint64) (string, 
 			return "", "", err
 		}
 	}
-	// recordcount == files + meta-inf + metainffile
-	meta := metadata{RecordCount: 2 + len(files), StandardDirectoryPerms: 16877, StandardFilePerms: -32348, TotalUncompressedBytes: totalBytes, Version: 2}
-	metaBytes := ios.ToPlistBytes(meta)
+	metaBytes := createMetaInfFile(numFiles, totalBytes)
 	filePath := path.Join(metainfPath, "META-INF", metainfFileName)
 	err := os.WriteFile(filePath, metaBytes, 0o777)
 	if err != nil {
@@ -282,7 +285,12 @@ func addMetaInf(metainfPath string, files []string, totalBytes uint64) (string, 
 	return folderPath, filePath, nil
 }
 
-func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
+func createMetaInfFile(numFiles int, totalBytes uint64) []byte {
+	meta := metadata{RecordCount: 2 + numFiles, StandardDirectoryPerms: stdDirPerm, StandardFilePerms: stdFilePerm, TotalUncompressedBytes: totalBytes, Version: 2}
+	return ios.ToPlistBytes(meta)
+}
+
+func addFileToZip(writer io.Writer, filename string, tmpdir string, hasher hash.Hash32) error {
 	fileToZip, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -317,15 +325,15 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 		if err != nil {
 			return err
 		}
-		err = binary.Write(writer, binary.BigEndian, name)
+		_, err = writer.Write(name)
 		if err != nil {
 			return err
 		}
-		err = binary.Write(writer, binary.BigEndian, extra)
+		writer.Write(extra)
 		return err
 	}
 
-	crc, err := calculateCrc32(fileToZip)
+	crc, err := calculateCrc32(fileToZip, hasher)
 	if err != nil {
 		return err
 	}
@@ -336,11 +344,11 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	if err != nil {
 		return err
 	}
-	err = binary.Write(writer, binary.BigEndian, name)
+	_, err = writer.Write(name)
 	if err != nil {
 		return err
 	}
-	err = binary.Write(writer, binary.BigEndian, extra)
+	_, err = writer.Write(extra)
 	if err != nil {
 		return err
 	}
@@ -348,10 +356,52 @@ func AddFileToZip(writer io.Writer, filename string, tmpdir string) error {
 	return err
 }
 
-func calculateCrc32(reader io.Reader) (uint32, error) {
-	hash := crc32.New(crc32.IEEETable)
-	if _, err := io.Copy(hash, reader); err != nil {
+func calculateCrc32(reader io.Reader, hasher hash.Hash32) (uint32, error) {
+	hasher.Reset()
+	if _, err := io.Copy(hasher, reader); err != nil {
 		return 0, err
 	}
-	return hash.Sum32(), nil
+	return hasher.Sum32(), nil
+}
+
+// zipFilesSize counts all the files that are stored in the zip archive and adds up their uncompressed size
+func zipFilesSize(r *zip.ReadCloser) (size uint64, numFiles int) {
+	for _, f := range r.File {
+		size += f.UncompressedSize64
+		numFiles++
+	}
+	return
+}
+
+func transferFile(dst io.Writer, src io.Reader, crc uint32, uncompressedSize uint32, dstFilePath string) error {
+	header, name, extra := newZipHeader(uncompressedSize, crc, dstFilePath)
+	err := binary.Write(dst, binary.LittleEndian, header)
+	if err != nil {
+		return err
+	}
+	_, err = dst.Write(name)
+	if err != nil {
+		return err
+	}
+	_, err = dst.Write(extra)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(dst, src)
+	return err
+}
+
+func transferDirectory(writer io.Writer, dstDirPath string) error {
+	// write our "zip" header for a directory
+	header, name, extra := newZipHeaderDir(dstDirPath)
+	err := binary.Write(writer, binary.LittleEndian, header)
+	if err != nil {
+		return err
+	}
+	_, err = writer.Write(name)
+	if err != nil {
+		return err
+	}
+	_, err = writer.Write(extra)
+	return err
 }
