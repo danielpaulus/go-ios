@@ -45,6 +45,12 @@ const (
 	shimServiceName    string = "com.apple.streaming_zip_conduit.shim.remote"
 )
 
+// those permissions were observed by capturing Xcode traffic and we use exactly the same values
+const (
+	stdDirPerm  = 16877  // 0o40755 -> 0o755
+	stdFilePerm = -32348 // 0o37777700644 -> 0o644
+)
+
 // Connection exposes functions to interoperate with zipconduit
 type Connection struct {
 	deviceConn io.ReadWriteCloser
@@ -201,7 +207,7 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		return err
 	}
 
-	metaInfBytes := sendMetaInf(numFiles, totalBytes)
+	metaInfBytes := createMetaInfFile(numFiles, totalBytes)
 	crc, err := calculateCrc32(bytes.NewReader(metaInfBytes), crc32.NewIEEE())
 	if err != nil {
 		return err
@@ -268,9 +274,7 @@ func addMetaInf(metainfPath string, numFiles int, totalBytes uint64) (string, st
 			return "", "", err
 		}
 	}
-	// recordcount == files + meta-inf + metainffile
-	meta := metadata{RecordCount: 2 + numFiles, StandardDirectoryPerms: 16877, StandardFilePerms: -32348, TotalUncompressedBytes: totalBytes, Version: 2}
-	metaBytes := ios.ToPlistBytes(meta)
+	metaBytes := createMetaInfFile(numFiles, totalBytes)
 	filePath := path.Join(metainfPath, "META-INF", metainfFileName)
 	err := os.WriteFile(filePath, metaBytes, 0o777)
 	if err != nil {
@@ -279,8 +283,8 @@ func addMetaInf(metainfPath string, numFiles int, totalBytes uint64) (string, st
 	return folderPath, filePath, nil
 }
 
-func sendMetaInf(numFiles int, totalBytes uint64) []byte {
-	meta := metadata{RecordCount: 2 + numFiles, StandardDirectoryPerms: 16877, StandardFilePerms: -32348, TotalUncompressedBytes: totalBytes, Version: 2}
+func createMetaInfFile(numFiles int, totalBytes uint64) []byte {
+	meta := metadata{RecordCount: 2 + numFiles, StandardDirectoryPerms: stdDirPerm, StandardFilePerms: stdFilePerm, TotalUncompressedBytes: totalBytes, Version: 2}
 	return ios.ToPlistBytes(meta)
 }
 
