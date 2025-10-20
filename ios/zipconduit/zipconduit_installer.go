@@ -325,11 +325,11 @@ func addFileToZip(writer io.Writer, filename string, tmpdir string, hasher hash.
 		if err != nil {
 			return err
 		}
-		err = binary.Write(writer, binary.BigEndian, name)
+		_, err = writer.Write(name)
 		if err != nil {
 			return err
 		}
-		err = binary.Write(writer, binary.BigEndian, extra)
+		writer.Write(extra)
 		return err
 	}
 
@@ -344,11 +344,11 @@ func addFileToZip(writer io.Writer, filename string, tmpdir string, hasher hash.
 	if err != nil {
 		return err
 	}
-	err = binary.Write(writer, binary.BigEndian, name)
+	_, err = writer.Write(name)
 	if err != nil {
 		return err
 	}
-	err = binary.Write(writer, binary.BigEndian, extra)
+	_, err = writer.Write(extra)
 	if err != nil {
 		return err
 	}
@@ -379,11 +379,11 @@ func transferFile(dst io.Writer, src io.Reader, crc uint32, uncompressedSize uin
 	if err != nil {
 		return err
 	}
-	err = binary.Write(dst, binary.BigEndian, name)
+	_, err = dst.Write(name)
 	if err != nil {
 		return err
 	}
-	err = binary.Write(dst, binary.BigEndian, extra)
+	_, err = dst.Write(extra)
 	if err != nil {
 		return err
 	}
@@ -398,10 +398,10 @@ func transferDirectory(writer io.Writer, dstDirPath string) error {
 	if err != nil {
 		return err
 	}
-	err = binary.Write(writer, binary.BigEndian, name)
+	_, err = writer.Write(name)
 	if err != nil {
 		return err
 	}
-	err = binary.Write(writer, binary.BigEndian, extra)
+	_, err = writer.Write(extra)
 	return err
 }
