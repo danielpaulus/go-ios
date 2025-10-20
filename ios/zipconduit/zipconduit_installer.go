@@ -46,7 +46,7 @@ const (
 )
 
 // those permissions were observed by capturing Xcode traffic, and we use exactly the same values.
-// we also tried using only the last three numbers in octal representation. This worked fine, but we sill use the same
+// we also tried using only the last three numbers in octal representation. This worked fine, but we still use the same
 // values as Xcode
 const (
 	stdDirPerm  = 16877  // 0o40755 -> 0o755
