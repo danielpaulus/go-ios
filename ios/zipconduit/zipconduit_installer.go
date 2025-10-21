@@ -232,9 +232,9 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		if err != nil {
 			return err
 		}
-		defer uncompressedFile.Close()
 
 		err = transferFile(conn.deviceConn, uncompressedFile, f.CRC32, uint32(f.UncompressedSize64), f.Name)
+		_ = uncompressedFile.Close()
 		if err != nil {
 			return err
 		}
