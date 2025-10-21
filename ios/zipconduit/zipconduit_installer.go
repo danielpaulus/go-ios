@@ -214,7 +214,10 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 	if err != nil {
 		return err
 	}
-	err = transferFile(conn.deviceConn, bytes.NewReader(metaInfBytes), crc, uint32(len(metaInfBytes)), path.Join("META-INF", metainfFileName))
+
+	copyBuffer := make([]byte, 32*1024)
+
+	err = transferFile(conn.deviceConn, bytes.NewReader(metaInfBytes), crc, uint32(len(metaInfBytes)), path.Join("META-INF", metainfFileName), copyBuffer)
 	if err != nil {
 		return err
 	}
@@ -233,7 +236,7 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 			return err
 		}
 
-		err = transferFile(conn.deviceConn, uncompressedFile, f.CRC32, uint32(f.UncompressedSize64), f.Name)
+		err = transferFile(conn.deviceConn, uncompressedFile, f.CRC32, uint32(f.UncompressedSize64), f.Name, copyBuffer)
 		_ = uncompressedFile.Close()
 		if err != nil {
 			return err
@@ -379,7 +382,7 @@ func zipFilesSize(r *zip.ReadCloser) (size uint64, numFiles int) {
 	return
 }
 
-func transferFile(dst io.Writer, src io.Reader, crc uint32, uncompressedSize uint32, dstFilePath string) error {
+func transferFile(dst io.Writer, src io.Reader, crc uint32, uncompressedSize uint32, dstFilePath string, buffer []byte) error {
 	header, name, extra := newZipHeader(uncompressedSize, crc, dstFilePath)
 	err := binary.Write(dst, binary.LittleEndian, header)
 	if err != nil {
@@ -393,7 +396,7 @@ func transferFile(dst io.Writer, src io.Reader, crc uint32, uncompressedSize uin
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(dst, src)
+	_, err = io.CopyBuffer(dst, src, buffer)
 	return err
 }
 
