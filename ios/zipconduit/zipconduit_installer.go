@@ -232,6 +232,7 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		if err != nil {
 			return err
 		}
+		defer uncompressedFile.Close()
 
 		err = transferFile(conn.deviceConn, uncompressedFile, f.CRC32, uint32(f.UncompressedSize64), f.Name)
 		if err != nil {
@@ -252,6 +253,9 @@ func (conn Connection) waitForInstallation() error {
 	for {
 		var plist map[string]interface{}
 		err := conn.plistCodec.Read(&plist)
+		if err != nil {
+			return err
+		}
 		log.Debugf("%+v", plist)
 		done, percent, status, err := evaluateProgress(plist)
 		if err != nil {
@@ -329,7 +333,9 @@ func addFileToZip(writer io.Writer, filename string, tmpdir string, hasher hash.
 		if err != nil {
 			return err
 		}
-		writer.Write(extra)
+		if _, werr := writer.Write(extra); werr != nil {
+			return werr
+		}
 		return err
 	}
 
