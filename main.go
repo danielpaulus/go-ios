@@ -1091,7 +1091,7 @@ The commands work as following:
 		if containerBundleId == "" {
 			afcService, err = afc.New(device)
 		} else {
-			afcService, err = afc.NewContainer(device, containerBundleId)
+			afcService, err = afc.NewVendDocuments(device, containerBundleId)
 		}
 		exitIfError("fsync: connect afc service failed", err)
 		b, _ = arguments.Bool("rm")
