@@ -77,7 +77,7 @@ type LogEntry struct {
 }
 
 func Parser() func(log string) (*LogEntry, error) {
-	pattern := `(?P<Timestamp>[A-Z][a-z]{2} \d{1,2} \d{2}:\d{2}:\d{2}) (?P<Device>\S+) (?P<Process>[^\[]+)\[(?P<PID>\d+)\] <(?P<Level>\w+)>: (?P<Message>.+)`
+	pattern := `(?P<Timestamp>[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+(?P<Device>\S+)\s+(?P<Process>[^\[]+)\[(?P<PID>\d+)\]\s+<(?P<Level>\w+)>: (?P<Message>.+)`
 	regexp := regexp.MustCompile(pattern)
 
 	return func(log string) (*LogEntry, error) {
