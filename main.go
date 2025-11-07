@@ -26,6 +26,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
 	"github.com/danielpaulus/go-ios/ios/afc"
+	"github.com/danielpaulus/go-ios/ios/fileservice"
 
 	"github.com/danielpaulus/go-ios/ios/crashreport"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
@@ -89,6 +90,9 @@ Usage:
   ios diskspace [options]
   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios erase [--force] [options]
+  ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]
+  ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options]
+  ios file push [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --local=<localPath> --remote=<remotePath> [options]
   ios forward [options] <hostPort> <targetPort>
   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
@@ -188,6 +192,9 @@ The commands work as following:
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding.
    ios erase [--force] [options]                                      Erase the device. It will prompt you to input y+Enter unless --force is specified.
+   ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]  List files using RemoteXPC (iOS 17+). Requires tunnel. Use --app for app container, --app-group for app group, --crash for crash logs, or --temp for temporary files.
+   ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options] Download file using RemoteXPC (iOS 17+). Requires tunnel.
+   ios file push [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --local=<localPath> --remote=<remotePath> [options] Upload file using RemoteXPC (iOS 17+). Requires tunnel. Preserves source file permissions.
    ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
    ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
    ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
@@ -1081,6 +1088,180 @@ The commands work as following:
 		} else {
 			log.Info("ok")
 		}
+		return
+	}
+
+	b, _ = arguments.Bool("file")
+	if b {
+		// file command uses RemoteXPC (iOS 17+) and requires tunnel
+		if !device.SupportsRsd() {
+			exitIfError("file command requires iOS 17+ with tunnel", fmt.Errorf("tunnel not running. Start with: ios tunnel start"))
+		}
+
+		// Determine domain from flags
+		bundleID, _ := arguments.String("--app")
+		groupID, _ := arguments.String("--app-group")
+		useCrash, _ := arguments.Bool("--crash")
+		useTemp, _ := arguments.Bool("--temp")
+
+		// Count how many domain flags were specified
+		flagCount := 0
+		if bundleID != "" {
+			flagCount++
+		}
+		if groupID != "" {
+			flagCount++
+		}
+		if useCrash {
+			flagCount++
+		}
+		if useTemp {
+			flagCount++
+		}
+
+		if flagCount > 1 {
+			exitIfError("file command", fmt.Errorf("can only specify one of: --app, --app-group, --crash, or --temp"))
+		}
+		if flagCount == 0 {
+			exitIfError("file command", fmt.Errorf("must specify one of: --app=<bundleID>, --app-group=<groupID>, --crash, or --temp"))
+		}
+
+		// Determine domain and identifier
+		var domain fileservice.Domain
+		var identifier string
+
+		if bundleID != "" {
+			domain = fileservice.DomainAppDataContainer
+			identifier = bundleID
+		} else if groupID != "" {
+			domain = fileservice.DomainAppGroupDataContainer
+			identifier = groupID
+		} else if useCrash {
+			domain = fileservice.DomainSystemCrashLogs
+			identifier = ""
+		} else if useTemp {
+			domain = fileservice.DomainTemporary
+			identifier = ""
+		}
+
+		// Create connection
+		conn, err := fileservice.New(device, domain, identifier)
+		exitIfError("file: failed to connect to file service", err)
+		defer func() {
+			if closeErr := conn.Close(); closeErr != nil {
+				log.Errorf("Failed to close file service connection: %v", closeErr)
+			}
+		}()
+
+		// Handle ls subcommand
+		b, _ = arguments.Bool("ls")
+		if b {
+			path, _ := arguments.String("--path")
+			if path == "" {
+				path = "."
+			}
+
+			files, err := conn.ListDirectory(path)
+			exitIfError("file ls: failed to list directory", err)
+
+			if !JSONdisabled {
+				result := map[string]interface{}{
+					"path":  path,
+					"files": files,
+					"count": len(files),
+				}
+				fmt.Println(convertToJSONString(result))
+			} else {
+				fmt.Printf("Files in %s:\n", path)
+				for _, file := range files {
+					fmt.Printf("  %s\n", file)
+				}
+				fmt.Printf("\nTotal: %d files\n", len(files))
+			}
+		}
+
+		// Handle pull subcommand
+		b, _ = arguments.Bool("pull")
+		if b {
+			remotePath, _ := arguments.String("--remote")
+			localPath, _ := arguments.String("--local")
+
+			if remotePath == "" {
+				exitIfError("file pull", fmt.Errorf("--remote=<path> is required"))
+			}
+			if localPath == "" {
+				exitIfError("file pull", fmt.Errorf("--local=<path> is required"))
+			}
+
+			// Create output file for streaming
+			outputFile, err := os.Create(localPath)
+			exitIfError("file pull: failed to create output file", err)
+			defer outputFile.Close()
+
+			// Download file using streaming to minimize memory usage
+			log.Infof("Downloading %s to %s...", remotePath, localPath)
+			err = conn.PullFile(remotePath, outputFile)
+			exitIfError("file pull: failed to download file", err)
+
+			// Get file size for reporting
+			fileInfo, err := outputFile.Stat()
+			exitIfError("file pull: failed to get file info", err)
+			fileSize := fileInfo.Size()
+
+			if !JSONdisabled {
+				result := map[string]interface{}{
+					"remote": remotePath,
+					"local":  localPath,
+					"size":   fileSize,
+				}
+				fmt.Println(convertToJSONString(result))
+			} else {
+				log.Infof("Downloaded %d bytes to %s", fileSize, localPath)
+			}
+		}
+
+		b, _ = arguments.Bool("push")
+		if b {
+			localPath, _ := arguments.String("--local")
+			remotePath, _ := arguments.String("--remote")
+
+			if localPath == "" || remotePath == "" {
+				exitIfError("push requires --local and --remote paths", fmt.Errorf("missing required arguments"))
+			}
+
+			// Get file info to preserve permissions
+			fileInfo, err := os.Stat(localPath)
+			exitIfError("push: failed to stat local file", err)
+
+			// Get file permissions from source file, default UID (501) and GID (501)
+			permissions := int64(fileInfo.Mode().Perm())
+			uid := int64(501)
+			gid := int64(501)
+			fileSize := fileInfo.Size()
+
+			// Open file for streaming
+			file, err := os.Open(localPath)
+			exitIfError("push: failed to open local file", err)
+			defer file.Close()
+
+			// Upload file using streaming to minimize memory usage
+			log.Infof("Uploading %s to %s...", localPath, remotePath)
+			err = conn.PushFile(remotePath, file, fileSize, permissions, uid, gid)
+			exitIfError("push: failed to upload file", err)
+
+			if b, _ := arguments.Bool("--json"); b {
+				result := map[string]interface{}{
+					"success": true,
+					"remote":  remotePath,
+					"local":   localPath,
+					"size":    fileSize,
+				}
+				fmt.Println(convertToJSONString(result))
+			} else {
+				log.Infof("Uploaded %d bytes to %s", fileSize, remotePath)
+			}
+		}
+
 		return
 	}
 
