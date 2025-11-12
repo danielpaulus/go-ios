@@ -205,12 +205,12 @@ func (a ControlInterface) Move(ctx context.Context, direction MoveDirection) (AX
 
 func (a ControlInterface) extractSpokenDescription(innerValue map[string]interface{}) string {
 	// Try SpokenDescriptionValue_v1 first
-	if desc := a.extractStringFromField(innerValue, "SpokenDescriptionValue_v1", "spokenDescription"); desc != "" {
+	if desc := a.extractStringFromField(innerValue, "SpokenDescriptionValue_v1"); desc != "" {
 		return desc
 	}
 
 	// Fallback to CaptionTextValue_v1
-	if desc := a.extractStringFromField(innerValue, "CaptionTextValue_v1", "caption"); desc != "" {
+	if desc := a.extractStringFromField(innerValue, "CaptionTextValue_v1"); desc != "" {
 		return desc
 	}
 
