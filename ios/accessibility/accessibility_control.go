@@ -203,8 +203,6 @@ func (a ControlInterface) Move(ctx context.Context, direction MoveDirection) (AX
 	}, nil
 }
 
-// extractSpokenDescription extracts the spoken description from innerValue.
-// Prefers SpokenDescriptionValue_v1, falls back to CaptionTextValue_v1.
 func (a ControlInterface) extractSpokenDescription(innerValue map[string]interface{}) string {
 	// Try SpokenDescriptionValue_v1 first
 	if desc := a.extractStringFromField(innerValue, "SpokenDescriptionValue_v1", "spokenDescription"); desc != "" {
