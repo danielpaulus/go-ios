@@ -49,6 +49,7 @@ const (
 // AXElementData represents the data returned from Move operations
 type AXElementData struct {
 	PlatformElementValue string `json:"platformElementValue"` // Base64-encoded platform element data
+	SpokenDescription    string `json:"spokenDescription"`    // Spoken description of the element
 }
 
 func (a ControlInterface) readhostAppStateChanged() {
@@ -185,47 +186,68 @@ func (a ControlInterface) Move(ctx context.Context, direction MoveDirection) (AX
 		return AXElementData{}, err
 	}
 
-	// Extraction path for platform element bytes:
-	// Value -> Value -> ElementValue_v1 -> Value -> Value -> PlatformElementValue_v1 -> Value ([]byte)
-	value, ok := resp["Value"].(map[string]interface{})
-	if !ok {
-		return AXElementData{}, fmt.Errorf("resp[\"Value\"] is not a map, got %T", resp["Value"])
+	innerValue, err := getInnerValue(resp)
+	if err != nil {
+		return AXElementData{}, err
 	}
 
-	innerValue, ok := value["Value"].(map[string]interface{})
-	if !ok {
-		return AXElementData{}, fmt.Errorf("Value[\"Value\"] is not a map, got %T", value["Value"])
+	spokenDescription := a.extractSpokenDescription(innerValue)
+	platformElementBytes, err := a.extractPlatformElementBytes(innerValue)
+	if err != nil {
+		return AXElementData{}, err
 	}
 
-	elementValue, ok := innerValue["ElementValue_v1"].(map[string]interface{})
-	if !ok {
-		return AXElementData{}, fmt.Errorf("ElementValue_v1 is not a map, got %T", innerValue["ElementValue_v1"])
+	return AXElementData{
+		PlatformElementValue: base64.StdEncoding.EncodeToString(platformElementBytes),
+		SpokenDescription:    spokenDescription,
+	}, nil
+}
+
+// extractSpokenDescription extracts the spoken description from innerValue.
+// Prefers SpokenDescriptionValue_v1, falls back to CaptionTextValue_v1.
+func (a ControlInterface) extractSpokenDescription(innerValue map[string]interface{}) string {
+	// Try SpokenDescriptionValue_v1 first
+	if desc := a.extractStringFromField(innerValue, "SpokenDescriptionValue_v1", "spokenDescription"); desc != "" {
+		return desc
 	}
 
-	axElement, ok := elementValue["Value"].(map[string]interface{})
-	if !ok {
-		return AXElementData{}, fmt.Errorf("ElementValue_v1[\"Value\"] is not a map, got %T", elementValue["Value"])
+	// Fallback to CaptionTextValue_v1
+	if desc := a.extractStringFromField(innerValue, "CaptionTextValue_v1", "caption"); desc != "" {
+		return desc
 	}
 
-	valMap, ok := axElement["Value"].(map[string]interface{})
-	if !ok {
-		return AXElementData{}, fmt.Errorf("AX element inner \"Value\" is not a map, got %T", axElement["Value"])
+	return ""
+}
+
+// extractPlatformElementBytes extracts the platform element bytes from innerValue.
+// Extraction path: ElementValue_v1 -> Value -> Value -> PlatformElementValue_v1 -> Value ([]byte)
+func (a ControlInterface) extractPlatformElementBytes(innerValue map[string]interface{}) ([]byte, error) {
+	elementValue, err := getNestedMap(innerValue, "ElementValue_v1")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ElementValue_v1: %w", err)
 	}
 
-	platformElement, ok := valMap["PlatformElementValue_v1"].(map[string]interface{})
-	if !ok {
-		return AXElementData{}, fmt.Errorf("PlatformElementValue_v1 is not a map, got %T", valMap["PlatformElementValue_v1"])
+	axElement, err := getNestedMap(elementValue, "Value")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ElementValue_v1.Value: %w", err)
+	}
+
+	valMap, err := getNestedMap(axElement, "Value")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get AX element inner Value: %w", err)
+	}
+
+	platformElement, err := getNestedMap(valMap, "PlatformElementValue_v1")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PlatformElementValue_v1: %w", err)
 	}
 
 	byteArray, ok := platformElement["Value"].([]byte)
 	if !ok {
-		return AXElementData{}, fmt.Errorf("PlatformElementValue_v1[\"Value\"] is not a []byte, got %T", platformElement["Value"])
+		return nil, fmt.Errorf("PlatformElementValue_v1.Value is not []byte, got %T", platformElement["Value"])
 	}
-	encoded := base64.StdEncoding.EncodeToString(byteArray)
 
-	return AXElementData{
-		PlatformElementValue: encoded,
-	}, nil
+	return byteArray, nil
 }
 
 // performAction performs the standard accessibility action without alert checking
