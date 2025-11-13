@@ -1,6 +1,7 @@
 package testmanagerd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -10,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver"
+	"github.com/danielpaulus/go-ios/ios/afc"
 	"github.com/danielpaulus/go-ios/ios/appservice"
-
 	"github.com/danielpaulus/go-ios/ios/house_arrest"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -563,7 +564,7 @@ func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID s
 	return testSessionID, testConfigPath, testConfig, info, nil
 }
 
-func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *house_arrest.Connection, xctestConfigFileName string, testsToRun []string, testsToSkip []string, isXCTest bool, version *semver.Version) (string, nskeyedarchiver.XCTestConfiguration, error) {
+func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArrestService *afc.Client, xctestConfigFileName string, testsToRun []string, testsToSkip []string, isXCTest bool, version *semver.Version) (string, nskeyedarchiver.XCTestConfiguration, error) {
 	relativeXcTestConfigPath := path.Join("tmp", testSessionID.String()+".xctestconfiguration")
 	xctestConfigPath := path.Join(info.testApp.homePath, relativeXcTestConfigPath)
 
@@ -576,7 +577,15 @@ func createTestConfigOnDevice(testSessionID uuid.UUID, info testInfo, houseArres
 		return "", nskeyedarchiver.XCTestConfiguration{}, err
 	}
 
-	err = houseArrestService.SendFile([]byte(result), relativeXcTestConfigPath)
+	remoteFile, err := houseArrestService.Open(relativeXcTestConfigPath, afc.WRITE_ONLY_CREATE_TRUNC)
+	if err != nil {
+		return "", nskeyedarchiver.XCTestConfiguration{}, err
+	}
+	defer remoteFile.Close()
+	_, err = io.Copy(remoteFile, bytes.NewReader([]byte(result)))
+	if err != nil {
+		return "", nskeyedarchiver.XCTestConfiguration{}, err
+	}
 	if err != nil {
 		return "", nskeyedarchiver.XCTestConfiguration{}, err
 	}
