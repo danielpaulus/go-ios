@@ -2,8 +2,6 @@ package accessibility
 
 import (
 	"fmt"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func convertToStringList(payload []interface{}) ([]string, error) {
@@ -81,7 +79,6 @@ func deserializeObject(d interface{}) interface{} {
 	}
 }
 
-// extractStringFromField extracts a string value from a field in innerValue.
 func (a ControlInterface) extractStringFromField(innerValue map[string]interface{}, fieldName string) string {
 	raw, ok := innerValue[fieldName]
 	if !ok {
@@ -90,13 +87,11 @@ func (a ControlInterface) extractStringFromField(innerValue map[string]interface
 
 	val := deserializeObject(raw)
 	if s, ok := val.(string); ok && s != "" {
-		log.Infof("%s: %q", fieldName, s)
 		return s
 	}
 
 	if val != nil {
 		desc := fmt.Sprintf("%v", val)
-		log.Infof("%s: %q", fieldName, desc)
 		return desc
 	}
 
