@@ -217,8 +217,28 @@ func (a ControlInterface) extractSpokenDescription(innerValue map[string]interfa
 	return ""
 }
 
-// extractPlatformElementBytes extracts the platform element bytes from innerValue.
-// Extraction path: ElementValue_v1 -> Value -> Value -> PlatformElementValue_v1 -> Value ([]byte)
+/*
+PlatformElementValue_v1: A base64-encoded string that uniquely identifies an accessibility element.
+It is required to perform actions on the element.
+
+Extraction path:
+    ElementValue_v1
+      └── Value
+          └── Value
+              └── PlatformElementValue_v1
+                  └── Value ([]byte)
+
+Binary ([]byte):
+    ┌──────────────────────────────┐
+    │ [0x50, 0x67, 0x41, ...]      │   // Raw bytes from dtx message payload
+    └──────────────────────────────┘
+
+Base64 (string):
+    ┌──────────────────────────────┐
+    │ "PgAAAACikAEBAAAACg..."      │   // base64 encoded unique ID of AX element
+    └──────────────────────────────┘
+*/
+
 func (a ControlInterface) extractPlatformElementBytes(innerValue map[string]interface{}) ([]byte, error) {
 	elementValue, err := getNestedMap(innerValue, "ElementValue_v1")
 	if err != nil {
