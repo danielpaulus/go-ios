@@ -10,6 +10,7 @@ import (
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -19,13 +20,15 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, config TestConfig, v
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
-
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(config.Device, config.BundleId, config.TestRunnerBundleId, config.XctestConfigName, config.TestsToRun, config.TestsToSkip, config.XcTest, version)
-	if err != nil {
-		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot setup test config: %w", err)
-	}
 	defer conn.Close()
 
+	testSessionId := uuid.New()
+	testInfo, err := getTestInfo(config.Device, config.BundleId, config.TestRunnerBundleId)
+	if err != nil {
+		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot get test info: %w", err)
+	}
+
+	testConfig := createTestConfig(testInfo, testSessionId, config.XctestConfigName, config.TestsToRun, config.TestsToSkip, config.XcTest, version)
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, config.Listener)
 
 	conn2, err := dtx.NewUsbmuxdConnection(config.Device, testmanagerdiOS14)
@@ -58,7 +61,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, config TestConfig, v
 	}
 	defer pControl.Close()
 
-	pid, err := startTestRunner12(pControl, xctestConfigPath, config.TestRunnerBundleId, testSessionId.String(), testInfo.testApp.path+"/PlugIns/"+config.XctestConfigName, config.Args, config.Env)
+	pid, err := startTestRunner12(pControl, config.TestRunnerBundleId, testSessionId.String(), testInfo.testApp.path+"/PlugIns/"+config.XctestConfigName, config.Args, config.Env)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot start test runner: %w", err)
 	}
@@ -106,7 +109,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, config TestConfig, v
 	return config.Listener.TestSuites, config.Listener.err
 }
 
-func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
+func startTestRunner12(pControl *instruments.ProcessControl, bundleID string,
 	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv map[string]interface{},
 ) (uint64, error) {
 	args := []interface{}{
@@ -125,7 +128,7 @@ func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath st
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"XCTestBundlePath":                testBundlePath,
-		"XCTestConfigurationFilePath":     xctestConfigPath,
+		"XCTestConfigurationFilePath":     "",
 		"XCTestSessionIdentifier":         sessionIdentifier,
 	}
 
