@@ -17,8 +17,9 @@ type iosproxy struct {
 }
 
 type ConnListener struct {
-	listener net.Listener
-	quit     chan interface{}
+	listener      net.Listener
+	quit          chan interface{}
+	closedCleanly bool
 }
 
 // Forward forwards every connection made to the hostPort to whatever service runs inside an app on the device on phonePort.
@@ -40,6 +41,7 @@ func Forward(device ios.DeviceEntry, hostPort uint16, phonePort uint16) (*ConnLi
 
 // Close stops listening on the host port for the forwarded connection
 func (cl *ConnListener) Close() error {
+	cl.closedCleanly = true
 	close(cl.quit)
 
 	err := cl.listener.Close()
@@ -59,16 +61,19 @@ func connectionAccept(cl *ConnListener, deviceID int, phonePort uint16) {
 		default:
 			clientConn, err := cl.listener.Accept()
 			if err != nil {
+				if cl.closedCleanly {
+					return
+				}
 				log.Errorf("Error accepting new connection %v", err)
 				continue
 			}
 			log.WithFields(log.Fields{"conn": fmt.Sprintf("%#v", cl)}).Info("new client connected")
-			go StartNewProxyConnection(context.TODO(), clientConn, deviceID, phonePort)
+			go StartNewProxyConnection(context.TODO(), clientConn, deviceID, phonePort, cl)
 		}
 	}
 }
 
-func StartNewProxyConnection(ctx context.Context, clientConn io.ReadWriteCloser, deviceID int, phonePort uint16) error {
+func StartNewProxyConnection(ctx context.Context, clientConn io.ReadWriteCloser, deviceID int, phonePort uint16, cl *ConnListener) error {
 	usbmuxConn, err := ios.NewUsbMuxConnectionSimple()
 	if err != nil {
 		log.Errorf("could not connect to usbmuxd: %+v", err)
@@ -98,8 +103,9 @@ func StartNewProxyConnection(ctx context.Context, clientConn io.ReadWriteCloser,
 			deviceConn.Close()
 			closed = true
 		}
-
-		log.Errorf("forward: close clientConn <-- deviceConn")
+		if !cl.closedCleanly {
+			log.Errorf("forward: close clientConn <-- deviceConn")
+		}
 		wg.Done()
 	}()
 
@@ -113,7 +119,9 @@ func StartNewProxyConnection(ctx context.Context, clientConn io.ReadWriteCloser,
 			closed = true
 		}
 
-		log.Errorf("forward: close clientConn --> deviceConn")
+		if !cl.closedCleanly {
+			log.Errorf("forward: close clientConn --> deviceConn")
+		}
 		wg.Done()
 	}()
 
