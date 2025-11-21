@@ -179,15 +179,16 @@ func NewWithAddrDevice(addr string, d DeviceEntry) (RsdService, error) {
 func NewWithAddrPortDevice(addr string, port int, d DeviceEntry) (RsdService, error) {
 	conn, err := ConnectTUNDevice(addr, port, d)
 	if err != nil {
-		return RsdService{}, fmt.Errorf("NewWithAddrPortTUNDevice: failed to connect to device: %w", err)
+		return RsdService{}, fmt.Errorf("NewWithAddrPortTUNDevice: failed to connect to device at %s:%d: %w", addr, port, err)
 	}
 	return newRsdServiceFromTcpConn(conn)
 }
 
 func newRsdServiceFromTcpConn(conn *net.TCPConn) (RsdService, error) {
+	remoteAddr := conn.RemoteAddr().String()
 	h, err := http.NewHttpConnection(conn)
 	if err != nil {
-		return RsdService{}, fmt.Errorf("newRsdServiceFromTcpConn: failed to connect to http2: %w", err)
+		return RsdService{}, fmt.Errorf("newRsdServiceFromTcpConn: failed to connect to http2 at %s: %w", remoteAddr, err)
 	}
 
 	x, err := CreateXpcConnection(h)

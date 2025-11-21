@@ -2534,7 +2534,13 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, us
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
 	rsdService, err := ios.NewWithAddrPortDevice(address, rsdPort, device)
-	exitIfError("could not connect to RSD", err)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"address": address,
+			"port":    rsdPort,
+			"udid":    udid,
+		}).Fatal("could not connect to RSD. Ensure tunnel is running and address/port are correct.")
+	}
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
 	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
