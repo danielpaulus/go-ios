@@ -149,7 +149,7 @@ Options:
   --nojson                  Disable JSON output
   --pretty                  Pretty-print JSON command output
   -h --help                 Show this screen.
-  --udid=<udid>             UDID of the device.
+  --udid=<udid>             UDID of the device. Can also be set via GO_IOS_UDID environment variable.
   --tunnel-info-port=<port> When go-ios is used to manage tunnels for iOS 17+ it exposes them on an HTTP-API for localhost (default port: 28100)
   --address=<ipv6addrr>     Address of the device on the interface. This parameter is optional and can be set if a tunnel created by MacOS needs to be used.
   >                         To get this value run "log stream --debug --info --predicate 'eventMessage LIKE "*Tunnel established*" OR eventMessage LIKE "*for server port*"'",
@@ -351,6 +351,9 @@ The commands work as following:
 	tunnelCommand, _ := arguments.Bool("tunnel")
 
 	udid, _ := arguments.String("--udid")
+	if udid == "" {
+		udid = os.Getenv("GO_IOS_UDID")
+	}
 	address, addressErr := arguments.String("--address")
 	rsdPort, rsdErr := arguments.Int("--rsd-port")
 	userspaceTunnelHost, userspaceTunnelHostErr := arguments.String("--userspace-host")
