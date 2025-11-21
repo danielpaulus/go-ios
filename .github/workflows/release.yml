@@ -33,11 +33,12 @@ jobs:
           Compress-Archive -Path .\bin\ios.exe, release_tag -CompressionLevel Optimal -DestinationPath go-ios-windows.zip
 
       - name: upload the windows build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: go-ios-windows.zip
           retention-days: 1
+          overwrite: true
 
   build_on_mac:
     runs-on: macos-latest
@@ -52,7 +53,7 @@ jobs:
           cache: true
 
       - name: Download win release from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: windows-build
           path: ./win-bin
@@ -75,11 +76,12 @@ jobs:
           zip -j go-ios-mac.zip bin/ios
 
       - name: upload the macos build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: go-ios-mac.zip
           retention-days: 1
+          overwrite: true
 
   build_on_linux_and_release:
     runs-on: ubuntu-latest
@@ -94,7 +96,7 @@ jobs:
           cache: true
 
       - name: Download mac release from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: macos-build
           path: ./mac-bin
@@ -107,7 +109,7 @@ jobs:
           zip -j go-ios-mac.zip ios
 
       - name: Download windows release from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: windows-build
           path: ./win-bin
@@ -152,6 +154,7 @@ jobs:
           cp ./win-bin/ios.exe ./npm_publish/dist/go-ios-windows-amd64_windows_amd64/ios.exe
           cp ./bin/ios-amd64 ./npm_publish/dist/go-ios-linux-amd64_linux_amd64/ios
           cp ./bin/ios-arm64 ./npm_publish/dist/go-ios-linux-arm64_linux_arm64/ios
+          cp ./README.md ./npm_publish
           echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" >> ~/.npmrc
           cd npm_publish
           sed -i 's/\"local-build\"/\"${{ env.release_tag }}\"/' package.json

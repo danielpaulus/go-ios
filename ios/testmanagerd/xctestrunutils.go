@@ -3,14 +3,15 @@ package testmanagerd
 import (
 	"bytes"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/installationproxy"
-	"howett.net/plist"
 	"io"
 	"maps"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/installationproxy"
+	"howett.net/plist"
 )
 
 // xctestrunutils provides utilities for parsing `.xctestrun` files.
@@ -33,6 +34,11 @@ type schemeData struct {
 	TestingEnvironmentVariables     map[string]any
 	UITargetAppEnvironmentVariables map[string]any
 	UITargetAppPath                 string
+}
+
+type testConfiguration struct {
+	Name        string       `plist:"Name"`
+	TestTargets []schemeData `plist:"TestTargets"`
 }
 
 func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestListener, installedApps []installationproxy.AppInfo) (TestConfig, error) {
@@ -75,27 +81,27 @@ func (data schemeData) buildTestConfig(device ios.DeviceEntry, listener *TestLis
 }
 
 // parseFile reads the .xctestrun file and decodes it into a map
-func parseFile(filePath string) ([]schemeData, error) {
+func parseFile(filePath string) ([]testConfiguration, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return []schemeData{}, fmt.Errorf("failed to open xctestrun file: %w", err)
+		return []testConfiguration{}, fmt.Errorf("failed to open xctestrun file: %w", err)
 	}
 	defer file.Close()
 	return decode(file)
 }
 
 // decode decodes the binary xctestrun content into the xCTestRunData struct
-func decode(r io.Reader) ([]schemeData, error) {
+func decode(r io.Reader) ([]testConfiguration, error) {
 	// Read the entire content once
 	xctestrunFileContent, err := io.ReadAll(r)
 	if err != nil {
-		return []schemeData{}, fmt.Errorf("unable to read xctestrun content: %w", err)
+		return []testConfiguration{}, fmt.Errorf("unable to read xctestrun content: %w", err)
 	}
 
 	// First, we only parse the version property of the xctestrun file. The rest of the parsing depends on this version.
 	version, err := getFormatVersion(xctestrunFileContent)
 	if err != nil {
-		return []schemeData{}, err
+		return []testConfiguration{}, err
 	}
 
 	switch version {
@@ -104,7 +110,7 @@ func decode(r io.Reader) ([]schemeData, error) {
 	case 2:
 		return parseVersion2(xctestrunFileContent)
 	default:
-		return []schemeData{}, fmt.Errorf("the provided .xctestrun format version %d is not supported", version)
+		return []testConfiguration{}, fmt.Errorf("the provided .xctestrun format version %d is not supported", version)
 	}
 }
 
@@ -125,12 +131,12 @@ func getFormatVersion(xctestrunFileContent []byte) (int, error) {
 	return metadata.Metadata.Version, nil
 }
 
-func parseVersion1(xctestrunFile []byte) ([]schemeData, error) {
+func parseVersion1(xctestrunFile []byte) ([]testConfiguration, error) {
 	// xctestrun files in version 1 use a dynamic key for the pListRoot of the TestConfig. As in the 'key' for the TestConfig is the name
 	// of the app. This forces us to iterate over the root of the plist, instead of using a static struct to decode the xctestrun file.
 	var pListRoot map[string]interface{}
 	if _, err := plist.Unmarshal(xctestrunFile, &pListRoot); err != nil {
-		return []schemeData{}, fmt.Errorf("failed to unmarshal plist: %w", err)
+		return []testConfiguration{}, fmt.Errorf("failed to unmarshal plist: %w", err)
 	}
 
 	for key, value := range pListRoot {
@@ -150,49 +156,51 @@ func parseVersion1(xctestrunFile []byte) ([]schemeData, error) {
 		schemeBuf := new(bytes.Buffer)
 		encoder := plist.NewEncoder(schemeBuf)
 		if err := encoder.Encode(schemeMap); err != nil {
-			return []schemeData{}, fmt.Errorf("failed to encode scheme %s: %w", key, err)
+			return []testConfiguration{}, fmt.Errorf("failed to encode scheme %s: %w", key, err)
 		}
 
 		// Decode the plist buffer into schemeData
 		decoder := plist.NewDecoder(bytes.NewReader(schemeBuf.Bytes()))
 		if err := decoder.Decode(&schemeParsed); err != nil {
-			return []schemeData{}, fmt.Errorf("failed to decode scheme %s: %w", key, err)
+			return []testConfiguration{}, fmt.Errorf("failed to decode scheme %s: %w", key, err)
 		}
-		return []schemeData{schemeParsed}, nil
+		// Convert the return type to table of testConfiguration
+		return []testConfiguration{{
+			Name:        "", // No specific name available, leaving it empty
+			TestTargets: []schemeData{schemeParsed},
+		}}, nil
 	}
-	return []schemeData{}, nil
+	return []testConfiguration{}, nil
 }
 
-func parseVersion2(content []byte) ([]schemeData, error) {
+func parseVersion2(content []byte) ([]testConfiguration, error) {
 	type xCTestRunVersion2 struct {
 		ContainerInfo struct {
 			ContainerName string `plist:"ContainerName"`
 		} `plist:"ContainerInfo"`
-		TestConfigurations []struct {
-			TestTargets []schemeData `plist:"TestTargets"`
-		} `plist:"TestConfigurations"`
+		TestConfigurations []testConfiguration `plist:"TestConfigurations"`
 	}
 
 	var testConfigs xCTestRunVersion2
 	if _, err := plist.Unmarshal(content, &testConfigs); err != nil {
-		return []schemeData{}, fmt.Errorf("failed to parse format version: %w", err)
+		return []testConfiguration{}, fmt.Errorf("failed to parse format version: %w", err)
 	}
 
 	// Check if TestConfigurations is empty
-	if len(testConfigs.TestConfigurations) != 1 {
-		return []schemeData{}, fmt.Errorf("The .xctestrun file you provided contained %d entries in the TestConfiguration list. This list should contain exactly 1 entry. Please revisit your test configuration so that it only contains one entry.", len(testConfigs.TestConfigurations))
+	if len(testConfigs.TestConfigurations) == 0 {
+		return []testConfiguration{}, fmt.Errorf("The .xctestrun file you provided does not contain any test configurations. Please check your test setup and ensure it includes at least one test configuration.")
 	}
 
-	// If we have exactly one TestConfiguration, return the TestTargets
-	return testConfigs.TestConfigurations[0].TestTargets, nil
+	// Return a table of TestConfigurations
+	return testConfigs.TestConfigurations, nil
 }
 
 func getBundleId(installedApps []installationproxy.AppInfo, uiTargetAppPath string) string {
 	var appNameWithSuffix = filepath.Base(uiTargetAppPath)
 	var uiTargetAppName = strings.TrimSuffix(appNameWithSuffix, ".app")
 	for _, app := range installedApps {
-		if app.CFBundleName == uiTargetAppName {
-			return app.CFBundleIdentifier
+		if app.CFBundleName() == uiTargetAppName {
+			return app.CFBundleIdentifier()
 		}
 	}
 	return ""

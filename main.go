@@ -26,6 +26,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
 	"github.com/danielpaulus/go-ios/ios/afc"
+	"github.com/danielpaulus/go-ios/ios/fileservice"
 
 	"github.com/danielpaulus/go-ios/ios/crashreport"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
@@ -68,76 +69,79 @@ func Main() {
 	usage := fmt.Sprintf(`go-ios %s
 
 Usage:
+    ios --version | version [options]
+  ios -h | --help
   ios activate [options]
-  ios listen [options]
-  ios list [options] [--details]
-  ios info [display | lockdown] [options]
+  ios apps [--system] [--all] [--list] [--filesharing] [options]
+  ios assistivetouch (enable | disable | toggle | get) [--force] [options]
+  ios ax [--font=<fontSize>] [options]
+  ios batterycheck [options]
+  ios batteryregistry [options]
+  ios crash cp <srcpattern> <target> [options]
+  ios crash ls [<pattern>] [options]
+  ios crash rm <cwd> <pattern> [options]
+  ios date [options]
+  ios debug [options] [--stop-at-entry] <app_path>
+  ios devicename [options]
+  ios devicestate enable <profileTypeId> <profileId> [options]
+  ios devicestate list [options]
+  ios devmode (enable | get) [--enable-post-restart] [options]
+  ios diagnostics list [options]
+  ios diskspace [options]
+  ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
+  ios erase [--force] [options]
+  ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]
+  ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options]
+  ios file push [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --local=<localPath> --remote=<remotePath> [options]
+  ios forward [options] <hostPort> <targetPort>
+  ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
+  ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
+  ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
+  ios httpproxy remove [options]
+  ios image auto [--basedir=<where_dev_images_are_stored>] [options]
   ios image list [options]
   ios image mount [--path=<imagepath>] [options]
   ios image unmount [options]
-  ios image auto [--basedir=<where_dev_images_are_stored>] [options]
-  ios syslog [--parse] [options]
-  ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
+  ios info [display | lockdown] [options]
+  ios install --path=<ipaOrAppFolder> [options]
   ios instruments notifications [options]
-  ios crash ls [<pattern>] [options]
-  ios crash cp <srcpattern> <target> [options]
-  ios crash rm <cwd> <pattern> [options]
-  ios devicename [options]
-  ios date [options]
-  ios timeformat (24h | 12h | toggle | get) [--force] [options]
-  ios devicestate list [options]
-  ios devicestate enable <profileTypeId> <profileId> [options]
-  ios erase [--force] [options]
+  ios ip [options]
+  ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
+  ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
+  ios list [options] [--details]
+  ios listen [options]
+  ios memlimitoff (--process=<processName>) [options]
   ios mobilegestalt <key>... [--plist] [options]
-  ios diagnostics list [options]
-  ios profile list [options]
+  ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
+  ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options]
   ios prepare create-cert
   ios prepare printskip
-  ios profile remove <profileName> [options]
   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
-  ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
-  ios httpproxy remove [options]
-  ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
+  ios profile list [options]
+  ios profile remove <profileName> [options]
   ios ps [--apps] [options]
-  ios ip [options]
-  ios forward [options] <hostPort> <targetPort>
-  ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios readpair [options]
-  ios sysmontap [options]
-  ios pcap [options] [--pid=<processID>] [--process=<processName>]
-  ios install --path=<ipaOrAppFolder> [options]
-  ios uninstall <bundleID> [options]
-  ios apps [--system] [--all] [--list] [--filesharing] [options]
-  ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
-  ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
-  ios memlimitoff (--process=<processName>) [options]
-  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
-  ios runxctest [--xctestrun-file-path=<xctestrunFilePath>] [--log-output=<file>] [options]
-  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
-  ios ax [--font=<fontSize>] [options]
-  ios resetax [options]
-  ios debug [options] [--stop-at-entry] <app_path>
-  ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
-  ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios reboot [options]
-  ios -h | --help
-  ios --version | version [options]
+  ios resetax [options]
+  ios resetlocation [options]
+  ios rsd ls [options]
+  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
+  ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
+  ios runxctest [--xctestrun-file-path=<xctestrunFilePath>] [--log-output=<file>] [options]
+  ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]
   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
-  ios resetlocation [options]
-  ios assistivetouch (enable | disable | toggle | get) [--force] [options]
+  ios syslog [--parse] [options]
+  ios sysmontap [options]
+  ios timeformat (24h | 12h | toggle | get) [--force] [options]
+  ios tunnel ls [options]
+  ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
+  ios tunnel stopagent
+  ios uninstall <bundleID> [options]
   ios voiceover (enable | disable | toggle | get) [--force] [options]
   ios zoom (enable | disable | toggle | get) [--force] [options]
-  ios diskspace [options]
-  ios batterycheck [options]
-  ios batteryregistry [options]
-  ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
-  ios tunnel ls [options]
-  ios tunnel stopagent 
-  ios devmode (enable | get) [--enable-post-restart] [options]
-  ios rsd ls [options]
 
 Options:
   -v --verbose              Enable Debug Logging.
@@ -161,109 +165,112 @@ The commands work as following:
 	By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
 	Specify -v for debug logging and -t for dumping every message.
 
+      ios --version | version [options]                                  Prints the version
+   ios -h | --help                                                    Prints this screen.
    ios activate [options]                                             Activate a device
-   ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
-   ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
-   ios info [display | lockdown] [options]                            Prints a dump of device information from the given source.
+   ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
+   ios assistivetouch (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "AssistiveTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
+   ios ax [--font=<fontSize>] [options]                               Access accessibility inspector features.
+   ios batterycheck [options]                                         Prints battery info.
+   ios batteryregistry [options]                                      Prints battery registry stats like Temperature, Voltage.
+   ios crash cp <srcpattern> <target> [options]                       copy "file pattern" to the target dir. Ex.: 'ios crash cp "*" "./crashes"'
+   ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list,
+   >                                                                  or use a pattern like 'ios crash ls "*ips*"' to filter
+   ios crash rm <cwd> <pattern> [options]                             remove file pattern from dir. Ex.: 'ios crash rm "." "*"' to delete everything
+   ios date [options]                                                 Prints the device date
+   ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
+   ios devicename [options]                                           Prints the devicename
+   ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
+   >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
+   ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
+   ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
+   ios diagnostics list [options]                                     List diagnostic infos
+   ios diskspace [options]											  Prints disk space info.
+   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options] Starts the reverse engineering proxy server.
+   >                                                                  It dumps every communication in plain text so it can be implemented easily.
+   >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
+   >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
+   >                                                                  The --binary flag will dump everything in raw binary without any decoding.
+   ios erase [--force] [options]                                      Erase the device. It will prompt you to input y+Enter unless --force is specified.
+   ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]  List files using RemoteXPC (iOS 17+). Requires tunnel. Use --app for app container, --app-group for app group, --crash for crash logs, or --temp for temporary files.
+   ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options] Download file using RemoteXPC (iOS 17+). Requires tunnel.
+   ios file push [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --local=<localPath> --remote=<remotePath> [options] Upload file using RemoteXPC (iOS 17+). Requires tunnel. Preserves source file permissions.
+   ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
+   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
+   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
+   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
+   >                                                                  Specify proxy password either as argument or using the environment var: PROXY_PASSWORD
+   >                                                                  Use p12 file and password for silent installation on supervised devices.
+   ios httpproxy remove [options]                                     Removes the global http proxy config. Only works with http proxies set by go-ios!
+   ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
+   >                                                                  You can specify a dir where images should be cached.
+   >                                                                  The default is the current dir.
    ios image list [options]                                           List currently mounted developers images' signatures
    ios image mount [--path=<imagepath>] [options]                     Mount a image from <imagepath>
    >                                                                  For iOS 17+ (personalized developer disk images) <imagepath> must point to the "Restore" directory inside the developer disk
    ios image unmount [options]                                        Unmount developer disk image
-   ios image auto [--basedir=<where_dev_images_are_stored>] [options] Automatically download correct dev image from the internets and mount it.
-   >                                                                  You can specify a dir where images should be cached.
-   >                                                                  The default is the current dir.
-   ios syslog [--parse] [options]                                     Prints a device's log output, Use --parse to parse the fields from the log
-   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]  Takes a screenshot and writes it to the current dir or to <outfile>  If --stream is supplied it
-   >                                                                  starts an mjpeg server at 0.0.0.0:3333. Use --port to set another port.
+   ios info [display | lockdown] [options]                            Prints a dump of device information from the given source.
+   ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
    ios instruments notifications [options]                            Listen to application state notifications
-   ios crash ls [<pattern>] [options]                                 run "ios crash ls" to get all crashreports in a list,
-   >                                                                  or use a pattern like 'ios crash ls "*ips*"' to filter
-   ios crash cp <srcpattern> <target> [options]                       copy "file pattern" to the target dir. Ex.: 'ios crash cp "*" "./crashes"'
-   ios crash rm <cwd> <pattern> [options]                             remove file pattern from dir. Ex.: 'ios crash rm "." "*"' to delete everything
-   ios devicename [options]                                           Prints the devicename
-   ios date [options]                                                 Prints the device date
-   ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
-   ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
-   >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
-   ios erase [--force] [options]                                      Erase the device. It will prompt you to input y+Enter unless --force is specified.
+   ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
+   >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP.
+   >                                                                  You have to disable the "automatic wifi address"-privacy feature of the device for this to work.
+   >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
+   >                                                                  f.ex. "ios launch com.apple.Maps"
+   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language. ios lang will print the current language and locale, as well as a list of all supported langs and locales.
+   ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options] Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
+   ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
+   ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
+   ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
    >                                                                  it in plist format by adding the --plist param.
    >                                                                  Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
-   ios diagnostics list [options]                                     List diagnostic infos
    ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
-   ios profile list                                                   List the profiles on the device
-   ios profile remove <profileName>                                   Remove the profileName from the device
-   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
+   ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options] prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
    >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device. If you need certificates
    >                                                                  to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use. locale and lang are optional, the default is en_US and en.
    >                                                                  Run 'ios lang' to see a list of all supported locales and languages.
    ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
    ios prepare printskip                                              Print all options you can skip.
-   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
-   >                                                                  Specify proxy password either as argument or using the environment var: PROXY_PASSWORD
-   >                                                                  Use p12 file and password for silent installation on supervised devices.
-   ios httpproxy remove [options]                                     Removes the global http proxy config. Only works with http proxies set by go-ios!
+   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
+   ios profile list                                                   List the profiles on the device
+   ios profile remove <profileName>                                   Remove the profileName from the device
    ios ps [--apps] [options]                                          Dumps a list of running processes on the device.
    >                                                                  Use --nojson for a human-readable listing including BundleID when available. (not included with JSON output)
    >                                                                  --apps limits output to processes flagged by iOS as "isApplication". This greatly-filtered list
    >                                                                  should at least include user-installed software.  Additional packages will also be displayed depending on the version of iOS.
-   ios ip [options]                                                   Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
-   >                                                                  It relies on the MAC address of the WiFi adapter to know which is the right IP.
-   >                                                                  You have to disable the "automatic wifi address"-privacy feature of the device for this to work.
-   >                                                                  If you wanna speed it up, open apple maps or similar to force network traffic.
-   >                                                                  f.ex. "ios launch com.apple.Maps"
-   ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
-   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options] Starts the reverse engineering proxy server.
-   >                                                                  It dumps every communication in plain text so it can be implemented easily.
-   >                                                                  Use "sudo launchctl unload -w /Library/Apple/System/Library/LaunchDaemons/com.apple.usbmuxd.plist"
-   >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
-   >                                                                  The --binary flag will dump everything in raw binary without any decoding.
    ios readpair                                                       Dump detailed information about the pairrecord for a device.
-   ios sysmontap                                                      Get system stats like MEM, CPU
-   ios install --path=<ipaOrAppFolder> [options]                      Specify a .app folder or an installable ipa file that will be installed.
-   ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
-   ios apps [--system] [--all] [--list] [--filesharing]               Retrieves a list of installed applications. --system prints out preinstalled system apps. --all prints all apps, including system, user, and hidden apps. --list only prints bundle ID, bundle name and version number. --filesharing only prints apps which enable documents sharing.
-   ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options] Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
-   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options] Kill app with the specified bundleID, process id, or process name on the device.
-   ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
+   ios reboot [options]                                               Reboot the given device
+   ios resetax [options]                                              Reset accessibility settings to defaults.
+   ios resetlocation [options]                                        Resets the location of the device to the actual one
+   ios rsd ls [options]											  List RSD services and their port.
    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]                    Run a XCUITest. If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
    >                                                                  If you provide '-' as log output, it prints resuts to stdout.
    >                                                                  To be able to filter for tests to run or skip, use one argument per test selector. Example: runtest --test-to-run=(TestTarget.)TestClass/testMethod --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
    >                                                                  The method name can also be omitted and in this case all tests of the specified class are run
-   ios runxctest [--xctestrun-file-path=<xctestrunFilePath>]  [--log-output=<file>] [options]                    Run a XCTest. The --xctestrun-file-path specifies the path to the .xctestrun file to configure the test execution.
-   >                                                                  If you provide '-' as log output, it prints resuts to stdout.
    ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]...[options]  runs WebDriverAgents
    >                                                                  specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
-   ios ax [--font=<fontSize>] [options]                               Access accessibility inspector features.
-   ios resetax [options]                                              Reset accessibility settings to defaults.
-   ios debug [--stop-at-entry] <app_path>                             Start debug with lldb
-   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
-   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
-   ios reboot [options]                                               Reboot the given device
-   ios -h | --help                                                    Prints this screen.
-   ios --version | version [options]                                  Prints the version
+   ios runxctest [--xctestrun-file-path=<xctestrunFilePath>]  [--log-output=<file>] [options]                    Run a XCTest. The --xctestrun-file-path specifies the path to the .xctestrun file to configure the test execution.
+   >                                                                  If you provide '-' as log output, it prints resuts to stdout.
+   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]  Takes a screenshot and writes it to the current dir or to <outfile>  If --stream is supplied it
+   >                                                                  starts an mjpeg server at 0.0.0.0:3333. Use --port to set another port.
    ios setlocation [options] [--lat=<lat>] [--lon=<lon>]              Updates the location of the device to the provided by latitude and longitude coordinates. Example: setlocation --lat=40.730610 --lon=-73.935242
    ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]         Updates the location of the device based on the data in a GPX file. Example: setlocationgpx --gpxfilepath=/home/username/location.gpx
-   ios resetlocation [options]                                        Resets the location of the device to the actual one
-   ios assistivetouch (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "AssistiveTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
-   ios voiceover (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "VoiceOver" software home-screen button. iOS 11+ only (Use --force to try on older versions).
-   ios zoom (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "ZoomTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
+   ios syslog [--parse] [options]                                     Prints a device's log output, Use --parse to parse the fields from the log
+   ios sysmontap                                                      Get system stats like MEM, CPU
    ios timeformat (24h | 12h | toggle | get) [--force] [options] Sets, or returns the state of the "time format". iOS 11+ only (Use --force to try on older versions).
-   ios diskspace [options]											  Prints disk space info.
-   ios batterycheck [options]                                         Prints battery info.
-   ios batteryregistry [options]                                      Prints battery registry stats like Temperature, Voltage.
+   ios tunnel ls                                                      List currently started tunnels. Use --enabletun to activate using TUN devices rather than user space network. Requires sudo/admin shells. 
    ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]   Creates a tunnel connection to the device. If the device was not paired with the host yet, device pairing will also be executed.
    >           														  On systems with System Integrity Protection enabled the argument '--pair-record-path=default' can be used to point to /var/db/lockdown/RemotePairing/user_501.
    >                                                                  If nothing is specified, the current dir is used for the pair record.
    >                                                                  This command needs to be executed with admin privileges.
    >                                                                  (On MacOS the process 'remoted' must be paused before starting a tunnel is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
-   ios tunnel ls                                                      List currently started tunnels. Use --enabletun to activate using TUN devices rather than user space network. Requires sudo/admin shells. 
-   ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
-   ios rsd ls [options]											  List RSD services and their port.
+   ios voiceover (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "VoiceOver" software home-screen button. iOS 11+ only (Use --force to try on older versions).
+   ios zoom (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "ZoomTouch" software home-screen button. iOS 11+ only (Use --force to try on older versions).
 
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
@@ -906,8 +913,8 @@ The commands work as following:
 			exitIfError("browsing apps failed", err)
 
 			for _, app := range response {
-				if app.CFBundleIdentifier == bundleID {
-					processName = app.CFBundleExecutable
+				if app.CFBundleIdentifier() == bundleID {
+					processName = app.CFBundleExecutable()
 					break
 				}
 			}
@@ -1081,6 +1088,180 @@ The commands work as following:
 		} else {
 			log.Info("ok")
 		}
+		return
+	}
+
+	b, _ = arguments.Bool("file")
+	if b {
+		// file command uses RemoteXPC (iOS 17+) and requires tunnel
+		if !device.SupportsRsd() {
+			exitIfError("file command requires iOS 17+ with tunnel", fmt.Errorf("tunnel not running. Start with: ios tunnel start"))
+		}
+
+		// Determine domain from flags
+		bundleID, _ := arguments.String("--app")
+		groupID, _ := arguments.String("--app-group")
+		useCrash, _ := arguments.Bool("--crash")
+		useTemp, _ := arguments.Bool("--temp")
+
+		// Count how many domain flags were specified
+		flagCount := 0
+		if bundleID != "" {
+			flagCount++
+		}
+		if groupID != "" {
+			flagCount++
+		}
+		if useCrash {
+			flagCount++
+		}
+		if useTemp {
+			flagCount++
+		}
+
+		if flagCount > 1 {
+			exitIfError("file command", fmt.Errorf("can only specify one of: --app, --app-group, --crash, or --temp"))
+		}
+		if flagCount == 0 {
+			exitIfError("file command", fmt.Errorf("must specify one of: --app=<bundleID>, --app-group=<groupID>, --crash, or --temp"))
+		}
+
+		// Determine domain and identifier
+		var domain fileservice.Domain
+		var identifier string
+
+		if bundleID != "" {
+			domain = fileservice.DomainAppDataContainer
+			identifier = bundleID
+		} else if groupID != "" {
+			domain = fileservice.DomainAppGroupDataContainer
+			identifier = groupID
+		} else if useCrash {
+			domain = fileservice.DomainSystemCrashLogs
+			identifier = ""
+		} else if useTemp {
+			domain = fileservice.DomainTemporary
+			identifier = ""
+		}
+
+		// Create connection
+		conn, err := fileservice.New(device, domain, identifier)
+		exitIfError("file: failed to connect to file service", err)
+		defer func() {
+			if closeErr := conn.Close(); closeErr != nil {
+				log.Errorf("Failed to close file service connection: %v", closeErr)
+			}
+		}()
+
+		// Handle ls subcommand
+		b, _ = arguments.Bool("ls")
+		if b {
+			path, _ := arguments.String("--path")
+			if path == "" {
+				path = "."
+			}
+
+			files, err := conn.ListDirectory(path)
+			exitIfError("file ls: failed to list directory", err)
+
+			if !JSONdisabled {
+				result := map[string]interface{}{
+					"path":  path,
+					"files": files,
+					"count": len(files),
+				}
+				fmt.Println(convertToJSONString(result))
+			} else {
+				fmt.Printf("Files in %s:\n", path)
+				for _, file := range files {
+					fmt.Printf("  %s\n", file)
+				}
+				fmt.Printf("\nTotal: %d files\n", len(files))
+			}
+		}
+
+		// Handle pull subcommand
+		b, _ = arguments.Bool("pull")
+		if b {
+			remotePath, _ := arguments.String("--remote")
+			localPath, _ := arguments.String("--local")
+
+			if remotePath == "" {
+				exitIfError("file pull", fmt.Errorf("--remote=<path> is required"))
+			}
+			if localPath == "" {
+				exitIfError("file pull", fmt.Errorf("--local=<path> is required"))
+			}
+
+			// Create output file for streaming
+			outputFile, err := os.Create(localPath)
+			exitIfError("file pull: failed to create output file", err)
+			defer outputFile.Close()
+
+			// Download file using streaming to minimize memory usage
+			log.Infof("Downloading %s to %s...", remotePath, localPath)
+			err = conn.PullFile(remotePath, outputFile)
+			exitIfError("file pull: failed to download file", err)
+
+			// Get file size for reporting
+			fileInfo, err := outputFile.Stat()
+			exitIfError("file pull: failed to get file info", err)
+			fileSize := fileInfo.Size()
+
+			if !JSONdisabled {
+				result := map[string]interface{}{
+					"remote": remotePath,
+					"local":  localPath,
+					"size":   fileSize,
+				}
+				fmt.Println(convertToJSONString(result))
+			} else {
+				log.Infof("Downloaded %d bytes to %s", fileSize, localPath)
+			}
+		}
+
+		b, _ = arguments.Bool("push")
+		if b {
+			localPath, _ := arguments.String("--local")
+			remotePath, _ := arguments.String("--remote")
+
+			if localPath == "" || remotePath == "" {
+				exitIfError("push requires --local and --remote paths", fmt.Errorf("missing required arguments"))
+			}
+
+			// Get file info to preserve permissions
+			fileInfo, err := os.Stat(localPath)
+			exitIfError("push: failed to stat local file", err)
+
+			// Get file permissions from source file, default UID (501) and GID (501)
+			permissions := int64(fileInfo.Mode().Perm())
+			uid := int64(501)
+			gid := int64(501)
+			fileSize := fileInfo.Size()
+
+			// Open file for streaming
+			file, err := os.Open(localPath)
+			exitIfError("push: failed to open local file", err)
+			defer file.Close()
+
+			// Upload file using streaming to minimize memory usage
+			log.Infof("Uploading %s to %s...", localPath, remotePath)
+			err = conn.PushFile(remotePath, file, fileSize, permissions, uid, gid)
+			exitIfError("push: failed to upload file", err)
+
+			if b, _ := arguments.Bool("--json"); b {
+				result := map[string]interface{}{
+					"success": true,
+					"remote":  remotePath,
+					"local":   localPath,
+					"size":    fileSize,
+				}
+				fmt.Println(convertToJSONString(result))
+			} else {
+				log.Infof("Uploaded %d bytes to %s", fileSize, remotePath)
+			}
+		}
+
 		return
 	}
 
@@ -1798,7 +1979,7 @@ func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 		}
 
 		for i := 0; i < 3; i++ {
-			conn.GetElement()
+			conn.GetElement(context.Background())
 			time.Sleep(time.Second)
 		}
 		/*	conn.GetElement()
@@ -1978,14 +2159,14 @@ func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool
 
 	if list {
 		for _, v := range response {
-			fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString)
+			fmt.Printf("%s %s %s\n", v.CFBundleIdentifier(), v.CFBundleName(), v.CFBundleShortVersionString())
 		}
 		return
 	}
 	if filesharing {
 		for _, v := range response {
-			if v.UIFileSharingEnabled {
-				fmt.Printf("%s %s %s\n", v.CFBundleIdentifier, v.CFBundleName, v.CFBundleShortVersionString)
+			if v.UIFileSharingEnabled() {
+				fmt.Printf("%s %s %s\n", v.CFBundleIdentifier(), v.CFBundleName(), v.CFBundleShortVersionString())
 			}
 		}
 		return
@@ -2157,7 +2338,7 @@ func outputProcessListNoJSON(device ios.DeviceEntry, processes []instruments.Pro
 		log.Error("browsing installed apps failed. bundleID will not be included in output")
 	} else {
 		for _, app := range response {
-			appInfoByExecutableName[app.CFBundleExecutable] = app
+			appInfoByExecutableName[app.CFBundleExecutable()] = app
 		}
 	}
 
@@ -2179,7 +2360,7 @@ func outputProcessListNoJSON(device ios.DeviceEntry, processes []instruments.Pro
 		bundleID := ""
 		appInfo, exists := appInfoByExecutableName[processInfo.Name]
 		if exists {
-			bundleID = appInfo.CFBundleIdentifier
+			bundleID = appInfo.CFBundleIdentifier()
 		}
 		fmt.Printf("%*d %-*s %s  %s\n", maxPidLength, processInfo.Pid, maxNameLength, processInfo.Name, processInfo.StartDate.Format("2006-01-02 15:04:05"), bundleID)
 	}
