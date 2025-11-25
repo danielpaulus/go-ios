@@ -1145,14 +1145,8 @@ The commands work as following:
 				}
 			}
 
-			local, err := os.Create(path.Join(dp, filepath.Base(sp)))
-			exitIfError("failed to open local file", err)
-			defer local.Close()
-			remote, err := afcService.Open(sp, afc.READ_ONLY)
-			exitIfError("failed to open remote file", err)
-			defer remote.Close()
-
-			_, err = io.Copy(local, remote)
+			dp = path.Join(dp, filepath.Base(sp))
+			err = afcService.Pull(sp, dp)
 			exitIfError("fsync: pull failed", err)
 		}
 		b, _ = arguments.Bool("push")
@@ -1160,14 +1154,7 @@ The commands work as following:
 			sp, _ := arguments.String("--srcPath")
 			dp, _ := arguments.String("--dstPath")
 
-			local, err := os.Open(sp)
-			exitIfError("failed to open local file", err)
-			defer local.Close()
-			remote, err := afcService.Open(dp, afc.WRITE_ONLY_CREATE_TRUNC)
-			exitIfError("failed to create remote file", err)
-			defer remote.Close()
-
-			_, err = io.Copy(remote, local)
+			err = afcService.Push(sp, dp)
 			exitIfError("fsync: push failed", err)
 		}
 		afcService.Close()
