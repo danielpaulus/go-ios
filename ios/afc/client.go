@@ -75,7 +75,11 @@ func (c *Client) List(p string) ([]string, error) {
 		if len(s) == 0 {
 			continue
 		}
-		list = append(list, s[:len(s)-1])
+		entry := s[:len(s)-1]
+		if entry == "." || entry == ".." {
+			continue
+		}
+		list = append(list, entry)
 	}
 	return list, nil
 }
@@ -324,9 +328,6 @@ func (c *Client) WalkDir(p string, f WalkFunc) error {
 
 	slices.Sort(files)
 	for _, file := range files {
-		if file == "." || file == ".." {
-			continue
-		}
 		info, err := c.Stat(path.Join(p, file))
 		if err != nil {
 			if isPermissionDeniedError(err) {
