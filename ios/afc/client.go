@@ -430,6 +430,9 @@ func (f *File) Read(p []byte) (int, error) {
 		return 0, fmt.Errorf("error reading data: %w", err)
 	}
 	resp, err := f.client.readPacket()
+	if err != nil {
+		return 0, fmt.Errorf("error reading data: %w", err)
+	}
 	copy(p, resp.Payload)
 	l := len(resp.Payload)
 	if l == 0 {
