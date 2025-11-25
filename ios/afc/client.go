@@ -72,10 +72,10 @@ func (c *Client) List(p string) ([]string, error) {
 		if err != nil {
 			break
 		}
-		if len(s) == 0 {
+		entry := s[:len(s)-1]
+		if len(entry) == 0 {
 			continue
 		}
-		entry := s[:len(s)-1]
 		if entry == "." || entry == ".." {
 			continue
 		}
