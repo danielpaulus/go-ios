@@ -12,7 +12,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: zendesk/action-create-release@v1
+        uses: zendesk/action-create-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
