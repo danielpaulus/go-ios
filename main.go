@@ -20,6 +20,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios/debugproxy"
 	"github.com/danielpaulus/go-ios/ios/deviceinfo"
+	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 
 	"github.com/danielpaulus/go-ios/ios/amfi"
@@ -1278,11 +1279,11 @@ The commands work as following:
 	b, _ = arguments.Bool("fsync")
 	if b {
 		containerBundleId, _ := arguments.String("--app")
-		var afcService *afc.Connection
+		var afcService *afc.Client
 		if containerBundleId == "" {
 			afcService, err = afc.New(device)
 		} else {
-			afcService, err = afc.NewContainer(device, containerBundleId)
+			afcService, err = house_arrest.New(device, containerBundleId)
 		}
 		exitIfError("fsync: connect afc service failed", err)
 		b, _ = arguments.Bool("rm")
@@ -1300,7 +1301,19 @@ The commands work as following:
 		b, _ = arguments.Bool("tree")
 		if b {
 			path, _ := arguments.String("--path")
-			err = afcService.TreeView(path, "", true)
+			err := afcService.WalkDir(path, func(path string, info afc.FileInfo, err error) error {
+				s := strings.Split(path, string(os.PathSeparator))
+				_, f := filepath.Split(path)
+				prefix := strings.Repeat("|  ", len(s)-1)
+
+				suffix := ""
+				if info.Type == afc.S_IFDIR {
+					suffix = "/"
+				}
+
+				fmt.Printf("%s|-%s%s\n", prefix, f, suffix)
+				return nil
+			})
 			exitIfError("fsync: tree view failed", err)
 		}
 
@@ -1322,6 +1335,7 @@ The commands work as following:
 					exitIfError("mkdir failed", err)
 				}
 			}
+
 			dp = path.Join(dp, filepath.Base(sp))
 			err = afcService.Pull(sp, dp)
 			exitIfError("fsync: pull failed", err)
@@ -1330,6 +1344,7 @@ The commands work as following:
 		if b {
 			sp, _ := arguments.String("--srcPath")
 			dp, _ := arguments.String("--dstPath")
+
 			err = afcService.Push(sp, dp)
 			exitIfError("fsync: push failed", err)
 		}
@@ -1341,7 +1356,7 @@ The commands work as following:
 	if b {
 		afcService, err := afc.New(device)
 		exitIfError("connect afc service failed", err)
-		info, err := afcService.GetSpaceInfo()
+		info, err := afcService.DeviceInfo()
 		if err != nil {
 			exitIfError("get device info push failed", err)
 		}
