@@ -1,6 +1,7 @@
 package mobileactivation
 
 import (
+	"fmt"
 	"io"
 	"net/url"
 	"strings"
@@ -77,7 +78,10 @@ func Activate(device ios.DeviceEntry) error {
 		return err
 	}
 	log.Debugf("CreateTunnel1SessionInfoRequest resp: %v", resp)
-	val := resp["Value"].(map[string]interface{})
+	val, ok := resp["Value"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("expected 'Value' to be a map, got nil or wrong type")
+	}
 
 	handshakeRequestMessage := val["HandshakeRequestMessage"].([]byte)
 	log.Debugf("HandshakeRequestMessage: %v", handshakeRequestMessage)
