@@ -22,7 +22,14 @@ type ConnListener struct {
 }
 
 // Forward forwards every connection made to the hostPort to whatever service runs inside an app on the device on phonePort.
+// Port values must be between 1 and 65535.
 func Forward(device ios.DeviceEntry, hostPort uint16, phonePort uint16) (*ConnListener, error) {
+	if hostPort == 0 {
+		return nil, fmt.Errorf("forward: invalid host port: port must be at least 1")
+	}
+	if phonePort == 0 {
+		return nil, fmt.Errorf("forward: invalid target port: port must be at least 1")
+	}
 	log.Infof("Start listening on port %d forwarding to port %d on device", hostPort, phonePort)
 	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", hostPort))
 	if err != nil {
