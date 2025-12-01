@@ -93,7 +93,7 @@ Usage:
   ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]
   ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options]
   ios file push [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --local=<localPath> --remote=<remotePath> [options]
-  ios forward [options] <hostPort> <targetPort>
+  ios forward [options] [<hostPort> <targetPort>] [--port=<mapping>]...
   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
@@ -149,7 +149,7 @@ Options:
   --nojson                  Disable JSON output
   --pretty                  Pretty-print JSON command output
   -h --help                 Show this screen.
-  --udid=<udid>             UDID of the device.
+  --udid=<udid>             UDID of the device. Can also be set via GO_IOS_UDID environment variable.
   --tunnel-info-port=<port> When go-ios is used to manage tunnels for iOS 17+ it exposes them on an HTTP-API for localhost (default port: 28100)
   --address=<ipv6addrr>     Address of the device on the interface. This parameter is optional and can be set if a tunnel created by MacOS needs to be used.
   >                         To get this value run "log stream --debug --info --predicate 'eventMessage LIKE "*Tunnel established*" OR eventMessage LIKE "*for server port*"'",
@@ -195,7 +195,7 @@ The commands work as following:
    ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]  List files using RemoteXPC (iOS 17+). Requires tunnel. Use --app for app container, --app-group for app group, --crash for crash logs, or --temp for temporary files.
    ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options] Download file using RemoteXPC (iOS 17+). Requires tunnel.
    ios file push [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --local=<localPath> --remote=<remotePath> [options] Upload file using RemoteXPC (iOS 17+). Requires tunnel. Preserves source file permissions.
-   ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
+   ios forward [options] [<hostPort> <targetPort>] [--port=<mapping>]...   Forward TCP connections to device. Use --port for multiple ports: --port=8100:8100 --port=9191:9191
    ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
    ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
    ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
@@ -351,6 +351,9 @@ The commands work as following:
 	tunnelCommand, _ := arguments.Bool("tunnel")
 
 	udid, _ := arguments.String("--udid")
+	if udid == "" {
+		udid = os.Getenv("GO_IOS_UDID")
+	}
 	address, addressErr := arguments.String("--address")
 	rsdPort, rsdErr := arguments.Int("--rsd-port")
 	userspaceTunnelHost, userspaceTunnelHostErr := arguments.String("--userspace-host")
@@ -830,9 +833,16 @@ The commands work as following:
 
 	b, _ = arguments.Bool("forward")
 	if b {
-		hostPort, _ := arguments.Int("<hostPort>")
-		targetPort, _ := arguments.Int("<targetPort>")
-		startForwarding(device, hostPort, targetPort)
+		// Check for new --port syntax first (multi-forward)
+		mappings, _ := arguments["--port"].([]string)
+		if len(mappings) > 0 {
+			startMultiForwarding(device, mappings)
+		} else {
+			// Backwards compatible: single forward
+			hostPort, _ := arguments.Int("<hostPort>")
+			targetPort, _ := arguments.Int("<targetPort>")
+			startForwarding(device, uint16(hostPort), uint16(targetPort))
+		}
 		return
 	}
 
@@ -2076,12 +2086,12 @@ func handleProfileList(device ios.DeviceEntry) {
 	fmt.Println(convertToJSONString(list))
 }
 
-func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
-	cl, err := forward.Forward(device, uint16(hostPort), uint16(targetPort))
+func startForwarding(device ios.DeviceEntry, hostPort uint16, targetPort uint16) {
+	cl, err := forward.Forward(device, hostPort, targetPort)
 	exitIfError("failed to forward port", err)
 	defer stopForwarding(cl)
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	<-c
 }
 
@@ -2090,6 +2100,52 @@ func stopForwarding(cl *forward.ConnListener) {
 	if err != nil {
 		exitIfError("failed to close forwarded port", err)
 	}
+}
+
+func startMultiForwarding(device ios.DeviceEntry, mappings []string) {
+	var listeners []*forward.ConnListener
+
+	closeAllListeners := func() {
+		for _, l := range listeners {
+			l.Close()
+		}
+	}
+
+	for _, mapping := range mappings {
+		parts := strings.Split(mapping, ":")
+		if len(parts) != 2 {
+			closeAllListeners()
+			exitIfError("invalid mapping format", fmt.Errorf("expected hostPort:targetPort, got %s", mapping))
+		}
+		hostPort, err := strconv.ParseUint(parts[0], 10, 16)
+		if err != nil {
+			closeAllListeners()
+			exitIfError("invalid host port", err)
+		}
+		targetPort, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			closeAllListeners()
+			exitIfError("invalid target port", err)
+		}
+
+		cl, err := forward.Forward(device, uint16(hostPort), uint16(targetPort))
+		if err != nil {
+			closeAllListeners()
+			exitIfError(fmt.Sprintf("failed to forward %d:%d", hostPort, targetPort), err)
+		}
+		listeners = append(listeners, cl)
+		log.Infof("Forwarding %d -> %d", hostPort, targetPort)
+	}
+
+	log.Infof("Started %d port forwards", len(listeners))
+
+	// Wait for interrupt
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	<-c
+
+	// Close all listeners
+	closeAllListeners()
 }
 
 func printDiagnostics(device ios.DeviceEntry) {
@@ -2534,7 +2590,7 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, us
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
 	rsdService, err := ios.NewWithAddrPortDevice(address, rsdPort, device)
-	exitIfError("could not connect to RSD", err)
+	exitIfError(fmt.Sprintf("could not connect to RSD, host %s, port %d", address, rsdPort), err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
 	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
