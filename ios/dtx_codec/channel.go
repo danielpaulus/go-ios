@@ -1,6 +1,7 @@
 package dtx
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -44,6 +45,19 @@ func (d *Channel) ReceiveMethodCall(selector string) Message {
 	channel := d.registeredMethods[selector]
 	d.mutex.Unlock()
 	return <-channel
+}
+
+func (d *Channel) ReceiveMethodCallWithTimeout(ctx context.Context, selector string) (Message, error) {
+	d.mutex.Lock()
+	channel := d.registeredMethods[selector]
+	d.mutex.Unlock()
+	select {
+	case msg := <-channel:
+		return msg, nil
+	// context is cancelled because the timeout is exceeded
+	case <-ctx.Done():
+		return Message{}, ctx.Err()
+	}
 }
 
 // MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the

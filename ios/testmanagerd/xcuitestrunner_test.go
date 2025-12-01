@@ -90,6 +90,7 @@ func TestXcuiTest(t *testing.T) {
 	select {
 	case <-time.After(time.Second * 50):
 		t.Error("timeout")
+		stopWda()
 		return
 	case <-wdaStarted:
 		log.Info("wda started successfully")
@@ -123,7 +124,7 @@ func signAndInstall(device ios.DeviceEntry) error {
 	svc, _ := installationproxy.New(device)
 	response, err := svc.BrowseUserApps()
 	for _, info := range response {
-		if bundleId == info.CFBundleIdentifier {
+		if bundleId == info.CFBundleIdentifier() {
 			log.Info("wda installed, skipping installation")
 			return nil
 		}

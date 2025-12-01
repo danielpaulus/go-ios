@@ -603,13 +603,13 @@ type appInfo struct {
 
 func getappInfo(bundleID string, apps []installationproxy.AppInfo) (appInfo, error) {
 	for _, app := range apps {
-		if app.CFBundleIdentifier == bundleID {
+		if app.CFBundleIdentifier() == bundleID {
 			info := appInfo{
-				path:       app.Path,
-				bundleName: app.CFBundleName,
-				bundleID:   app.CFBundleIdentifier,
+				path:       app.Path(),
+				bundleName: app.CFBundleName(),
+				bundleID:   app.CFBundleIdentifier(),
 			}
-			if home, ok := app.EnvironmentVariables["HOME"].(string); ok {
+			if home, ok := app.EnvironmentVariables()["HOME"].(string); ok {
 				info.homePath = home
 			}
 			return info, nil
