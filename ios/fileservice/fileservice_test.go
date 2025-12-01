@@ -3,6 +3,8 @@
 package fileservice_test
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -101,11 +103,12 @@ func TestPullFile(t *testing.T) {
 	defer conn.Close()
 
 	// Try to pull a file (adjust path as needed)
-	data, err := conn.PullFile("some/known/file.txt")
+	var buf bytes.Buffer
+	err = conn.PullFile("some/known/file.txt", &buf)
 	require.NoError(t, err, "Failed to pull file")
 
-	assert.Greater(t, len(data), 0, "File data should not be empty")
-	t.Logf("Downloaded file: %d bytes", len(data))
+	assert.Greater(t, buf.Len(), 0, "File data should not be empty")
+	t.Logf("Downloaded file: %d bytes", buf.Len())
 }
 
 // TestPushFile tests uploading a file to the device
@@ -134,7 +137,7 @@ func TestPushFile(t *testing.T) {
 	testFileName := "test_upload.txt"
 
 	// Push the file (0o644 = rw-r--r--)
-	err = conn.PushFile(testFileName, testData, 0o644, 501, 501)
+	err = conn.PushFile(testFileName, bytes.NewReader(testData), int64(len(testData)), 0o644, 501, 501)
 	require.NoError(t, err, "Failed to push file")
 
 	t.Logf("Successfully uploaded file: %s", testFileName)
@@ -208,7 +211,7 @@ func ExampleConnection_ListDirectory() {
 	// List files in the root directory
 	files, _ := conn.ListDirectory(".")
 	for _, file := range files {
-		println(file)
+		fmt.Println(file)
 	}
 }
 
