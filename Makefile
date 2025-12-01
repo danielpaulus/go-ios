@@ -30,5 +30,15 @@ run: build
 # Build and run
 up: build run
 
+# Run linter
+lint:
+	@golangci-lint run
+
+# Setup development environment (installs git hooks)
+setup:
+	@echo "Configuring git hooks..."
+	@git config core.hooksPath .githooks
+	@echo "Done! Pre-commit hooks are now active."
+
 # Phony targets
-.PHONY: build run up
+.PHONY: build run up lint setup
