@@ -1,6 +1,8 @@
 package accessibility
 
 import (
+	"context"
+	"encoding/base64"
 	"fmt"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -12,6 +14,42 @@ import (
 // It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
 	channel *dtx.Channel
+}
+
+type Action int
+
+const (
+	ActionTap Action = iota
+)
+
+type actionMeta struct {
+	AttributeName string
+	HumanReadable string
+}
+
+func getActionMeta(action Action) actionMeta {
+	switch action {
+	case ActionTap:
+		return actionMeta{AttributeName: "AXAction-2010", HumanReadable: "Activate"}
+	default:
+		return actionMeta{}
+	}
+}
+
+// Direction represents navigation direction values used by AX service
+type MoveDirection int32
+
+const (
+	DirectionPrevious MoveDirection = 3
+	DirectionNext     MoveDirection = 4
+	DirectionFirst    MoveDirection = 5
+	DirectionLast     MoveDirection = 6
+)
+
+// AXElementData represents the data returned from Move operations
+type AXElementData struct {
+	PlatformElementValue string `json:"platformElementValue"` // Base64-encoded platform element data
+	SpokenDescription    string `json:"spokenDescription"`    // Spoken description of the element
 }
 
 func (a ControlInterface) readhostAppStateChanged() {
@@ -64,7 +102,7 @@ func (a ControlInterface) init() error {
 	}
 	log.Info("Api version:", apiVersion)
 
-	auditCaseIds, err := a.deviceAllAuditCaseIDs()
+	auditCaseIds, err := a.deviceAllAuditCaseIDs(apiVersion)
 	if err != nil {
 		return err
 	}
@@ -90,7 +128,8 @@ func (a ControlInterface) init() error {
 	for _, v := range auditCaseIds {
 		name, err := a.deviceHumanReadableDescriptionForAuditCaseID(v)
 		if err != nil {
-			return err
+			log.Warnf("Failed to get human readable description for audit case ID %s: %v", v, err)
+			continue
 		}
 		log.Infof("%s -- %s", v, name)
 	}
@@ -114,7 +153,10 @@ func (a ControlInterface) SwitchToDevice() {
 	a.deviceInspectorShowIgnoredElements(false)
 	a.deviceSetAuditTargetPid(0)
 	a.deviceInspectorFocusOnElement()
-	a.awaitHostInspectorCurrentElementChanged()
+	_, err := a.awaitHostInspectorCurrentElementChanged(context.Background())
+	if err != nil {
+		log.Warnf("await element change failed during SwitchToDevice: %v", err)
+	}
 	a.deviceInspectorPreviewOnElement()
 	a.deviceHighlightIssue()
 }
@@ -124,20 +166,174 @@ func (a ControlInterface) TurnOff() {
 	a.deviceInspectorSetMonitoredEventType(0)
 	a.awaitHostInspectorMonitoredEventTypeChanged()
 	a.deviceInspectorFocusOnElement()
-	a.awaitHostInspectorCurrentElementChanged()
+	_, err := a.awaitHostInspectorCurrentElementChanged(context.Background())
+	if err != nil {
+		log.Warnf("await element change failed during TurnOff: %v", err)
+	}
 	a.deviceInspectorPreviewOnElement()
 	a.deviceHighlightIssue()
 	a.deviceInspectorShowVisuals(false)
 }
 
-// GetElement moves the green selection rectangle one element further
-func (a ControlInterface) GetElement() {
+// Move navigates focus using the given direction and returns selected element data.
+func (a ControlInterface) Move(ctx context.Context, direction MoveDirection) (AXElementData, error) {
 	log.Info("changing")
-	a.deviceInspectorMoveWithOptions()
-	// a.deviceInspectorMoveWithOptions()
+	a.deviceInspectorMoveWithOptions(direction)
+	log.Info("before changed")
 
-	resp := a.awaitHostInspectorCurrentElementChanged()
-	log.Info("item changed", resp)
+	resp, err := a.awaitHostInspectorCurrentElementChanged(ctx)
+	if err != nil {
+		return AXElementData{}, err
+	}
+
+	innerValue, err := getInnerValue(resp)
+	if err != nil {
+		return AXElementData{}, err
+	}
+
+	spokenDescription := a.extractSpokenDescription(innerValue)
+	platformElementBytes, err := a.extractPlatformElementBytes(innerValue)
+	if err != nil {
+		return AXElementData{}, err
+	}
+
+	return AXElementData{
+		PlatformElementValue: base64.StdEncoding.EncodeToString(platformElementBytes),
+		SpokenDescription:    spokenDescription,
+	}, nil
+}
+
+func (a ControlInterface) extractSpokenDescription(innerValue map[string]interface{}) string {
+	// Try SpokenDescriptionValue_v1 first
+	if desc := a.extractStringFromField(innerValue, "SpokenDescriptionValue_v1"); desc != "" {
+		return desc
+	}
+
+	// Fallback to CaptionTextValue_v1
+	if desc := a.extractStringFromField(innerValue, "CaptionTextValue_v1"); desc != "" {
+		return desc
+	}
+
+	return ""
+}
+
+/*
+PlatformElementValue_v1: A base64-encoded string that uniquely identifies an accessibility element.
+It is required to perform actions on the element.
+
+Extraction path:
+    ElementValue_v1
+      └── Value
+          └── Value
+              └── PlatformElementValue_v1
+                  └── Value ([]byte)
+
+Binary ([]byte):
+    ┌──────────────────────────────┐
+    │ [0x50, 0x67, 0x41, ...]      │   // Raw bytes from dtx message payload
+    └──────────────────────────────┘
+
+Base64 (string):
+    ┌──────────────────────────────┐
+    │ "PgAAAACikAEBAAAACg..."      │   // base64 encoded unique ID of AX element
+    └──────────────────────────────┘
+*/
+
+func (a ControlInterface) extractPlatformElementBytes(innerValue map[string]interface{}) ([]byte, error) {
+	elementValue, err := getNestedMap(innerValue, "ElementValue_v1")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ElementValue_v1: %w", err)
+	}
+
+	axElement, err := getNestedMap(elementValue, "Value")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ElementValue_v1.Value: %w", err)
+	}
+
+	valMap, err := getNestedMap(axElement, "Value")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get AX element inner Value: %w", err)
+	}
+
+	platformElement, err := getNestedMap(valMap, "PlatformElementValue_v1")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PlatformElementValue_v1: %w", err)
+	}
+
+	byteArray, ok := platformElement["Value"].([]byte)
+	if !ok {
+		return nil, fmt.Errorf("PlatformElementValue_v1.Value is not []byte, got %T", platformElement["Value"])
+	}
+
+	return byteArray, nil
+}
+
+// performAction performs the standard accessibility action without alert checking
+func (a *ControlInterface) PerformAction(actionName Action, currentPlatformElementValue string) error {
+	platformBytes, err := base64.StdEncoding.DecodeString(currentPlatformElementValue)
+	if err != nil {
+		return fmt.Errorf("invalid currentPlatformElementValue base64: %w", err)
+	}
+
+	elementArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditElement_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"PlatformElementValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough",
+					"Value":      platformBytes,
+				}),
+			}),
+		}),
+	})
+
+	meta := getActionMeta(actionName)
+
+	attributeArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditElementAttribute_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"AttributeNameValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": meta.AttributeName,
+				}),
+				"HumanReadableNameValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": meta.HumanReadable,
+				}),
+				"PerformsActionValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": true,
+				}),
+				"SettableValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": false,
+				}),
+				"DisplayAsTree_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": false,
+				}),
+				"DisplayInlineValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": false,
+				}),
+				"IsInternal_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": false,
+				}),
+				"ValueTypeValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": int32(1),
+				}),
+			}),
+		}),
+	})
+
+	valueArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{})
+
+	if _, err := a.channel.MethodCall("deviceElement:performAction:withValue:", elementArg, attributeArg, valueArg); err != nil {
+		return fmt.Errorf("failed to send performAction DTX message: %w", err)
+	}
+	return nil
+}
+
+// GetElement moves the green selection rectangle one element further
+func (a ControlInterface) GetElement(ctx context.Context) (AXElementData, error) {
+	return a.Move(ctx, DirectionNext)
 }
 
 func (a ControlInterface) UpdateAccessibilitySetting(name string, val interface{}) {
@@ -158,14 +354,18 @@ func (a ControlInterface) ResetToDefaultAccessibilitySettings() error {
 	return nil
 }
 
-func (a ControlInterface) awaitHostInspectorCurrentElementChanged() map[string]interface{} {
-	msg := a.channel.ReceiveMethodCall("hostInspectorCurrentElementChanged:")
+func (a ControlInterface) awaitHostInspectorCurrentElementChanged(ctx context.Context) (map[string]interface{}, error) {
+	msg, err := a.channel.ReceiveMethodCallWithTimeout(ctx, "hostInspectorCurrentElementChanged:")
+	if err != nil {
+		log.Errorf("Failed to receive hostInspectorCurrentElementChanged: %v", err)
+		return nil, fmt.Errorf("failed to receive hostInspectorCurrentElementChanged: %w", err)
+	}
 	log.Info("received hostInspectorCurrentElementChanged")
 	result, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 	if err != nil {
 		panic(fmt.Sprintf("Failed unarchiving: %s this is a bug and should not happen", err))
 	}
-	return result[0].(map[string]interface{})
+	return result[0].(map[string]interface{}), nil
 }
 
 func (a ControlInterface) awaitHostInspectorMonitoredEventTypeChanged() {
@@ -174,13 +374,13 @@ func (a ControlInterface) awaitHostInspectorMonitoredEventTypeChanged() {
 	log.Infof("hostInspectorMonitoredEventTypeChanged: was set to %d by the device", n[0])
 }
 
-func (a ControlInterface) deviceInspectorMoveWithOptions() {
+func (a ControlInterface) deviceInspectorMoveWithOptions(direction MoveDirection) {
 	method := "deviceInspectorMoveWithOptions:"
 	options := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 		"ObjectType": "passthrough",
 		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
 			"allowNonAX":        nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": false}),
-			"direction":         nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": int32(4)}),
+			"direction":         nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": int32(direction)}),
 			"includeContainers": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{"ObjectType": "passthrough", "Value": true}),
 		}),
 	})
@@ -205,8 +405,14 @@ func (a ControlInterface) deviceCapabilities() ([]string, error) {
 	return convertToStringList(response.Payload)
 }
 
-func (a ControlInterface) deviceAllAuditCaseIDs() ([]string, error) {
-	response, err := a.channel.MethodCall("deviceAllAuditCaseIDs")
+func (a ControlInterface) deviceAllAuditCaseIDs(api uint64) ([]string, error) {
+	var response dtx.Message
+	var err error
+	if api >= 15 {
+		response, err = a.channel.MethodCall("deviceAllSupportedAuditTypes")
+	} else {
+		response, err = a.channel.MethodCall("deviceAllAuditCaseIDs")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +505,14 @@ func (a ControlInterface) deviceHumanReadableDescriptionForAuditCaseID(auditCase
 	if err != nil {
 		return "", err
 	}
-	return response.Payload[0].(string), nil
+	if len(response.Payload) == 0 {
+		return "", fmt.Errorf("no payload in response")
+	}
+	str, ok := response.Payload[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected payload type: %T", response.Payload[0])
+	}
+	return str, nil
 }
 
 func (a ControlInterface) deviceInspectorShowIgnoredElements(val bool) error {
