@@ -100,7 +100,7 @@ func getError(errorCode uint64) error {
 	case errDirNotEmpty:
 		return errors.New("DirNotEmpty")
 	default:
-		return nil
+		return fmt.Errorf("unknown AFC error code: %d", errorCode)
 	}
 }
 
