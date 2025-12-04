@@ -195,7 +195,8 @@ func setupSkipSetup(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	err = afcConn.RemovePathAndContents(skipSetupFilePath)
+	defer afcConn.Close()
+	err = afcConn.RemoveAll(skipSetupFilePath)
 	if err != nil {
 		log.Debug("skip setup: nothing to remove")
 	}
@@ -208,7 +209,7 @@ func setupSkipSetup(device ios.DeviceEntry) error {
 		return err
 	}
 	if log.GetLevel() == log.DebugLevel {
-		f, _ := afcConn.ListFiles(skipSetupDirPath, "*")
+		f, _ := afcConn.List(skipSetupDirPath)
 		log.Debugf("list of files %v", f)
 	}
 	return nil
