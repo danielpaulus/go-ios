@@ -280,8 +280,9 @@ The commands work as following:
    >                                                                  by setting the environment variable 'P12_PASSWORD'
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [options] prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
-   >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device. If you need certificates
-   >                                                                  to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use. For P12 files, specify the password with --p12password or P12_PASSWORD env var.
+   >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device.
+   >                                                                  The certfile can be a DER file, PEM file, or P12 file. For P12 files, specify the password with --p12password or P12_PASSWORD env var.
+   >                                                                  If you need certificates to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use.
    >                                                                  locale and lang are optional, the default is en_US and en. Run 'ios lang' to see a list of all supported locales and languages.
    ios prepare cloudconfig                                            Print the cloud configuration of the device as JSON.
    ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
