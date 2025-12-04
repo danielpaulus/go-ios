@@ -20,6 +20,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios/debugproxy"
 	"github.com/danielpaulus/go-ios/ios/deviceinfo"
+	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 
 	"github.com/danielpaulus/go-ios/ios/amfi"
@@ -116,6 +117,7 @@ Usage:
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options]
+  ios prepare cloudconfig [options]
   ios prepare create-cert
   ios prepare printskip
   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
@@ -234,6 +236,7 @@ The commands work as following:
    >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device. If you need certificates
    >                                                                  to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use. locale and lang are optional, the default is en_US and en.
    >                                                                  Run 'ios lang' to see a list of all supported locales and languages.
+   ios prepare cloudconfig                                            Print the cloud configuration of the device as JSON.
    ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
    ios prepare printskip                                              Print all options you can skip.
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
@@ -403,7 +406,7 @@ The commands work as following:
 		}
 
 		exitIfError("failed erasing", mcinstall.Erase(device))
-		print(convertToJSONString("ok"))
+		fmt.Print(convertToJSONString("ok"))
 		return
 	}
 
@@ -417,7 +420,7 @@ The commands work as following:
 			} else {
 				b, err := marshalJSON(services)
 				exitIfError("failed json conversion", err)
-				println(string(b))
+				fmt.Println(string(b))
 			}
 			return
 		}
@@ -465,7 +468,17 @@ The commands work as following:
 		}
 		b, _ = arguments.Bool("printskip")
 		if b {
-			println(convertToJSONString(mcinstall.GetAllSetupSkipOptions()))
+			fmt.Println(convertToJSONString(mcinstall.GetAllSetupSkipOptions()))
+			return
+		}
+		b, _ = arguments.Bool("cloudconfig")
+		if b {
+			conn, err := mcinstall.New(device)
+			exitIfError("failed connecting to mcinstall", err)
+			defer conn.Close()
+			config, err := conn.GetCloudConfiguration()
+			exitIfError("failed getting cloud configuration", err)
+			fmt.Println(convertToJSONString(config))
 			return
 		}
 		skip := mcinstall.GetAllSetupSkipOptions()
@@ -487,7 +500,7 @@ The commands work as following:
 			}
 		}
 		exitIfError("failed erasing", mcinstall.Prepare(device, skip, certBytes, orgname, locale, lang))
-		print(convertToJSONString("ok"))
+		fmt.Print(convertToJSONString("ok"))
 		return
 	}
 
@@ -501,7 +514,7 @@ The commands work as following:
 	if b {
 		ip, err := pcap.FindIp(device)
 		exitIfError("failed", err)
-		println(convertToJSONString(ip))
+		fmt.Println(convertToJSONString(ip))
 		return
 	}
 
@@ -1278,11 +1291,11 @@ The commands work as following:
 	b, _ = arguments.Bool("fsync")
 	if b {
 		containerBundleId, _ := arguments.String("--app")
-		var afcService *afc.Connection
+		var afcService *afc.Client
 		if containerBundleId == "" {
 			afcService, err = afc.New(device)
 		} else {
-			afcService, err = afc.NewContainer(device, containerBundleId)
+			afcService, err = house_arrest.New(device, containerBundleId)
 		}
 		exitIfError("fsync: connect afc service failed", err)
 		b, _ = arguments.Bool("rm")
@@ -1300,7 +1313,19 @@ The commands work as following:
 		b, _ = arguments.Bool("tree")
 		if b {
 			path, _ := arguments.String("--path")
-			err = afcService.TreeView(path, "", true)
+			err := afcService.WalkDir(path, func(path string, info afc.FileInfo, err error) error {
+				s := strings.Split(path, string(os.PathSeparator))
+				_, f := filepath.Split(path)
+				prefix := strings.Repeat("|  ", len(s)-1)
+
+				suffix := ""
+				if info.Type == afc.S_IFDIR {
+					suffix = "/"
+				}
+
+				fmt.Printf("%s|-%s%s\n", prefix, f, suffix)
+				return nil
+			})
 			exitIfError("fsync: tree view failed", err)
 		}
 
@@ -1322,6 +1347,7 @@ The commands work as following:
 					exitIfError("mkdir failed", err)
 				}
 			}
+
 			dp = path.Join(dp, filepath.Base(sp))
 			err = afcService.Pull(sp, dp)
 			exitIfError("fsync: pull failed", err)
@@ -1330,6 +1356,7 @@ The commands work as following:
 		if b {
 			sp, _ := arguments.String("--srcPath")
 			dp, _ := arguments.String("--dstPath")
+
 			err = afcService.Push(sp, dp)
 			exitIfError("fsync: push failed", err)
 		}
@@ -1341,7 +1368,7 @@ The commands work as following:
 	if b {
 		afcService, err := afc.New(device)
 		exitIfError("connect afc service failed", err)
-		info, err := afcService.GetSpaceInfo()
+		info, err := afcService.DeviceInfo()
 		if err != nil {
 			exitIfError("get device info push failed", err)
 		}
@@ -1615,7 +1642,7 @@ func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 					return
 				}
 				s, _ := json.Marshal(notification)
-				println(string(s))
+				fmt.Println(string(s))
 			}
 		}()
 		c := make(chan os.Signal, 1)
@@ -1661,7 +1688,7 @@ func crashCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			}
 			files, err := crashreport.ListReports(device, pattern)
 			exitIfError("failed listing crashreports", err)
-			println(
+			fmt.Println(
 				convertToJSONString(
 					map[string]interface{}{"files": files, "length": len(files)},
 				),
@@ -1698,7 +1725,7 @@ func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId s
 		} else {
 			b, err := marshalJSON(profileTypes)
 			exitIfError("failed json conversion", err)
-			println(string(b))
+			fmt.Println(string(b))
 		}
 		return
 	}
@@ -1736,7 +1763,7 @@ func outputPrettyStateList(types []instruments.ProfileType) {
 		}
 		buffer.WriteString("\n\n")
 	}
-	println(buffer.String())
+	fmt.Println(buffer.String())
 }
 
 func listMountedImages(device ios.DeviceEntry) {

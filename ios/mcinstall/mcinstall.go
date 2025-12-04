@@ -331,3 +331,9 @@ func (mcInstallConn *Connection) AddProfileSupervised(profileFileBytes []byte, p
 	}
 	return mcInstallConn.addProfile(profileFileBytes, "InstallProfileSilent")
 }
+
+// GetCloudConfiguration retrieves the cloud configuration from the device.
+// This includes settings like SkipSetup options, supervision status, and organization info.
+func (mcInstallConn *Connection) GetCloudConfiguration() (map[string]interface{}, error) {
+	return mcInstallConn.sendAndReceive(request("GetCloudConfiguration"))
+}

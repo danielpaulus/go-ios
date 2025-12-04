@@ -1,0 +1,14 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - forbidigo
+  settings:
+    forbidigo:
+      forbid:
+        - pattern: ^print$
+          msg: "use fmt.Print* or log.* instead of built-in print (prints to stderr)"
+        - pattern: ^println$
+          msg: "use fmt.Println or log.* instead of built-in println (prints to stderr)"
+      analyze-types: true
