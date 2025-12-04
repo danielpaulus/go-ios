@@ -2692,41 +2692,66 @@ func splitKeyValuePairs(envArgs []string, sep string) map[string]interface{} {
 // - PEM with metadata (e.g., from OpenSSL "Bag Attributes" output)
 // - PKCS12/P12 file (if password is provided)
 func extractDERCertificate(certBytes []byte, p12Password string) ([]byte, error) {
-	// Try to parse as raw DER first
-	if _, err := x509.ParseCertificate(certBytes); err == nil {
-		return certBytes, nil
+	if der, ok := tryParseDER(certBytes); ok {
+		return der, nil
 	}
+	if der, ok := tryParsePEM(certBytes); ok {
+		return der, nil
+	}
+	if der, ok := tryParsePEMWithMetadata(certBytes); ok {
+		return der, nil
+	}
+	if der, ok := tryParsePKCS12(certBytes, p12Password); ok {
+		return der, nil
+	}
+	return nil, fmt.Errorf("unable to parse certificate from file: not a valid DER, PEM, or PKCS12 format")
+}
 
-	// Try to decode as PEM
+// tryParseDER attempts to parse raw DER encoded certificate bytes
+func tryParseDER(certBytes []byte) ([]byte, bool) {
+	if _, err := x509.ParseCertificate(certBytes); err == nil {
+		return certBytes, true
+	}
+	return nil, false
+}
+
+// tryParsePEM attempts to decode a PEM encoded certificate
+func tryParsePEM(certBytes []byte) ([]byte, bool) {
 	block, _ := pem.Decode(certBytes)
 	if block != nil && block.Type == "CERTIFICATE" {
-		// Verify it's a valid certificate
 		if _, err := x509.ParseCertificate(block.Bytes); err == nil {
-			return block.Bytes, nil
+			return block.Bytes, true
 		}
 	}
+	return nil, false
+}
 
-	// Handle PEM with metadata (Bag Attributes, etc.)
-	// Search for the PEM block within the file
+// tryParsePEMWithMetadata handles PEM files with metadata (e.g., OpenSSL "Bag Attributes" output)
+func tryParsePEMWithMetadata(certBytes []byte) ([]byte, bool) {
 	pemStart := bytes.Index(certBytes, []byte("-----BEGIN CERTIFICATE-----"))
 	if pemStart != -1 {
 		block, _ := pem.Decode(certBytes[pemStart:])
 		if block != nil && block.Type == "CERTIFICATE" {
 			if _, err := x509.ParseCertificate(block.Bytes); err == nil {
-				return block.Bytes, nil
+				return block.Bytes, true
 			}
 		}
 	}
+	return nil, false
+}
 
-	// Try to decode as PKCS12 if password is provided
-	if p12Password != "" {
-		_, cert, err := pkcs12.Decode(certBytes, p12Password)
-		if err != nil {
-			log.Debugf("P12 decode failed: %v", err)
-		} else if cert != nil {
-			return cert.Raw, nil
-		}
+// tryParsePKCS12 attempts to decode a PKCS12/P12 file if password is provided
+func tryParsePKCS12(certBytes []byte, p12Password string) ([]byte, bool) {
+	if p12Password == "" {
+		return nil, false
 	}
-
-	return nil, fmt.Errorf("unable to parse certificate from file: not a valid DER, PEM, or PKCS12 format")
+	_, cert, err := pkcs12.Decode(certBytes, p12Password)
+	if err != nil {
+		log.Debugf("P12 decode failed: %v", err)
+		return nil, false
+	}
+	if cert != nil {
+		return cert.Raw, true
+	}
+	return nil, false
 }
