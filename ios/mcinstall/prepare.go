@@ -7,6 +7,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/afc"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -95,7 +96,8 @@ func GetAllSetupSkipOptions() []string {
 }
 
 // Prepare prepares an activated device and supervises it if desired. skip is the list of setup options to skip, use GetAllSetupSkipOptions()
-// to get a list of all available options. certBytes is the DER encoded supervision certificate. If it is nil then the device won't be supervised.
+// to get a list of all available options. certBytes must be raw DER encoded certificate bytes.
+// If certBytes is nil then the device won't be supervised.
 // ios.CreateDERFormattedSupervisionCert() provides an example how to generate these certificates. Orgname can be any string, it will show up as the
 // supervision name on the device. Locale and lang can be set. If they are empty strings, then the default will be en_US and en.
 func Prepare(device ios.DeviceEntry, skip []string, certBytes []byte, orgname string, locale string, lang string) error {
@@ -147,8 +149,10 @@ func Prepare(device ios.DeviceEntry, skip []string, certBytes []byte, orgname st
 	if supervise {
 		log.Info("supervising device")
 		cloudConfig["OrganizationName"] = orgname
+		cloudConfig["OrganizationMagic"] = uuid.New().String()
 		cloudConfig["SupervisorHostCertificates"] = [][]byte{certBytes}
 		cloudConfig["IsSupervised"] = true
+		cloudConfig["IsMultiUser"] = false
 	}
 
 	setCloudConfig := map[string]interface{}{
