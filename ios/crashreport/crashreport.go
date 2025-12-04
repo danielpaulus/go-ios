@@ -2,8 +2,6 @@ package crashreport
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"path"
 	"path/filepath"
 
@@ -34,31 +32,13 @@ func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) e
 	}
 	afcConn := afc.NewFromConn(deviceConn)
 	err = afcConn.WalkDir(".", func(p string, info afc.FileInfo, err error) error {
-		matched, err := filepath.Match(pattern, p)
-		if err != nil {
-			return err
-		}
-		if !matched {
+		if info.Type == afc.S_IFDIR {
 			return nil
 		}
-
-		f, err := afcConn.Open(p, afc.READ_ONLY)
-		if err != nil {
-			return err
+		if ok, _ := filepath.Match(pattern, filepath.Base(p)); !ok {
+			return nil
 		}
-		defer f.Close()
-		_, filename := path.Split(p)
-
-		targetPath := path.Join(targetdir, filename)
-
-		dst, err := os.Create(targetPath)
-		if err != nil {
-			return err
-		}
-		defer dst.Close()
-
-		_, err = io.Copy(dst, f)
-		return err
+		return afcConn.PullSingleFile(p, path.Join(targetdir, filepath.Base(p)))
 	})
 	return err
 }
@@ -77,15 +57,11 @@ func RemoveReports(device ios.DeviceEntry, cwd string, pattern string) error {
 		return err
 	}
 	afcClient := afc.NewFromConn(deviceConn)
-	return afcClient.WalkDir(".", func(path string, info afc.FileInfo, err error) error {
+	return afcClient.WalkDir(cwd, func(path string, info afc.FileInfo, err error) error {
 		if info.Type == afc.S_IFDIR {
 			return nil
 		}
-		matched, err := filepath.Match(pattern, path)
-		if err != nil {
-			return err
-		}
-		if !matched {
+		if ok, _ := filepath.Match(pattern, filepath.Base(path)); !ok {
 			return nil
 		}
 		return afcClient.Remove(path)
@@ -108,11 +84,7 @@ func ListReports(device ios.DeviceEntry, pattern string) ([]string, error) {
 		if info.Type == afc.S_IFDIR {
 			return nil
 		}
-		matched, err := filepath.Match(pattern, path)
-		if err != nil {
-			return err
-		}
-		if !matched {
+		if ok, _ := filepath.Match(pattern, filepath.Base(path)); !ok {
 			return nil
 		}
 		files = append(files, path)
