@@ -69,28 +69,37 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 	}
 
 	challengeBytes, err := extractPairingChallenge(resp)
-	if err != nil {
+	if errors.Is(err, errNoChallengeRequired) {
+		// Pairing succeeded on first try without requiring a challenge
+		// resp already contains the EscrowBag
+	} else if err != nil {
 		return err
-	}
-	der, err := Sign(challengeBytes, cert, supervisedPrivateKey)
-	if err != nil {
-		return err
-	}
-	options2 := map[string]interface{}{"ChallengeResponse": der}
-	request = map[string]interface{}{"Label": "go-ios", "ProtocolVersion": "2", "Request": "Pair", "PairRecord": pairRecordData, "PairingOptions": options2}
-	err = lockdown.Send(request)
-	if err != nil {
-		return err
-	}
-	resp, err = lockdown.ReadMessage()
-	if err != nil {
-		return err
+	} else {
+		// Challenge required - sign it and send second request
+		der, err := Sign(challengeBytes, cert, supervisedPrivateKey)
+		if err != nil {
+			return err
+		}
+		options2 := map[string]interface{}{"ChallengeResponse": der}
+		request = map[string]interface{}{"Label": "go-ios", "ProtocolVersion": "2", "Request": "Pair", "PairRecord": pairRecordData, "PairingOptions": options2}
+		err = lockdown.Send(request)
+		if err != nil {
+			return err
+		}
+		resp, err = lockdown.ReadMessage()
+		if err != nil {
+			return err
+		}
 	}
 	respMap, err := ParsePlist(resp)
 	if err != nil {
 		return err
 	}
-	escrow := respMap["EscrowBag"].([]byte)
+	escrowBag, ok := respMap["EscrowBag"].([]byte)
+	if !ok {
+		return fmt.Errorf("pairing failed, EscrowBag missing from response: %+v", respMap)
+	}
+	escrow := escrowBag
 
 	usbmuxConn, err = NewUsbMuxConnectionSimple()
 	defer usbmuxConn.Close()
@@ -108,14 +117,22 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 	return nil
 }
 
+// errNoChallengeRequired is returned when pairing succeeds without requiring a challenge.
+// This happens when the device already trusts the supervisor certificate.
+var errNoChallengeRequired = errors.New("no challenge required, pairing already succeeded")
+
 func extractPairingChallenge(resp []byte) ([]byte, error) {
 	respPlist, err := ParsePlist(resp)
 	if err != nil {
 		return []byte{}, err
 	}
+	// If the response contains an EscrowBag, pairing already succeeded without requiring a challenge
+	if _, hasEscrowBag := respPlist["EscrowBag"]; hasEscrowBag {
+		return []byte{}, errNoChallengeRequired
+	}
 	errormsgintf, ok := respPlist["Error"]
 	if !ok {
-		return []byte{}, fmt.Errorf("the response is missign the Error key: %+v", respPlist)
+		return []byte{}, fmt.Errorf("the response is missing the Error key: %+v", respPlist)
 	}
 	errormsg, ok := errormsgintf.(string)
 	if !ok {
