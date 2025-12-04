@@ -117,6 +117,7 @@ Usage:
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options]
+  ios prepare cloudconfig [options]
   ios prepare create-cert
   ios prepare printskip
   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
@@ -235,6 +236,7 @@ The commands work as following:
    >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device. If you need certificates
    >                                                                  to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use. locale and lang are optional, the default is en_US and en.
    >                                                                  Run 'ios lang' to see a list of all supported locales and languages.
+   ios prepare cloudconfig                                            Print the cloud configuration of the device as JSON.
    ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
    ios prepare printskip                                              Print all options you can skip.
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
@@ -467,6 +469,16 @@ The commands work as following:
 		b, _ = arguments.Bool("printskip")
 		if b {
 			fmt.Println(convertToJSONString(mcinstall.GetAllSetupSkipOptions()))
+			return
+		}
+		b, _ = arguments.Bool("cloudconfig")
+		if b {
+			conn, err := mcinstall.New(device)
+			exitIfError("failed connecting to mcinstall", err)
+			defer conn.Close()
+			config, err := conn.GetCloudConfiguration()
+			exitIfError("failed getting cloud configuration", err)
+			fmt.Println(convertToJSONString(config))
 			return
 		}
 		skip := mcinstall.GetAllSetupSkipOptions()
