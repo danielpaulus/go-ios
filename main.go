@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +19,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/crypto/pkcs12"
 
 	"github.com/danielpaulus/go-ios/ios/debugproxy"
 	"github.com/danielpaulus/go-ios/ios/deviceinfo"
@@ -116,7 +120,7 @@ Usage:
   ios mobilegestalt <key>... [--plist] [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
-  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options]
+  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [options]
   ios prepare cloudconfig [options]
   ios prepare create-cert
   ios prepare printskip
@@ -232,10 +236,11 @@ The commands work as following:
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
-   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options] prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
-   >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device. If you need certificates
-   >                                                                  to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use. locale and lang are optional, the default is en_US and en.
-   >                                                                  Run 'ios lang' to see a list of all supported locales and languages.
+   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [options] prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
+   >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device.
+   >                                                                  The certfile can be a DER file, PEM file, or P12 file. For P12 files, specify the password with --p12password or P12_PASSWORD env var.
+   >                                                                  If you need certificates to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use.
+   >                                                                  locale and lang are optional, the default is en_US and en. Run 'ios lang' to see a list of all supported locales and languages.
    ios prepare cloudconfig                                            Print the cloud configuration of the device as JSON.
    ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
    ios prepare printskip                                              Print all options you can skip.
@@ -491,13 +496,19 @@ The commands work as following:
 		orgname, _ := arguments.String("--orgname")
 		locale, _ := arguments.String("--locale")
 		lang, _ := arguments.String("--lang")
+		p12password, _ := arguments.String("--p12password")
+		if p12password == "" {
+			p12password = os.Getenv("P12_PASSWORD")
+		}
 		var certBytes []byte
 		if certfile != "" {
-			certBytes, err = os.ReadFile(certfile)
+			rawCertBytes, err := os.ReadFile(certfile)
 			exitIfError("failed opening cert file", err)
 			if orgname == "" {
 				log.Fatal("--orgname must be specified if certfile for supervision is provided")
 			}
+			certBytes, err = extractDERCertificate(rawCertBytes, p12password)
+			exitIfError("failed to parse supervision certificate", err)
 		}
 		exitIfError("failed erasing", mcinstall.Prepare(device, skip, certBytes, orgname, locale, lang))
 		fmt.Print(convertToJSONString("ok"))
@@ -2673,4 +2684,74 @@ func splitKeyValuePairs(envArgs []string, sep string) map[string]interface{} {
 		env[key] = value
 	}
 	return env
+}
+
+// extractDERCertificate extracts a raw DER certificate from various input formats:
+// - Raw DER bytes (passed through as-is)
+// - PEM encoded certificate
+// - PEM with metadata (e.g., from OpenSSL "Bag Attributes" output)
+// - PKCS12/P12 file (if password is provided)
+func extractDERCertificate(certBytes []byte, p12Password string) ([]byte, error) {
+	if der, ok := tryParseDER(certBytes); ok {
+		return der, nil
+	}
+	if der, ok := tryParsePEM(certBytes); ok {
+		return der, nil
+	}
+	if der, ok := tryParsePEMWithMetadata(certBytes); ok {
+		return der, nil
+	}
+	if der, ok := tryParsePKCS12(certBytes, p12Password); ok {
+		return der, nil
+	}
+	return nil, fmt.Errorf("unable to parse certificate from file: not a valid DER, PEM, or PKCS12 format")
+}
+
+// tryParseDER attempts to parse raw DER encoded certificate bytes
+func tryParseDER(certBytes []byte) ([]byte, bool) {
+	if _, err := x509.ParseCertificate(certBytes); err == nil {
+		return certBytes, true
+	}
+	return nil, false
+}
+
+// tryParsePEM attempts to decode a PEM encoded certificate
+func tryParsePEM(certBytes []byte) ([]byte, bool) {
+	block, _ := pem.Decode(certBytes)
+	if block != nil && block.Type == "CERTIFICATE" {
+		if _, err := x509.ParseCertificate(block.Bytes); err == nil {
+			return block.Bytes, true
+		}
+	}
+	return nil, false
+}
+
+// tryParsePEMWithMetadata handles PEM files with metadata (e.g., OpenSSL "Bag Attributes" output)
+func tryParsePEMWithMetadata(certBytes []byte) ([]byte, bool) {
+	pemStart := bytes.Index(certBytes, []byte("-----BEGIN CERTIFICATE-----"))
+	if pemStart != -1 {
+		block, _ := pem.Decode(certBytes[pemStart:])
+		if block != nil && block.Type == "CERTIFICATE" {
+			if _, err := x509.ParseCertificate(block.Bytes); err == nil {
+				return block.Bytes, true
+			}
+		}
+	}
+	return nil, false
+}
+
+// tryParsePKCS12 attempts to decode a PKCS12/P12 file if password is provided
+func tryParsePKCS12(certBytes []byte, p12Password string) ([]byte, bool) {
+	if p12Password == "" {
+		return nil, false
+	}
+	_, cert, err := pkcs12.Decode(certBytes, p12Password)
+	if err != nil {
+		log.Debugf("P12 decode failed: %v", err)
+		return nil, false
+	}
+	if cert != nil {
+		return cert.Raw, true
+	}
+	return nil, false
 }
