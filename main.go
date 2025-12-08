@@ -230,7 +230,8 @@ The commands work as following:
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
    ios lockdown get [<key>] [--domain=<domain>] [options]             Query lockdown values. Without arguments returns all values. Specify a key to get a specific value.
-   >                                                                  Use --domain to query from a specific domain (e.g., com.apple.disk_usage).
+   >                                                                  Use --domain to query from a specific domain (e.g., com.apple.disk_usage, com.apple.PurpleBuddy).
+   >                                                                  Examples: "ios lockdown get DeviceName", "ios lockdown get --domain=com.apple.PurpleBuddy"
    ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
    >                                                                  it in plist format by adding the --plist param.
@@ -683,9 +684,8 @@ The commands work as following:
 	if lockdownCommand {
 		b, _ = arguments.Bool("get")
 		if b {
-			keyArg := arguments["<key>"]
 			key := ""
-			if keyArg != nil {
+			if keyArg := arguments["<key>"]; keyArg != nil {
 				if keys, ok := keyArg.([]string); ok && len(keys) > 0 {
 					key = keys[0]
 				}
@@ -697,19 +697,19 @@ The commands work as following:
 			defer lockdownConnection.Close()
 
 			if key == "" && domain == "" {
-				// No key specified, return all values
+				// No key or domain specified, return all values
 				allValues, err := lockdownConnection.GetValues()
-				exitIfError("failed getting all values", err)
+				exitIfError("failed getting lockdown values", err)
 				fmt.Println(convertToJSONString(allValues.Value))
 			} else if domain != "" {
-				// Query specific domain
+				// Query from specific domain (key is optional, empty key returns all domain values)
 				value, err := lockdownConnection.GetValueForDomain(key, domain)
-				exitIfError("failed getting value for domain", err)
+				exitIfError(fmt.Sprintf("failed getting value from domain '%s'", domain), err)
 				fmt.Println(convertToJSONString(value))
 			} else {
-				// Query specific key
+				// Query specific key from default domain
 				value, err := lockdownConnection.GetValue(key)
-				exitIfError("failed getting value", err)
+				exitIfError(fmt.Sprintf("failed getting lockdown value '%s'", key), err)
 				fmt.Println(convertToJSONString(value))
 			}
 			return
