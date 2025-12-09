@@ -118,6 +118,9 @@ The commands work as following:
    ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options] Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
+   ios lockdown get [<key>] [--domain=<domain>] [options]             Query lockdown values. Without arguments returns all values. Specify a key to get a specific value.
+   >                                                                  Use --domain to query from a specific domain (e.g., com.apple.disk_usage, com.apple.PurpleBuddy).
+   >                                                                  Examples: "ios lockdown get DeviceName", "ios lockdown get --domain=com.apple.PurpleBuddy"
    ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
    >                                                                  it in plist format by adding the --plist param.
