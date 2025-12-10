@@ -142,16 +142,25 @@ func (d PrimitiveDictionary) String() string {
 func DecodeAuxiliary(auxBytes []byte) PrimitiveDictionary {
 	result := PrimitiveDictionary{}
 	result.keyValuePairs = list.New()
-	for {
-		keyType, key, remainingBytes := readEntry(auxBytes)
+	for len(auxBytes) >= 4 {
+		keyType, key, remainingBytes, err := readEntry(auxBytes)
+		if err != nil {
+			log.Warnf("DecodeAuxiliary: error reading key entry: %v", err)
+			break
+		}
 		auxBytes = remainingBytes
-		valueType, value, remainingBytes := readEntry(auxBytes)
+		if len(auxBytes) < 4 {
+			log.Warnf("DecodeAuxiliary: insufficient bytes for value entry")
+			break
+		}
+		valueType, value, remainingBytes, err := readEntry(auxBytes)
+		if err != nil {
+			log.Warnf("DecodeAuxiliary: error reading value entry: %v", err)
+			break
+		}
 		auxBytes = remainingBytes
 		pair := PrimitiveKeyValuePair{keyType, key, valueType, value}
 		result.keyValuePairs.PushBack(pair)
-		if len(auxBytes) == 0 {
-			break
-		}
 	}
 
 	size := result.keyValuePairs.Len()
@@ -169,35 +178,42 @@ func DecodeAuxiliary(auxBytes []byte) PrimitiveDictionary {
 	return result
 }
 
-func isNSKeyedArchiverEncoded(datatype uint32, obj interface{}) bool {
-	if datatype != t_bytearray {
-		return false
+func readEntry(auxBytes []byte) (uint32, interface{}, []byte, error) {
+	if len(auxBytes) < 4 {
+		return 0, nil, auxBytes, fmt.Errorf("insufficient bytes: need at least 4, got %d", len(auxBytes))
 	}
-	data := obj.([]byte)
-	return bytes.Index(data, []byte(nskeyedarchiver.NsKeyedArchiver)) != -1
-}
-
-func readEntry(auxBytes []byte) (uint32, interface{}, []byte) {
 	readType := binary.LittleEndian.Uint32(auxBytes)
 	if readType == t_null {
-		return t_null, nil, auxBytes[4:]
+		return t_null, nil, auxBytes[4:], nil
 	}
 	if readType == t_uint32 {
-		return t_uint32, binary.LittleEndian.Uint32(auxBytes[4:8]), auxBytes[8:]
+		if len(auxBytes) < 8 {
+			return 0, nil, auxBytes, fmt.Errorf("insufficient bytes for uint32: need 8, got %d", len(auxBytes))
+		}
+		return t_uint32, binary.LittleEndian.Uint32(auxBytes[4:8]), auxBytes[8:], nil
 	}
 	if readType == t_int64 {
-		return t_int64, binary.LittleEndian.Uint64(auxBytes[4:12]), auxBytes[12:]
+		if len(auxBytes) < 12 {
+			return 0, nil, auxBytes, fmt.Errorf("insufficient bytes for int64: need 12, got %d", len(auxBytes))
+		}
+		return t_int64, binary.LittleEndian.Uint64(auxBytes[4:12]), auxBytes[12:], nil
 	}
 
 	if hasLength(readType) {
+		if len(auxBytes) < 8 {
+			return 0, nil, auxBytes, fmt.Errorf("insufficient bytes for length field: need 8, got %d", len(auxBytes))
+		}
 		length := binary.LittleEndian.Uint32(auxBytes[4:])
+		if len(auxBytes) < int(8+length) {
+			return 0, nil, auxBytes, fmt.Errorf("insufficient bytes for data: need %d, got %d", 8+length, len(auxBytes))
+		}
 		data := auxBytes[8 : 8+length]
 		if readType == t_string {
-			return readType, string(data), auxBytes[8+length:]
+			return readType, string(data), auxBytes[8+length:], nil
 		}
-		return readType, data, auxBytes[8+length:]
+		return readType, data, auxBytes[8+length:], nil
 	}
-	panic(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d  rawbytes:%x", readType, auxBytes))
+	return 0, nil, auxBytes, fmt.Errorf("unknown DtxPrimitiveDictionaryType: %d  rawbytes:%x", readType, auxBytes)
 }
 
 const (
