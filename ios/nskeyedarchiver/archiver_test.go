@@ -31,7 +31,7 @@ func TestArchiveSlice(t *testing.T) {
 	assert.Equal(t, "abc", val[0])
 	assert.Equal(t, "def", val[1])
 	assert.Equal(t, "ok", val[2])
-	print(val)
+	fmt.Print(val)
 }
 
 // TODO currently only partially decoding XCTestConfig is supported, fix later
@@ -43,7 +43,7 @@ func TestXCTestconfig(t *testing.T) {
 		log.Error(err)
 		t.Fatal()
 	}
-	print(result)
+	fmt.Print(result)
 	log.Info(uuid.String())
 	res, err := nskeyedarchiver.Unarchive([]byte(result))
 	assert.NoError(t, err)
@@ -317,7 +317,7 @@ func TestDecoderJson(t *testing.T) {
 		plistBytes, _ := hex.DecodeString(plistHex)
 		nska, err := archiver.Unarchive(plistBytes)
 		output := convertToJSON(nska)
-		print(output)
+		fmt.Print(output)
 		assert.NoError(t, err)
 	}
 }

@@ -1,0 +1,36 @@
+#!/bin/sh
+# Pre-commit hook for go-ios
+# Runs gofmt and golangci-lint before allowing commits
+
+set -e
+
+echo "Running pre-commit checks..."
+
+# Check if golangci-lint is installed
+if ! command -v golangci-lint &> /dev/null; then
+    echo "Error: golangci-lint is not installed."
+    echo "Install it with: brew install golangci-lint"
+    echo "Or see: https://golangci-lint.run/docs/welcome/install/"
+    exit 1
+fi
+
+# Check formatting
+echo "Checking code formatting..."
+UNFORMATTED=$(gofmt -l .)
+if [ -n "$UNFORMATTED" ]; then
+    echo "Error: The following files are not formatted:"
+    echo "$UNFORMATTED"
+    echo ""
+    echo "Run 'gofmt -w .' to fix formatting."
+    exit 1
+fi
+
+# Run linter
+echo "Running golangci-lint..."
+golangci-lint run
+if [ $? -ne 0 ]; then
+    echo "Error: Linter found issues. Please fix them before committing."
+    exit 1
+fi
+
+echo "All checks passed!"
