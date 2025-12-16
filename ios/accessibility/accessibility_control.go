@@ -14,6 +14,7 @@ import (
 // It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
 	channel *dtx.Channel
+	Events  chan interface{}
 }
 
 type Action int
@@ -69,10 +70,18 @@ func (a ControlInterface) readhostInspectorNotificationReceived() {
 		msg := a.channel.ReceiveMethodCall("hostInspectorNotificationReceived:")
 		notification, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 		if err != nil {
-			panic(err)
+			log.Error(err)
+			continue
 		}
+
 		value := notification[0].(map[string]interface{})["Value"]
 		log.Infof("hostInspectorNotificationReceived:%s", value)
+
+		select {
+		case a.Events <- value:
+		default:
+			log.Warn("Events channel full, dropping notification")
+		}
 	}
 }
 
