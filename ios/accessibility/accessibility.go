@@ -14,7 +14,7 @@ func NewWithoutEventChangeListeners(device ios.DeviceEntry) (ControlInterface, e
 	if err != nil {
 		return ControlInterface{}, err
 	}
-	control := ControlInterface{conn.GlobalChannel(), make(chan interface{}, 100)}
+	control := ControlInterface{conn.GlobalChannel(), make(chan Notification, 100)}
 	return control, nil
 }
 
@@ -24,7 +24,7 @@ func New(device ios.DeviceEntry) (ControlInterface, error) {
 	if err != nil {
 		return ControlInterface{}, err
 	}
-	control := ControlInterface{conn.GlobalChannel(), make(chan interface{}, 100)}
+	control := ControlInterface{conn.GlobalChannel(), make(chan Notification, 100)}
 	err = control.init()
 	return control, err
 }
