@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"os"
@@ -18,14 +20,18 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/crypto/pkcs12"
+
 	"github.com/danielpaulus/go-ios/ios/debugproxy"
 	"github.com/danielpaulus/go-ios/ios/deviceinfo"
+	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 
 	"github.com/danielpaulus/go-ios/ios/amfi"
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
 	"github.com/danielpaulus/go-ios/ios/afc"
+	"github.com/danielpaulus/go-ios/ios/fileservice"
 
 	"github.com/danielpaulus/go-ios/ios/crashreport"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
@@ -89,7 +95,10 @@ Usage:
   ios diskspace [options]
   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios erase [--force] [options]
-  ios forward [options] <hostPort> <targetPort>
+  ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]
+  ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options]
+  ios file push [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --local=<localPath> --remote=<remotePath> [options]
+  ios forward [options] [<hostPort> <targetPort>] [--port=<mapping>]...
   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
@@ -107,11 +116,13 @@ Usage:
   ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
   ios list [options] [--details]
   ios listen [options]
+  ios lockdown get [<key>] [--domain=<domain>] [options]
   ios memlimitoff (--process=<processName>) [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
-  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options]
+  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [options]
+  ios prepare cloudconfig [options]
   ios prepare create-cert
   ios prepare printskip
   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
@@ -145,7 +156,7 @@ Options:
   --nojson                  Disable JSON output
   --pretty                  Pretty-print JSON command output
   -h --help                 Show this screen.
-  --udid=<udid>             UDID of the device.
+  --udid=<udid>             UDID of the device. Can also be set via GO_IOS_UDID environment variable.
   --tunnel-info-port=<port> When go-ios is used to manage tunnels for iOS 17+ it exposes them on an HTTP-API for localhost (default port: 28100)
   --address=<ipv6addrr>     Address of the device on the interface. This parameter is optional and can be set if a tunnel created by MacOS needs to be used.
   >                         To get this value run "log stream --debug --info --predicate 'eventMessage LIKE "*Tunnel established*" OR eventMessage LIKE "*for server port*"'",
@@ -188,7 +199,10 @@ The commands work as following:
    >                                                                  to stop usbmuxd and load to start it again should the proxy mess up things.
    >                                                                  The --binary flag will dump everything in raw binary without any decoding.
    ios erase [--force] [options]                                      Erase the device. It will prompt you to input y+Enter unless --force is specified.
-   ios forward [options] <hostPort> <targetPort>                      Similar to iproxy, forward a TCP connection to the device.
+   ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]  List files using RemoteXPC (iOS 17+). Requires tunnel. Use --app for app container, --app-group for app group, --crash for crash logs, or --temp for temporary files.
+   ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options] Download file using RemoteXPC (iOS 17+). Requires tunnel.
+   ios file push [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --local=<localPath> --remote=<remotePath> [options] Upload file using RemoteXPC (iOS 17+). Requires tunnel. Preserves source file permissions.
+   ios forward [options] [<hostPort> <targetPort>] [--port=<mapping>]...   Forward TCP connections to device. Use --port for multiple ports: --port=8100:8100 --port=9191:9191
    ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>    Pull or Push file from srcPath to dstPath.
    ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>            Remove | treeview | mkdir in target path. --r used alongside rm will recursively remove all files and directories from target path.
    ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>] set global http proxy on supervised device. Use the password argument or set the environment variable 'P12_PASSWORD'
@@ -215,6 +229,9 @@ The commands work as following:
    ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options] Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
+   ios lockdown get [<key>] [--domain=<domain>] [options]             Query lockdown values. Without arguments returns all values. Specify a key to get a specific value.
+   >                                                                  Use --domain to query from a specific domain (e.g., com.apple.disk_usage, com.apple.PurpleBuddy).
+   >                                                                  Examples: "ios lockdown get DeviceName", "ios lockdown get --domain=com.apple.PurpleBuddy"
    ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
    >                                                                  it in plist format by adding the --plist param.
@@ -223,10 +240,12 @@ The commands work as following:
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
-   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--locale] [--lang] [options] prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
-   >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device. If you need certificates
-   >                                                                  to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use. locale and lang are optional, the default is en_US and en.
-   >                                                                  Run 'ios lang' to see a list of all supported locales and languages.
+   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [options] prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
+   >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device.
+   >                                                                  The certfile can be a DER file, PEM file, or P12 file. For P12 files, specify the password with --p12password or P12_PASSWORD env var.
+   >                                                                  If you need certificates to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use.
+   >                                                                  locale and lang are optional, the default is en_US and en. Run 'ios lang' to see a list of all supported locales and languages.
+   ios prepare cloudconfig                                            Print the cloud configuration of the device as JSON.
    ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
    ios prepare printskip                                              Print all options you can skip.
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
@@ -344,6 +363,9 @@ The commands work as following:
 	tunnelCommand, _ := arguments.Bool("tunnel")
 
 	udid, _ := arguments.String("--udid")
+	if udid == "" {
+		udid = os.Getenv("GO_IOS_UDID")
+	}
 	address, addressErr := arguments.String("--address")
 	rsdPort, rsdErr := arguments.Int("--rsd-port")
 	userspaceTunnelHost, userspaceTunnelHostErr := arguments.String("--userspace-host")
@@ -393,7 +415,7 @@ The commands work as following:
 		}
 
 		exitIfError("failed erasing", mcinstall.Erase(device))
-		print(convertToJSONString("ok"))
+		fmt.Print(convertToJSONString("ok"))
 		return
 	}
 
@@ -407,7 +429,7 @@ The commands work as following:
 			} else {
 				b, err := marshalJSON(services)
 				exitIfError("failed json conversion", err)
-				println(string(b))
+				fmt.Println(string(b))
 			}
 			return
 		}
@@ -455,7 +477,17 @@ The commands work as following:
 		}
 		b, _ = arguments.Bool("printskip")
 		if b {
-			println(convertToJSONString(mcinstall.GetAllSetupSkipOptions()))
+			fmt.Println(convertToJSONString(mcinstall.GetAllSetupSkipOptions()))
+			return
+		}
+		b, _ = arguments.Bool("cloudconfig")
+		if b {
+			conn, err := mcinstall.New(device)
+			exitIfError("failed connecting to mcinstall", err)
+			defer conn.Close()
+			config, err := conn.GetCloudConfiguration()
+			exitIfError("failed getting cloud configuration", err)
+			fmt.Println(convertToJSONString(config))
 			return
 		}
 		skip := mcinstall.GetAllSetupSkipOptions()
@@ -468,16 +500,22 @@ The commands work as following:
 		orgname, _ := arguments.String("--orgname")
 		locale, _ := arguments.String("--locale")
 		lang, _ := arguments.String("--lang")
+		p12password, _ := arguments.String("--p12password")
+		if p12password == "" {
+			p12password = os.Getenv("P12_PASSWORD")
+		}
 		var certBytes []byte
 		if certfile != "" {
-			certBytes, err = os.ReadFile(certfile)
+			rawCertBytes, err := os.ReadFile(certfile)
 			exitIfError("failed opening cert file", err)
 			if orgname == "" {
 				log.Fatal("--orgname must be specified if certfile for supervision is provided")
 			}
+			certBytes, err = extractDERCertificate(rawCertBytes, p12password)
+			exitIfError("failed to parse supervision certificate", err)
 		}
 		exitIfError("failed erasing", mcinstall.Prepare(device, skip, certBytes, orgname, locale, lang))
-		print(convertToJSONString("ok"))
+		fmt.Print(convertToJSONString("ok"))
 		return
 	}
 
@@ -491,7 +529,7 @@ The commands work as following:
 	if b {
 		ip, err := pcap.FindIp(device)
 		exitIfError("failed", err)
-		println(convertToJSONString(ip))
+		fmt.Println(convertToJSONString(ip))
 		return
 	}
 
@@ -640,6 +678,42 @@ The commands work as following:
 			printDeviceInfo(device)
 		}
 		return
+	}
+
+	lockdownCommand, _ := arguments.Bool("lockdown")
+	if lockdownCommand {
+		b, _ = arguments.Bool("get")
+		if b {
+			key := ""
+			if keyArg := arguments["<key>"]; keyArg != nil {
+				if keys, ok := keyArg.([]string); ok && len(keys) > 0 {
+					key = keys[0]
+				}
+			}
+			domain, _ := arguments.String("--domain")
+
+			lockdownConnection, err := ios.ConnectLockdownWithSession(device)
+			exitIfError("failed connecting to lockdown", err)
+			defer lockdownConnection.Close()
+
+			if key == "" && domain == "" {
+				// No key or domain specified, return all values
+				allValues, err := lockdownConnection.GetValues()
+				exitIfError("failed getting lockdown values", err)
+				fmt.Println(convertToJSONString(allValues.Value))
+			} else if domain != "" {
+				// Query from specific domain (key is optional, empty key returns all domain values)
+				value, err := lockdownConnection.GetValueForDomain(key, domain)
+				exitIfError(fmt.Sprintf("failed getting value from domain '%s'", domain), err)
+				fmt.Println(convertToJSONString(value))
+			} else {
+				// Query specific key from default domain
+				value, err := lockdownConnection.GetValue(key)
+				exitIfError(fmt.Sprintf("failed getting lockdown value '%s'", key), err)
+				fmt.Println(convertToJSONString(value))
+			}
+			return
+		}
 	}
 
 	b, _ = arguments.Bool("syslog")
@@ -823,9 +897,16 @@ The commands work as following:
 
 	b, _ = arguments.Bool("forward")
 	if b {
-		hostPort, _ := arguments.Int("<hostPort>")
-		targetPort, _ := arguments.Int("<targetPort>")
-		startForwarding(device, hostPort, targetPort)
+		// Check for new --port syntax first (multi-forward)
+		mappings, _ := arguments["--port"].([]string)
+		if len(mappings) > 0 {
+			startMultiForwarding(device, mappings)
+		} else {
+			// Backwards compatible: single forward
+			hostPort, _ := arguments.Int("<hostPort>")
+			targetPort, _ := arguments.Int("<targetPort>")
+			startForwarding(device, uint16(hostPort), uint16(targetPort))
+		}
 		return
 	}
 
@@ -1084,14 +1165,188 @@ The commands work as following:
 		return
 	}
 
+	b, _ = arguments.Bool("file")
+	if b {
+		// file command uses RemoteXPC (iOS 17+) and requires tunnel
+		if !device.SupportsRsd() {
+			exitIfError("file command requires iOS 17+ with tunnel", fmt.Errorf("tunnel not running. Start with: ios tunnel start"))
+		}
+
+		// Determine domain from flags
+		bundleID, _ := arguments.String("--app")
+		groupID, _ := arguments.String("--app-group")
+		useCrash, _ := arguments.Bool("--crash")
+		useTemp, _ := arguments.Bool("--temp")
+
+		// Count how many domain flags were specified
+		flagCount := 0
+		if bundleID != "" {
+			flagCount++
+		}
+		if groupID != "" {
+			flagCount++
+		}
+		if useCrash {
+			flagCount++
+		}
+		if useTemp {
+			flagCount++
+		}
+
+		if flagCount > 1 {
+			exitIfError("file command", fmt.Errorf("can only specify one of: --app, --app-group, --crash, or --temp"))
+		}
+		if flagCount == 0 {
+			exitIfError("file command", fmt.Errorf("must specify one of: --app=<bundleID>, --app-group=<groupID>, --crash, or --temp"))
+		}
+
+		// Determine domain and identifier
+		var domain fileservice.Domain
+		var identifier string
+
+		if bundleID != "" {
+			domain = fileservice.DomainAppDataContainer
+			identifier = bundleID
+		} else if groupID != "" {
+			domain = fileservice.DomainAppGroupDataContainer
+			identifier = groupID
+		} else if useCrash {
+			domain = fileservice.DomainSystemCrashLogs
+			identifier = ""
+		} else if useTemp {
+			domain = fileservice.DomainTemporary
+			identifier = ""
+		}
+
+		// Create connection
+		conn, err := fileservice.New(device, domain, identifier)
+		exitIfError("file: failed to connect to file service", err)
+		defer func() {
+			if closeErr := conn.Close(); closeErr != nil {
+				log.Errorf("Failed to close file service connection: %v", closeErr)
+			}
+		}()
+
+		// Handle ls subcommand
+		b, _ = arguments.Bool("ls")
+		if b {
+			path, _ := arguments.String("--path")
+			if path == "" {
+				path = "."
+			}
+
+			files, err := conn.ListDirectory(path)
+			exitIfError("file ls: failed to list directory", err)
+
+			if !JSONdisabled {
+				result := map[string]interface{}{
+					"path":  path,
+					"files": files,
+					"count": len(files),
+				}
+				fmt.Println(convertToJSONString(result))
+			} else {
+				fmt.Printf("Files in %s:\n", path)
+				for _, file := range files {
+					fmt.Printf("  %s\n", file)
+				}
+				fmt.Printf("\nTotal: %d files\n", len(files))
+			}
+		}
+
+		// Handle pull subcommand
+		b, _ = arguments.Bool("pull")
+		if b {
+			remotePath, _ := arguments.String("--remote")
+			localPath, _ := arguments.String("--local")
+
+			if remotePath == "" {
+				exitIfError("file pull", fmt.Errorf("--remote=<path> is required"))
+			}
+			if localPath == "" {
+				exitIfError("file pull", fmt.Errorf("--local=<path> is required"))
+			}
+
+			// Create output file for streaming
+			outputFile, err := os.Create(localPath)
+			exitIfError("file pull: failed to create output file", err)
+			defer outputFile.Close()
+
+			// Download file using streaming to minimize memory usage
+			log.Infof("Downloading %s to %s...", remotePath, localPath)
+			err = conn.PullFile(remotePath, outputFile)
+			exitIfError("file pull: failed to download file", err)
+
+			// Get file size for reporting
+			fileInfo, err := outputFile.Stat()
+			exitIfError("file pull: failed to get file info", err)
+			fileSize := fileInfo.Size()
+
+			if !JSONdisabled {
+				result := map[string]interface{}{
+					"remote": remotePath,
+					"local":  localPath,
+					"size":   fileSize,
+				}
+				fmt.Println(convertToJSONString(result))
+			} else {
+				log.Infof("Downloaded %d bytes to %s", fileSize, localPath)
+			}
+		}
+
+		b, _ = arguments.Bool("push")
+		if b {
+			localPath, _ := arguments.String("--local")
+			remotePath, _ := arguments.String("--remote")
+
+			if localPath == "" || remotePath == "" {
+				exitIfError("push requires --local and --remote paths", fmt.Errorf("missing required arguments"))
+			}
+
+			// Get file info to preserve permissions
+			fileInfo, err := os.Stat(localPath)
+			exitIfError("push: failed to stat local file", err)
+
+			// Get file permissions from source file, default UID (501) and GID (501)
+			permissions := int64(fileInfo.Mode().Perm())
+			uid := int64(501)
+			gid := int64(501)
+			fileSize := fileInfo.Size()
+
+			// Open file for streaming
+			file, err := os.Open(localPath)
+			exitIfError("push: failed to open local file", err)
+			defer file.Close()
+
+			// Upload file using streaming to minimize memory usage
+			log.Infof("Uploading %s to %s...", localPath, remotePath)
+			err = conn.PushFile(remotePath, file, fileSize, permissions, uid, gid)
+			exitIfError("push: failed to upload file", err)
+
+			if b, _ := arguments.Bool("--json"); b {
+				result := map[string]interface{}{
+					"success": true,
+					"remote":  remotePath,
+					"local":   localPath,
+					"size":    fileSize,
+				}
+				fmt.Println(convertToJSONString(result))
+			} else {
+				log.Infof("Uploaded %d bytes to %s", fileSize, remotePath)
+			}
+		}
+
+		return
+	}
+
 	b, _ = arguments.Bool("fsync")
 	if b {
 		containerBundleId, _ := arguments.String("--app")
-		var afcService *afc.Connection
+		var afcService *afc.Client
 		if containerBundleId == "" {
 			afcService, err = afc.New(device)
 		} else {
-			afcService, err = afc.NewContainer(device, containerBundleId)
+			afcService, err = house_arrest.New(device, containerBundleId)
 		}
 		exitIfError("fsync: connect afc service failed", err)
 		b, _ = arguments.Bool("rm")
@@ -1109,7 +1364,19 @@ The commands work as following:
 		b, _ = arguments.Bool("tree")
 		if b {
 			path, _ := arguments.String("--path")
-			err = afcService.TreeView(path, "", true)
+			err := afcService.WalkDir(path, func(path string, info afc.FileInfo, err error) error {
+				s := strings.Split(path, string(os.PathSeparator))
+				_, f := filepath.Split(path)
+				prefix := strings.Repeat("|  ", len(s)-1)
+
+				suffix := ""
+				if info.Type == afc.S_IFDIR {
+					suffix = "/"
+				}
+
+				fmt.Printf("%s|-%s%s\n", prefix, f, suffix)
+				return nil
+			})
 			exitIfError("fsync: tree view failed", err)
 		}
 
@@ -1131,6 +1398,7 @@ The commands work as following:
 					exitIfError("mkdir failed", err)
 				}
 			}
+
 			dp = path.Join(dp, filepath.Base(sp))
 			err = afcService.Pull(sp, dp)
 			exitIfError("fsync: pull failed", err)
@@ -1139,6 +1407,7 @@ The commands work as following:
 		if b {
 			sp, _ := arguments.String("--srcPath")
 			dp, _ := arguments.String("--dstPath")
+
 			err = afcService.Push(sp, dp)
 			exitIfError("fsync: push failed", err)
 		}
@@ -1150,7 +1419,7 @@ The commands work as following:
 	if b {
 		afcService, err := afc.New(device)
 		exitIfError("connect afc service failed", err)
-		info, err := afcService.GetSpaceInfo()
+		info, err := afcService.DeviceInfo()
 		if err != nil {
 			exitIfError("get device info push failed", err)
 		}
@@ -1424,7 +1693,7 @@ func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 					return
 				}
 				s, _ := json.Marshal(notification)
-				println(string(s))
+				fmt.Println(string(s))
 			}
 		}()
 		c := make(chan os.Signal, 1)
@@ -1470,7 +1739,7 @@ func crashCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
 			}
 			files, err := crashreport.ListReports(device, pattern)
 			exitIfError("failed listing crashreports", err)
-			println(
+			fmt.Println(
 				convertToJSONString(
 					map[string]interface{}{"files": files, "length": len(files)},
 				),
@@ -1507,7 +1776,7 @@ func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId s
 		} else {
 			b, err := marshalJSON(profileTypes)
 			exitIfError("failed json conversion", err)
-			println(string(b))
+			fmt.Println(string(b))
 		}
 		return
 	}
@@ -1545,7 +1814,7 @@ func outputPrettyStateList(types []instruments.ProfileType) {
 		}
 		buffer.WriteString("\n\n")
 	}
-	println(buffer.String())
+	fmt.Println(buffer.String())
 }
 
 func listMountedImages(device ios.DeviceEntry) {
@@ -1895,12 +2164,12 @@ func handleProfileList(device ios.DeviceEntry) {
 	fmt.Println(convertToJSONString(list))
 }
 
-func startForwarding(device ios.DeviceEntry, hostPort int, targetPort int) {
-	cl, err := forward.Forward(device, uint16(hostPort), uint16(targetPort))
+func startForwarding(device ios.DeviceEntry, hostPort uint16, targetPort uint16) {
+	cl, err := forward.Forward(device, hostPort, targetPort)
 	exitIfError("failed to forward port", err)
 	defer stopForwarding(cl)
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	<-c
 }
 
@@ -1909,6 +2178,52 @@ func stopForwarding(cl *forward.ConnListener) {
 	if err != nil {
 		exitIfError("failed to close forwarded port", err)
 	}
+}
+
+func startMultiForwarding(device ios.DeviceEntry, mappings []string) {
+	var listeners []*forward.ConnListener
+
+	closeAllListeners := func() {
+		for _, l := range listeners {
+			l.Close()
+		}
+	}
+
+	for _, mapping := range mappings {
+		parts := strings.Split(mapping, ":")
+		if len(parts) != 2 {
+			closeAllListeners()
+			exitIfError("invalid mapping format", fmt.Errorf("expected hostPort:targetPort, got %s", mapping))
+		}
+		hostPort, err := strconv.ParseUint(parts[0], 10, 16)
+		if err != nil {
+			closeAllListeners()
+			exitIfError("invalid host port", err)
+		}
+		targetPort, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			closeAllListeners()
+			exitIfError("invalid target port", err)
+		}
+
+		cl, err := forward.Forward(device, uint16(hostPort), uint16(targetPort))
+		if err != nil {
+			closeAllListeners()
+			exitIfError(fmt.Sprintf("failed to forward %d:%d", hostPort, targetPort), err)
+		}
+		listeners = append(listeners, cl)
+		log.Infof("Forwarding %d -> %d", hostPort, targetPort)
+	}
+
+	log.Infof("Started %d port forwards", len(listeners))
+
+	// Wait for interrupt
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	<-c
+
+	// Close all listeners
+	closeAllListeners()
 }
 
 func printDiagnostics(device ios.DeviceEntry) {
@@ -2353,7 +2668,7 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoPort int, us
 
 func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) ios.DeviceEntry {
 	rsdService, err := ios.NewWithAddrPortDevice(address, rsdPort, device)
-	exitIfError("could not connect to RSD", err)
+	exitIfError(fmt.Sprintf("could not connect to RSD, host %s, port %d", address, rsdPort), err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
 	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
@@ -2409,4 +2724,74 @@ func splitKeyValuePairs(envArgs []string, sep string) map[string]interface{} {
 		env[key] = value
 	}
 	return env
+}
+
+// extractDERCertificate extracts a raw DER certificate from various input formats:
+// - Raw DER bytes (passed through as-is)
+// - PEM encoded certificate
+// - PEM with metadata (e.g., from OpenSSL "Bag Attributes" output)
+// - PKCS12/P12 file (if password is provided)
+func extractDERCertificate(certBytes []byte, p12Password string) ([]byte, error) {
+	if der, ok := tryParseDER(certBytes); ok {
+		return der, nil
+	}
+	if der, ok := tryParsePEM(certBytes); ok {
+		return der, nil
+	}
+	if der, ok := tryParsePEMWithMetadata(certBytes); ok {
+		return der, nil
+	}
+	if der, ok := tryParsePKCS12(certBytes, p12Password); ok {
+		return der, nil
+	}
+	return nil, fmt.Errorf("unable to parse certificate from file: not a valid DER, PEM, or PKCS12 format")
+}
+
+// tryParseDER attempts to parse raw DER encoded certificate bytes
+func tryParseDER(certBytes []byte) ([]byte, bool) {
+	if _, err := x509.ParseCertificate(certBytes); err == nil {
+		return certBytes, true
+	}
+	return nil, false
+}
+
+// tryParsePEM attempts to decode a PEM encoded certificate
+func tryParsePEM(certBytes []byte) ([]byte, bool) {
+	block, _ := pem.Decode(certBytes)
+	if block != nil && block.Type == "CERTIFICATE" {
+		if _, err := x509.ParseCertificate(block.Bytes); err == nil {
+			return block.Bytes, true
+		}
+	}
+	return nil, false
+}
+
+// tryParsePEMWithMetadata handles PEM files with metadata (e.g., OpenSSL "Bag Attributes" output)
+func tryParsePEMWithMetadata(certBytes []byte) ([]byte, bool) {
+	pemStart := bytes.Index(certBytes, []byte("-----BEGIN CERTIFICATE-----"))
+	if pemStart != -1 {
+		block, _ := pem.Decode(certBytes[pemStart:])
+		if block != nil && block.Type == "CERTIFICATE" {
+			if _, err := x509.ParseCertificate(block.Bytes); err == nil {
+				return block.Bytes, true
+			}
+		}
+	}
+	return nil, false
+}
+
+// tryParsePKCS12 attempts to decode a PKCS12/P12 file if password is provided
+func tryParsePKCS12(certBytes []byte, p12Password string) ([]byte, bool) {
+	if p12Password == "" {
+		return nil, false
+	}
+	_, cert, err := pkcs12.Decode(certBytes, p12Password)
+	if err != nil {
+		log.Debugf("P12 decode failed: %v", err)
+		return nil, false
+	}
+	if cert != nil {
+		return cert.Raw, true
+	}
+	return nil, false
 }
