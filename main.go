@@ -144,7 +144,7 @@ Usage:
   ios sysmontap [options]
   ios timeformat (24h | 12h | toggle | get) [--force] [options]
   ios tunnel ls [options]
-  ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
+  ios tunnel start [options] [--userspace]
   ios tunnel stopagent
   ios uninstall <bundleID> [options]
   ios voiceover (enable | disable | toggle | get) [--force] [options]
@@ -166,6 +166,8 @@ Options:
   --proxyurl=<url>          Set this if you want go-ios to use a http proxy for outgoing requests, like for downloading images or contacting Apple during device activation.
   >                         A simple format like: "http://PROXY_LOGIN:PROXY_PASS@proxyIp:proxyPort" works. Otherwise use the HTTP_PROXY system env var.
   --userspace-port=<port>   Optional. Set this if you run a command supplying rsd-port and address and your device is using userspace tunnel
+  --inline-tunnel           Create per-command tunnel automatically (no tunnel agent needed). Can also be enabled via GO_IOS_INLINE_TUNNEL=1 env var.
+  --pair-record-path=<path> Path to store/read pair records [default: current directory, use "default" for /var/db/lockdown/RemotePairing/user_501]
 
 The commands work as following:
 	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -315,12 +317,17 @@ The commands work as following:
 	// log.SetReportCaller(true)
 	log.Debug(arguments)
 
+	// Check for inline tunnel early to suppress agent warning
+	inlineTunnelEnv := os.Getenv("GO_IOS_INLINE_TUNNEL") == "1"
+	inlineTunnelArg, _ := arguments.Bool("--inline-tunnel")
+	usingInlineTunnel := inlineTunnelEnv || inlineTunnelArg
+
 	skipAgent, _ := os.LookupEnv("ENABLE_GO_IOS_AGENT")
 	if skipAgent == "user" || skipAgent == "kernel" {
 		tunnel.RunAgent(skipAgent)
 	}
 
-	if !tunnel.IsAgentRunning() {
+	if !tunnel.IsAgentRunning() && !usingInlineTunnel {
 		log.Warn("go-ios agent is not running. You might need to start it with 'ios tunnel start' for ios17+. Use ENABLE_GO_IOS_AGENT=user for userspace tunnel or ENABLE_GO_IOS_AGENT=kernel for kernel tunnel for the experimental daemon mode.")
 	}
 	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
@@ -375,11 +382,43 @@ The commands work as following:
 
 	userspaceTunnelPort, userspaceTunnelErr := arguments.Int("--userspace-port")
 
+	// Check for inline tunnel flag
+	inlineTunnelFlag, _ := arguments.Bool("--inline-tunnel")
+	if !inlineTunnelFlag {
+		inlineTunnelFlag = os.Getenv("GO_IOS_INLINE_TUNNEL") == "1"
+	}
+	pairRecordPath, _ := arguments.String("--pair-record-path")
+
+	// Track inline tunnel for cleanup
+	var inlineTunnel *tunnel.InlineTunnel
+
 	device, err := ios.GetDevice(udid)
 	// device address and rsd port are only available after the tunnel started
 	if !tunnelCommand {
 		exitIfError("Device not found: "+udid, err)
-		if addressErr == nil && rsdErr == nil {
+
+		if inlineTunnelFlag {
+			// Create per-command inline tunnel
+			log.Info("Creating inline tunnel for device")
+			inlineTunnelCtx, inlineTunnelCancel := context.WithTimeout(context.Background(), tunnel.InlineTunnelTimeout)
+			defer inlineTunnelCancel()
+			inlineTunnel, err = tunnel.CreateInlineTunnel(inlineTunnelCtx, device.Properties.SerialNumber, resolvePairRecordPath(pairRecordPath))
+			if err != nil {
+				exitIfError("Failed to create inline tunnel", err)
+			}
+			// Apply tunnel to device
+			err = inlineTunnel.ApplyToDevice(&device)
+			if err != nil {
+				inlineTunnel.Close()
+				exitIfError("Failed to apply inline tunnel to device", err)
+			}
+			// Ensure cleanup on exit
+			defer inlineTunnel.Close()
+			log.WithField("address", inlineTunnel.Address).
+				WithField("rsdPort", inlineTunnel.RsdPort).
+				WithField("localPort", inlineTunnel.LocalPort).
+				Info("Inline tunnel created")
+		} else if addressErr == nil && rsdErr == nil {
 			if userspaceTunnelErr == nil {
 				device.UserspaceTUN = true
 				device.UserspaceTUNHost = userspaceTunnelHost
@@ -398,6 +437,9 @@ The commands work as following:
 			}
 		}
 	}
+
+	// Mark inline tunnel as used to avoid "unused variable" warning
+	_ = inlineTunnel
 
 	b, _ = arguments.Bool("erase")
 	if b {
@@ -1453,13 +1495,7 @@ The commands work as following:
 		listCommand, _ := arguments.Bool("ls")
 		if startCommand {
 			pairRecordsPath, _ := arguments.String("--pair-record-path")
-			if len(pairRecordsPath) == 0 {
-				pairRecordsPath = "."
-			}
-			if strings.ToLower(pairRecordsPath) == "default" {
-				pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
-			}
-			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, useUserspaceNetworking)
+			startTunnel(context.TODO(), resolvePairRecordPath(pairRecordsPath), tunnelInfoPort, useUserspaceNetworking)
 		} else if listCommand {
 			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoHost, tunnelInfoPort)
 			if err != nil {
@@ -2794,4 +2830,21 @@ func tryParsePKCS12(certBytes []byte, p12Password string) ([]byte, bool) {
 		return cert.Raw, true
 	}
 	return nil, false
+}
+
+// defaultPairRecordPath is the macOS system path for pair records
+const defaultPairRecordPath = "/var/db/lockdown/RemotePairing/user_501"
+
+// resolvePairRecordPath normalizes the pair record path from CLI arguments.
+// - Empty string -> current directory
+// - "default" (case-insensitive) -> /var/db/lockdown/RemotePairing/user_501
+// - Other paths -> used as-is
+func resolvePairRecordPath(p string) string {
+	if p == "" {
+		return "."
+	}
+	if strings.ToLower(p) == "default" {
+		return defaultPairRecordPath
+	}
+	return p
 }

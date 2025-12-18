@@ -205,7 +205,7 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 		return Tunnel{}, fmt.Errorf("could not setup listener. %w", err)
 	}
 
-	listener.Addr()
+	localPort := listener.Addr().(*net.TCPAddr).Port
 	go listenToConns(iface, listener)
 
 	closeFunc := func() error {
@@ -213,10 +213,12 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 		return errors.Join(connToDevice.Close(), listener.Close())
 	}
 	return Tunnel{
-		Address: tunnelInfo.ServerAddress,
-		RsdPort: int(tunnelInfo.ServerRSDPort),
-		Udid:    device.Properties.SerialNumber,
-		closer:  closeFunc,
+		Address:          tunnelInfo.ServerAddress,
+		RsdPort:          int(tunnelInfo.ServerRSDPort),
+		Udid:             device.Properties.SerialNumber,
+		UserspaceTUN:     true,
+		UserspaceTUNPort: localPort,
+		closer:           closeFunc,
 	}, nil
 }
 

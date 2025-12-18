@@ -49,43 +49,60 @@ func (t Tunnel) Close() error {
 // After a successful pairing a tunnel for this device gets started and the tunnel information is returned
 func ManualPairAndConnectToTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager) (Tunnel, error) {
 	log.Info("ManualPairAndConnectToTunnel: starting manual pairing and tunnel connection, dont forget to stop remoted first with 'sudo pkill -SIGSTOP remoted' and run this with sudo.")
-	addr, err := ios.FindDeviceInterfaceAddress(ctx, device)
+	addr, tunnelInfo, ts, err := manualPairAndCreateListener(ctx, device, p)
 	if err != nil {
-		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to find device ethernet interface: %w", err)
+		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: %w", err)
 	}
+	defer ts.Close()
 
-	port, err := getUntrustedTunnelServicePort(addr, device)
-	if err != nil {
-		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: could not find port for '%s'", untrustedTunnelServiceName)
-	}
-	conn, err := ios.ConnectTUNDevice(addr, port, device)
-	if err != nil {
-		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to connect to TUN device: %w", err)
-	}
-	h, err := http.NewHttpConnection(conn)
-	if err != nil {
-		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create HTTP2 connection: %w", err)
-	}
-
-	xpcConn, err := ios.CreateXpcConnection(h)
-	if err != nil {
-		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create RemoteXPC connection: %w", err)
-	}
-	ts := newTunnelServiceWithXpc(xpcConn, h, p)
-
-	err = ts.ManualPair()
-	if err != nil {
-		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to pair device: %w", err)
-	}
-	tunnelInfo, err := ts.createTunnelListener()
-	if err != nil {
-		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to create tunnel listener: %w", err)
-	}
 	t, err := connectToTunnel(ctx, tunnelInfo, addr, device)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnel: failed to connect to tunnel: %w", err)
 	}
 	return t, nil
+}
+
+// manualPairAndCreateListener discovers a device via mDNS, performs manual pairing, and creates a tunnel listener.
+// This is the common logic shared between kernel TUN and userspace TUN implementations.
+// Returns the device address, tunnel listener info, and the tunnel service (caller should close it after use).
+func manualPairAndCreateListener(ctx context.Context, device ios.DeviceEntry, p PairRecordManager) (string, tunnelListener, *tunnelService, error) {
+	addr, err := ios.FindDeviceInterfaceAddress(ctx, device)
+	if err != nil {
+		return "", tunnelListener{}, nil, fmt.Errorf("failed to find device ethernet interface: %w", err)
+	}
+
+	port, err := getUntrustedTunnelServicePort(addr, device)
+	if err != nil {
+		return "", tunnelListener{}, nil, fmt.Errorf("could not find port for '%s': %w", untrustedTunnelServiceName, err)
+	}
+	conn, err := ios.ConnectTUNDevice(addr, port, device)
+	if err != nil {
+		return "", tunnelListener{}, nil, fmt.Errorf("failed to connect to TUN device: %w", err)
+	}
+	h, err := http.NewHttpConnection(conn)
+	if err != nil {
+		conn.Close()
+		return "", tunnelListener{}, nil, fmt.Errorf("failed to create HTTP2 connection: %w", err)
+	}
+
+	xpcConn, err := ios.CreateXpcConnection(h)
+	if err != nil {
+		h.Close()
+		return "", tunnelListener{}, nil, fmt.Errorf("failed to create RemoteXPC connection: %w", err)
+	}
+	ts := newTunnelServiceWithXpc(xpcConn, h, p)
+
+	err = ts.ManualPair()
+	if err != nil {
+		ts.Close()
+		return "", tunnelListener{}, nil, fmt.Errorf("failed to pair device: %w", err)
+	}
+	tunnelInfo, err := ts.createTunnelListener()
+	if err != nil {
+		ts.Close()
+		return "", tunnelListener{}, nil, fmt.Errorf("failed to create tunnel listener: %w", err)
+	}
+	return addr, tunnelInfo, ts, nil
 }
 
 func getUntrustedTunnelServicePort(addr string, device ios.DeviceEntry) (int, error) {
@@ -106,12 +123,14 @@ func getUntrustedTunnelServicePort(addr string, device ios.DeviceEntry) (int, er
 	return port, nil
 }
 
-func connectToTunnel(ctx context.Context, info tunnelListener, addr string, device ios.DeviceEntry) (Tunnel, error) {
+// connectQUICTunnel establishes a QUIC connection to the tunnel endpoint and exchanges parameters.
+// This is shared between kernel TUN and userspace TUN implementations.
+func connectQUICTunnel(ctx context.Context, info tunnelListener, addr string) (quic.Connection, tunnelParameters, error) {
 	logrus.WithField("address", addr).WithField("port", info.TunnelPort).Info("connect to tunnel endpoint on device")
 
 	conf, err := createTlsConfig(info)
 	if err != nil {
-		return Tunnel{}, err
+		return nil, tunnelParameters{}, err
 	}
 
 	conn, err := quic.DialAddr(ctx, fmt.Sprintf("[%s]:%d", addr, info.TunnelPort), conf, &quic.Config{
@@ -119,23 +138,35 @@ func connectToTunnel(ctx context.Context, info tunnelListener, addr string, devi
 		KeepAlivePeriod: 1 * time.Second,
 	})
 	if err != nil {
-		return Tunnel{}, err
+		return nil, tunnelParameters{}, err
 	}
 
 	err = conn.SendDatagram(make([]byte, 1024))
 	if err != nil {
-		return Tunnel{}, err
+		conn.CloseWithError(0, "")
+		return nil, tunnelParameters{}, err
 	}
 
 	stream, err := conn.OpenStream()
 	if err != nil {
-		return Tunnel{}, err
+		conn.CloseWithError(0, "")
+		return nil, tunnelParameters{}, err
 	}
 
 	tunnelInfo, err := exchangeCoreTunnelParameters(stream)
 	stream.Close()
 	if err != nil {
-		return Tunnel{}, fmt.Errorf("could not exchange tunnel parameters. %w", err)
+		conn.CloseWithError(0, "")
+		return nil, tunnelParameters{}, fmt.Errorf("could not exchange tunnel parameters: %w", err)
+	}
+
+	return conn, tunnelInfo, nil
+}
+
+func connectToTunnel(ctx context.Context, info tunnelListener, addr string, device ios.DeviceEntry) (Tunnel, error) {
+	conn, tunnelInfo, err := connectQUICTunnel(ctx, info, addr)
+	if err != nil {
+		return Tunnel{}, err
 	}
 
 	utunIface, err := setupTunnelInterface(tunnelInfo)
