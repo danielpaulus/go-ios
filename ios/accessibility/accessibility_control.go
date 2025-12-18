@@ -24,6 +24,15 @@ type ControlInterface struct {
 	mu          sync.RWMutex
 }
 
+// broadcast sends a notification to all active subscribers safely.
+func (a *ControlInterface) broadcast(n Notification) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	for _, ch := range a.subscribers {
+		ch <- n
+	}
+}
+
 type Action int
 
 const (
@@ -65,7 +74,8 @@ func (a *ControlInterface) readhostAppStateChanged() {
 		msg := a.channel.ReceiveMethodCall("hostAppStateChanged:")
 		stateChange, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
 		if err != nil {
-			panic(err)
+			log.Errorf("Error unarchiving app state change: %v", err)
+			continue
 		}
 		value := stateChange[0]
 		log.Infof("hostAppStateChanged:%s", value)
@@ -114,13 +124,7 @@ func (a *ControlInterface) readhostInspectorNotificationReceived() {
 			notification = Notification{Value: val}
 		}
 
-		a.mu.RLock()
-		// Now 'a' points to the same struct where 'Subscribe' added the channel
-		for _, ch := range a.subscribers {
-			// This will now successfully send to your ios-controller
-			ch <- notification
-		}
-		a.mu.RUnlock()
+		a.broadcast(notification)
 	}
 }
 
