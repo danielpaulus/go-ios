@@ -30,8 +30,14 @@ type ControlInterface struct {
 func (a *ControlInterface) broadcast(n Notification) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
+
 	for _, ch := range a.subscribers {
-		ch <- n
+		select {
+		case ch <- n:
+		default:
+			// instead of blocking, we drop the message and log it.
+			log.Warn("Subscriber channel full. Dropping notification to prevent blocking.")
+		}
 	}
 }
 
