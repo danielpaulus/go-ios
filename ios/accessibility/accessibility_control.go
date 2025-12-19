@@ -111,7 +111,7 @@ func (a *ControlInterface) Subscribe() (<-chan Notification, func()) {
 	defer a.mu.Unlock()
 
 	// create a new buffered channel for this specific consumer
-	ch := make(chan Notification, 100)
+	ch := make(chan Notification, 1000)
 	a.subscribers = append(a.subscribers, ch)
 
 	// create a clean-up function for the caller
