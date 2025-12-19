@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"slices"
 	"sync"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -112,12 +113,10 @@ func (a *ControlInterface) Subscribe() (<-chan Notification, func()) {
 		a.mu.Lock()
 		defer a.mu.Unlock()
 
-		for i, sub := range a.subscribers {
-			if sub == ch {
-				a.subscribers = append(a.subscribers[:i], a.subscribers[i+1:]...)
-				close(ch) // close channel to signal the consumer to stop
-				break
-			}
+		idx := slices.Index(a.subscribers, ch)
+		if idx >= 0 {
+			close(a.subscribers[idx])
+			a.subscribers = slices.Delete(a.subscribers, idx, idx+1)
 		}
 	}
 
