@@ -19,6 +19,7 @@ type Notification struct {
 // ControlInterface provides a simple interface to controlling the AX service on the device
 // It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
+	cm          *dtx.Connection
 	channel     *dtx.Channel
 	subscribers []chan Notification
 	mu          sync.RWMutex
@@ -31,6 +32,21 @@ func (a *ControlInterface) broadcast(n Notification) {
 	for _, ch := range a.subscribers {
 		ch <- n
 	}
+}
+
+// Close shuts down the connection and closes all subscriber channels.
+func (a *ControlInterface) Close() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.cm != nil {
+		a.cm.Close()
+	}
+	for _, ch := range a.subscribers {
+		close(ch)
+	}
+	a.subscribers = nil
+	return nil
 }
 
 type Action int

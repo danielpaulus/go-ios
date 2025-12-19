@@ -23,7 +23,10 @@ func New(device ios.DeviceEntry) (*ControlInterface, error) {
 	if err != nil {
 		return nil, err
 	}
-	control := &ControlInterface{channel: conn.GlobalChannel()}
+	control := &ControlInterface{
+		cm:      conn,
+		channel: conn.GlobalChannel(),
+	}
 
 	err = control.init()
 	return control, err
