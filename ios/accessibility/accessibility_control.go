@@ -475,7 +475,8 @@ func (a *ControlInterface) deviceCapabilities() ([]string, error) {
 func (a *ControlInterface) deviceAllAuditCaseIDs(api uint64) ([]string, error) {
 	var response dtx.Message
 	var err error
-	if api >= 15 {
+	// api version 21 corresponds to iOS 15.
+	if api >= 21 {
 		response, err = a.channel.MethodCall("deviceAllSupportedAuditTypes")
 	} else {
 		response, err = a.channel.MethodCall("deviceAllAuditCaseIDs")
