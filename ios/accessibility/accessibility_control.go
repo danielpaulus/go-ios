@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
@@ -31,12 +32,15 @@ func (a *ControlInterface) broadcast(n Notification) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
+	timeout := 500 * time.Millisecond
+
 	for _, ch := range a.subscribers {
 		select {
 		case ch <- n:
-		default:
-			// instead of blocking, we drop the message and log it.
-			log.Warn("Subscriber channel full. Dropping notification to prevent blocking.")
+			// Consumer read the value
+		case <-time.After(timeout):
+			// Consumer was busy for >500ms. Drop message and move on.
+			log.Warnf("Subscriber blocked >500ms. Dropping notification.")
 		}
 	}
 }
@@ -110,11 +114,11 @@ func (a *ControlInterface) Subscribe() (<-chan Notification, func()) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	// create a new buffered channel for this specific consumer
-	ch := make(chan Notification, 1000)
+	// Unbuffered channel, Sends will block until the consumer reads
+	ch := make(chan Notification)
+
 	a.subscribers = append(a.subscribers, ch)
 
-	// create a clean-up function for the caller
 	unsubscribe := func() {
 		a.mu.Lock()
 		defer a.mu.Unlock()
