@@ -21,10 +21,11 @@ type Notification struct {
 // ControlInterface provides a simple interface to controlling the AX service on the device
 // It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
-	cm          *dtx.Connection
-	channel     *dtx.Channel
-	subscribers []chan Notification
-	mu          sync.RWMutex
+	cm               *dtx.Connection
+	channel          *dtx.Channel
+	subscribers      []chan Notification
+	mu               sync.RWMutex
+	broadcastTimeout time.Duration
 }
 
 // broadcast sends a notification to all active subscribers safely.
@@ -32,16 +33,17 @@ func (a *ControlInterface) broadcast(n Notification) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	timeout := 500 * time.Millisecond
-
 	for _, ch := range a.subscribers {
+		ctx, cancel := context.WithTimeout(context.Background(), a.broadcastTimeout)
+
 		select {
 		case ch <- n:
-			// Consumer read the value
-		case <-time.After(timeout):
-			// Consumer was busy for >500ms. Drop message and move on.
-			log.Warnf("Subscriber blocked >500ms. Dropping notification.")
+		case <-ctx.Done():
+			log.Warnf("Subscriber blocked >%v. Dropping notification.", a.broadcastTimeout)
 		}
+
+		// clean up timer immediately
+		cancel()
 	}
 }
 
