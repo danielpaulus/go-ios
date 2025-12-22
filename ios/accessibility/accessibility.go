@@ -11,31 +11,30 @@ const serviceName string = "com.apple.accessibility.axAuditDaemon.remoteserver"
 
 // NewWithoutEventChangeListeners creates and connects to the given device, a new ControlInterface instance
 // without setting accessibility event change listeners to avoid keeping constant connection.
-func NewWithoutEventChangeListeners(device ios.DeviceEntry, timeout time.Duration) (*ControlInterface, error) {
+func NewWithoutEventChangeListeners(device ios.DeviceEntry) (*ControlInterface, error) {
 	conn, err := dtx.NewUsbmuxdConnection(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
-	control := &ControlInterface{
-		cm:               conn,
-		channel:          conn.GlobalChannel(),
-		broadcastTimeout: timeout,
-	}
-	return control, nil
+	return &ControlInterface{
+		cm:      conn,
+		channel: conn.GlobalChannel(),
+	}, nil
 }
 
 // New creates and connects to the given device, a new ControlInterface instance
-func New(device ios.DeviceEntry, timeout time.Duration) (*ControlInterface, error) {
+func New(device ios.DeviceEntry, sendNotificationTimeout time.Duration) (*ControlInterface, error) {
 	conn, err := dtx.NewUsbmuxdConnection(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
+
 	control := &ControlInterface{
-		cm:               conn,
-		channel:          conn.GlobalChannel(),
-		broadcastTimeout: timeout,
+		cm:      conn,
+		channel: conn.GlobalChannel(),
 	}
 
-	err = control.init()
+	// Pass timeout to init
+	err = control.init(sendNotificationTimeout)
 	return control, err
 }

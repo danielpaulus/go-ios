@@ -21,28 +21,25 @@ type Notification struct {
 // ControlInterface provides a simple interface to controlling the AX service on the device
 // It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
-	cm               *dtx.Connection
-	channel          *dtx.Channel
-	subscribers      []chan Notification
-	mu               sync.RWMutex
-	broadcastTimeout time.Duration
+	cm          *dtx.Connection
+	channel     *dtx.Channel
+	subscribers []chan Notification
+	mu          sync.RWMutex
 }
 
 // broadcast sends a notification to all active subscribers safely.
-func (a *ControlInterface) broadcast(n Notification) {
+func (a *ControlInterface) broadcast(n Notification, timeout time.Duration) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	for _, ch := range a.subscribers {
-		ctx, cancel := context.WithTimeout(context.Background(), a.broadcastTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 		select {
 		case ch <- n:
 		case <-ctx.Done():
-			log.Warnf("Subscriber blocked >%v. Dropping notification.", a.broadcastTimeout)
+			log.Warnf("Subscriber blocked >%v. Dropping notification.", timeout)
 		}
-
-		// clean up timer immediately
 		cancel()
 	}
 }
@@ -135,7 +132,7 @@ func (a *ControlInterface) Subscribe() (<-chan Notification, func()) {
 	return ch, unsubscribe
 }
 
-func (a *ControlInterface) readhostInspectorNotificationReceived() {
+func (a *ControlInterface) readhostInspectorNotificationReceived(timeout time.Duration) {
 	for {
 		msg := a.channel.ReceiveMethodCall("hostInspectorNotificationReceived:")
 		rawBytes := msg.Auxiliary.GetArguments()[0].([]byte)
@@ -151,18 +148,18 @@ func (a *ControlInterface) readhostInspectorNotificationReceived() {
 			notification = Notification{Value: val}
 		}
 
-		a.broadcast(notification)
+		a.broadcast(notification, timeout)
 	}
 }
 
 // init wires up event receivers and gets Info from the device
-func (a *ControlInterface) init() error {
+func (a *ControlInterface) init(timeout time.Duration) error {
 	a.channel.RegisterMethodForRemote("hostInspectorCurrentElementChanged:")
 	a.channel.RegisterMethodForRemote("hostInspectorMonitoredEventTypeChanged:")
 	a.channel.RegisterMethodForRemote("hostAppStateChanged:")
 	a.channel.RegisterMethodForRemote("hostInspectorNotificationReceived:")
 	go a.readhostAppStateChanged()
-	go a.readhostInspectorNotificationReceived()
+	go a.readhostInspectorNotificationReceived(timeout)
 
 	err := a.notifyPublishedCapabilities()
 	if err != nil {
