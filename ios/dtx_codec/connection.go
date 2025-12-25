@@ -191,18 +191,49 @@ func (dtxConn *Connection) Send(message []byte) error {
 // reader reads messages from the byte stream and dispatches them to the right channel when they are decoded.
 func reader(dtxConn *Connection) {
 	reader := bufio.NewReader(dtxConn.deviceConnection.Reader())
+	consecutiveErrors := 0
+	const maxConsecutiveErrors = 5
+
 	for {
 		msg, err := ReadMessage(reader)
 		if err != nil {
-			defer dtxConn.close(err)
 			errText := err.Error()
+
+			// Fatal: actual connection failure
 			if err == io.EOF || strings.Contains(errText, "use of closed network") {
 				log.Debug("DTX Connection with EOF")
+				defer dtxConn.close(err)
 				return
 			}
+
+			// Non-fatal: plist parse error - skip and continue
+			if strings.Contains(errText, "plist") ||
+				strings.Contains(errText, "parsing text property list") {
+				consecutiveErrors++
+				log.Warnf("Skipping malformed message (plist parse error), consecutive errors: %d", consecutiveErrors)
+
+				// Safety: if too many consecutive errors, connection might be truly broken
+				if consecutiveErrors >= maxConsecutiveErrors {
+					log.Errorf("Too many consecutive parse errors, closing connection")
+					defer dtxConn.close(err)
+					return
+				}
+
+				// Give buffer time to resync
+				time.Sleep(10 * time.Millisecond)
+				continue // Skip this message, read next one
+			}
+
+			// Unknown error: treat as fatal
 			log.Errorf("error reading dtx connection %+v", err)
+			defer dtxConn.close(err)
 			return
 		}
+
+		// Success: reset error counter
+		consecutiveErrors = 0
+
+		// Dispatch as normal
 		if _channel, ok := dtxConn.activeChannels.Load(msg.ChannelCode); ok {
 			channel := _channel.(*Channel)
 			channel.Dispatch(msg)
