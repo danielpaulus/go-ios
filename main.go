@@ -1424,7 +1424,7 @@ The commands work as following:
 			exitIfError("get device info push failed", err)
 		}
 		fmt.Printf("      Model: %s\n", info.Model)
-		fmt.Printf("  BlockSize: %d\n", info.BlockSize/8)
+		fmt.Printf("  BlockSize: %d\n", info.BlockSize)
 		fmt.Printf("  FreeSpace: %s\n", ios.ByteCountDecimal(int64(info.FreeBytes)))
 		fmt.Printf("  UsedSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes-info.FreeBytes)))
 		fmt.Printf(" TotalSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes)))
@@ -2054,7 +2054,7 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 
 func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 	go func() {
-		conn, err := accessibility.New(device)
+		conn, err := accessibility.New(device, 500*time.Millisecond)
 		exitIfError("failed starting ax", err)
 
 		conn.SwitchToDevice()
