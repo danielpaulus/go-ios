@@ -32,11 +32,19 @@ func ToUnixSocketPath(socketAddress string) string {
 func GetUsbmuxdSocket() string {
 	socket_override := os.Getenv("USBMUXD_SOCKET_ADDRESS")
 	if socket_override != "" {
-		if strings.Contains(socket_override, ":") {
-			return "tcp://" + socket_override
-		} else {
+		// if it has a scheme, just use it
+		if strings.Contains(socket_override, "://") {
+			return socket_override
+		}
+		// if it is a file, use it as unix socket
+		if _, err := os.Stat(socket_override); err == nil {
 			return "unix://" + socket_override
 		}
+		// if it is a tcp address, use it
+		if strings.Contains(socket_override, ":") && strings.Contains(socket_override, ".") {
+			return "tcp://" + socket_override
+		}
+		panic("Unknown socket address: " + socket_override)
 	}
 	switch runtime.GOOS {
 	case "windows":
