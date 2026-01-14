@@ -105,8 +105,8 @@ func KillApp(c *gin.Context) {
 	}
 
 	for _, app := range response {
-		if app.CFBundleIdentifier == bundleID {
-			processName = app.CFBundleExecutable
+		if app.CFBundleIdentifier() == bundleID {
+			processName = app.CFBundleExecutable()
 			break
 		}
 	}
