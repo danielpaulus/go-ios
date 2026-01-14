@@ -312,12 +312,24 @@ func (a *ControlInterface) extractCaptionText(innerValue map[string]interface{})
 }
 
 // QueryAttributeValue queries any string attribute (Label, Identifier, Value, etc.) for an element
+// Uses 500ms timeout to prevent hanging if device doesn't respond
 func (a *ControlInterface) QueryAttributeValue(platformElementValue string, attributeName string) (string, error) {
 	platformElementBytes, err := base64.StdEncoding.DecodeString(platformElementValue)
 	if err != nil {
 		return "", fmt.Errorf("invalid platformElementValue base64: %w", err)
 	}
-	return a.queryAttributeValue(platformElementBytes, attributeName), nil
+
+	resultChan := make(chan string, 1)
+	go func() {
+		resultChan <- a.queryAttributeValue(platformElementBytes, attributeName)
+	}()
+
+	select {
+	case result := <-resultChan:
+		return result, nil
+	case <-time.After(500 * time.Millisecond):
+		return "", fmt.Errorf("timeout after 500ms querying attribute %s", attributeName)
+	}
 }
 
 // QueryLabelValue is a convenience wrapper for QueryAttributeValue with "Label"
