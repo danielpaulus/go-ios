@@ -93,6 +93,7 @@ const (
 type AXElementData struct {
 	PlatformElementValue string `json:"platformElementValue"` // Base64-encoded platform element data
 	SpokenDescription    string `json:"spokenDescription"`    // Spoken description of the element
+	CaptionText          string `json:"captionText"`          // CaptionTextValue_v1 extracted value
 }
 
 func (a *ControlInterface) readhostAppStateChanged() {
@@ -258,6 +259,7 @@ func (a *ControlInterface) Move(ctx context.Context, direction MoveDirection) (A
 	log.Info("before changed")
 
 	resp, err := a.awaitHostInspectorCurrentElementChanged(ctx)
+	log.Info("awaitHostInspectorCurrentElementChanged response:", resp)
 	if err != nil {
 		return AXElementData{}, err
 	}
@@ -268,6 +270,7 @@ func (a *ControlInterface) Move(ctx context.Context, direction MoveDirection) (A
 	}
 
 	spokenDescription := a.extractSpokenDescription(innerValue)
+	captionText := a.extractCaptionText(innerValue)
 	platformElementBytes, err := a.extractPlatformElementBytes(innerValue)
 	if err != nil {
 		return AXElementData{}, err
@@ -276,6 +279,7 @@ func (a *ControlInterface) Move(ctx context.Context, direction MoveDirection) (A
 	return AXElementData{
 		PlatformElementValue: base64.StdEncoding.EncodeToString(platformElementBytes),
 		SpokenDescription:    spokenDescription,
+		CaptionText:          captionText,
 	}, nil
 }
 
@@ -288,6 +292,275 @@ func (a *ControlInterface) extractSpokenDescription(innerValue map[string]interf
 	// Fallback to CaptionTextValue_v1
 	if desc := a.extractStringFromField(innerValue, "CaptionTextValue_v1"); desc != "" {
 		return desc
+	}
+
+	return ""
+}
+
+// extractCaptionText extracts CaptionTextValue_v1 from innerValue
+func (a *ControlInterface) extractCaptionText(innerValue map[string]interface{}) string {
+	if capRaw, ok := innerValue["CaptionTextValue_v1"]; ok {
+		val := deserializeObject(capRaw)
+		if s, ok := val.(string); ok && s != "" {
+			return s
+		}
+		if val != nil {
+			return fmt.Sprintf("%v", val)
+		}
+	}
+	return ""
+}
+
+// QueryAttributeValue queries any string attribute (Label, Identifier, Value, etc.) for an element
+func (a *ControlInterface) QueryAttributeValue(platformElementValue string, attributeName string) (string, error) {
+	platformElementBytes, err := base64.StdEncoding.DecodeString(platformElementValue)
+	if err != nil {
+		return "", fmt.Errorf("invalid platformElementValue base64: %w", err)
+	}
+	return a.queryAttributeValue(platformElementBytes, attributeName), nil
+}
+
+// QueryLabelValue is a convenience wrapper for QueryAttributeValue with "Label"
+func (a *ControlInterface) QueryLabelValue(platformElementValue string) (string, error) {
+	return a.QueryAttributeValue(platformElementValue, "Label")
+}
+
+// QueryIdentifierValue is a convenience wrapper for QueryAttributeValue with "Identifier"
+func (a *ControlInterface) QueryIdentifierValue(platformElementValue string) (string, error) {
+	return a.QueryAttributeValue(platformElementValue, "Identifier")
+}
+
+// QueryValueValue is a convenience wrapper for QueryAttributeValue with "Value"
+func (a *ControlInterface) QueryValueValue(platformElementValue string) (string, error) {
+	return a.QueryAttributeValue(platformElementValue, "Value")
+}
+
+// QueryAttributeRaw queries any attribute and returns the raw value (useful for non-string attributes like Frame)
+func (a *ControlInterface) QueryAttributeRaw(platformElementValue string, attributeName string) (interface{}, error) {
+	platformElementBytes, err := base64.StdEncoding.DecodeString(platformElementValue)
+	if err != nil {
+		return nil, fmt.Errorf("invalid platformElementValue base64: %w", err)
+	}
+	return a.queryAttributeRaw(platformElementBytes, attributeName)
+}
+
+// QueryAttributeRawWithTimeout queries any attribute with a timeout to prevent hanging
+func (a *ControlInterface) QueryAttributeRawWithTimeout(platformElementValue string, attributeName string, timeout time.Duration) (interface{}, error) {
+	platformElementBytes, err := base64.StdEncoding.DecodeString(platformElementValue)
+	if err != nil {
+		return nil, fmt.Errorf("invalid platformElementValue base64: %w", err)
+	}
+
+	type result struct {
+		value interface{}
+		err   error
+	}
+
+	resultChan := make(chan result, 1)
+
+	go func() {
+		val, err := a.queryAttributeRaw(platformElementBytes, attributeName)
+		resultChan <- result{value: val, err: err}
+	}()
+
+	select {
+	case res := <-resultChan:
+		return res.value, res.err
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("timeout after %v querying attribute %s", timeout, attributeName)
+	}
+}
+
+func (a *ControlInterface) queryAttributeRaw(platformElementBytes []byte, attributeName string) (interface{}, error) {
+	elementArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditElement_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"PlatformElementValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough",
+					"Value":      platformElementBytes,
+				}),
+			}),
+		}),
+	})
+
+	attributeArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditElementAttribute_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"AttributeNameValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": attributeName,
+				}),
+			}),
+		}),
+	})
+
+	response, err := a.channel.MethodCall("deviceElement:valueForAttribute:", elementArg, attributeArg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query %s: %w", attributeName, err)
+	}
+
+	// Log raw response for debugging
+	log.Debugf("QueryAttributeRaw(%s) response.Payload: %+v", attributeName, response.Payload)
+
+	if len(response.Payload) > 0 {
+		if valMap, ok := response.Payload[0].(map[string]interface{}); ok {
+			return deserializeObject(valMap), nil
+		}
+		return response.Payload[0], nil
+	}
+
+	return nil, fmt.Errorf("no payload in response for attribute %s", attributeName)
+}
+
+// Rect represents an element's frame/bounds
+type Rect struct {
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+}
+
+// QueryFrame tries multiple attribute names to get the element's frame/rect
+func (a *ControlInterface) QueryFrame(platformElementValue string) (*Rect, error) {
+	// Try different possible attribute names for frame
+	frameAttributeNames := []string{
+		"AXFrame",
+		"Frame",
+		"frame",
+		"accessibilityFrame",
+		"Bounds",
+		"bounds",
+		"AXBounds",
+	}
+
+	for _, attrName := range frameAttributeNames {
+		raw, err := a.QueryAttributeRaw(platformElementValue, attrName)
+		if err != nil {
+			log.Debugf("QueryFrame: %s failed: %v", attrName, err)
+			continue
+		}
+		if raw == nil {
+			continue
+		}
+
+		// Try to parse as rect
+		rect, ok := parseRect(raw)
+		if ok {
+			log.Infof("QueryFrame: found frame using attribute %q: %+v", attrName, rect)
+			return rect, nil
+		}
+		log.Debugf("QueryFrame: %s returned non-rect value: %T %+v", attrName, raw, raw)
+	}
+
+	return nil, fmt.Errorf("could not find frame attribute (tried: %v)", frameAttributeNames)
+}
+
+// parseRect attempts to extract rect coordinates from various response formats
+func parseRect(raw interface{}) (*Rect, bool) {
+	switch v := raw.(type) {
+	case map[string]interface{}:
+		rect := &Rect{}
+		found := false
+		// Try different key formats
+		for _, xKey := range []string{"X", "x", "origin.x"} {
+			if val, ok := v[xKey]; ok {
+				rect.X = toFloat64(val)
+				found = true
+				break
+			}
+		}
+		for _, yKey := range []string{"Y", "y", "origin.y"} {
+			if val, ok := v[yKey]; ok {
+				rect.Y = toFloat64(val)
+				found = true
+				break
+			}
+		}
+		for _, wKey := range []string{"Width", "width", "size.width"} {
+			if val, ok := v[wKey]; ok {
+				rect.Width = toFloat64(val)
+				found = true
+				break
+			}
+		}
+		for _, hKey := range []string{"Height", "height", "size.height"} {
+			if val, ok := v[hKey]; ok {
+				rect.Height = toFloat64(val)
+				found = true
+				break
+			}
+		}
+		if found && rect.Width > 0 && rect.Height > 0 {
+			return rect, true
+		}
+	case string:
+		// Try parsing CGRect string format: {{x, y}, {width, height}}
+		// This is a common format on iOS
+		log.Debugf("parseRect: got string value: %s", v)
+	}
+	return nil, false
+}
+
+func toFloat64(v interface{}) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case float32:
+		return float64(n)
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	case uint64:
+		return float64(n)
+	default:
+		return 0
+	}
+}
+
+func (a *ControlInterface) queryAttributeValue(platformElementBytes []byte, attributeName string) string {
+	elementArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditElement_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"PlatformElementValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough",
+					"Value":      platformElementBytes,
+				}),
+			}),
+		}),
+	})
+
+	attributeArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditElementAttribute_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"AttributeNameValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": attributeName,
+				}),
+			}),
+		}),
+	})
+
+	response, err := a.channel.MethodCall("deviceElement:valueForAttribute:", elementArg, attributeArg)
+	if err != nil {
+		log.Debugf("Failed to query %s value: %v", attributeName, err)
+		return ""
+	}
+
+	// Extract the attribute value from the response payload
+	if len(response.Payload) > 0 {
+		// Response format: [{"ObjectType":"passthrough","Value":"attribute value here"}]
+		if valMap, ok := response.Payload[0].(map[string]interface{}); ok {
+			if val, ok := valMap["Value"].(string); ok {
+				return val
+			}
+		}
 	}
 
 	return ""
