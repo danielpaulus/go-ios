@@ -74,7 +74,7 @@ func Main() {
 	usage := fmt.Sprintf(`go-ios %s
 
 Usage:
-    ios --version | version [options]
+  ios --version | version [options]
   ios -h | --help
   ios activate [options]
   ios apps [--system] [--all] [--list] [--filesharing] [options]
@@ -168,9 +168,9 @@ Options:
   --userspace-port=<port>   Optional. Set this if you run a command supplying rsd-port and address and your device is using userspace tunnel
 
 The commands work as following:
-	The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
-	By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
-	Specify -v for debug logging and -t for dumping every message.
+  The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
+  By default, the first device found will be used for a command unless you specify a --udid=some_udid switch.
+  Specify -v for debug logging and -t for dumping every message.
 
       ios --version | version [options]                                  Prints the version
    ios -h | --help                                                    Prints this screen.
@@ -228,26 +228,26 @@ The commands work as following:
    ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language. ios lang will print the current language and locale, as well as a list of all supported langs and locales.
    ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options] Launch app with the bundleID on the device. Get your bundle ID from the apps command. --wait keeps the connection open if you want logs.
    ios list [options] [--details]                                     Prints a list of all connected device's udids. If --details is specified, it includes version, name and model of each device.
-   ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
-   ios lockdown get [<key>] [--domain=<domain>] [options]             Query lockdown values. Without arguments returns all values. Specify a key to get a specific value.
+    ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
+    ios lockdown get [<key>] [--domain=<domain>] [options]             Query lockdown values. Without arguments returns all values. Specify a key to get a specific value.
    >                                                                  Use --domain to query from a specific domain (e.g., com.apple.disk_usage, com.apple.PurpleBuddy).
    >                                                                  Examples: "ios lockdown get DeviceName", "ios lockdown get --domain=com.apple.PurpleBuddy"
-   ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
+    ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
    ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys. Standard output is json but if desired you can get
    >                                                                  it in plist format by adding the --plist param.
    >                                                                  Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
-   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file
+    ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file
    >                                                                  to pair without a trust dialog. Specify the password either with the argument or
    >                                                                  by setting the environment variable 'P12_PASSWORD'
-   ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
+    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
    ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [options] prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
    >                                                                  You can use 'ios prepare printskip' to get a list of all options to skip. Use certfile and orgname if you want to supervise the device.
    >                                                                  The certfile can be a DER file, PEM file, or P12 file. For P12 files, specify the password with --p12password or P12_PASSWORD env var.
    >                                                                  If you need certificates to supervise, run 'ios prepare create-cert' and go-ios will generate one you can use.
    >                                                                  locale and lang are optional, the default is en_US and en. Run 'ios lang' to see a list of all supported locales and languages.
-   ios prepare cloudconfig                                            Print the cloud configuration of the device as JSON.
+    ios prepare cloudconfig                                            Print the cloud configuration of the device as JSON.
    ios prepare create-cert                                            A nice util to generate a certificate you can use for supervising devices. Make sure you rename and store it in a safe place.
-   ios prepare printskip                                              Print all options you can skip.
+    ios prepare printskip                                              Print all options you can skip.
    ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] Install profile file on the device. If supervised set p12file and password or the environment variable 'P12_PASSWORD'
    ios profile list                                                   List the profiles on the device
    ios profile remove <profileName>                                   Remove the profileName from the device
@@ -1420,14 +1420,16 @@ The commands work as following:
 		afcService, err := afc.New(device)
 		exitIfError("connect afc service failed", err)
 		info, err := afcService.DeviceInfo()
-		if err != nil {
-			exitIfError("get device info push failed", err)
+		exitIfError("get device info push failed", err)
+		if JSONdisabled {
+			fmt.Printf("      Model: %s\n", info.Model)
+			fmt.Printf("  BlockSize: %d\n", info.BlockSize)
+			fmt.Printf("  FreeSpace: %s\n", ios.ByteCountDecimal(int64(info.FreeBytes)))
+			fmt.Printf("  UsedSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes-info.FreeBytes)))
+			fmt.Printf(" TotalSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes)))
+		} else {
+			fmt.Println(convertToJSONString(info))
 		}
-		fmt.Printf("      Model: %s\n", info.Model)
-		fmt.Printf("  BlockSize: %d\n", info.BlockSize)
-		fmt.Printf("  FreeSpace: %s\n", ios.ByteCountDecimal(int64(info.FreeBytes)))
-		fmt.Printf("  UsedSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes-info.FreeBytes)))
-		fmt.Printf(" TotalSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes)))
 		return
 	}
 
@@ -1442,9 +1444,7 @@ The commands work as following:
 		useUserspaceNetworking, _ := arguments.Bool("--userspace")
 		if startCommand && !useUserspaceNetworking {
 			err := ios.CheckRoot()
-			if err != nil {
-				exitIfError("If --userspace is not set, we need sudo or an admin shell on Windows", err)
-			}
+			exitIfError("If --userspace is not set, we need sudo or an admin shell on Windows", err)
 		}
 		if useUserspaceNetworking {
 			log.Info("Using userspace networking")
@@ -1462,12 +1462,18 @@ The commands work as following:
 			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, useUserspaceNetworking)
 		} else if listCommand {
 			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoHost, tunnelInfoPort)
-			if err != nil {
-				exitIfError("failed to get tunnel infos", err)
+			exitIfError("failed to get tunnel infos", err)
+			if disableJSON {
+				for index, t := range tunnels {
+					if 0 != index {
+						fmt.Println()
+					}
+					fmt.Printf("Udid: %s\n  Address: %s\n  RsdPort: %d\n  UserspaceTUN: %v\n  UserspaceTUNPort: %d\n",
+						t.Udid, t.Address, t.RsdPort, t.UserspaceTUN, t.UserspaceTUNPort)
+				}
+			} else {
+				fmt.Println(convertToJSONString(tunnels))
 			}
-			enc := json.NewEncoder(os.Stdout)
-			enc.SetIndent("", "  ")
-			_ = enc.Encode(tunnels)
 		}
 		if stopagent {
 			err := tunnel.CloseAgent()
@@ -1490,7 +1496,12 @@ The commands work as following:
 
 		if get {
 			devModeEnabled, _ := imagemounter.IsDevModeEnabled(device)
-			fmt.Printf("Developer mode enabled: %v\n", devModeEnabled)
+			if JSONdisabled {
+				fmt.Printf("Developer mode enabled: %v\n", devModeEnabled)
+			} else {
+				result := map[string]interface{}{"DeveloperModeEnabled": devModeEnabled}
+				fmt.Println(convertToJSONString(result))
+			}
 		}
 
 		return
