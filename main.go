@@ -1534,14 +1534,16 @@ The commands work as following:
 		afcService, err := afc.New(device)
 		exitIfError("connect afc service failed", err)
 		info, err := afcService.DeviceInfo()
-		if err != nil {
-			exitIfError("get device info push failed", err)
+		exitIfError("get device info push failed", err)
+		if JSONdisabled {
+			fmt.Printf("      Model: %s\n", info.Model)
+			fmt.Printf("  BlockSize: %d\n", info.BlockSize)
+			fmt.Printf("  FreeSpace: %s\n", ios.ByteCountDecimal(int64(info.FreeBytes)))
+			fmt.Printf("  UsedSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes-info.FreeBytes)))
+			fmt.Printf(" TotalSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes)))
+		} else {
+			fmt.Println(convertToJSONString(info))
 		}
-		fmt.Printf("      Model: %s\n", info.Model)
-		fmt.Printf("  BlockSize: %d\n", info.BlockSize)
-		fmt.Printf("  FreeSpace: %s\n", ios.ByteCountDecimal(int64(info.FreeBytes)))
-		fmt.Printf("  UsedSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes-info.FreeBytes)))
-		fmt.Printf(" TotalSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes)))
 		return
 	}
 
@@ -1556,9 +1558,7 @@ The commands work as following:
 		useUserspaceNetworking, _ := arguments.Bool("--userspace")
 		if startCommand && !useUserspaceNetworking {
 			err := ios.CheckRoot()
-			if err != nil {
-				exitIfError("If --userspace is not set, we need sudo or an admin shell on Windows", err)
-			}
+			exitIfError("If --userspace is not set, we need sudo or an admin shell on Windows", err)
 		}
 		if useUserspaceNetworking {
 			log.Info("Using userspace networking")
@@ -1576,12 +1576,18 @@ The commands work as following:
 			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoPort, useUserspaceNetworking)
 		} else if listCommand {
 			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoHost, tunnelInfoPort)
-			if err != nil {
-				exitIfError("failed to get tunnel infos", err)
+			exitIfError("failed to get tunnel infos", err)
+			if disableJSON {
+				for index, t := range tunnels {
+					if 0 != index {
+						fmt.Println()
+					}
+					fmt.Printf("Udid: %s\n  Address: %s\n  RsdPort: %d\n  UserspaceTUN: %v\n  UserspaceTUNPort: %d\n",
+						t.Udid, t.Address, t.RsdPort, t.UserspaceTUN, t.UserspaceTUNPort)
+				}
+			} else {
+				fmt.Println(convertToJSONString(tunnels))
 			}
-			enc := json.NewEncoder(os.Stdout)
-			enc.SetIndent("", "  ")
-			_ = enc.Encode(tunnels)
 		}
 		if stopagent {
 			err := tunnel.CloseAgent()
@@ -1604,7 +1610,12 @@ The commands work as following:
 
 		if get {
 			devModeEnabled, _ := imagemounter.IsDevModeEnabled(device)
-			fmt.Printf("Developer mode enabled: %v\n", devModeEnabled)
+			if JSONdisabled {
+				fmt.Printf("Developer mode enabled: %v\n", devModeEnabled)
+			} else {
+				result := map[string]interface{}{"DeveloperModeEnabled": devModeEnabled}
+				fmt.Println(convertToJSONString(result))
+			}
 		}
 
 		return
