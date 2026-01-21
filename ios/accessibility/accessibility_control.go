@@ -93,7 +93,6 @@ const (
 type AXElementData struct {
 	PlatformElementValue string `json:"platformElementValue"` // Base64-encoded platform element data
 	SpokenDescription    string `json:"spokenDescription"`    // Spoken description of the element
-	CaptionText          string `json:"captionText"`          // CaptionTextValue_v1 extracted value
 }
 
 func (a *ControlInterface) readhostAppStateChanged() {
@@ -269,7 +268,6 @@ func (a *ControlInterface) Move(ctx context.Context, direction MoveDirection) (A
 	}
 
 	spokenDescription := a.extractSpokenDescription(innerValue)
-	captionText := a.extractCaptionText(innerValue)
 	platformElementBytes, err := a.extractPlatformElementBytes(innerValue)
 	if err != nil {
 		return AXElementData{}, err
@@ -278,7 +276,6 @@ func (a *ControlInterface) Move(ctx context.Context, direction MoveDirection) (A
 	return AXElementData{
 		PlatformElementValue: base64.StdEncoding.EncodeToString(platformElementBytes),
 		SpokenDescription:    spokenDescription,
-		CaptionText:          captionText,
 	}, nil
 }
 
@@ -293,20 +290,6 @@ func (a *ControlInterface) extractSpokenDescription(innerValue map[string]interf
 		return desc
 	}
 
-	return ""
-}
-
-// extractCaptionText extracts CaptionTextValue_v1 from innerValue
-func (a *ControlInterface) extractCaptionText(innerValue map[string]interface{}) string {
-	if capRaw, ok := innerValue["CaptionTextValue_v1"]; ok {
-		val := deserializeObject(capRaw)
-		if s, ok := val.(string); ok && s != "" {
-			return s
-		}
-		if val != nil {
-			return fmt.Sprintf("%v", val)
-		}
-	}
 	return ""
 }
 
