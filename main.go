@@ -1123,9 +1123,9 @@ The commands work as following:
 				err = pControl.KillProcess(p.Pid)
 				exitIfError("kill process failed ", err)
 				if bundleID != "" {
-					log.Info(bundleID, " killed, Pid: ", p.Pid)
+					log.WithFields(log.Fields{"pid": p.Pid}).Info(bundleID, " killed, Pid: ", p.Pid)
 				} else {
-					log.Info(p.Name, " killed, Pid: ", p.Pid)
+					log.WithFields(log.Fields{"pid": p.Pid}).Info(p.Name, " killed, Pid: ", p.Pid)
 				}
 				return
 			}
