@@ -158,7 +158,11 @@ func (d *Channel) Dispatch(msg Message) {
 		log.Trace("Dispatching:", msg.Payload[0].(string))
 		if v, ok := d.registeredMethods[msg.Payload[0].(string)]; ok {
 			d.mutex.Unlock()
-			v <- msg
+			select {
+			case v <- msg:
+			default:
+				log.Warnf("Dropped method invocation '%s': receiver not available", msg.Payload[0].(string))
+			}
 			return
 		}
 	}
