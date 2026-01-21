@@ -121,7 +121,7 @@ Usage:
   ios mobilegestalt <key>... [--plist] [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
-  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [options]
+  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale=<locale>] [--lang=<lang>] [options]
   ios prepare cloudconfig [options]
   ios prepare create-cert
   ios prepare printskip
