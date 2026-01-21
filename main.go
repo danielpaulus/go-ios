@@ -1397,7 +1397,7 @@ The commands work as following:
 			fileSize := fileInfo.Size()
 
 			if !JSONdisabled {
-				result := map[string]interface{}{
+				result := map[string]any{
 					"remote": remotePath,
 					"local":  localPath,
 					"size":   fileSize,
@@ -1437,12 +1437,11 @@ The commands work as following:
 			err = conn.PushFile(remotePath, file, fileSize, permissions, uid, gid)
 			exitIfError("push: failed to upload file", err)
 
-			if b, _ := arguments.Bool("--json"); b {
-				result := map[string]interface{}{
-					"success": true,
-					"remote":  remotePath,
-					"local":   localPath,
-					"size":    fileSize,
+			if !JSONdisabled {
+				result := map[string]any{
+					"remote": remotePath,
+					"local":  localPath,
+					"size":   fileSize,
 				}
 				fmt.Println(convertToJSONString(result))
 			} else {
