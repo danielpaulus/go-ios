@@ -12,7 +12,6 @@ require (
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/pierrec/lz4 v2.6.1+incompatible
-	github.com/pkg/errors v0.9.1
 	github.com/quic-go/quic-go v0.40.1-0.20231203135336-87ef8ec48d55
 	github.com/sirupsen/logrus v1.9.3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
