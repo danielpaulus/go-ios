@@ -189,7 +189,11 @@ func (d *Channel) Dispatch(msg Message) {
 					}
 
 					if msg.ConversationIndex > 0 {
-						d.responseWaiters[msg.Identifier] <- msg
+						select {
+						case d.responseWaiters[msg.Identifier] <- msg:
+						default:
+							log.Warnf("Dropped response for message %d: receiver not available (likely timed out)", msg.Identifier)
+						}
 					} else {
 						d.messageDispatcher.Dispatch(msg)
 					}
@@ -204,7 +208,11 @@ func (d *Channel) Dispatch(msg Message) {
 			return
 		}
 
-		d.responseWaiters[msg.Identifier] <- msg
+		select {
+		case d.responseWaiters[msg.Identifier] <- msg:
+		default:
+			log.Warnf("Dropped response for message %d: receiver not available (likely timed out)", msg.Identifier)
+		}
 		delete(d.responseWaiters, msg.Identifier)
 		delete(d.defragmenters, msg.Identifier)
 		return
