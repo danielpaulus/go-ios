@@ -60,6 +60,23 @@ func (d *Channel) ReceiveMethodCallWithTimeout(ctx context.Context, selector str
 	}
 }
 
+// DrainMethodChannel removes any pending messages for the selector.
+// Use this before triggering an action to clear stale messages from previous timed-out calls.
+func (d *Channel) DrainMethodChannel(selector string) {
+	d.mutex.Lock()
+	channel := d.registeredMethods[selector]
+	d.mutex.Unlock()
+	for {
+		select {
+		case <-channel:
+			// Drained one message
+		default:
+			// No more messages
+			return
+		}
+	}
+}
+
 // MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 // DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
 func (d *Channel) MethodCall(selector string, args ...interface{}) (Message, error) {
@@ -145,6 +162,10 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType MessageType, 
 	case response := <-responseChannel:
 		return response, nil
 	case <-time.After(d.timeout):
+		// Cleanup waiter to prevent memory leak if response never arrives
+		d.mutex.Lock()
+		delete(d.responseWaiters, identifier)
+		d.mutex.Unlock()
 		return Message{}, fmt.Errorf("Timed out waiting for response for message:%d channel:%d", identifier, d.channelCode)
 	}
 }
@@ -155,13 +176,25 @@ func (d *Channel) Dispatch(msg Message) {
 		d.messageIdentifier = msg.Identifier + 1
 	}
 	if msg.PayloadHeader.MessageType == Methodinvocation {
-		log.Trace("Dispatching:", msg.Payload[0].(string))
-		if v, ok := d.registeredMethods[msg.Payload[0].(string)]; ok {
+		selector := msg.Payload[0].(string)
+		log.Trace("Dispatching:", selector)
+		if v, ok := d.registeredMethods[selector]; ok {
+			timeout := d.timeout
 			d.mutex.Unlock()
 			select {
 			case v <- msg:
+				// Delivered directly
 			default:
-				log.Warnf("Dropped method invocation '%s': receiver not available", msg.Payload[0].(string))
+				// Receiver busy, deliver in background to avoid blocking reader
+				go func() {
+					timer := time.NewTimer(timeout)
+					defer timer.Stop()
+					select {
+					case v <- msg:
+					case <-timer.C:
+						log.Warnf("Failed to deliver method invocation '%s' after %v", selector, timeout)
+					}
+				}()
 			}
 			return
 		}
