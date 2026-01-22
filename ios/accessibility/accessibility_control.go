@@ -293,47 +293,20 @@ func (a *ControlInterface) extractSpokenDescription(innerValue map[string]interf
 	return ""
 }
 
-const defaultQueryTimeout = 500 * time.Millisecond
+func (a *ControlInterface) QueryLabelValue(platformElementValue string) (string, error) {
+	return a.QueryAttributeValue(platformElementValue, "Label")
+}
 
-// QueryAttributeValue queries any string attribute (Label, Identifier, Value, etc.) for an element
-func (a *ControlInterface) QueryAttributeValue(platformElementValue string, attributeName string, timeout time.Duration) (string, error) {
+func (a *ControlInterface) QueryIdentifierValue(platformElementValue string) (string, error) {
+	return a.QueryAttributeValue(platformElementValue, "Identifier")
+}
+
+func (a *ControlInterface) QueryAttributeValue(platformElementValue string, attributeName string) (string, error) {
 	platformElementBytes, err := base64.StdEncoding.DecodeString(platformElementValue)
 	if err != nil {
 		return "", fmt.Errorf("invalid platformElementValue base64: %w", err)
 	}
-
-	resultChan := make(chan string, 1)
-	go func() {
-		resultChan <- a.queryAttributeValue(platformElementBytes, attributeName)
-	}()
-
-	select {
-	case result := <-resultChan:
-		return result, nil
-	case <-time.After(timeout):
-		return "", fmt.Errorf("timeout after %v querying attribute %s", timeout, attributeName)
-	}
-}
-
-func (a *ControlInterface) QueryLabelValue(platformElementValue string, timeout ...time.Duration) (string, error) {
-	t := defaultQueryTimeout
-	if len(timeout) > 0 {
-		t = timeout[0]
-	}
-	return a.QueryAttributeValue(platformElementValue, "Label", t)
-}
-
-func (a *ControlInterface) QueryIdentifierValue(platformElementValue string, timeout ...time.Duration) (string, error) {
-	t := defaultQueryTimeout
-	if len(timeout) > 0 {
-		t = timeout[0]
-	}
-	return a.QueryAttributeValue(platformElementValue, "Identifier", t)
-}
-
-// QueryValueValue is a convenience wrapper for QueryAttributeValue with "Value"
-func (a *ControlInterface) QueryValueValue(platformElementValue string) (string, error) {
-	return a.QueryAttributeValue(platformElementValue, "Value", defaultQueryTimeout)
+	return a.queryAttributeValue(platformElementBytes, attributeName), nil
 }
 
 func (a *ControlInterface) queryAttributeValue(platformElementBytes []byte, attributeName string) string {
