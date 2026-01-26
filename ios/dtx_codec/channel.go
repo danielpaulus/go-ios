@@ -98,7 +98,7 @@ func (d *Channel) methodCallWithReply(ctx context.Context, selector string, auxi
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
 	msg, err := d.SendAndAwaitReply(ctx, true, Methodinvocation, payload, auxiliary)
 	if err != nil {
-		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed invoking method")
+		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("ailed starting invoking method")
 		return msg, err
 	}
 	if msg.HasError() {
