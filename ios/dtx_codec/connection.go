@@ -263,7 +263,7 @@ func (dtxConn *Connection) RequestChannelIdentifier(identifier string, messageDi
 
 	ctx, cancel := context.WithTimeout(context.Background(), dtxConn.globalChannel.timeout)
 	defer cancel()
-	rply, err := dtxConn.globalChannel.SendAndAwaitReply(ctx, true, Methodinvocation, payload, auxiliary)
+	rply, err := dtxConn.globalChannel.sendAndAwaitReply(ctx, true, Methodinvocation, payload, auxiliary)
 	log.Debug(rply)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Error("failed requesting channel")

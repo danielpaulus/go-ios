@@ -96,9 +96,9 @@ func (d *Channel) MethodCallWithAuxiliary(selector string, aux PrimitiveDictiona
 
 func (d *Channel) methodCallWithReply(ctx context.Context, selector string, auxiliary PrimitiveDictionary) (Message, error) {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
-	msg, err := d.SendAndAwaitReply(ctx, true, Methodinvocation, payload, auxiliary)
+	msg, err := d.sendAndAwaitReply(ctx, true, Methodinvocation, payload, auxiliary)
 	if err != nil {
-		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("ailed starting invoking method")
+		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed starting invoking method")
 		return msg, err
 	}
 	if msg.HasError() {
@@ -141,7 +141,7 @@ func (d *Channel) AddResponseWaiter(identifier int, channel chan Message) {
 	d.responseWaiters[identifier] = channel
 }
 
-func (d *Channel) SendAndAwaitReply(ctx context.Context, expectsReply bool, messageType MessageType, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
+func (d *Channel) sendAndAwaitReply(ctx context.Context, expectsReply bool, messageType MessageType, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
 	d.mutex.Lock()
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
