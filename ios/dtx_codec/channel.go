@@ -79,26 +79,49 @@ func (d *Channel) DrainMethodChannel(selector string) {
 
 // MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 // DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
+// Always uses the channel's default timeout.
 func (d *Channel) MethodCall(selector string, args ...interface{}) (Message, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), d.timeout)
+	defer cancel()
+	return d.MethodCallWithContext(ctx, selector, args...)
+}
+
+// MethodCallWithContext is like MethodCall but respects the provided context for cancellation/timeout.
+func (d *Channel) MethodCallWithContext(ctx context.Context, selector string, args ...interface{}) (Message, error) {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, d.timeout)
+		defer cancel()
+	}
+
 	auxiliary := NewPrimitiveDictionary()
 	for _, arg := range args {
 		auxiliary.AddNsKeyedArchivedObject(arg)
 	}
 
-	return d.methodCallWithReply(selector, auxiliary)
+	payload, _ := nskeyedarchiver.ArchiveBin(selector)
+	msg, err := d.SendAndAwaitReply(ctx, true, Methodinvocation, payload, auxiliary)
+	if err != nil {
+		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed invoking method")
+		return msg, err
+	}
+	if msg.HasError() {
+		return msg, fmt.Errorf("failed invoking method '%s' with error: %s", selector, msg.Payload[0])
+	}
+
+	return msg, nil
 }
 
 // MethodCallWithAuxiliary is a DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 // DTXMessage payload, and the primitive arguments put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
 func (d *Channel) MethodCallWithAuxiliary(selector string, aux PrimitiveDictionary) (Message, error) {
-	return d.methodCallWithReply(selector, aux)
-}
+	ctx, cancel := context.WithTimeout(context.Background(), d.timeout)
+	defer cancel()
 
-func (d *Channel) methodCallWithReply(selector string, auxiliary PrimitiveDictionary) (Message, error) {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
-	msg, err := d.SendAndAwaitReply(true, Methodinvocation, payload, auxiliary)
+	msg, err := d.SendAndAwaitReply(ctx, true, Methodinvocation, payload, aux)
 	if err != nil {
-		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed starting invoking method")
+		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed invoking method")
 		return msg, err
 	}
 	if msg.HasError() {
@@ -142,7 +165,8 @@ func (d *Channel) AddResponseWaiter(identifier int, channel chan Message) {
 	d.responseWaiters[identifier] = channel
 }
 
-func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType MessageType, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
+// SendAndAwaitReply sends a message and waits for the reply, respecting the provided context for cancellation/timeout.
+func (d *Channel) SendAndAwaitReply(ctx context.Context, expectsReply bool, messageType MessageType, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
 	d.mutex.Lock()
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
@@ -156,17 +180,20 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType MessageType, 
 
 	err = d.connection.Send(bytes)
 	if err != nil {
+		d.mutex.Lock()
+		delete(d.responseWaiters, identifier)
+		d.mutex.Unlock()
 		return Message{}, err
 	}
 	select {
 	case response := <-responseChannel:
 		return response, nil
-	case <-time.After(d.timeout):
-		// Cleanup waiter to prevent memory leak if response never arrives
+	case <-ctx.Done():
+		// Cleanup waiter to prevent memory leak
 		d.mutex.Lock()
 		delete(d.responseWaiters, identifier)
 		d.mutex.Unlock()
-		return Message{}, fmt.Errorf("Timed out waiting for response for message:%d channel:%d", identifier, d.channelCode)
+		return Message{}, ctx.Err()
 	}
 }
 
@@ -176,26 +203,10 @@ func (d *Channel) Dispatch(msg Message) {
 		d.messageIdentifier = msg.Identifier + 1
 	}
 	if msg.PayloadHeader.MessageType == Methodinvocation {
-		selector := msg.Payload[0].(string)
-		log.Trace("Dispatching:", selector)
-		if v, ok := d.registeredMethods[selector]; ok {
-			timeout := d.timeout
+		log.Trace("Dispatching:", msg.Payload[0].(string))
+		if v, ok := d.registeredMethods[msg.Payload[0].(string)]; ok {
 			d.mutex.Unlock()
-			select {
-			case v <- msg:
-				// Delivered directly
-			default:
-				// Receiver busy, deliver in background to avoid blocking reader
-				go func() {
-					timer := time.NewTimer(timeout)
-					defer timer.Stop()
-					select {
-					case v <- msg:
-					case <-timer.C:
-						log.Warnf("Failed to deliver method invocation '%s' after %v", selector, timeout)
-					}
-				}()
-			}
+			v <- msg
 			return
 		}
 	}
@@ -222,11 +233,7 @@ func (d *Channel) Dispatch(msg Message) {
 					}
 
 					if msg.ConversationIndex > 0 {
-						select {
-						case d.responseWaiters[msg.Identifier] <- msg:
-						default:
-							log.Warnf("Dropped response for message %d: receiver not available (likely timed out)", msg.Identifier)
-						}
+						d.responseWaiters[msg.Identifier] <- msg
 					} else {
 						d.messageDispatcher.Dispatch(msg)
 					}
@@ -241,11 +248,7 @@ func (d *Channel) Dispatch(msg Message) {
 			return
 		}
 
-		select {
-		case d.responseWaiters[msg.Identifier] <- msg:
-		default:
-			log.Warnf("Dropped response for message %d: receiver not available (likely timed out)", msg.Identifier)
-		}
+		d.responseWaiters[msg.Identifier] <- msg
 		delete(d.responseWaiters, msg.Identifier)
 		delete(d.defragmenters, msg.Identifier)
 		return
