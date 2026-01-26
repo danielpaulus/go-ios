@@ -253,6 +253,7 @@ func (a *ControlInterface) TurnOff() {
 
 // Move navigates focus using the given direction and returns selected element data.
 func (a *ControlInterface) Move(ctx context.Context, direction MoveDirection) (AXElementData, error) {
+	log.Info("changing")
 	a.deviceInspectorMoveWithOptions(direction)
 	log.Info("before changed")
 
