@@ -253,9 +253,6 @@ func (a *ControlInterface) TurnOff() {
 
 // Move navigates focus using the given direction and returns selected element data.
 func (a *ControlInterface) Move(ctx context.Context, direction MoveDirection) (AXElementData, error) {
-	// Drain stale messages from previous timed-out calls
-	a.channel.DrainMethodChannel("hostInspectorCurrentElementChanged:")
-
 	a.deviceInspectorMoveWithOptions(direction)
 	log.Info("before changed")
 
