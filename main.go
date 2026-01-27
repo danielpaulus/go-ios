@@ -1397,7 +1397,7 @@ The commands work as following:
 			fileSize := fileInfo.Size()
 
 			if !JSONdisabled {
-				result := map[string]any{
+				result := map[string]interface{}{
 					"remote": remotePath,
 					"local":  localPath,
 					"size":   fileSize,
@@ -1438,7 +1438,7 @@ The commands work as following:
 			exitIfError("push: failed to upload file", err)
 
 			if !JSONdisabled {
-				result := map[string]any{
+				result := map[string]interface{}{
 					"remote": remotePath,
 					"local":  localPath,
 					"size":   fileSize,
