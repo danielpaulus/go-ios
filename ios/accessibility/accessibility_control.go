@@ -293,6 +293,66 @@ func (a *ControlInterface) extractSpokenDescription(innerValue map[string]interf
 	return ""
 }
 
+func (a *ControlInterface) QueryLabelValue(ctx context.Context, platformElementValue string) (string, error) {
+	return a.QueryAttributeValue(ctx, platformElementValue, "Label")
+}
+
+func (a *ControlInterface) QueryIdentifierValue(ctx context.Context, platformElementValue string) (string, error) {
+	return a.QueryAttributeValue(ctx, platformElementValue, "Identifier")
+}
+
+func (a *ControlInterface) QueryAttributeValue(ctx context.Context, platformElementValue string, attributeName string) (string, error) {
+	platformElementBytes, err := base64.StdEncoding.DecodeString(platformElementValue)
+	if err != nil {
+		return "", fmt.Errorf("invalid platformElementValue base64: %w", err)
+	}
+	return a.queryAttributeValue(ctx, platformElementBytes, attributeName)
+}
+
+func (a *ControlInterface) queryAttributeValue(ctx context.Context, platformElementBytes []byte, attributeName string) (string, error) {
+	elementArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditElement_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"PlatformElementValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough",
+					"Value":      platformElementBytes,
+				}),
+			}),
+		}),
+	})
+
+	attributeArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+		"ObjectType": "AXAuditElementAttribute_v1",
+		"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+			"ObjectType": "passthrough",
+			"Value": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+				"AttributeNameValue_v1": nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{
+					"ObjectType": "passthrough", "Value": attributeName,
+				}),
+			}),
+		}),
+	})
+
+	response, err := a.channel.MethodCallWithContext(ctx, "deviceElement:valueForAttribute:", elementArg, attributeArg)
+	if err != nil {
+		return "", fmt.Errorf("failed to query %s: %w", attributeName, err)
+	}
+
+	// Extract the attribute value from the response payload
+	if len(response.Payload) > 0 {
+		// Response format: [{"ObjectType":"passthrough","Value":"attribute value here"}]
+		if valMap, ok := response.Payload[0].(map[string]interface{}); ok {
+			if val, ok := valMap["Value"].(string); ok {
+				return val, nil
+			}
+		}
+	}
+
+	return "", nil
+}
+
 /*
 PlatformElementValue_v1: A base64-encoded string that uniquely identifies an accessibility element.
 It is required to perform actions on the element.

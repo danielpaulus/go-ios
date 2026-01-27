@@ -2,6 +2,7 @@ package dtx
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"io"
 	"math"
@@ -260,7 +261,9 @@ func (dtxConn *Connection) RequestChannelIdentifier(identifier string, messageDi
 	auxiliary.AddBytes(arch)
 	log.WithFields(log.Fields{"channel_id": identifier}).Debug("Requesting channel")
 
-	rply, err := dtxConn.globalChannel.SendAndAwaitReply(true, Methodinvocation, payload, auxiliary)
+	ctx, cancel := context.WithTimeout(context.Background(), dtxConn.globalChannel.timeout)
+	defer cancel()
+	rply, err := dtxConn.globalChannel.sendAndAwaitReply(ctx, true, Methodinvocation, payload, auxiliary)
 	log.Debug(rply)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": identifier, "error": err}).Error("failed requesting channel")

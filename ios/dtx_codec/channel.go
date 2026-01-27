@@ -62,24 +62,41 @@ func (d *Channel) ReceiveMethodCallWithTimeout(ctx context.Context, selector str
 
 // MethodCall is the standard DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 // DTXMessage payload, and the arguments are separately NSKeyArchiver.archived and put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
+// Always uses the channel's default timeout.
 func (d *Channel) MethodCall(selector string, args ...interface{}) (Message, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), d.timeout)
+	defer cancel()
+	return d.MethodCallWithContext(ctx, selector, args...)
+}
+
+// MethodCallWithContext is like MethodCall but respects the provided context for cancellation/timeout.
+// If the context has no deadline, the channel's default timeout is applied.
+func (d *Channel) MethodCallWithContext(ctx context.Context, selector string, args ...interface{}) (Message, error) {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, d.timeout)
+		defer cancel()
+	}
+
 	auxiliary := NewPrimitiveDictionary()
 	for _, arg := range args {
 		auxiliary.AddNsKeyedArchivedObject(arg)
 	}
 
-	return d.methodCallWithReply(selector, auxiliary)
+	return d.methodCallWithReply(ctx, selector, auxiliary)
 }
 
 // MethodCallWithAuxiliary is a DTX style remote method invocation pattern. The ObjectiveC Selector goes as a NSKeyedArchiver.archived NSString into the
 // DTXMessage payload, and the primitive arguments put into the Auxiliary DTXPrimitiveDictionary. It returns the response message and an error.
 func (d *Channel) MethodCallWithAuxiliary(selector string, aux PrimitiveDictionary) (Message, error) {
-	return d.methodCallWithReply(selector, aux)
+	ctx, cancel := context.WithTimeout(context.Background(), d.timeout)
+	defer cancel()
+	return d.methodCallWithReply(ctx, selector, aux)
 }
 
-func (d *Channel) methodCallWithReply(selector string, auxiliary PrimitiveDictionary) (Message, error) {
+func (d *Channel) methodCallWithReply(ctx context.Context, selector string, auxiliary PrimitiveDictionary) (Message, error) {
 	payload, _ := nskeyedarchiver.ArchiveBin(selector)
-	msg, err := d.SendAndAwaitReply(true, Methodinvocation, payload, auxiliary)
+	msg, err := d.sendAndAwaitReply(ctx, true, Methodinvocation, payload, auxiliary)
 	if err != nil {
 		log.WithFields(log.Fields{"channel_id": d.channelName, "error": err, "methodselector": selector}).Info("failed starting invoking method")
 		return msg, err
@@ -87,7 +104,6 @@ func (d *Channel) methodCallWithReply(selector string, auxiliary PrimitiveDictio
 	if msg.HasError() {
 		return msg, fmt.Errorf("failed invoking method '%s' with error: %s", selector, msg.Payload[0])
 	}
-
 	return msg, nil
 }
 
@@ -125,7 +141,7 @@ func (d *Channel) AddResponseWaiter(identifier int, channel chan Message) {
 	d.responseWaiters[identifier] = channel
 }
 
-func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType MessageType, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
+func (d *Channel) sendAndAwaitReply(ctx context.Context, expectsReply bool, messageType MessageType, payloadBytes []byte, auxiliary PrimitiveDictionary) (Message, error) {
 	d.mutex.Lock()
 	identifier := d.messageIdentifier
 	d.messageIdentifier++
@@ -144,7 +160,7 @@ func (d *Channel) SendAndAwaitReply(expectsReply bool, messageType MessageType, 
 	select {
 	case response := <-responseChannel:
 		return response, nil
-	case <-time.After(d.timeout):
+	case <-ctx.Done():
 		return Message{}, fmt.Errorf("Timed out waiting for response for message:%d channel:%d", identifier, d.channelCode)
 	}
 }
