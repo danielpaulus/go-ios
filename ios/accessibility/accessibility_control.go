@@ -467,7 +467,7 @@ func (a *ControlInterface) PerformAction(actionName Action, currentPlatformEleme
 
 	valueArg := nskeyedarchiver.NewNSMutableDictionary(map[string]interface{}{})
 
-	if _, err := a.channel.MethodCall("deviceElement:performAction:withValue:", elementArg, attributeArg, valueArg); err != nil {
+	if err := a.channel.MethodCallAsync("deviceElement:performAction:withValue:", elementArg, attributeArg, valueArg); err != nil {
 		return fmt.Errorf("failed to send performAction DTX message: %w", err)
 	}
 	return nil
