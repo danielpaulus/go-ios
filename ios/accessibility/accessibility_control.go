@@ -257,8 +257,8 @@ func (a *ControlInterface) Move(direction MoveDirection) {
 	a.deviceInspectorMoveWithOptions(direction)
 }
 
-// AwaitElementChanged waits for and returns the next element change response.
-// If ctx has a deadline, times out accordingly. If ctx is Background(), blocks indefinitely.
+// AwaitElementChanged waits for timeout if available
+// returns the next element change response.
 func (a *ControlInterface) AwaitElementChanged(ctx context.Context) (AXElementData, error) {
 	resp, err := a.awaitHostInspectorCurrentElementChanged(ctx)
 	if err != nil {
