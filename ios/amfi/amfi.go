@@ -61,8 +61,8 @@ func (devModeConn *Connection) EnableDevMode() error {
 	}
 
 	// Check if we have an error returned by the service
-	if _, ok := plist["Error"]; ok {
-		return fmt.Errorf("EnableDevMode: could not enable developer mode through amfi service")
+	if errorMsg, ok := plist["Error"]; ok {
+		return fmt.Errorf("EnableDevMode: could not enable developer mode through amfi service with error: %s", errorMsg)
 	}
 
 	if _, ok := plist["success"]; ok {
