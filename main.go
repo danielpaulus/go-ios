@@ -1123,9 +1123,9 @@ The commands work as following:
 				err = pControl.KillProcess(p.Pid)
 				exitIfError("kill process failed ", err)
 				if bundleID != "" {
-					log.Info(bundleID, " killed, Pid: ", p.Pid)
+					log.WithFields(log.Fields{"pid": p.Pid}).Info(bundleID, " killed, Pid: ", p.Pid)
 				} else {
-					log.Info(p.Name, " killed, Pid: ", p.Pid)
+					log.WithFields(log.Fields{"pid": p.Pid}).Info(p.Name, " killed, Pid: ", p.Pid)
 				}
 				return
 			}
@@ -1437,12 +1437,11 @@ The commands work as following:
 			err = conn.PushFile(remotePath, file, fileSize, permissions, uid, gid)
 			exitIfError("push: failed to upload file", err)
 
-			if b, _ := arguments.Bool("--json"); b {
+			if !JSONdisabled {
 				result := map[string]interface{}{
-					"success": true,
-					"remote":  remotePath,
-					"local":   localPath,
-					"size":    fileSize,
+					"remote": remotePath,
+					"local":  localPath,
+					"size":   fileSize,
 				}
 				fmt.Println(convertToJSONString(result))
 			} else {
