@@ -251,17 +251,23 @@ func (a *ControlInterface) TurnOff() {
 	a.deviceInspectorShowVisuals(false)
 }
 
-// Move navigates focus using the given direction and returns selected element data.
-func (a *ControlInterface) Move(ctx context.Context, direction MoveDirection) (AXElementData, error) {
-	log.Info("changing")
+// Move sends the move command without waiting for response.
+// Use AwaitElementChanged to get the response asynchronously.
+func (a *ControlInterface) Move(direction MoveDirection) {
 	a.deviceInspectorMoveWithOptions(direction)
-	log.Info("before changed")
+}
 
+// AwaitElementChanged waits for timeout if available
+// returns the next element change response.
+func (a *ControlInterface) AwaitElementChanged(ctx context.Context) (AXElementData, error) {
 	resp, err := a.awaitHostInspectorCurrentElementChanged(ctx)
 	if err != nil {
 		return AXElementData{}, err
 	}
+	return a.parseElementResponse(resp)
+}
 
+func (a *ControlInterface) parseElementResponse(resp map[string]interface{}) (AXElementData, error) {
 	innerValue, err := getInnerValue(resp)
 	if err != nil {
 		return AXElementData{}, err
@@ -469,7 +475,8 @@ func (a *ControlInterface) PerformAction(actionName Action, currentPlatformEleme
 
 // GetElement moves the green selection rectangle one element further
 func (a *ControlInterface) GetElement(ctx context.Context) (AXElementData, error) {
-	return a.Move(ctx, DirectionNext)
+	a.Move(DirectionNext)
+	return a.AwaitElementChanged(ctx)
 }
 
 func (a *ControlInterface) UpdateAccessibilitySetting(name string, val interface{}) {
