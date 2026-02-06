@@ -33,6 +33,7 @@ func simpleDeviceRoutes(device *gin.RouterGroup) {
 	device.POST("/pair", PairDevice)
 	device.GET("/profiles", GetProfiles)
 
+	device.POST("/resetaccessibility", ResetAccessibility)
 	device.POST("/resetlocation", ResetLocation)
 	device.GET("/screenshot", Screenshot)
 	device.PUT("/setlocation", SetLocation)

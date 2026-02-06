@@ -12,6 +12,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/accessibility"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	"github.com/danielpaulus/go-ios/ios/simlocation"
@@ -230,6 +231,33 @@ func ResetLocation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, GenericResponse{Message: "Device location reset"})
+}
+
+// Reset accessibility settings to defaults
+// @Summary      Reset accessibility settings
+// @Description  Reset all accessibility settings (including font size) to defaults
+// @Tags         general_device_specific
+// @Produce      json
+// @Success      200  {object}  GenericResponse
+// @Failure      500  {object}  GenericResponse
+// @Param        udid path string true "Device UDID"
+// @Router       /device/{udid}/resetaccessibility [post]
+func ResetAccessibility(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+
+	conn, err := accessibility.NewWithoutEventChangeListeners(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: "Failed creating accessibility service: " + err.Error()})
+		return
+	}
+
+	err = conn.ResetToDefaultAccessibilitySettings()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, GenericResponse{Error: "Failed resetting accessibility settings: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, GenericResponse{Message: "Accessibility settings reset to defaults"})
 }
 
 // Get the list of installed profiles
