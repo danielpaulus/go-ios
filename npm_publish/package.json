@@ -1,6 +1,7 @@
 {
     "name": "go-ios",
     "version": "local-build",
+    "type":"commonjs",
     "description": "Provide a stable and production ready opensource solution to automate iOS device on Linux, Windows and Mac OS X.",
     "main": "index.js",
     "scripts": {
