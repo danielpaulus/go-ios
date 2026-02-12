@@ -95,16 +95,23 @@ type AXElementData struct {
 	SpokenDescription    string `json:"spokenDescription"`    // Spoken description of the element
 }
 
-func (a *ControlInterface) readhostAppStateChanged() {
+func (a *ControlInterface) readhostAppStateChanged(timeout time.Duration) {
 	for {
 		msg := a.channel.ReceiveMethodCall("hostAppStateChanged:")
-		stateChange, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
+		rawBytes := msg.Auxiliary.GetArguments()[0].([]byte)
+
+		var notification Notification
+		stateChange, err := nskeyedarchiver.Unarchive(rawBytes)
+
 		if err != nil {
-			log.Errorf("Error unarchiving app state change: %v", err)
-			continue
+			notification = Notification{Err: err}
+		} else {
+			value := stateChange[0]
+			log.Infof("hostAppStateChanged:%s", value)
+			notification = Notification{Value: value}
 		}
-		value := stateChange[0]
-		log.Infof("hostAppStateChanged:%s", value)
+
+		a.broadcast(notification, timeout)
 	}
 }
 
@@ -158,7 +165,7 @@ func (a *ControlInterface) init(timeout time.Duration) error {
 	a.channel.RegisterMethodForRemote("hostInspectorMonitoredEventTypeChanged:")
 	a.channel.RegisterMethodForRemote("hostAppStateChanged:")
 	a.channel.RegisterMethodForRemote("hostInspectorNotificationReceived:")
-	go a.readhostAppStateChanged()
+	go a.readhostAppStateChanged(timeout)
 	go a.readhostInspectorNotificationReceived(timeout)
 
 	err := a.notifyPublishedCapabilities()
