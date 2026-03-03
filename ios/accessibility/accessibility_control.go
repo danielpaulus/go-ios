@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"slices"
-	"sync"
-	"time"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
@@ -18,44 +15,26 @@ type Notification struct {
 	Err   error
 }
 
+// AccessibilityInspectorCallbacks is the interface that consumers implement
+// to receive asynchronous device notifications.
+type AccessibilityInspectorCallbacks interface {
+	HostAppStateChanged(notification Notification)
+	HostInspectorNotificationReceived(notification Notification)
+}
+
 // ControlInterface provides a simple interface to controlling the AX service on the device
 // It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
-	cm          *dtx.Connection
-	channel     *dtx.Channel
-	subscribers []chan Notification
-	mu          sync.RWMutex
+	cm        *dtx.Connection
+	channel   *dtx.Channel
+	callbacks AccessibilityInspectorCallbacks
 }
 
-// broadcast sends a notification to all active subscribers safely.
-func (a *ControlInterface) broadcast(n Notification, timeout time.Duration) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	for _, ch := range a.subscribers {
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-
-		select {
-		case ch <- n:
-		case <-ctx.Done():
-			log.Warnf("Subscriber blocked >%v. Dropping notification.", timeout)
-		}
-		cancel()
-	}
-}
-
-// Close shuts down the connection and closes all subscriber channels.
+// Close shuts down the connection.
 func (a *ControlInterface) Close() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	if a.cm != nil {
 		a.cm.Close()
 	}
-	for _, ch := range a.subscribers {
-		close(ch)
-	}
-	a.subscribers = nil
 	return nil
 }
 
@@ -95,51 +74,35 @@ type AXElementData struct {
 	SpokenDescription    string `json:"spokenDescription"`    // Spoken description of the element
 }
 
-func (a *ControlInterface) readhostAppStateChanged() {
+func (a *ControlInterface) readhostAppStateChanged(ctx context.Context) {
 	for {
-		msg := a.channel.ReceiveMethodCall("hostAppStateChanged:")
-		stateChange, err := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
+		msg, err := a.channel.ReceiveMethodCallWithTimeout(ctx, "hostAppStateChanged:")
 		if err != nil {
-			log.Errorf("Error unarchiving app state change: %v", err)
-			continue
+			return
 		}
-		value := stateChange[0]
-		log.Infof("hostAppStateChanged:%s", value)
-	}
-}
-
-// Subscribe returns a read-only channel for the consumer and a "cancel" function to unsubscribe
-func (a *ControlInterface) Subscribe() (<-chan Notification, func()) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	// Unbuffered channel, Sends will block until the consumer reads
-	ch := make(chan Notification)
-
-	a.subscribers = append(a.subscribers, ch)
-
-	unsubscribe := func() {
-		a.mu.Lock()
-		defer a.mu.Unlock()
-
-		idx := slices.Index(a.subscribers, ch)
-		if idx >= 0 {
-			close(a.subscribers[idx])
-			a.subscribers = slices.Delete(a.subscribers, idx, idx+1)
-		}
-	}
-
-	return ch, unsubscribe
-}
-
-func (a *ControlInterface) readhostInspectorNotificationReceived(timeout time.Duration) {
-	for {
-		msg := a.channel.ReceiveMethodCall("hostInspectorNotificationReceived:")
 		rawBytes := msg.Auxiliary.GetArguments()[0].([]byte)
-
+		stateChange, err := nskeyedarchiver.Unarchive(rawBytes)
 		var notification Notification
-		decoded, err := nskeyedarchiver.Unarchive(rawBytes)
+		if err != nil {
+			notification = Notification{Err: err}
+		} else {
+			value := stateChange[0]
+			log.Infof("hostAppStateChanged:%s", value)
+			notification = Notification{Value: value}
+		}
+		a.callbacks.HostAppStateChanged(notification)
+	}
+}
 
+func (a *ControlInterface) readhostInspectorNotificationReceived(ctx context.Context) {
+	for {
+		msg, err := a.channel.ReceiveMethodCallWithTimeout(ctx, "hostInspectorNotificationReceived:")
+		if err != nil {
+			return
+		}
+		rawBytes := msg.Auxiliary.GetArguments()[0].([]byte)
+		decoded, err := nskeyedarchiver.Unarchive(rawBytes)
+		var notification Notification
 		if err != nil {
 			notification = Notification{Err: err}
 		} else {
@@ -147,19 +110,18 @@ func (a *ControlInterface) readhostInspectorNotificationReceived(timeout time.Du
 			log.Infof("hostInspectorNotificationReceived:%s", val)
 			notification = Notification{Value: val}
 		}
-
-		a.broadcast(notification, timeout)
+		a.callbacks.HostInspectorNotificationReceived(notification)
 	}
 }
 
 // init wires up event receivers and gets Info from the device
-func (a *ControlInterface) init(timeout time.Duration) error {
+func (a *ControlInterface) init(ctx context.Context) error {
 	a.channel.RegisterMethodForRemote("hostInspectorCurrentElementChanged:")
 	a.channel.RegisterMethodForRemote("hostInspectorMonitoredEventTypeChanged:")
 	a.channel.RegisterMethodForRemote("hostAppStateChanged:")
 	a.channel.RegisterMethodForRemote("hostInspectorNotificationReceived:")
-	go a.readhostAppStateChanged()
-	go a.readhostInspectorNotificationReceived(timeout)
+	go a.readhostAppStateChanged(ctx)
+	go a.readhostInspectorNotificationReceived(ctx)
 
 	err := a.notifyPublishedCapabilities()
 	if err != nil {
