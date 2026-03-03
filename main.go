@@ -2176,9 +2176,14 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 	}
 }
 
+type noopAxCallbacks struct{}
+
+func (noopAxCallbacks) HostAppStateChanged(accessibility.Notification)              {}
+func (noopAxCallbacks) HostInspectorNotificationReceived(accessibility.Notification) {}
+
 func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 	go func() {
-		conn, err := accessibility.New(device, 500*time.Millisecond)
+		conn, err := accessibility.New(device, context.Background(), noopAxCallbacks{})
 		exitIfError("failed starting ax", err)
 
 		conn.SwitchToDevice()
