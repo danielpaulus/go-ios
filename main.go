@@ -2178,7 +2178,7 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 
 type noopAxCallbacks struct{}
 
-func (noopAxCallbacks) HostAppStateChanged(accessibility.Notification)              {}
+func (noopAxCallbacks) HostAppStateChanged(accessibility.Notification)               {}
 func (noopAxCallbacks) HostInspectorNotificationReceived(accessibility.Notification) {}
 
 func startAx(device ios.DeviceEntry, arguments docopt.Opts) {

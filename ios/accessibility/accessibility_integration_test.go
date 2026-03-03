@@ -13,7 +13,7 @@ import (
 
 type noopCallbacks struct{}
 
-func (noopCallbacks) HostAppStateChanged(accessibility.Notification)              {}
+func (noopCallbacks) HostAppStateChanged(accessibility.Notification)               {}
 func (noopCallbacks) HostInspectorNotificationReceived(accessibility.Notification) {}
 
 func TestMove(t *testing.T) {
