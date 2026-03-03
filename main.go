@@ -140,6 +140,7 @@ Usage:
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]
   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
+  ios shutdown [options]
   ios syslog [--parse] [options]
   ios sysmontap [options]
   ios timeformat (24h | 12h | toggle | get) [--force] [options]
@@ -371,6 +372,8 @@ The commands work as following:
 
     ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]      Updates the location of the device based on the data in a GPX file.
                                                                     Ex.: setlocationgpx --gpxfilepath=/home/username/location.gpx
+
+	ios shutdown [options]                                          Shuts down the device
 
     ios syslog [--parse] [options]                                  Prints a device's log output, Use --parse to parse the fields from the log
     ios sysmontap                                                   Get system stats like MEM, CPU
@@ -1271,6 +1274,17 @@ The commands work as following:
 	b, _ = arguments.Bool("reboot")
 	if b {
 		err := diagnostics.Reboot(device)
+		if err != nil {
+			log.Error(err)
+		} else {
+			log.Info("ok")
+		}
+		return
+	}
+
+	b, _ = arguments.Bool("shutdown")
+	if b {
+		err := diagnostics.Shutdown(device)
 		if err != nil {
 			log.Error(err)
 		} else {

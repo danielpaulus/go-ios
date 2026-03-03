@@ -33,6 +33,18 @@ func Reboot(device ios.DeviceEntry) error {
 	return service.Close()
 }
 
+func Shutdown(device ios.DeviceEntry) error {
+	service, err := New(device)
+	if err != nil {
+		return err
+	}
+	err = service.Shutdown()
+	if err != nil {
+		return err
+	}
+	return service.Close()
+}
+
 // Battery extracts the battery ioregistry stats like Temperature, Voltage, CurrentCapacity
 func (diagnosticsConn *Connection) Battery() (IORegistry, error) {
 	req := newIORegistryRequest()
@@ -81,6 +93,35 @@ func (diagnosticsConn *Connection) Reboot() error {
 		}
 	}
 	return fmt.Errorf("could not reboot, response: %+v", plist)
+}
+
+func (diagnosticsConn *Connection) Shutdown() error {
+	req := rebootRequest{Request: "Shutdown", WaitForDisconnect: true, DisplayFail: true, DisplayPass: true}
+	reader := diagnosticsConn.deviceConn.Reader()
+	bytes, err := diagnosticsConn.plistCodec.Encode(req)
+	if err != nil {
+		return err
+	}
+	err = diagnosticsConn.deviceConn.Send(bytes)
+	if err != nil {
+		return err
+	}
+	response, err := diagnosticsConn.plistCodec.Decode(reader)
+	if err != nil {
+		return err
+	}
+	plist, err := ios.ParsePlist(response)
+	if err != nil {
+		return err
+	}
+	if val, ok := plist["Status"]; ok {
+		if statusString, yes := val.(string); yes {
+			if statusString == "Success" {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("could not shutdown, response: %+v", plist)
 }
 
 func (diagnosticsConn *Connection) AllValues() (allDiagnosticsResponse, error) {
