@@ -106,8 +106,8 @@ func forwardTCPToInterface(ctx context.Context, mtu uint64, deviceConn io.Reader
 				return fmt.Errorf("failed to read IPv6 header: %w", err)
 			}
 
-			if ip6Header[0] != 0x60 {
-				return fmt.Errorf("not an IPv6 packet. expected 0x60, but got 0x%02x", ip6Header[0])
+			if ip6Header[0]>>4 != 6 {
+				return fmt.Errorf("not an IPv6 packet: expected version 6, got %d", ip6Header[0]>>4)
 			}
 			payloadLength := binary.BigEndian.Uint16(ip6Header[4:6])
 			_, err = io.ReadFull(br, payload[:payloadLength])
