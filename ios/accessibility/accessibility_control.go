@@ -15,9 +15,9 @@ type Notification struct {
 	Err   error
 }
 
-// AccessibilityInspectorCallbacks is the interface that consumers implement
+// AccessibilityInspectorNotifier is the interface that consumers implement
 // to receive asynchronous device notifications.
-type AccessibilityInspectorCallbacks interface {
+type AccessibilityInspectorNotifier interface {
 	HostAppStateChanged(notification Notification)
 	HostInspectorNotificationReceived(notification Notification)
 }
@@ -25,9 +25,9 @@ type AccessibilityInspectorCallbacks interface {
 // ControlInterface provides a simple interface to controlling the AX service on the device
 // It only needs the global dtx channel as all AX methods are invoked on it.
 type ControlInterface struct {
-	cm        *dtx.Connection
-	channel   *dtx.Channel
-	callbacks AccessibilityInspectorCallbacks
+	cm       *dtx.Connection
+	channel  *dtx.Channel
+	notifier AccessibilityInspectorNotifier
 }
 
 // Close shuts down the connection.
@@ -90,7 +90,7 @@ func (a *ControlInterface) readhostAppStateChanged(ctx context.Context) {
 			log.Infof("hostAppStateChanged:%s", value)
 			notification = Notification{Value: value}
 		}
-		a.callbacks.HostAppStateChanged(notification)
+		a.notifier.HostAppStateChanged(notification)
 	}
 }
 
@@ -110,7 +110,7 @@ func (a *ControlInterface) readhostInspectorNotificationReceived(ctx context.Con
 			log.Infof("hostInspectorNotificationReceived:%s", val)
 			notification = Notification{Value: val}
 		}
-		a.callbacks.HostInspectorNotificationReceived(notification)
+		a.notifier.HostInspectorNotificationReceived(notification)
 	}
 }
 

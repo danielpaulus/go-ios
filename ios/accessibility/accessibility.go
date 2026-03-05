@@ -23,16 +23,16 @@ func NewWithoutEventChangeListeners(device ios.DeviceEntry) (*ControlInterface, 
 }
 
 // New creates and connects to the given device, a new ControlInterface instance
-func New(device ios.DeviceEntry, ctx context.Context, callbacks AccessibilityInspectorCallbacks) (*ControlInterface, error) {
+func New(ctx context.Context, device ios.DeviceEntry, notifier AccessibilityInspectorNotifier) (*ControlInterface, error) {
 	conn, err := dtx.NewUsbmuxdConnection(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
 
 	control := &ControlInterface{
-		cm:        conn,
-		channel:   conn.GlobalChannel(),
-		callbacks: callbacks,
+		cm:       conn,
+		channel:  conn.GlobalChannel(),
+		notifier: notifier,
 	}
 
 	err = control.init(ctx)

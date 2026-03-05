@@ -11,11 +11,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/accessibility"
 )
 
-type noopCallbacks struct{}
-
-func (noopCallbacks) HostAppStateChanged(accessibility.Notification)               {}
-func (noopCallbacks) HostInspectorNotificationReceived(accessibility.Notification) {}
-
 func TestMove(t *testing.T) {
 	device, err := ios.GetDevice("")
 	if err != nil {
@@ -23,7 +18,7 @@ func TestMove(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	conn, err := accessibility.New(device, ctx, noopCallbacks{})
+	conn, err := accessibility.NewWithoutEventChangeListeners(device)
 	if err != nil {
 		t.Fatal(err)
 	}
