@@ -1,7 +1,7 @@
 package accessibility
 
 import (
-	"time"
+	"context"
 
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -23,18 +23,18 @@ func NewWithoutEventChangeListeners(device ios.DeviceEntry) (*ControlInterface, 
 }
 
 // New creates and connects to the given device, a new ControlInterface instance
-func New(device ios.DeviceEntry, sendNotificationTimeout time.Duration) (*ControlInterface, error) {
+func New(ctx context.Context, device ios.DeviceEntry, notifier AccessibilityInspectorNotifier) (*ControlInterface, error) {
 	conn, err := dtx.NewUsbmuxdConnection(device, serviceName)
 	if err != nil {
 		return nil, err
 	}
 
 	control := &ControlInterface{
-		cm:      conn,
-		channel: conn.GlobalChannel(),
+		cm:       conn,
+		channel:  conn.GlobalChannel(),
+		notifier: notifier,
 	}
 
-	// Pass timeout to init
-	err = control.init(sendNotificationTimeout)
+	err = control.init(ctx)
 	return control, err
 }

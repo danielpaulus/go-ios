@@ -79,7 +79,7 @@ func deserializeObject(d interface{}) interface{} {
 	}
 }
 
-func (a ControlInterface) extractStringFromField(innerValue map[string]interface{}, fieldName string) string {
+func (a *ControlInterface) extractStringFromField(innerValue map[string]interface{}, fieldName string) string {
 	raw, ok := innerValue[fieldName]
 	if !ok {
 		return ""

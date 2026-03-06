@@ -4,6 +4,7 @@
 package accessibility_test
 
 import (
+	"context"
 	"testing"
 
 	ios "github.com/danielpaulus/go-ios/ios"
@@ -16,16 +17,14 @@ func TestMove(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	conn, err := accessibility.New(device)
+	ctx := context.Background()
+	conn, err := accessibility.NewWithoutEventChangeListeners(device)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.TurnOff()
 
 	conn.SwitchToDevice()
-	if err != nil {
-		t.Fatal(err)
-	}
 	conn.EnableSelectionMode()
 
 	t.Run("Test Move directions", func(t *testing.T) {
@@ -38,7 +37,8 @@ func TestMove(t *testing.T) {
 
 		for _, direction := range directions {
 			t.Logf("Testing direction: %v", direction)
-			element, err := conn.Move(direction)
+			conn.Move(direction)
+			element, err := conn.AwaitElementChanged(ctx)
 			if err != nil {
 				t.Logf("Move %v failed (expected on some devices): %v", direction, err)
 				continue

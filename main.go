@@ -2178,7 +2178,7 @@ func timeFormat(device ios.DeviceEntry, operation string, force bool) {
 
 func startAx(device ios.DeviceEntry, arguments docopt.Opts) {
 	go func() {
-		conn, err := accessibility.New(device, 500*time.Millisecond)
+		conn, err := accessibility.NewWithoutEventChangeListeners(device)
 		exitIfError("failed starting ax", err)
 
 		conn.SwitchToDevice()
