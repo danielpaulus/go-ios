@@ -85,6 +85,14 @@ func NewReadDevices() ReadDevicesType {
 	return data
 }
 
+// ConnectionTypeLabel returns the connection type reported by usbmuxd (typically "USB" or "Network").
+func (device DeviceEntry) ConnectionTypeLabel() string {
+	if device.Properties.ConnectionType != "" {
+		return device.Properties.ConnectionType
+	}
+	return "unknown"
+}
+
 // SupportsRsd checks if the device supports RSD (Remote Service Discovery).
 // It returns true if the device has RSD capability, otherwise false.
 func (device *DeviceEntry) SupportsRsd() bool {
