@@ -208,6 +208,35 @@ func Pair(device DeviceEntry) error {
 	return nil
 }
 
+func Unpair(device DeviceEntry) error {
+	usbmuxConn, err := NewUsbMuxConnectionSimple()
+	if err != nil {
+		return err
+	}
+	defer usbmuxConn.Close()
+
+	pr, err := usbmuxConn.ReadPair(device.Properties.SerialNumber)
+	if err != nil {
+		return fmt.Errorf("Failed reading pair record with error: %w", err)
+	}
+	_ = pr
+
+	lockdown, err := usbmuxConn.ConnectLockdown(device.DeviceID)
+	if err != nil {
+		return err
+	}
+
+	err = lockdown.Send(map[string]any{
+		"Label":           "go-ios",
+		"Request":         "Pair",
+		"ProtocolVersion": "2",
+		"PairRecord":      pr,
+	})
+	resp, err := lockdown.ReadMessage()
+	_ = resp
+	return err
+}
+
 type FullPairRecordData struct {
 	DeviceCertificate []byte
 	HostCertificate   []byte
