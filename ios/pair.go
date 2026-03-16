@@ -41,6 +41,7 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 	if err != nil {
 		return err
 	}
+	defer lockdown.Close()
 	publicKey, err := lockdown.GetValue("DevicePublicKey")
 	if err != nil {
 		return err
