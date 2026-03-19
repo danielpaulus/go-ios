@@ -22,6 +22,7 @@ import (
 
 	"golang.org/x/crypto/pkcs12"
 
+	"github.com/danielpaulus/go-ios/ios/debuggertools"
 	"github.com/danielpaulus/go-ios/ios/debugproxy"
 	"github.com/danielpaulus/go-ios/ios/deviceinfo"
 	"github.com/danielpaulus/go-ios/ios/house_arrest"
@@ -91,6 +92,7 @@ Usage:
   ios devicestate enable <profileTypeId> <profileId> [options]
   ios devicestate list [options]
   ios devmode (enable | get | reveal) [--enable-post-restart] [options]
+  ios debugviewhierarchy <pid> [--properties=<props>] [options]
   ios diagnostics list [options]
   ios diskspace [options]
   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
@@ -214,6 +216,11 @@ The commands work as following:
                                                                   or reveal the Developer Mode toggle in Settings.
                                                                   Can also completely finalize developer mode setup after device is restarted.
 
+    ios debugviewhierarchy <pid> [--properties=<props>] [options]
+                                                                  Capture debug view hierarchy JSON for a running app (iOS 17+).
+                                                                  Attaches via debug proxy, injects DebugHierarchyFoundation, outputs JSON to stdout.
+                                                                  Specify the target process PID (use 'ios ps' to find it).
+                                                                  --properties     Comma-separated property names to capture (default: frame,bounds,position,...).
     ios diagnostics list [options]                                List diagnostic infos
     ios diskspace [options]                                       Prints disk space info.
 
@@ -909,6 +916,46 @@ The commands work as following:
 		printDeviceDate(device)
 		return
 	}
+	b, _ = arguments.Bool("debugviewhierarchy")
+	if b {
+		pidStr, _ := arguments.String("<pid>")
+		pid, pidErr := strconv.ParseUint(pidStr, 10, 64)
+		exitIfError("invalid PID", pidErr)
+
+		var properties []string
+		if propsStr, err := arguments.String("--properties"); err == nil && propsStr != "" {
+			properties = strings.Split(propsStr, ",")
+		}
+
+		debugProxyPort := device.Rsd.GetPort("com.apple.internal.dt.remote.debugproxy")
+		if debugProxyPort == 0 {
+			exitIfError("debug proxy not found", fmt.Errorf("service com.apple.internal.dt.remote.debugproxy not in RSD"))
+		}
+
+		conn, connErr := ios.ConnectTUNDevice(device.Address, debugProxyPort, device)
+		exitIfError("connect to debug proxy", connErr)
+
+		gdb := debugserver.NewGDBServer(conn)
+		gdb.Request("QStartNoAckMode")
+		gdb.Request("qSupported:xmlRegisters=i386,arm,mips,arc")
+		gdb.Request("QEnableErrorStrings")
+		gdb.Request("QThreadSuffixSupported")
+		gdb.Request("QListThreadsInStopReply")
+
+		resp, attachErr := gdb.Request(fmt.Sprintf("vAttach;%x", pid))
+		exitIfError("attach to process", attachErr)
+		if strings.HasPrefix(resp, "E") {
+			exitIfError("attach to process", fmt.Errorf("PID %d: %s", pid, resp))
+		}
+
+		data, captureErr := debuggertools.CaptureViewHierarchy(gdb, properties)
+		gdb.Request("D")
+		conn.Close()
+		exitIfError("view hierarchy capture failed", captureErr)
+		os.Stdout.Write(data)
+		return
+	}
+
 	b, _ = arguments.Bool("diagnostics")
 	if b {
 		printDiagnostics(device)
