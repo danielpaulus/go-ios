@@ -42,6 +42,43 @@ func Erase(device ios.DeviceEntry) error {
 	return nil
 }
 
+func EraseSupervisedDevice(device ios.DeviceEntry, key []byte, password string) error {
+	conn, err := New(device)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	err = conn.Escalate(key, password)
+	if err != nil {
+		return fmt.Errorf("failed to escalate connection: %w", err)
+	}
+	log.Info("start erasing")
+	log.Debug("send flush request")
+	_, err = check(conn.sendAndReceive(request("Flush")))
+	if err != nil {
+		return err
+	}
+	log.Debug("get cloud config")
+	config, err := check(conn.sendAndReceive(request("GetCloudConfiguration")))
+	if err != nil {
+		return err
+	}
+	log.Debugf("config: %v", config)
+
+	log.Debug("send erase request")
+	eraseRequest := map[string]interface{}{
+		"RequestType":      "EraseDevice",
+		"PreserveDataPlan": 1,
+	}
+	_, err = check(conn.sendAndReceive(eraseRequest))
+	if err != nil && err != io.EOF {
+		return err
+	}
+	log.Info("device should be rebooting now")
+	return nil
+}
+
 func check(request map[string]interface{}, err error) (map[string]interface{}, error) {
 	if err != nil {
 		return map[string]interface{}{}, err
