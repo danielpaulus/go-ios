@@ -2,6 +2,7 @@ package instruments
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/danielpaulus/go-ios/ios"
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -126,52 +127,139 @@ type CPUUsage struct {
 	CPU_TotalLoad float64
 }
 
-func mapToCPUUsage(msg dtx.Message) (SysmontapMessage, error) {
-	payload := msg.Payload
-	if len(payload) != 1 {
-		return SysmontapMessage{}, fmt.Errorf("payload of message should have only one element: %+v", msg)
+// toUint64 converts any numeric type to uint64. Returns false for
+// non-numeric types or negative values.
+func toUint64(v interface{}) (uint64, bool) {
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		i := rv.Int()
+		if i < 0 {
+			return 0, false
+		}
+		return uint64(i), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return rv.Uint(), true
+	case reflect.Float32, reflect.Float64:
+		f := rv.Float()
+		if f < 0 {
+			return 0, false
+		}
+		return uint64(f), true
+	default:
+		return 0, false
+	}
+}
+
+// toFloat64 converts any numeric type to float64. Returns false for
+// non-numeric types.
+func toFloat64(v interface{}) (float64, bool) {
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return float64(rv.Int()), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return float64(rv.Uint()), true
+	case reflect.Float32, reflect.Float64:
+		return rv.Float(), true
+	default:
+		return 0, false
+	}
+}
+
+// requireUint64 extracts a uint64 from a map field, accepting any numeric type.
+func requireUint64(m map[string]interface{}, key string) (uint64, error) {
+	v, ok := toUint64(m[key])
+	if !ok {
+		return 0, fmt.Errorf("expected numeric %s, got %T: %+v", key, m[key], m[key])
+	}
+	return v, nil
+}
+
+// requireFloat64 extracts a float64 from a map field, accepting any numeric type.
+func requireFloat64(m map[string]interface{}, key string) (float64, error) {
+	v, ok := toFloat64(m[key])
+	if !ok {
+		return 0, fmt.Errorf("expected numeric %s, got %T: %+v", key, m[key], m[key])
+	}
+	return v, nil
+}
+
+// requireMap extracts a map[string]interface{} from a map field.
+func requireMap(m map[string]interface{}, key string) (map[string]interface{}, error) {
+	raw, exists := m[key]
+	if !exists {
+		return nil, fmt.Errorf("%s missing in result map", key)
+	}
+	sub, ok := raw.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("expected map[string]interface{} for %s, got %T", key, raw)
+	}
+	return sub, nil
+}
+
+// extractResultMap unwraps the DTX payload into the first result map.
+// Payload structure: []interface{ []interface{ map[string]interface{}, ... }, ... }
+func extractResultMap(payload []interface{}) (map[string]interface{}, error) {
+	if len(payload) == 0 {
+		return nil, fmt.Errorf("empty payload in sysmontap message")
 	}
 
 	resultArray, ok := payload[0].([]interface{})
 	if !ok {
-		return SysmontapMessage{}, fmt.Errorf("expected resultArray of type []interface{}: %+v", payload[0])
+		return nil, fmt.Errorf("expected []interface{} as payload[0], got %T: %+v", payload[0], payload[0])
 	}
+	if len(resultArray) == 0 {
+		return nil, fmt.Errorf("result array is empty in sysmontap payload: %+v", payload)
+	}
+
 	resultMap, ok := resultArray[0].(map[string]interface{})
 	if !ok {
-		return SysmontapMessage{}, fmt.Errorf("expected resultMap of type map[string]interface{} as a single element of resultArray: %+v", resultArray[0])
+		return nil, fmt.Errorf("expected map[string]interface{} for result, got %T: %+v", resultArray[0], resultArray[0])
 	}
-	cpuCount, ok := resultMap["CPUCount"].(uint64)
-	if !ok {
-		return SysmontapMessage{}, fmt.Errorf("expected CPUCount of type uint64 of resultMap: %+v", resultMap)
-	}
-	enabledCPUs, ok := resultMap["EnabledCPUs"].(uint64)
-	if !ok {
-		return SysmontapMessage{}, fmt.Errorf("expected EnabledCPUs of type uint64 of resultMap: %+v", resultMap)
-	}
-	endMachAbsTime, ok := resultMap["EndMachAbsTime"].(uint64)
-	if !ok {
-		return SysmontapMessage{}, fmt.Errorf("expected EndMachAbsTime of type uint64 of resultMap: %+v", resultMap)
-	}
-	typ, ok := resultMap["Type"].(uint64)
-	if !ok {
-		return SysmontapMessage{}, fmt.Errorf("expected Type of type uint64 of resultMap: %+v", resultMap)
-	}
-	sysmontapMessageMap, ok := resultMap["SystemCPUUsage"].(map[string]interface{})
-	if !ok {
-		return SysmontapMessage{}, fmt.Errorf("expected SystemCPUUsage of type map[string]interface{} of resultMap: %+v", resultMap)
-	}
-	cpuTotalLoad, ok := sysmontapMessageMap["CPU_TotalLoad"].(float64)
-	if !ok {
-		return SysmontapMessage{}, fmt.Errorf("expected CPU_TotalLoad of type uint64 of sysmontapMessageMap: %+v", sysmontapMessageMap)
-	}
-	cpuUsage := CPUUsage{CPU_TotalLoad: cpuTotalLoad}
+	return resultMap, nil
+}
 
-	sysmontapMessage := SysmontapMessage{
-		cpuCount,
-		enabledCPUs,
-		endMachAbsTime,
-		typ,
-		cpuUsage,
+// mapToCPUUsage parses a DTX sysmontap message into a SysmontapMessage.
+// It tolerates numeric type variations (int, int64, uint32, float64, etc.)
+// across different iOS versions and device types.
+func mapToCPUUsage(msg dtx.Message) (SysmontapMessage, error) {
+	resultMap, err := extractResultMap(msg.Payload)
+	if err != nil {
+		return SysmontapMessage{}, err
 	}
-	return sysmontapMessage, nil
+
+	cpuCount, err := requireUint64(resultMap, "CPUCount")
+	if err != nil {
+		return SysmontapMessage{}, err
+	}
+	enabledCPUs, err := requireUint64(resultMap, "EnabledCPUs")
+	if err != nil {
+		return SysmontapMessage{}, err
+	}
+	endMachAbsTime, err := requireUint64(resultMap, "EndMachAbsTime")
+	if err != nil {
+		return SysmontapMessage{}, err
+	}
+	typ, err := requireUint64(resultMap, "Type")
+	if err != nil {
+		return SysmontapMessage{}, err
+	}
+
+	sysCPUMap, err := requireMap(resultMap, "SystemCPUUsage")
+	if err != nil {
+		return SysmontapMessage{}, err
+	}
+	cpuTotalLoad, err := requireFloat64(sysCPUMap, "CPU_TotalLoad")
+	if err != nil {
+		return SysmontapMessage{}, err
+	}
+
+	return SysmontapMessage{
+		CPUCount:       cpuCount,
+		EnabledCPUs:    enabledCPUs,
+		EndMachAbsTime: endMachAbsTime,
+		Type:           typ,
+		SystemCPUUsage: CPUUsage{CPU_TotalLoad: cpuTotalLoad},
+	}, nil
 }
