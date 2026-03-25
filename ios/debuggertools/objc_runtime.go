@@ -2,50 +2,46 @@ package debuggertools
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/danielpaulus/go-ios/ios/debugserver"
 	log "github.com/sirupsen/logrus"
 )
 
-// ARM64 register numbers (from debugserver's register numbering)
+// ARM64 register numbers (from debugserver's qRegisterInfo numbering)
 const (
 	regX0 = 0  // first argument / return value
 	regLR = 30 // link register (return address)
 	regPC = 32 // program counter
+
+	// NEON/FP registers v0-v7 for float/double arguments.
+	// GPR set has 63 registers (x0-x28, fp, lr, sp, pc, cpsr, w0-w28),
+	// then VFP set starts at index 63 with v0-v31.
+	regV0 = 63
 )
 
 // dlopen flags
 const (
-	rtldNow = 2 // RTLD_NOW — resolve all symbols on load
+	rtldNow = 2 // RTLD_NOW
 )
 
 // RTLD_DEFAULT = ((void*)-2) on Apple platforms.
-// Tells dlsym to search all currently loaded images.
 const rtldDefault = ^uint64(0) - 1
 
-// ARM64 brk #0 instruction (little-endian).
-// Used as a trap: we set lr to point at this, so when the called function
-// returns, it hits the breakpoint and stops the process.
-const arm64BrkInstruction = "000020d4"
-
-// arm64BrkKind is the breakpoint size for Z0 packet (4 bytes for ARM64)
-const arm64BrkKind = 4
-
-// dataPageSize is the amount of rw memory allocated for strings and data
-const dataPageSize = 0x10000
-
-// codePageSize is the amount of rwx memory allocated for the brk trap
-const codePageSize = 0x100
-
-// memReadChunkSize is the maximum bytes to read per GDB 'm' request
-const memReadChunkSize = 0x4000
+const (
+	arm64BrkInstruction = "000020d4" // brk #0 (little-endian)
+	arm64BrkKind        = 4          // breakpoint size for Z0 packet
+	dataPageSize        = 0x10000    // rw memory for strings/data
+	codePageSize        = 0x100      // rwx memory for brk trap
+	memReadChunkSize    = 0x4000     // max bytes per GDB 'm' request
+)
 
 // objCRuntime provides a high-level interface for calling ObjC methods
-// in a remote process via GDB RSP. It resolves symbols on construction
-// and caches class pointers and selectors across calls.
+// in a remote process via GDB RSP.
 type objCRuntime struct {
 	mem      *gdbMem
+	dlsym    uint64 // address of dlsym()
 	dlopen   uint64 // address of dlopen()
 	msgSend  uint64 // address of objc_msgSend()
 	getClass uint64 // address of objc_getClass()
@@ -57,17 +53,14 @@ type objCRuntime struct {
 // newObjCRuntime bootstraps an ObjC runtime interface by:
 //  1. Saving register state for later restoration
 //  2. Allocating memory for a brk trap and data
-//  3. Finding dlsym via Mach-O export trie (the only "hard" symbol lookup)
-//  4. Using dlsym(RTLD_DEFAULT, name) to resolve dlopen, objc_msgSend, etc.
+//  3. Finding dlsym via Mach-O export trie
+//  4. Using dlsym to resolve dlopen, objc_msgSend, etc.
 func newObjCRuntime(gdb *debugserver.GDBServer) (*objCRuntime, error) {
 	mem, err := newGDBMem(gdb)
 	if err != nil {
 		return nil, err
 	}
 
-	// Bootstrap: find dlsym by parsing the Mach-O export trie of libdyld.
-	// This is the only symbol we resolve the hard way — by scanning the image
-	// list and parsing binary headers over GDB memory reads.
 	dlsymAddrs, err := resolveSymbols(gdb, []symbolQuery{
 		{"libdyld.dylib", "dlsym"},
 	})
@@ -77,8 +70,6 @@ func newObjCRuntime(gdb *debugserver.GDBServer) (*objCRuntime, error) {
 	}
 	dlsymAddr := dlsymAddrs[0]
 
-	// Use dlsym(RTLD_DEFAULT, name) to resolve the remaining symbols.
-	// Each is a single function call instead of scanning the image list.
 	symbolNames := []string{"dlopen", "objc_msgSend", "objc_getClass", "sel_registerName"}
 	resolved := make([]uint64, len(symbolNames))
 	for i, name := range symbolNames {
@@ -94,6 +85,7 @@ func newObjCRuntime(gdb *debugserver.GDBServer) (*objCRuntime, error) {
 
 	return &objCRuntime{
 		mem:      mem,
+		dlsym:    dlsymAddr,
 		dlopen:   resolved[0],
 		msgSend:  resolved[1],
 		getClass: resolved[2],
@@ -116,7 +108,7 @@ func (rt *objCRuntime) CString(s string) uint64 {
 	return addr
 }
 
-// Dlopen loads a dynamic library in the remote process via dlopen(path, RTLD_NOW).
+// Dlopen loads a dynamic library in the remote process.
 func (rt *objCRuntime) Dlopen(path string) uint64 {
 	pathAddr, _ := rt.mem.writeCString(path)
 	handle, _ := rt.mem.call(rt.dlopen, pathAddr, rtldNow)
@@ -127,8 +119,22 @@ func (rt *objCRuntime) Dlopen(path string) uint64 {
 	return handle
 }
 
+// Dlsym resolves a symbol by name via dlsym(RTLD_DEFAULT, name).
+func (rt *objCRuntime) Dlsym(name string) (uint64, error) {
+	nameAddr, _ := rt.mem.writeCString(name)
+	addr, err := rt.mem.call(rt.dlsym, rtldDefault, nameAddr)
+	if err != nil || addr == 0 {
+		return 0, fmt.Errorf("dlsym(%s) failed", name)
+	}
+	return addr, nil
+}
+
+// CallFunc calls a C function with integer args (x0-x7) and double-precision float args (v0-v7).
+func (rt *objCRuntime) CallFunc(funcAddr uint64, intArgs []uint64, floatArgs []float64) (uint64, error) {
+	return rt.mem.callWithFloats(funcAddr, intArgs, floatArgs)
+}
+
 // ClassCall calls a class method: [ClassName selector:args...]
-// Equivalent to objc_msgSend(objc_getClass(className), sel_registerName(sel), args...)
 func (rt *objCRuntime) ClassCall(className string, selector string, args ...uint64) (uint64, error) {
 	cls, err := rt.class(className)
 	if err != nil {
@@ -138,7 +144,6 @@ func (rt *objCRuntime) ClassCall(className string, selector string, args ...uint
 }
 
 // Call calls an instance method: [receiver selector:args...]
-// Equivalent to objc_msgSend(receiver, sel_registerName(sel), args...)
 func (rt *objCRuntime) Call(receiver uint64, selector string, args ...uint64) (uint64, error) {
 	if receiver == 0 {
 		return 0, fmt.Errorf("nil receiver for [? %s]", selector)
@@ -147,7 +152,6 @@ func (rt *objCRuntime) Call(receiver uint64, selector string, args ...uint64) (u
 	if err != nil {
 		return 0, err
 	}
-	// objc_msgSend(receiver, sel, arg0, arg1, ...)
 	callArgs := make([]uint64, 0, 2+len(args))
 	callArgs = append(callArgs, receiver, sel)
 	callArgs = append(callArgs, args...)
@@ -161,7 +165,6 @@ func (rt *objCRuntime) Call(receiver uint64, selector string, args ...uint64) (u
 	return result, nil
 }
 
-// class resolves an ObjC class by name, caching the result.
 func (rt *objCRuntime) class(name string) (uint64, error) {
 	if cached, ok := rt.clsCache[name]; ok {
 		return cached, nil
@@ -175,7 +178,6 @@ func (rt *objCRuntime) class(name string) (uint64, error) {
 	return cls, nil
 }
 
-// sel resolves an ObjC selector by name, caching the result.
 func (rt *objCRuntime) sel(name string) (uint64, error) {
 	if cached, ok := rt.selCache[name]; ok {
 		return cached, nil
@@ -190,15 +192,13 @@ func (rt *objCRuntime) sel(name string) (uint64, error) {
 }
 
 // gdbMem manages memory allocation and function calls in a remote process via GDB RSP.
-// It allocates two memory regions: a data page (rw) for strings/data and a code page (rwx)
-// containing a single brk #0 instruction used as a return trap for function calls.
 type gdbMem struct {
 	gdb      *debugserver.GDBServer
 	threadID string
 	codeAddr uint64 // rwx page with brk #0 trap
 	dataAddr uint64 // rw page for strings/data
 	dataOff  uint64 // write cursor in data page
-	saveID   string // saved register state ID for restoration
+	saveID   string // saved register state ID
 }
 
 func newGDBMem(gdb *debugserver.GDBServer) (*gdbMem, error) {
@@ -210,14 +210,11 @@ func newGDBMem(gdb *debugserver.GDBServer) (*gdbMem, error) {
 
 	m := &gdbMem{gdb: gdb, threadID: threadID}
 
-	// Save all register state so we can restore after our calls
 	m.saveID, _ = gdb.Request(fmt.Sprintf("QSaveRegisterState;thread:%s;", threadID))
 
-	// Allocate a data page (rw) for writing strings and call arguments
 	resp, _ = gdb.Request(fmt.Sprintf("_M%x,rw", dataPageSize))
 	fmt.Sscanf(resp, "%x", &m.dataAddr)
 
-	// Allocate a code page (rwx) for the brk trap instruction
 	resp, _ = gdb.Request(fmt.Sprintf("_M%x,rwx", codePageSize))
 	fmt.Sscanf(resp, "%x", &m.codeAddr)
 
@@ -225,8 +222,6 @@ func newGDBMem(gdb *debugserver.GDBServer) (*gdbMem, error) {
 		return nil, fmt.Errorf("memory allocation failed (data=0x%x code=0x%x)", m.dataAddr, m.codeAddr)
 	}
 
-	// Write brk #0 at code page and set a software breakpoint there.
-	// When a called function returns (via lr), it lands here and traps.
 	gdb.Request(fmt.Sprintf("M%x,%d:%s", m.codeAddr, arm64BrkKind, arm64BrkInstruction))
 	gdb.Request(fmt.Sprintf("Z0,%x,%d", m.codeAddr, arm64BrkKind))
 
@@ -234,6 +229,7 @@ func newGDBMem(gdb *debugserver.GDBServer) (*gdbMem, error) {
 }
 
 // cleanup restores registers, removes breakpoint, and frees allocated memory.
+// Must be called BEFORE detaching from the process.
 func (m *gdbMem) cleanup() {
 	m.gdb.Request(fmt.Sprintf("QRestoreRegisterState:%s;thread:%s;", m.saveID, m.threadID))
 	m.gdb.Request(fmt.Sprintf("z0,%x,%d", m.codeAddr, arm64BrkKind))
@@ -254,28 +250,30 @@ func (m *gdbMem) writeData(data []byte) (uint64, error) {
 	if r != "OK" {
 		return 0, fmt.Errorf("write: %s", r)
 	}
-	// Align next write to 8 bytes (ARM64 requires aligned access for some types)
 	m.dataOff = (m.dataOff + uint64(len(data)) + 7) &^ 7
 	return addr, nil
 }
 
-// call invokes a function in the remote process using ARM64 calling convention:
-//   - x0-x7: arguments (up to 8)
-//   - lr (x30): set to brk trap address (so function return triggers breakpoint)
-//   - pc: set to function address
-//
-// After vCont resumes the thread, the function executes until it returns
-// and hits the brk trap. We then read x0 for the return value.
+// call invokes a function with integer arguments only.
 func (m *gdbMem) call(funcAddr uint64, args ...uint64) (uint64, error) {
-	for i, arg := range args {
+	return m.callWithFloats(funcAddr, args, nil)
+}
+
+// callWithFloats invokes a function with integer (x0-x7) and double (v0-v7) arguments.
+func (m *gdbMem) callWithFloats(funcAddr uint64, intArgs []uint64, floatArgs []float64) (uint64, error) {
+	for i, arg := range intArgs {
 		if err := m.writeReg(regX0+i, arg); err != nil {
 			return 0, err
 		}
 	}
-	m.writeReg(regLR, m.codeAddr) // return to brk trap
-	m.writeReg(regPC, funcAddr)   // jump to function
+	for i, farg := range floatArgs {
+		if err := m.writeFloatReg(regV0+i, farg); err != nil {
+			return 0, err
+		}
+	}
+	m.writeReg(regLR, m.codeAddr)
+	m.writeReg(regPC, funcAddr)
 
-	// Resume this thread only (other threads stay stopped)
 	resp, err := m.gdb.Request(fmt.Sprintf("vCont;c:%s", m.threadID))
 	if err != nil {
 		return 0, fmt.Errorf("vCont: %w", err)
@@ -283,7 +281,26 @@ func (m *gdbMem) call(funcAddr uint64, args ...uint64) (uint64, error) {
 	if !strings.HasPrefix(resp, "T") {
 		return 0, fmt.Errorf("unexpected stop reply: %s", truncate(resp, 60))
 	}
-	return m.readReg(regX0) // return value in x0
+	return m.readReg(regX0)
+}
+
+// writeFloatReg writes a float64 (double) to a 128-bit NEON register.
+func (m *gdbMem) writeFloatReg(reg int, val float64) error {
+	bits := math.Float64bits(val)
+	b := make([]byte, 16)
+	b[0] = byte(bits)
+	b[1] = byte(bits >> 8)
+	b[2] = byte(bits >> 16)
+	b[3] = byte(bits >> 24)
+	b[4] = byte(bits >> 32)
+	b[5] = byte(bits >> 40)
+	b[6] = byte(bits >> 48)
+	b[7] = byte(bits >> 56)
+	r, _ := m.gdb.Request(fmt.Sprintf("P%x=%s;thread:%s;", reg, hexEncode(b), m.threadID))
+	if r != "OK" {
+		return fmt.Errorf("write float reg v%d: %s", reg-regV0, r)
+	}
+	return nil
 }
 
 func (m *gdbMem) readMemory(addr, size uint64) ([]byte, error) {
