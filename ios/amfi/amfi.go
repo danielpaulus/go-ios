@@ -34,6 +34,45 @@ func (devModeConn *Connection) Close() error {
 	return devModeConn.deviceConn.Close()
 }
 
+// RevealDevMode sends action 0 to the AMFI service, which makes the
+// Developer Mode toggle visible in Settings → Privacy & Security.
+// This replicates what Xcode does when it detects Developer Mode is disabled.
+func (devModeConn *Connection) RevealDevMode() error {
+	reader := devModeConn.deviceConn.Reader()
+
+	request := map[string]interface{}{"action": 0}
+
+	bytes, err := devModeConn.plistCodec.Encode(request)
+	if err != nil {
+		return fmt.Errorf("RevealDevMode: failed encoding request to service with err: %w", err)
+	}
+
+	err = devModeConn.deviceConn.Send(bytes)
+	if err != nil {
+		return fmt.Errorf("RevealDevMode: failed sending request bytes to service with err: %w", err)
+	}
+
+	responseBytes, err := devModeConn.plistCodec.Decode(reader)
+	if err != nil {
+		return fmt.Errorf("RevealDevMode: failed decoding response from service with err: %w", err)
+	}
+
+	plist, err := ios.ParsePlist(responseBytes)
+	if err != nil {
+		return fmt.Errorf("RevealDevMode: failed parsing response plist with err: %w", err)
+	}
+
+	if errorMsg, ok := plist["Error"]; ok {
+		return fmt.Errorf("RevealDevMode: could not reveal developer mode menu: %s", errorMsg)
+	}
+
+	if _, ok := plist["success"]; ok {
+		return nil
+	}
+
+	return fmt.Errorf("RevealDevMode: no error or success was reported")
+}
+
 // Enable developer mode on a device, e.g. after content reset
 func (devModeConn *Connection) EnableDevMode() error {
 	reader := devModeConn.deviceConn.Reader()
@@ -126,7 +165,14 @@ func EnableDeveloperMode(device ios.DeviceEntry, enablePostRestart bool) error {
 
 	err = conn.EnableDevMode()
 	if err != nil {
-		return fmt.Errorf("EnableDeveloperMode: failed enabling developer mode with err: %w", err)
+		conn.Close()
+		// If ARM fails (e.g. passcode set), at least reveal the menu
+		revealConn, revealErr := New(device)
+		if revealErr == nil {
+			_ = revealConn.RevealDevMode()
+			revealConn.Close()
+		}
+		return fmt.Errorf("EnableDeveloperMode: failed enabling developer mode with err: %w (Developer Mode menu has been revealed in Settings)", err)
 	}
 	log.Infof("Successfully enabled developer mode on device `%s`, device will restart", device.Properties.SerialNumber)
 
