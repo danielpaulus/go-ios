@@ -90,7 +90,7 @@ Usage:
   ios devicename [options]
   ios devicestate enable <profileTypeId> <profileId> [options]
   ios devicestate list [options]
-  ios devmode (enable | get) [--enable-post-restart] [options]
+  ios devmode (enable | get | reveal) [--enable-post-restart] [options]
   ios diagnostics list [options]
   ios diskspace [options]
   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
@@ -209,7 +209,9 @@ The commands work as following:
 
     ios devicestate list [options]                                Prints a list of all supported device conditions, like slow network, gpu etc.
 
-    ios devmode (enable | get) [--enable-post-restart] [options]  Enable developer mode on the device or check if it is enabled.
+    ios devmode (enable | get | reveal) [--enable-post-restart] [options]
+                                                                  Enable developer mode on the device, check if it is enabled,
+                                                                  or reveal the Developer Mode toggle in Settings.
                                                                   Can also completely finalize developer mode setup after device is restarted.
 
     ios diagnostics list [options]                                List diagnostic infos
@@ -1615,6 +1617,16 @@ The commands work as following:
 				result := map[string]interface{}{"DeveloperModeEnabled": devModeEnabled}
 				fmt.Println(convertToJSONString(result))
 			}
+		}
+
+		reveal, _ := arguments.Bool("reveal")
+		if reveal {
+			conn, err := amfi.New(device)
+			exitIfError("Failed connecting to AMFI service", err)
+			defer conn.Close()
+			err = conn.RevealDevMode()
+			exitIfError("Failed revealing developer mode menu", err)
+			log.Info("Developer Mode menu has been revealed on the device. Go to Settings → Privacy & Security → Developer Mode to enable it.")
 		}
 
 		return

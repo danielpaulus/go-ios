@@ -82,7 +82,7 @@ The commands work as following:
    ios devicestate enable <profileTypeId> <profileId> [options]       Enables a profile with ids (use the list command to see options). It will only stay active until the process is terminated.
    >                                                                  Ex. "ios devicestate enable SlowNetworkCondition SlowNetwork3GGood"
    ios devicestate list [options]                                     Prints a list of all supported device conditions, like slow network, gpu etc.
-   ios devmode (enable | get) [--enable-post-restart] [options]	  Enable developer mode on the device or check if it is enabled. Can also completely finalize developer mode setup after device is restarted.
+   ios devmode (enable | get | reveal) [--enable-post-restart] [options]	  Enable developer mode on the device, check if it is enabled, or reveal the Developer Mode toggle in Settings. Can also completely finalize developer mode setup after device is restarted.
    ios diagnostics list [options]                                     List diagnostic infos
    ios diskspace [options]											  Prints disk space info.
    ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options] Starts the reverse engineering proxy server.
