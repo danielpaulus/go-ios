@@ -30,10 +30,10 @@ func initTUNwrapper(device Device) *tunWrapper {
 	t.buffer = make([][]byte, 1)
 	t.buffer[0] = make([]byte, mtu)
 	go func() {
-		for {
-			e := <-device.Events()
+		for e := range device.Events() {
 			log.Infof("event: %v", e)
 		}
+		log.Info("device.Events channel closed")
 	}()
 	return t
 }
