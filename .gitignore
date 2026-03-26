@@ -34,3 +34,4 @@ go-ncm
 .circleci/
 __debug_bin
 dump-*
+_research/
