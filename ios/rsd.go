@@ -6,11 +6,15 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"sync"
 
 	"github.com/danielpaulus/go-ios/ios/http"
 	"github.com/danielpaulus/go-ios/ios/xpc"
 	log "github.com/sirupsen/logrus"
 )
+
+// _requestsMap stores a mutex for every request attempt to the trio formed by address, port, and TUN port. This allows to make sure that no more than one request is made at a time to a given trio, since doing so can lead to stuck requests and, therefore, stuck programs and/or goroutine leaks.
+var _requestsMap = sync.Map{}
 
 // RsdPortProvider is an interface to get a port for a service, or a service for a port from the Remote Service Discovery on the device.
 // Used in iOS17+
@@ -163,6 +167,12 @@ func (r RsdHandshakeResponse) GetServices() map[string]RsdServiceEntry {
 // NewWithAddrPort creates a new RsdService with the given address and port 58783 using a HTTP2 based XPC connection,
 // connecting to an operating system level TUN device.
 func NewWithAddrPort(addr string, port int) (RsdService, error) {
+	key := fmt.Sprintf("%s-%d", addr, port)
+
+	mutex, _ := _requestsMap.LoadOrStore(key, &sync.Mutex{})
+
+	mutex.(*sync.Mutex).Lock()
+	defer mutex.(*sync.Mutex).Unlock()
 	conn, err := connectTUN(addr, port)
 	if err != nil {
 		return RsdService{}, fmt.Errorf("NewWithAddrPort: failed to connect to device: %w", err)
@@ -177,6 +187,12 @@ func NewWithAddrDevice(addr string, d DeviceEntry) (RsdService, error) {
 
 // NewWithAddrPortDevice creates a new RsdService with the given address and port using a HTTP2 based XPC connection.
 func NewWithAddrPortDevice(addr string, port int, d DeviceEntry) (RsdService, error) {
+	key := fmt.Sprintf("%s-%d-%d", addr, port, d.UserspaceTUNPort)
+
+	mutex, _ := _requestsMap.LoadOrStore(key, &sync.Mutex{})
+
+	mutex.(*sync.Mutex).Lock()
+	defer mutex.(*sync.Mutex).Unlock()
 	conn, err := ConnectTUNDevice(addr, port, d)
 	if err != nil {
 		return RsdService{}, fmt.Errorf("NewWithAddrPortTUNDevice: failed to connect to device: %w", err)
