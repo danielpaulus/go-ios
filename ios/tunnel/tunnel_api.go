@@ -212,6 +212,12 @@ func ListRunningTunnels(tunnelInfoHost string, tunnelInfoPort int) ([]Tunnel, er
 	return info, nil
 }
 
+// failedDevice tracks a device that failed to establish a tunnel
+type failedDevice struct {
+	lastAttempt time.Time
+	failCount   int
+}
+
 // TunnelManager starts tunnels for devices when needed (if no tunnel is running yet) and stores the information
 // how those tunnels are reachable (address and remote service discovery port)
 type TunnelManager struct {
@@ -220,6 +226,7 @@ type TunnelManager struct {
 	pm                   PairRecordManager
 	mux                  sync.Mutex
 	tunnels              map[string]Tunnel
+	failedDevices        map[string]failedDevice // Track devices that failed to connect
 	startTunnelTimeout   time.Duration
 	firstUpdateCompleted bool
 	userspaceTUN         bool
@@ -235,6 +242,7 @@ func NewTunnelManager(pm PairRecordManager, userspaceTUN bool) *TunnelManager {
 		dl:                 deviceList{},
 		pm:                 pm,
 		tunnels:            map[string]Tunnel{},
+		failedDevices:      map[string]failedDevice{},
 		startTunnelTimeout: 10 * time.Second,
 		userspaceTUN:       userspaceTUN,
 		portOffset:         1,
@@ -274,17 +282,46 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 	m.mux.Lock()
 	localTunnels := map[string]Tunnel{}
 	maps.Copy(localTunnels, m.tunnels)
+	localFailedDevices := map[string]failedDevice{}
+	maps.Copy(localFailedDevices, m.failedDevices)
 	m.mux.Unlock()
 
 	devices, err := m.dl.ListDevices()
 	if err != nil {
 		return fmt.Errorf("UpdateTunnels: failed to get list of devices: %w", err)
 	}
+
+	// Track current device UDIDs to clean up stale failed entries
+	currentDeviceUDIDs := make(map[string]bool)
+
 	for _, d := range devices.DeviceList {
 		udid := d.Properties.SerialNumber
+		currentDeviceUDIDs[udid] = true
+
+		// Skip if tunnel already exists
 		if _, exists := localTunnels[udid]; exists {
 			continue
 		}
+
+		// Skip network-connected devices - they cannot establish tunnels
+		if d.Properties.ConnectionType == "Network" {
+			continue
+		}
+
+		// Check if this device has failed recently and apply exponential backoff
+		if failed, exists := localFailedDevices[udid]; exists {
+			// Calculate backoff duration: 30s, 60s, 120s, 240s, max 5 minutes
+			backoffSeconds := 30 * (1 << min(failed.failCount, 4)) // Cap at 2^4 = 16 -> 480s max
+			if backoffSeconds > 300 {
+				backoffSeconds = 300 // Max 5 minutes
+			}
+			backoffDuration := time.Duration(backoffSeconds) * time.Second
+			if time.Since(failed.lastAttempt) < backoffDuration {
+				// Still in backoff period, skip this device
+				continue
+			}
+		}
+
 		if m.userspaceTUN && d.UserspaceTUNPort == 0 {
 			d.UserspaceTUNPort = ios.HttpApiPort() + m.portOffset
 			m.portOffset++
@@ -294,13 +331,31 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 			log.WithField("udid", udid).
 				WithError(err).
 				Warn("failed to start tunnel")
+
+			// Track the failure with exponential backoff
+			m.mux.Lock()
+			prevFailed, exists := m.failedDevices[udid]
+			failCount := 1
+			if exists {
+				failCount = prevFailed.failCount + 1
+			}
+			m.failedDevices[udid] = failedDevice{
+				lastAttempt: time.Now(),
+				failCount:   failCount,
+			}
+			m.mux.Unlock()
 			continue
 		}
+
+		// Success - remove from failed devices if it was there
 		m.mux.Lock()
+		delete(m.failedDevices, udid)
 		localTunnels[udid] = t
 		m.tunnels[udid] = t
 		m.mux.Unlock()
 	}
+
+	// Clean up tunnels for disconnected devices
 	for udid, tun := range localTunnels {
 		idx := slices.ContainsFunc(devices.DeviceList, func(entry ios.DeviceEntry) bool {
 			return entry.Properties.SerialNumber == udid
@@ -309,9 +364,18 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 			_ = m.stopTunnel(tun)
 		}
 	}
+
+	// Clean up failed device entries for devices that are no longer connected
+	// This allows a fresh retry when the device reconnects
 	m.mux.Lock()
+	for udid := range m.failedDevices {
+		if !currentDeviceUDIDs[udid] {
+			delete(m.failedDevices, udid)
+		}
+	}
 	m.firstUpdateCompleted = true
 	m.mux.Unlock()
+
 	return nil
 }
 
