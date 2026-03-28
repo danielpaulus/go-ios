@@ -278,6 +278,10 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 
 	devices, err := m.dl.ListDevices()
 	if err != nil {
+		for udid, tun := range localTunnels {
+			log.WithField("udid", udid).Info("stopping tunnel due to device list error")
+			_ = m.stopTunnel(tun)
+		}
 		return fmt.Errorf("UpdateTunnels: failed to get list of devices: %w", err)
 	}
 	for _, d := range devices.DeviceList {
