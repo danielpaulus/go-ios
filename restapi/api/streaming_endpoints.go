@@ -1,13 +1,16 @@
 package api
 
 import (
+	"io"
+	"net/http"
+	"strconv"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/instruments"
+	"github.com/danielpaulus/go-ios/ios/ostrace"
 	"github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"io"
-	"net/http"
 )
 
 // Notifications uses instruments to get application state change events. It will stream the events as json objects separated by line breaks until it errors out.
@@ -67,6 +70,56 @@ func Syslog(c *gin.Context) {
 		m, _ := syslogConnection.ReadLogMessage()
 		// Stream message to client from message channel
 		w.Write([]byte(MustMarshal(m)))
+		return true
+	})
+}
+
+// OsTrace streams structured syslog entries via os_trace_relay with optional device-side PID filtering.
+// OsTrace                godoc
+// @Summary      Stream structured syslog via os_trace_relay
+// @Description  Streams structured syslog entries from the device using os_trace_relay. Supports device-side PID filtering.
+// @Tags         general
+// @Produce      json
+// @Param        pid  query  int  false  "Filter by process ID (-1 for all)"
+// @Success      200  {object}  map[string]interface{}
+// @Router       /ostrace [get]
+func OsTrace(c *gin.Context) {
+	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
+	pid := -1
+	if pidStr := c.Query("pid"); pidStr != "" {
+		var err error
+		pid, err = strconv.Atoi(pidStr)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid pid parameter"})
+			return
+		}
+	}
+	messageFilter, err := ostrace.ParseMessageFilter(c.Query("level"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	clientFilter := ostrace.ClientFilter{
+		Subsystem: c.Query("subsystem"),
+		Match:     c.Query("match"),
+		Exclude:   c.Query("exclude"),
+	}
+	conn, err := ostrace.New(device, pid, messageFilter)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer conn.Close()
+	c.Stream(func(w io.Writer) bool {
+		entry, err := conn.ReadEntry()
+		if err != nil {
+			return false
+		}
+		if !clientFilter.Matches(entry) {
+			return true
+		}
+		w.Write([]byte(MustMarshal(entry)))
+		w.Write([]byte("\n"))
 		return true
 	})
 }

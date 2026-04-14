@@ -37,6 +37,7 @@ func simpleDeviceRoutes(device *gin.RouterGroup) {
 	device.GET("/screenshot", Screenshot)
 	device.PUT("/setlocation", SetLocation)
 	device.GET("/syslog", streamingMiddleWare, Syslog)
+	device.GET("/ostrace", streamingMiddleWare, OsTrace)
 
 	device.POST("/wda/session", CreateWdaSession)
 	device.GET("/wda/session/:sessionId", ReadWdaSession)

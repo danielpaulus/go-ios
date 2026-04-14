@@ -50,6 +50,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	"github.com/danielpaulus/go-ios/ios/notificationproxy"
+	"github.com/danielpaulus/go-ios/ios/ostrace"
 	"github.com/danielpaulus/go-ios/ios/pcap"
 	syslog "github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/docopt/docopt-go"
@@ -141,6 +142,7 @@ Usage:
   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]
   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
   ios syslog [--parse] [options]
+  ios ostrace [--pid=<processID>] [--process=<processName>] [--level=<levels>] [--subsystem=<sub>] [--match=<str>] [--exclude=<str>] [options]
   ios sysmontap [options]
   ios timeformat (24h | 12h | toggle | get) [--force] [options]
   ios tunnel ls [options]
@@ -375,6 +377,16 @@ The commands work as following:
                                                                     Ex.: setlocationgpx --gpxfilepath=/home/username/location.gpx
 
     ios syslog [--parse] [options]                                  Prints a device's log output, Use --parse to parse the fields from the log
+    ios ostrace [--pid=<processID>] [--process=<processName>] [--level=<levels>] [--subsystem=<sub>] [--match=<str>] [--exclude=<str>]
+                                                                    Stream structured syslog via os_trace_relay.
+                                                                    Device-side filters (reduce USB traffic):
+                                                                      --pid=<pid>           Only stream logs from this process ID
+                                                                      --process=<name>      Resolve process name to PID, then filter device-side
+                                                                      --level=<levels>      Filter by log level (comma-separated): notice,info,debug,error,fault,useraction
+                                                                    Client-side filters (applied after receiving, does not reduce USB traffic):
+                                                                      --subsystem=<sub>     Only show entries matching this subsystem (substring match)
+                                                                      --match=<str>         Only show entries where the message contains this string
+                                                                      --exclude=<str>       Hide entries where the message contains this string
     ios sysmontap                                                   Get system stats like MEM, CPU
 
     ios timeformat (24h | 12h | toggle | get) [--force] [options]   Sets, or returns the state of the "time format".
@@ -837,6 +849,31 @@ The commands work as following:
 		parse, _ := arguments.Bool("--parse")
 
 		runSyslog(device, parse)
+		return
+	}
+
+	b, _ = arguments.Bool("ostrace")
+	if b {
+		pidStr, _ := arguments.String("--pid")
+		processName, _ := arguments.String("--process")
+		levelStr, _ := arguments.String("--level")
+		subsystem, _ := arguments.String("--subsystem")
+		match, _ := arguments.String("--match")
+		exclude, _ := arguments.String("--exclude")
+		pid := -1
+		if pidStr != "" {
+			var err error
+			pid, err = strconv.Atoi(pidStr)
+			exitIfError("invalid --pid value", err)
+		}
+		messageFilter, err := ostrace.ParseMessageFilter(levelStr)
+		exitIfError("invalid --level value", err)
+		clientFilter := ostrace.ClientFilter{
+			Subsystem: subsystem,
+			Match:     match,
+			Exclude:   exclude,
+		}
+		runOsTrace(device, pid, processName, messageFilter, clientFilter)
 		return
 	}
 
@@ -2724,6 +2761,51 @@ func runSyslog(device ios.DeviceEntry, parse bool) {
 			logMessage = strings.TrimSuffix(logMessage, "\x0A")
 
 			fmt.Println(logFormatter(logMessage))
+		}
+	}()
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+}
+
+func runOsTrace(device ios.DeviceEntry, pid int, processName string, messageFilter uint16, clientFilter ostrace.ClientFilter) {
+	log.Debug("Run OsTrace.")
+
+	if processName != "" && pid == -1 {
+		service, err := instruments.NewDeviceInfoService(device)
+		exitIfError("failed opening deviceInfoService for resolving process name", err)
+		procs, err := service.ProcessList()
+		service.Close()
+		exitIfError("failed getting process list", err)
+
+		found := false
+		for _, p := range procs {
+			if p.Name == processName || p.RealAppName == processName {
+				pid = int(p.Pid)
+				found = true
+				log.Infof("Resolved process %q to PID %d", processName, pid)
+				break
+			}
+		}
+		if !found {
+			exitIfError("process not found", fmt.Errorf("no running process found with name %q", processName))
+		}
+	}
+
+	conn, err := ostrace.New(device, pid, messageFilter)
+	exitIfError("os_trace connection failed", err)
+	defer conn.Close()
+
+	go func() {
+		for {
+			entry, err := conn.ReadEntry()
+			if err != nil {
+				exitIfError("failed reading os_trace entry", err)
+			}
+			if !clientFilter.Matches(entry) {
+				continue
+			}
+			fmt.Println(convertToJSONString(entry))
 		}
 	}()
 	c := make(chan os.Signal, 1)
