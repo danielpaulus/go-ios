@@ -5,10 +5,30 @@ package tunnel
 import (
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 )
+
+// createSysProcAttr returns attributes for spawning the go-ios agent as a
+// new process group so it survives as a standalone daemon.
+func createSysProcAttr() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP}
+}
+
+// CheckPermissions verifies the process has sufficient privileges to create
+// a TUN interface for `ios tunnel start` (without `--userspace`).
+//
+// Windows: probe for administrator privileges by attempting to open
+// \\.\PHYSICALDRIVE0 — an operation that requires elevation.
+func CheckPermissions() error {
+	if _, err := os.Open("\\\\.\\PHYSICALDRIVE0"); err != nil {
+		return fmt.Errorf("this program needs elevated privileges. Run as administrator.")
+	}
+	return nil
+}
 
 type tunWrapper struct {
 	device Device
@@ -68,7 +88,7 @@ func (t *tunWrapper) Read(p []byte) (int, error) {
 
 }
 
-func setupWindowsTUN(tunnelInfo tunnelParameters) (io.ReadWriteCloser, error) {
+func setupTunnelInterface(tunnelInfo tunnelParameters) (io.ReadWriteCloser, error) {
 	name := "tun0"
 
 	tunDevice, err := CreateTUN(name, int(tunnelInfo.ClientParameters.Mtu))

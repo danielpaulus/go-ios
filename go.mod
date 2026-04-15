@@ -12,11 +12,13 @@ require (
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/pierrec/lz4 v2.6.1+incompatible
+	github.com/pkg/errors v0.9.1
 	github.com/quic-go/quic-go v0.40.1-0.20231203135336-87ef8ec48d55
 	github.com/sirupsen/logrus v1.9.3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/stretchr/testify v1.7.0
 	github.com/tadglines/go-pkgs v0.0.0-20210623144937-b983b20f54f9
+	github.com/vishvananda/netlink v1.3.1
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
 	golang.org/x/crypto v0.24.0
 	golang.org/x/exp v0.0.0-20230725093048-515e97ebf090
@@ -27,6 +29,8 @@ require (
 	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5
 	software.sslmate.com/src/go-pkcs12 v0.2.0
 )
+
+require github.com/vishvananda/netns v0.0.5 // indirect
 
 require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect

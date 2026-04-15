@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -44,24 +43,6 @@ func UseHttpProxy(proxyUrl string) error {
 			return fmt.Errorf("could not parse proxy url %s: %v", proxyUrl, err)
 		}
 		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(parsedUrl)}
-	}
-	return nil
-}
-
-// CheckRoot checks if the current user is root or has elevated privileges on Windows.
-func CheckRoot() error {
-	// On Windows, check if the process has elevated privileges
-	if runtime.GOOS == "windows" {
-		_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
-		if err != nil {
-			return fmt.Errorf("this program needs elevated privileges. Run as administrator.")
-		}
-	} else {
-		// Non-Windows platforms, check if the user is root
-		u := os.Geteuid()
-		if u != 0 {
-			return fmt.Errorf("this program needs root privileges. Run with sudo.")
-		}
 	}
 	return nil
 }

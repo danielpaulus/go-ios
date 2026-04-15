@@ -1558,8 +1558,8 @@ The commands work as following:
 		startCommand, _ := arguments.Bool("start")
 		useUserspaceNetworking, _ := arguments.Bool("--userspace")
 		if startCommand && !useUserspaceNetworking {
-			err := ios.CheckRoot()
-			exitIfError("If --userspace is not set, we need sudo or an admin shell on Windows", err)
+			err := tunnel.CheckPermissions()
+			exitIfError("If --userspace is not set, we need sudo, an admin shell on Windows, or CAP_NET_ADMIN on Linux", err)
 		}
 		if useUserspaceNetworking {
 			log.Info("Using userspace networking")
