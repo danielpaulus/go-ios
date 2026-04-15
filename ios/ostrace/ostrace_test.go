@@ -219,44 +219,52 @@ func TestCstring(t *testing.T) {
 	}
 }
 
-func TestParseMessageFilter(t *testing.T) {
+func TestParseLevels(t *testing.T) {
 	tests := []struct {
 		input   string
-		want    uint16
+		want    []LogLevel
 		wantErr bool
 	}{
-		{"", MessageFilterAll, false},
-		{"error", 1 << 4, false},
-		{"error,fault", (1 << 4) | (1 << 5), false},
-		{"notice, info, debug", (1 << 0) | (1 << 1) | (1 << 2), false},
-		{"Error,FAULT", (1 << 4) | (1 << 5), false}, // case-insensitive
-		{"bogus", 0, true},
+		{"", nil, false},
+		{"error", []LogLevel{LogLevelError}, false},
+		{"error,fault", []LogLevel{LogLevelError, LogLevelFault}, false},
+		{"notice, info, debug", []LogLevel{LogLevelNotice, LogLevelInfo, LogLevelDebug}, false},
+		{"Error,FAULT", []LogLevel{LogLevelError, LogLevelFault}, false}, // case-insensitive
+		{"bogus", nil, true},
 	}
 
 	for _, tt := range tests {
-		got, err := ParseMessageFilter(tt.input)
+		got, err := ParseLevels(tt.input)
 		if tt.wantErr {
 			if err == nil {
-				t.Errorf("ParseMessageFilter(%q) expected error, got nil", tt.input)
+				t.Errorf("ParseLevels(%q) expected error, got nil", tt.input)
 			}
 			continue
 		}
 		if err != nil {
-			t.Errorf("ParseMessageFilter(%q) unexpected error: %v", tt.input, err)
+			t.Errorf("ParseLevels(%q) unexpected error: %v", tt.input, err)
 			continue
 		}
-		if got != tt.want {
-			t.Errorf("ParseMessageFilter(%q) = 0x%04x, want 0x%04x", tt.input, got, tt.want)
+		if len(got) != len(tt.want) {
+			t.Errorf("ParseLevels(%q) = %v, want %v", tt.input, got, tt.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != tt.want[i] {
+				t.Errorf("ParseLevels(%q)[%d] = %v, want %v", tt.input, i, got[i], tt.want[i])
+			}
 		}
 	}
 }
 
 func TestClientFilter(t *testing.T) {
 	entry := LogEntry{
+		Level:   LogLevelError,
 		Message: "connection timeout on endpoint /api/health",
 		Label:   &LogLabel{Subsystem: "com.kwolf.testapp", Category: "networking"},
 	}
 	entryNoLabel := LogEntry{
+		Level:   LogLevelDebug,
 		Message: "something happened",
 	}
 
@@ -274,8 +282,13 @@ func TestClientFilter(t *testing.T) {
 		{"match miss", ClientFilter{Match: "success"}, entry, false},
 		{"exclude hit", ClientFilter{Exclude: "timeout"}, entry, false},
 		{"exclude miss", ClientFilter{Exclude: "success"}, entry, true},
+		{"level hit", ClientFilter{Levels: []LogLevel{LogLevelError, LogLevelFault}}, entry, true},
+		{"level miss", ClientFilter{Levels: []LogLevel{LogLevelDebug}}, entry, false},
+		{"level single match", ClientFilter{Levels: []LogLevel{LogLevelDebug}}, entryNoLabel, true},
 		{"combined filters pass", ClientFilter{Subsystem: "com.kwolf", Match: "timeout"}, entry, true},
 		{"combined filters fail on match", ClientFilter{Subsystem: "com.kwolf", Match: "success"}, entry, false},
+		{"combined level + subsystem pass", ClientFilter{Levels: []LogLevel{LogLevelError}, Subsystem: "com.kwolf"}, entry, true},
+		{"combined level + subsystem fail on level", ClientFilter{Levels: []LogLevel{LogLevelDebug}, Subsystem: "com.kwolf"}, entry, false},
 	}
 
 	for _, tt := range tests {

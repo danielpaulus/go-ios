@@ -28,47 +28,15 @@ const (
 	LogLevelFault      LogLevel = 0x11
 )
 
-// MessageFilterAll includes all log levels.
-const MessageFilterAll uint16 = 0xFFFF
+// messageFilterAll is the MessageFilter value used in StartActivity requests.
+// The individual bit semantics of this field are undocumented; pymobiledevice3
+// and libimobiledevice both hardcode 0xFFFF and we mirror that.
+const messageFilterAll uint16 = 0xFFFF
 
-// ParseMessageFilter parses a comma-separated list of level names into a MessageFilter bitmask.
-// Valid names: notice, info, debug, useraction, error, fault (case-insensitive).
-// Returns MessageFilterAll if the input is empty.
-func ParseMessageFilter(levels string) (uint16, error) {
-	if levels == "" {
-		return MessageFilterAll, nil
-	}
-	var filter uint16
-	for _, name := range splitAndTrim(levels) {
-		bit, ok := levelNameToBit[strings.ToLower(name)]
-		if !ok {
-			return 0, fmt.Errorf("unknown log level %q, valid levels: notice, info, debug, useraction, error, fault", name)
-		}
-		filter |= bit
-	}
-	return filter, nil
-}
-
-var levelNameToBit = map[string]uint16{
-	"notice":     1 << 0,
-	"info":       1 << 1,
-	"debug":      1 << 2,
-	"useraction": 1 << 3,
-	"error":      1 << 4,
-	"fault":      1 << 5,
-}
-
-func splitAndTrim(s string) []string {
-	parts := strings.Split(s, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
-		}
-	}
-	return result
-}
+// streamFlagsDefault is the StreamFlags value used in StartActivity requests.
+// Like MessageFilter, its bits are undocumented; pymobiledevice3 and
+// libimobiledevice both hardcode 0x3C and we mirror that.
+const streamFlagsDefault uint32 = 0x3C
 
 func (l LogLevel) String() string {
 	switch l {
@@ -92,13 +60,26 @@ func (l LogLevel) String() string {
 // ClientFilter defines client-side filters applied after entries are received from the device.
 // These do NOT reduce USB traffic — they only filter the output.
 type ClientFilter struct {
-	Subsystem string // Only show entries where label subsystem contains this string
-	Match     string // Only show entries where message contains this string
-	Exclude   string // Hide entries where message contains this string
+	Levels    []LogLevel // If non-empty, only entries whose Level is in this set pass
+	Subsystem string     // Only show entries where label subsystem contains this string
+	Match     string     // Only show entries where message contains this string
+	Exclude   string     // Hide entries where message contains this string
 }
 
 // Matches returns true if the entry passes all client-side filters.
 func (f ClientFilter) Matches(entry LogEntry) bool {
+	if len(f.Levels) > 0 {
+		matched := false
+		for _, l := range f.Levels {
+			if entry.Level == l {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
 	if f.Subsystem != "" {
 		if entry.Label == nil || !strings.Contains(entry.Label.Subsystem, f.Subsystem) {
 			return false
@@ -115,6 +96,37 @@ func (f ClientFilter) Matches(entry LogEntry) bool {
 		}
 	}
 	return true
+}
+
+// ParseLevels parses a comma-separated list of level names into []LogLevel.
+// Valid names: notice, info, debug, useraction, error, fault (case-insensitive).
+// Returns an empty slice for empty input (meaning "no level filter").
+func ParseLevels(levels string) ([]LogLevel, error) {
+	if levels == "" {
+		return nil, nil
+	}
+	var result []LogLevel
+	for _, raw := range strings.Split(levels, ",") {
+		name := strings.TrimSpace(strings.ToLower(raw))
+		if name == "" {
+			continue
+		}
+		level, ok := levelNameToValue[name]
+		if !ok {
+			return nil, fmt.Errorf("unknown log level %q, valid levels: notice, info, debug, useraction, error, fault", name)
+		}
+		result = append(result, level)
+	}
+	return result, nil
+}
+
+var levelNameToValue = map[string]LogLevel{
+	"notice":     LogLevelNotice,
+	"info":       LogLevelInfo,
+	"debug":      LogLevelDebug,
+	"useraction": LogLevelUserAction,
+	"error":      LogLevelError,
+	"fault":      LogLevelFault,
 }
 
 // LogLabel contains the subsystem and category for a structured log entry.
@@ -145,9 +157,9 @@ type Connection struct {
 }
 
 // New creates a new os_trace_relay connection, sends the StartActivity request
-// with the given pid filter and messageFilter bitmask, and performs the handshake.
-// Use pid=-1 for all processes and messageFilter=0xFFFF for all log levels.
-func New(device ios.DeviceEntry, pid int, messageFilter uint16) (*Connection, error) {
+// with the given pid filter, and performs the handshake. Use pid=-1 for all
+// processes.
+func New(device ios.DeviceEntry, pid int) (*Connection, error) {
 	var deviceConn ios.DeviceConnectionInterface
 	var err error
 
@@ -166,7 +178,7 @@ func New(device ios.DeviceEntry, pid int, messageFilter uint16) (*Connection, er
 		writer: deviceConn.Writer(),
 	}
 
-	if err := conn.startActivity(pid, messageFilter); err != nil {
+	if err := conn.startActivity(pid); err != nil {
 		deviceConn.Close()
 		return nil, err
 	}
@@ -175,14 +187,14 @@ func New(device ios.DeviceEntry, pid int, messageFilter uint16) (*Connection, er
 }
 
 // startActivity sends the StartActivity plist request and reads the handshake response.
-func (c *Connection) startActivity(pid int, messageFilter uint16) error {
+func (c *Connection) startActivity(pid int) error {
 	codec := ios.NewPlistCodecReadWriter(c.reader, c.writer)
 
 	request := map[string]interface{}{
 		"Request":       "StartActivity",
-		"MessageFilter": messageFilter,
+		"MessageFilter": messageFilterAll,
 		"Pid":           pid,
-		"StreamFlags":   60,
+		"StreamFlags":   streamFlagsDefault,
 	}
 
 	if err := codec.Write(request); err != nil {
@@ -250,6 +262,21 @@ func (c *Connection) ReadEntry() (LogEntry, error) {
 	}
 
 	return parseEntry(data)
+}
+
+// ReadFilteredEntry reads entries from the stream and returns the next one
+// that passes the given client-side filter. Loops internally until a match is
+// found or an error occurs.
+func (c *Connection) ReadFilteredEntry(filter ClientFilter) (LogEntry, error) {
+	for {
+		entry, err := c.ReadEntry()
+		if err != nil {
+			return LogEntry{}, err
+		}
+		if filter.Matches(entry) {
+			return entry, nil
+		}
+	}
 }
 
 // Close closes the underlying device connection.

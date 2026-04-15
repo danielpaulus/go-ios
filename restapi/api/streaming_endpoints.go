@@ -94,29 +94,27 @@ func OsTrace(c *gin.Context) {
 			return
 		}
 	}
-	messageFilter, err := ostrace.ParseMessageFilter(c.Query("level"))
+	levels, err := ostrace.ParseLevels(c.Query("level"))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	clientFilter := ostrace.ClientFilter{
+		Levels:    levels,
 		Subsystem: c.Query("subsystem"),
 		Match:     c.Query("match"),
 		Exclude:   c.Query("exclude"),
 	}
-	conn, err := ostrace.New(device, pid, messageFilter)
+	conn, err := ostrace.New(device, pid)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	defer conn.Close()
 	c.Stream(func(w io.Writer) bool {
-		entry, err := conn.ReadEntry()
+		entry, err := conn.ReadFilteredEntry(clientFilter)
 		if err != nil {
 			return false
-		}
-		if !clientFilter.Matches(entry) {
-			return true
 		}
 		w.Write([]byte(MustMarshal(entry)))
 		w.Write([]byte("\n"))

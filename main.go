@@ -378,12 +378,13 @@ The commands work as following:
 
     ios syslog [--parse] [options]                                  Prints a device's log output, Use --parse to parse the fields from the log
     ios ostrace [--pid=<processID>] [--process=<processName>] [--level=<levels>] [--subsystem=<sub>] [--match=<str>] [--exclude=<str>]
-                                                                    Stream structured syslog via os_trace_relay.
+                                                                    Stream structured syslog via os_trace_relay. Note: streaming logs
+                                                                    places significant CPU load on the device.
                                                                     Device-side filters (reduce USB traffic):
                                                                       --pid=<pid>           Only stream logs from this process ID
                                                                       --process=<name>      Resolve process name to PID, then filter device-side
-                                                                      --level=<levels>      Filter by log level (comma-separated): notice,info,debug,error,fault,useraction
                                                                     Client-side filters (applied after receiving, does not reduce USB traffic):
+                                                                      --level=<levels>      Filter by log level (comma-separated): notice,info,debug,useraction,error,fault
                                                                       --subsystem=<sub>     Only show entries matching this subsystem (substring match)
                                                                       --match=<str>         Only show entries where the message contains this string
                                                                       --exclude=<str>       Hide entries where the message contains this string
@@ -866,14 +867,15 @@ The commands work as following:
 			pid, err = strconv.Atoi(pidStr)
 			exitIfError("invalid --pid value", err)
 		}
-		messageFilter, err := ostrace.ParseMessageFilter(levelStr)
+		levels, err := ostrace.ParseLevels(levelStr)
 		exitIfError("invalid --level value", err)
 		clientFilter := ostrace.ClientFilter{
+			Levels:    levels,
 			Subsystem: subsystem,
 			Match:     match,
 			Exclude:   exclude,
 		}
-		runOsTrace(device, pid, processName, messageFilter, clientFilter)
+		runOsTrace(device, pid, processName, clientFilter)
 		return
 	}
 
@@ -2768,8 +2770,9 @@ func runSyslog(device ios.DeviceEntry, parse bool) {
 	<-c
 }
 
-func runOsTrace(device ios.DeviceEntry, pid int, processName string, messageFilter uint16, clientFilter ostrace.ClientFilter) {
+func runOsTrace(device ios.DeviceEntry, pid int, processName string, clientFilter ostrace.ClientFilter) {
 	log.Debug("Run OsTrace.")
+	log.Warn("Streaming log messages places significant CPU load on the device.")
 
 	if processName != "" && pid == -1 {
 		service, err := instruments.NewDeviceInfoService(device)
@@ -2792,18 +2795,15 @@ func runOsTrace(device ios.DeviceEntry, pid int, processName string, messageFilt
 		}
 	}
 
-	conn, err := ostrace.New(device, pid, messageFilter)
+	conn, err := ostrace.New(device, pid)
 	exitIfError("os_trace connection failed", err)
 	defer conn.Close()
 
 	go func() {
 		for {
-			entry, err := conn.ReadEntry()
+			entry, err := conn.ReadFilteredEntry(clientFilter)
 			if err != nil {
 				exitIfError("failed reading os_trace entry", err)
-			}
-			if !clientFilter.Matches(entry) {
-				continue
 			}
 			fmt.Println(convertToJSONString(entry))
 		}
