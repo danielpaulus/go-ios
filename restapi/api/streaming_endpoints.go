@@ -94,18 +94,18 @@ func OsTrace(c *gin.Context) {
 			return
 		}
 	}
-	levels, err := ostrace.ParseLevels(c.Query("level"))
+	levelFilter, err := ostrace.ParseLevelFilter(c.Query("level"))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	clientFilter := ostrace.ClientFilter{
-		Levels:    levels,
+		Levels:    levelFilter.ClientLevels,
 		Subsystem: c.Query("subsystem"),
 		Match:     c.Query("match"),
 		Exclude:   c.Query("exclude"),
 	}
-	conn, err := ostrace.New(device, pid)
+	conn, err := ostrace.New(device, pid, levelFilter.MessageFilter, levelFilter.StreamFlags)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

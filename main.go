@@ -383,8 +383,8 @@ The commands work as following:
                                                                     Device-side filters (reduce USB traffic):
                                                                       --pid=<pid>           Only stream logs from this process ID
                                                                       --process=<name>      Resolve process name to PID, then filter device-side
+                                                                      --level=<levels>      Filter by OS log type (comma-separated): default,info,debug,error,fault
                                                                     Client-side filters (applied after receiving, does not reduce USB traffic):
-                                                                      --level=<levels>      Filter by log level (comma-separated): notice,info,debug,useraction,error,fault
                                                                       --subsystem=<sub>     Only show entries matching this subsystem (substring match)
                                                                       --match=<str>         Only show entries where the message contains this string
                                                                       --exclude=<str>       Hide entries where the message contains this string
@@ -867,15 +867,15 @@ The commands work as following:
 			pid, err = strconv.Atoi(pidStr)
 			exitIfError("invalid --pid value", err)
 		}
-		levels, err := ostrace.ParseLevels(levelStr)
+		levelFilter, err := ostrace.ParseLevelFilter(levelStr)
 		exitIfError("invalid --level value", err)
 		clientFilter := ostrace.ClientFilter{
-			Levels:    levels,
+			Levels:    levelFilter.ClientLevels,
 			Subsystem: subsystem,
 			Match:     match,
 			Exclude:   exclude,
 		}
-		runOsTrace(device, pid, processName, clientFilter)
+		runOsTrace(device, pid, processName, levelFilter.MessageFilter, levelFilter.StreamFlags, clientFilter)
 		return
 	}
 
@@ -2770,7 +2770,7 @@ func runSyslog(device ios.DeviceEntry, parse bool) {
 	<-c
 }
 
-func runOsTrace(device ios.DeviceEntry, pid int, processName string, clientFilter ostrace.ClientFilter) {
+func runOsTrace(device ios.DeviceEntry, pid int, processName string, messageFilter uint16, streamFlags uint32, clientFilter ostrace.ClientFilter) {
 	log.Debug("Run OsTrace.")
 	log.Warn("Streaming log messages places significant CPU load on the device.")
 
@@ -2795,7 +2795,7 @@ func runOsTrace(device ios.DeviceEntry, pid int, processName string, clientFilte
 		}
 	}
 
-	conn, err := ostrace.New(device, pid)
+	conn, err := ostrace.New(device, pid, messageFilter, streamFlags)
 	exitIfError("os_trace connection failed", err)
 	defer conn.Close()
 
