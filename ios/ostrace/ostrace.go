@@ -43,16 +43,29 @@ const (
 
 // StreamFlags gates SEVERITY for record types that carry a level
 // (ActivityTransition and LogMessage). Default, Error, and Fault always
-// emit regardless of flags; Info and Debug require StreamFlagsDebug (0x20).
+// emit unconditionally; Info and Debug require StreamFlagsDebug (0x20).
 //
-// Empirically verified on iOS 18.7.1: bit 0x20 is the ONLY bit that unlocks
-// Info or Debug entries (brute-forced all 16 bits individually and several
-// combinations). When 0x20 is set, Info AND Debug always flow together —
-// no bit separates them. The 0x100 bit from reverse-engineering notes of
-// LoggingSupport/diagnosticd is a no-op on iOS 18. Clients wanting only
-// Info or only Debug must filter client-side.
+// Info/Debug cannot be separated at the wire level on stock iOS 18.
+// The kernel's /dev/oslog_stream decides at the source whether Info/Debug
+// records exist — controlled by the arm64 commpage at 0xfffffc104:
+//
+//	bit 0 = preserve Default, bit 1 = preserve Info, bit 3 = streaming active
+//
+// When diagnosticd processes StreamFlags it calls
+// host_set_atm_diagnostic_flag(mode & ~3), stripping bits 0 and 1 — so the
+// StreamFlags value alone can never turn on Info preservation. Setting 0x20
+// triggers mode=0xb, which also invokes _os_trace_set_mode(0xb) and flips
+// the per-process preservation bits for the streaming session. That's what
+// enables Info and Debug to flow together. 0x100 (mode=9) skips that call,
+// which is why it's a no-op on stock iOS despite passing diagnosticd's
+// userspace gate. Only `log config --mode level:info` (root-entitled) can
+// set commpage bit 1 system-wide.
+//
+// Verified on iOS 18.7.1 by a full 16-bit single-bit sweep plus several
+// multi-bit combos: no bit or combo separates Info from Debug. Clients
+// wanting only one must filter client-side.
 const (
-	StreamFlagsDebug uint32 = 0x20 // enables Info and Debug entries
+	StreamFlagsDebug uint32 = 0x20 // triggers mode=0xb → enables Info+Debug together
 	StreamFlagsAll   uint32 = StreamFlagsDebug
 )
 
