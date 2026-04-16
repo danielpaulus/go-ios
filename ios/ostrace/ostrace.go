@@ -16,32 +16,50 @@ const (
 	shimServiceName    = "com.apple.os_trace_relay.shim.remote"
 )
 
-// LogLevel represents the severity level of a syslog entry.
+// LogLevel is the severity byte stored inside each parsed log entry (the
+// high byte of diagnosticd's traceid shifted into the binary frame).
 type LogLevel uint8
 
 const (
-	LogLevelNotice     LogLevel = 0x00
-	LogLevelInfo       LogLevel = 0x01
-	LogLevelDebug      LogLevel = 0x02
+	LogLevelDefault    LogLevel = 0x00 // OS_LOG_TYPE_DEFAULT
+	LogLevelInfo       LogLevel = 0x01 // OS_LOG_TYPE_INFO
+	LogLevelDebug      LogLevel = 0x02 // OS_LOG_TYPE_DEBUG
 	LogLevelUserAction LogLevel = 0x03
-	LogLevelError      LogLevel = 0x10
-	LogLevelFault      LogLevel = 0x11
+	LogLevelError      LogLevel = 0x10 // OS_LOG_TYPE_ERROR
+	LogLevelFault      LogLevel = 0x11 // OS_LOG_TYPE_FAULT
 )
 
-// messageFilterAll is the MessageFilter value used in StartActivity requests.
-// The individual bit semantics of this field are undocumented; pymobiledevice3
-// and libimobiledevice both hardcode 0xFFFF and we mirror that.
-const messageFilterAll uint16 = 0xFFFF
+// MessageFilter selects which RECORD TYPES diagnosticd emits. Bits map to the
+// low byte of traceid: bit N enables (traceid & 0xFF) == value. Reverse-
+// engineered from diagnosticd's type cascade (FUN_100007040 / 0x10000710c+).
+// Bits 4–15 are no-ops in the type gate.
+const (
+	MessageFilterActivityCreate     uint16 = 1 << 0 // (traceid & 0xFF) == 2
+	MessageFilterActivityTransition uint16 = 1 << 1 // (traceid & 0xFF) == 3
+	MessageFilterLogMessage         uint16 = 1 << 2 // (traceid & 0xFF) == 4 — os_log entries
+	MessageFilterSignpost           uint16 = 1 << 3 // (traceid & 0xFF) == 6
+	MessageFilterAll                uint16 = 0xFFFF
+)
 
-// streamFlagsDefault is the StreamFlags value used in StartActivity requests.
-// Like MessageFilter, its bits are undocumented; pymobiledevice3 and
-// libimobiledevice both hardcode 0x3C and we mirror that.
-const streamFlagsDefault uint32 = 0x3C
+// StreamFlags gates SEVERITY for record types that carry a level
+// (ActivityTransition and LogMessage). Default, Error, and Fault always
+// emit regardless of flags; Info and Debug require StreamFlagsDebug (0x20).
+//
+// Empirically verified on iOS 18.7.1: bit 0x20 is the ONLY bit that unlocks
+// Info or Debug entries (brute-forced all 16 bits individually and several
+// combinations). When 0x20 is set, Info AND Debug always flow together —
+// no bit separates them. The 0x100 bit from reverse-engineering notes of
+// LoggingSupport/diagnosticd is a no-op on iOS 18. Clients wanting only
+// Info or only Debug must filter client-side.
+const (
+	StreamFlagsDebug uint32 = 0x20 // enables Info and Debug entries
+	StreamFlagsAll   uint32 = StreamFlagsDebug
+)
 
 func (l LogLevel) String() string {
 	switch l {
-	case LogLevelNotice:
-		return "Notice"
+	case LogLevelDefault:
+		return "Default"
 	case LogLevelInfo:
 		return "Info"
 	case LogLevelDebug:
@@ -57,8 +75,8 @@ func (l LogLevel) String() string {
 	}
 }
 
-// ClientFilter defines client-side filters applied after entries are received from the device.
-// These do NOT reduce USB traffic — they only filter the output.
+// ClientFilter defines client-side filters applied after entries are received
+// from the device. These do NOT reduce USB traffic — they only filter output.
 type ClientFilter struct {
 	Levels    []LogLevel // If non-empty, only entries whose Level is in this set pass
 	Subsystem string     // Only show entries where label subsystem contains this string
@@ -98,14 +116,36 @@ func (f ClientFilter) Matches(entry LogEntry) bool {
 	return true
 }
 
-// ParseLevels parses a comma-separated list of level names into []LogLevel.
-// Valid names: notice, info, debug, useraction, error, fault (case-insensitive).
-// Returns an empty slice for empty input (meaning "no level filter").
-func ParseLevels(levels string) ([]LogLevel, error) {
-	if levels == "" {
-		return nil, nil
+// LevelFilter bundles the device-side parameters and client-side filter
+// needed to deliver only the user-requested log levels.
+type LevelFilter struct {
+	MessageFilter uint16    // what record types the device emits
+	StreamFlags   uint32    // severity gate for record types that carry a level
+	ClientLevels  []LogLevel // exact levels the user wants (for client-side filtering)
+}
+
+// DefaultLevelFilter returns a filter that streams log messages at every severity.
+func DefaultLevelFilter() LevelFilter {
+	return LevelFilter{
+		MessageFilter: MessageFilterLogMessage,
+		StreamFlags:   StreamFlagsAll,
 	}
-	var result []LogLevel
+}
+
+// ParseLevelFilter parses a comma-separated list of level names (case-insensitive:
+// default, info, debug, error, fault) into a LevelFilter. It computes the minimum
+// MessageFilter and StreamFlags needed to make the device emit the requested levels,
+// and lists the exact levels for client-side post-filtering (since the device emits
+// Default, Error, and Fault together and can't split them).
+// Empty input returns DefaultLevelFilter.
+func ParseLevelFilter(levels string) (LevelFilter, error) {
+	if levels == "" {
+		return DefaultLevelFilter(), nil
+	}
+
+	// Collect requested levels without duplicates, preserving order.
+	seen := make(map[LogLevel]bool)
+	var ordered []LogLevel
 	for _, raw := range strings.Split(levels, ",") {
 		name := strings.TrimSpace(strings.ToLower(raw))
 		if name == "" {
@@ -113,20 +153,34 @@ func ParseLevels(levels string) ([]LogLevel, error) {
 		}
 		level, ok := levelNameToValue[name]
 		if !ok {
-			return nil, fmt.Errorf("unknown log level %q, valid levels: notice, info, debug, useraction, error, fault", name)
+			return LevelFilter{}, fmt.Errorf("unknown log level %q, valid levels: default, info, debug, error, fault", name)
 		}
-		result = append(result, level)
+		if !seen[level] {
+			seen[level] = true
+			ordered = append(ordered, level)
+		}
 	}
-	return result, nil
+
+	spec := LevelFilter{
+		MessageFilter: MessageFilterLogMessage,
+		ClientLevels:  ordered,
+	}
+	// StreamFlagsDebug is needed for both Info and Debug (the 0x100 bit from
+	// reverse-engineering notes doesn't work alone on iOS 18). This means
+	// requesting Info also pulls Debug off the wire; the client-side level
+	// filter then drops Debug entries if the user didn't ask for them.
+	if seen[LogLevelInfo] || seen[LogLevelDebug] {
+		spec.StreamFlags |= StreamFlagsDebug
+	}
+	return spec, nil
 }
 
 var levelNameToValue = map[string]LogLevel{
-	"notice":     LogLevelNotice,
-	"info":       LogLevelInfo,
-	"debug":      LogLevelDebug,
-	"useraction": LogLevelUserAction,
-	"error":      LogLevelError,
-	"fault":      LogLevelFault,
+	"default": LogLevelDefault,
+	"info":    LogLevelInfo,
+	"debug":   LogLevelDebug,
+	"error":   LogLevelError,
+	"fault":   LogLevelFault,
 }
 
 // LogLabel contains the subsystem and category for a structured log entry.
@@ -156,10 +210,12 @@ type Connection struct {
 	writer io.Writer
 }
 
-// New creates a new os_trace_relay connection, sends the StartActivity request
-// with the given pid filter, and performs the handshake. Use pid=-1 for all
-// processes.
-func New(device ios.DeviceEntry, pid int) (*Connection, error) {
+// New creates a new os_trace_relay connection, sends the StartActivity
+// request with the given pid filter, MessageFilter bitmask, and StreamFlags
+// bitmask, and performs the handshake. Use pid=-1 for all processes. See the
+// MessageFilter* and StreamFlags* constants, or build a spec with
+// ParseLevelFilter.
+func New(device ios.DeviceEntry, pid int, messageFilter uint16, streamFlags uint32) (*Connection, error) {
 	var deviceConn ios.DeviceConnectionInterface
 	var err error
 
@@ -178,7 +234,7 @@ func New(device ios.DeviceEntry, pid int) (*Connection, error) {
 		writer: deviceConn.Writer(),
 	}
 
-	if err := conn.startActivity(pid); err != nil {
+	if err := conn.startActivity(pid, messageFilter, streamFlags); err != nil {
 		deviceConn.Close()
 		return nil, err
 	}
@@ -187,14 +243,14 @@ func New(device ios.DeviceEntry, pid int) (*Connection, error) {
 }
 
 // startActivity sends the StartActivity plist request and reads the handshake response.
-func (c *Connection) startActivity(pid int) error {
+func (c *Connection) startActivity(pid int, messageFilter uint16, streamFlags uint32) error {
 	codec := ios.NewPlistCodecReadWriter(c.reader, c.writer)
 
 	request := map[string]interface{}{
 		"Request":       "StartActivity",
-		"MessageFilter": messageFilterAll,
+		"MessageFilter": messageFilter,
 		"Pid":           pid,
-		"StreamFlags":   streamFlagsDefault,
+		"StreamFlags":   streamFlags,
 	}
 
 	if err := codec.Write(request); err != nil {

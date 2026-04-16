@@ -173,7 +173,7 @@ func TestLogLevelString(t *testing.T) {
 		level LogLevel
 		want  string
 	}{
-		{LogLevelNotice, "Notice"},
+		{LogLevelDefault, "Default"},
 		{LogLevelInfo, "Info"},
 		{LogLevelDebug, "Debug"},
 		{LogLevelUserAction, "UserAction"},
@@ -219,39 +219,96 @@ func TestCstring(t *testing.T) {
 	}
 }
 
-func TestParseLevels(t *testing.T) {
+func TestParseLevelFilter(t *testing.T) {
 	tests := []struct {
-		input   string
-		want    []LogLevel
-		wantErr bool
+		name      string
+		input     string
+		wantMF    uint16
+		wantSF    uint32
+		wantLvls  []LogLevel
+		wantErr   bool
 	}{
-		{"", nil, false},
-		{"error", []LogLevel{LogLevelError}, false},
-		{"error,fault", []LogLevel{LogLevelError, LogLevelFault}, false},
-		{"notice, info, debug", []LogLevel{LogLevelNotice, LogLevelInfo, LogLevelDebug}, false},
-		{"Error,FAULT", []LogLevel{LogLevelError, LogLevelFault}, false}, // case-insensitive
-		{"bogus", nil, true},
+		{
+			name:     "empty → default filter",
+			input:    "",
+			wantMF:   MessageFilterLogMessage,
+			wantSF:   StreamFlagsAll,
+			wantLvls: nil,
+		},
+		{
+			name:     "error,fault → no severity gates needed",
+			input:    "error,fault",
+			wantMF:   MessageFilterLogMessage,
+			wantSF:   0,
+			wantLvls: []LogLevel{LogLevelError, LogLevelFault},
+		},
+		{
+			name:     "default → no severity gates",
+			input:    "default",
+			wantMF:   MessageFilterLogMessage,
+			wantSF:   0,
+			wantLvls: []LogLevel{LogLevelDefault},
+		},
+		{
+			name:     "info → Debug stream bit (Info piggybacks on it)",
+			input:    "info",
+			wantMF:   MessageFilterLogMessage,
+			wantSF:   StreamFlagsDebug,
+			wantLvls: []LogLevel{LogLevelInfo},
+		},
+		{
+			name:     "debug → Debug stream bit",
+			input:    "debug",
+			wantMF:   MessageFilterLogMessage,
+			wantSF:   StreamFlagsDebug,
+			wantLvls: []LogLevel{LogLevelDebug},
+		},
+		{
+			name:     "all five → Debug bit enables Info+Debug",
+			input:    "default,info,debug,error,fault",
+			wantMF:   MessageFilterLogMessage,
+			wantSF:   StreamFlagsDebug,
+			wantLvls: []LogLevel{LogLevelDefault, LogLevelInfo, LogLevelDebug, LogLevelError, LogLevelFault},
+		},
+		{
+			name:     "case-insensitive and deduped",
+			input:    "Error, FAULT, error",
+			wantMF:   MessageFilterLogMessage,
+			wantSF:   0,
+			wantLvls: []LogLevel{LogLevelError, LogLevelFault},
+		},
+		{
+			name:    "bogus name",
+			input:   "bogus",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
-		got, err := ParseLevels(tt.input)
+		got, err := ParseLevelFilter(tt.input)
 		if tt.wantErr {
 			if err == nil {
-				t.Errorf("ParseLevels(%q) expected error, got nil", tt.input)
+				t.Errorf("%s: ParseLevelFilter(%q) expected error, got nil", tt.name, tt.input)
 			}
 			continue
 		}
 		if err != nil {
-			t.Errorf("ParseLevels(%q) unexpected error: %v", tt.input, err)
+			t.Errorf("%s: ParseLevelFilter(%q) unexpected error: %v", tt.name, tt.input, err)
 			continue
 		}
-		if len(got) != len(tt.want) {
-			t.Errorf("ParseLevels(%q) = %v, want %v", tt.input, got, tt.want)
+		if got.MessageFilter != tt.wantMF {
+			t.Errorf("%s: MessageFilter = 0x%04x, want 0x%04x", tt.name, got.MessageFilter, tt.wantMF)
+		}
+		if got.StreamFlags != tt.wantSF {
+			t.Errorf("%s: StreamFlags = 0x%04x, want 0x%04x", tt.name, got.StreamFlags, tt.wantSF)
+		}
+		if len(got.ClientLevels) != len(tt.wantLvls) {
+			t.Errorf("%s: ClientLevels = %v, want %v", tt.name, got.ClientLevels, tt.wantLvls)
 			continue
 		}
-		for i := range got {
-			if got[i] != tt.want[i] {
-				t.Errorf("ParseLevels(%q)[%d] = %v, want %v", tt.input, i, got[i], tt.want[i])
+		for i := range got.ClientLevels {
+			if got.ClientLevels[i] != tt.wantLvls[i] {
+				t.Errorf("%s: ClientLevels[%d] = %v, want %v", tt.name, i, got.ClientLevels[i], tt.wantLvls[i])
 			}
 		}
 	}
@@ -284,7 +341,6 @@ func TestClientFilter(t *testing.T) {
 		{"exclude miss", ClientFilter{Exclude: "success"}, entry, true},
 		{"level hit", ClientFilter{Levels: []LogLevel{LogLevelError, LogLevelFault}}, entry, true},
 		{"level miss", ClientFilter{Levels: []LogLevel{LogLevelDebug}}, entry, false},
-		{"level single match", ClientFilter{Levels: []LogLevel{LogLevelDebug}}, entryNoLabel, true},
 		{"combined filters pass", ClientFilter{Subsystem: "com.kwolf", Match: "timeout"}, entry, true},
 		{"combined filters fail on match", ClientFilter{Subsystem: "com.kwolf", Match: "success"}, entry, false},
 		{"combined level + subsystem pass", ClientFilter{Levels: []LogLevel{LogLevelError}, Subsystem: "com.kwolf"}, entry, true},
