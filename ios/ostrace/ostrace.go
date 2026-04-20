@@ -133,8 +133,8 @@ func (f ClientFilter) Matches(entry LogEntry) bool {
 // LevelFilter bundles the device-side parameters and client-side filter
 // needed to deliver only the user-requested log levels.
 type LevelFilter struct {
-	MessageFilter uint16    // what record types the device emits
-	StreamFlags   uint32    // severity gate for record types that carry a level
+	MessageFilter uint16     // what record types the device emits
+	StreamFlags   uint32     // severity gate for record types that carry a level
 	ClientLevels  []LogLevel // exact levels the user wants (for client-side filtering)
 }
 
@@ -478,4 +478,3 @@ func cstring(data []byte) string {
 	}
 	return string(data)
 }
-

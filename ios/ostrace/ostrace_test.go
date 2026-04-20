@@ -209,12 +209,12 @@ func TestCstring(t *testing.T) {
 
 func TestParseLevelFilter(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     string
-		wantMF    uint16
-		wantSF    uint32
-		wantLvls  []LogLevel
-		wantErr   bool
+		name     string
+		input    string
+		wantMF   uint16
+		wantSF   uint32
+		wantLvls []LogLevel
+		wantErr  bool
 	}{
 		{
 			name:     "empty → default filter",
