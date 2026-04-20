@@ -1109,13 +1109,12 @@ The commands work as following:
 		exitIfError("failed opening deviceInfoService for getting process list", err)
 		defer svc.Close()
 
-		processList, _ := svc.ProcessList()
-		for _, process := range processList {
-			if process.Pid > 1 && process.Name == processName {
-				disabled, err := pControl.DisableMemoryLimit(process.Pid)
-				exitIfError("DisableMemoryLimit failed", err)
-				log.WithFields(log.Fields{"process": process.Name, "pid": process.Pid}).Info("memory limit is off: ", disabled)
-			}
+		process, err := svc.ProcessByName(processName)
+		exitIfError("process not found", err)
+		if process.Pid > 1 {
+			disabled, err := pControl.DisableMemoryLimit(process.Pid)
+			exitIfError("DisableMemoryLimit failed", err)
+			log.WithFields(log.Fields{"process": process.Name, "pid": process.Pid}).Info("memory limit is off: ", disabled)
 		}
 	}
 
@@ -2772,45 +2771,41 @@ func runSyslog(device ios.DeviceEntry, parse bool) {
 
 func runOsTrace(device ios.DeviceEntry, pid int, processName string, messageFilter uint16, streamFlags uint32, clientFilter ostrace.ClientFilter) {
 	log.Debug("Run OsTrace.")
-	log.Warn("Streaming log messages places significant CPU load on the device.")
+	// Note: streaming log messages places significant CPU load on the device.
 
 	if processName != "" && pid == -1 {
 		service, err := instruments.NewDeviceInfoService(device)
 		exitIfError("failed opening deviceInfoService for resolving process name", err)
-		procs, err := service.ProcessList()
+		proc, err := service.ProcessByName(processName)
 		service.Close()
-		exitIfError("failed getting process list", err)
-
-		found := false
-		for _, p := range procs {
-			if p.Name == processName || p.RealAppName == processName {
-				pid = int(p.Pid)
-				found = true
-				log.Infof("Resolved process %q to PID %d", processName, pid)
-				break
-			}
-		}
-		if !found {
-			exitIfError("process not found", fmt.Errorf("no running process found with name %q", processName))
-		}
+		exitIfError("process not found", err)
+		pid = int(proc.Pid)
+		log.Infof("Resolved process %q to PID %d", processName, pid)
 	}
 
 	conn, err := ostrace.New(device, pid, messageFilter, streamFlags)
 	exitIfError("os_trace connection failed", err)
 	defer conn.Close()
 
+	done := make(chan error, 1)
 	go func() {
 		for {
 			entry, err := conn.ReadFilteredEntry(clientFilter)
 			if err != nil {
-				exitIfError("failed reading os_trace entry", err)
+				done <- err
+				return
 			}
 			fmt.Println(convertToJSONString(entry))
 		}
 	}()
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-	<-c
+	select {
+	case <-c:
+	case err := <-done:
+		conn.Close()
+		exitIfError("failed reading os_trace entry", err)
+	}
 }
 
 func rawSyslog(log string) string {

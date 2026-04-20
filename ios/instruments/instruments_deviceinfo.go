@@ -1,6 +1,7 @@
 package instruments
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -51,6 +52,21 @@ func (d DeviceInfoService) ProcessList() ([]ProcessInfo, error) {
 
 	result := mapToProcInfo(resp.Payload[0].([]interface{}))
 	return result, err
+}
+
+// ProcessByName looks up a running process by name or real app name and
+// returns its ProcessInfo. Returns an error if no match is found.
+func (d DeviceInfoService) ProcessByName(name string) (ProcessInfo, error) {
+	procs, err := d.ProcessList()
+	if err != nil {
+		return ProcessInfo{}, err
+	}
+	for _, p := range procs {
+		if p.Name == name || p.RealAppName == name {
+			return p, nil
+		}
+	}
+	return ProcessInfo{}, fmt.Errorf("no running process found with name %q", name)
 }
 
 // NameForPid resolves a process name for a given pid

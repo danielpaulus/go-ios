@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -285,7 +286,7 @@ func (c *Connection) startActivity(pid int, messageFilter uint16, streamFlags ui
 	}
 
 	// Reverse the bytes and interpret as big-endian integer
-	reverseBytes(lengthBytes)
+	slices.Reverse(lengthBytes)
 	var plistLength uint64
 	for _, b := range lengthBytes {
 		plistLength = (plistLength << 8) | uint64(b)
@@ -396,6 +397,9 @@ func parseEntry(data []byte) (LogEntry, error) {
 	}
 
 	pid := binary.LittleEndian.Uint32(data[9:13])
+	if pid > 999999 {
+		return LogEntry{}, fmt.Errorf("ostrace: pid %d exceeds sanity limit, possibly corrupted stream", pid)
+	}
 	procpathLen := binary.LittleEndian.Uint16(data[37:39])
 	timeSec := binary.LittleEndian.Uint64(data[55:63])
 	timeUsec := binary.LittleEndian.Uint32(data[63:67])
@@ -475,9 +479,3 @@ func cstring(data []byte) string {
 	return string(data)
 }
 
-// reverseBytes reverses a byte slice in place.
-func reverseBytes(b []byte) {
-	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
-		b[i], b[j] = b[j], b[i]
-	}
-}

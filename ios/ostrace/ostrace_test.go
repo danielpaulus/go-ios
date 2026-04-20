@@ -189,18 +189,6 @@ func TestLogLevelString(t *testing.T) {
 	}
 }
 
-func TestReverseBytes(t *testing.T) {
-	b := []byte{1, 2, 3, 4}
-	reverseBytes(b)
-	expected := []byte{4, 3, 2, 1}
-	for i := range b {
-		if b[i] != expected[i] {
-			t.Errorf("reverseBytes: got %v, want %v", b, expected)
-			break
-		}
-	}
-}
-
 func TestCstring(t *testing.T) {
 	tests := []struct {
 		input []byte
