@@ -2795,7 +2795,11 @@ func runOsTrace(device ios.DeviceEntry, pid int, processName string, messageFilt
 				done <- err
 				return
 			}
-			fmt.Println(convertToJSONString(entry))
+			if JSONdisabled {
+				fmt.Printf("%s %s %d %s\n", entry.Timestamp.Format(time.RFC3339Nano), entry.LevelName, entry.PID, entry.Message)
+			} else {
+				fmt.Println(convertToJSONString(entry))
+			}
 		}
 	}()
 	c := make(chan os.Signal, 1)
