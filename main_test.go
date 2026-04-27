@@ -1,24 +1,46 @@
+//go:build e2e
+
 package main_test
 
 import (
-	"flag"
-	"fmt"
+	"encoding/json"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
-var (
-	update = flag.Bool("update", false, "update golden files")
-	e2e    = flag.Bool("e2e", false, "test with realdevice")
-)
+var iosBin string
 
-func TestDeviceList(t *testing.T) {
-	if !*e2e {
-		return
-	}
-	output, err := exec.Command("go", "run", "./ios.go", "list").Output()
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "ios-e2e-")
 	if err != nil {
-		fmt.Println(err.Error())
+		panic(err)
 	}
-	fmt.Println(string(output))
+	defer os.RemoveAll(dir)
+
+	iosBin = filepath.Join(dir, "ios")
+	if out, err := exec.Command("go", "build", "-o", iosBin, ".").CombinedOutput(); err != nil {
+		panic("build failed: " + err.Error() + "\n" + string(out))
+	}
+
+	os.Exit(m.Run())
+}
+
+func TestList(t *testing.T) {
+	out, err := exec.Command(iosBin, "list").Output()
+	if err != nil {
+		t.Fatalf("ios list: %v", err)
+	}
+
+	var v struct {
+		DeviceList []string `json:"deviceList"`
+	}
+	if err := json.Unmarshal(out, &v); err != nil {
+		t.Fatalf("parse: %v\n%s", err, out)
+	}
+	if len(v.DeviceList) == 0 {
+		t.Fatal("no devices found")
+	}
+	t.Logf("devices: %v", v.DeviceList)
 }

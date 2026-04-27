@@ -3,7 +3,7 @@ on:
 
 name: CI Real Device Test
 jobs:
-  list:
+  e2e:
     runs-on: [self-hosted, macOS]
     steps:
       - uses: actions/checkout@v4
@@ -14,8 +14,5 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - name: Build
-        run: go build
-
-      - name: List devices
-        run: go run main.go list
+      - name: Run e2e tests
+        run: go test -tags=e2e -count=1 -v .
