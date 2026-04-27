@@ -68,8 +68,25 @@ func runIOS(t *testing.T, args ...string) []byte {
 	return out
 }
 
+// runIOSForDevice runs ios with --udid=<udid> appended.
+func runIOSForDevice(t *testing.T, udid string, args ...string) []byte {
+	t.Helper()
+	return runIOS(t, append(args, "--udid="+udid)...)
+}
+
+// smoke runs ios for the given device and fails the test if stdout is empty.
+// It returns the captured stdout for further inspection by the caller.
+func smoke(t *testing.T, udid string, args ...string) []byte {
+	t.Helper()
+	out := runIOSForDevice(t, udid, args...)
+	if len(bytes.TrimSpace(out)) == 0 {
+		t.Fatalf("ios %v: empty output", args)
+	}
+	return out
+}
+
 // forEachDevice runs fn as a parallel subtest per UDID from GO_IOS_E2E_DEVICES.
-// Skips the parent test if the env var is unset.
+// Fails the parent test if the env var is unset.
 func forEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
 	t.Helper()
 	if len(devices) == 0 {
