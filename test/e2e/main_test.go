@@ -11,7 +11,10 @@ import (
 	"testing"
 )
 
-var iosBin string
+var (
+	iosBin  string
+	devices []string
+)
 
 func TestMain(m *testing.M) {
 	root, err := repoRoot()
@@ -30,6 +33,14 @@ func TestMain(m *testing.M) {
 	cmd.Dir = root
 	if out, err := cmd.CombinedOutput(); err != nil {
 		panic("build failed: " + err.Error() + "\n" + string(out))
+	}
+
+	if raw := strings.TrimSpace(os.Getenv("GO_IOS_E2E_DEVICES")); raw != "" {
+		for _, u := range strings.Split(raw, ",") {
+			if u = strings.TrimSpace(u); u != "" {
+				devices = append(devices, u)
+			}
+		}
 	}
 
 	os.Exit(m.Run())
@@ -55,4 +66,20 @@ func runIOS(t *testing.T, args ...string) []byte {
 		t.Fatalf("ios %v: %v\nstderr: %s\nstdout: %s", args, err, stderr.String(), out)
 	}
 	return out
+}
+
+// forEachDevice runs fn as a parallel subtest per UDID from GO_IOS_E2E_DEVICES.
+// Skips the parent test if the env var is unset.
+func forEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
+	t.Helper()
+	if len(devices) == 0 {
+		t.Skip("GO_IOS_E2E_DEVICES not set")
+	}
+	for _, udid := range devices {
+		udid := udid
+		t.Run(udid, func(t *testing.T) {
+			t.Parallel()
+			fn(t, udid)
+		})
+	}
 }

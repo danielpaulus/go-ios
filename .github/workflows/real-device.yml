@@ -15,4 +15,6 @@ jobs:
           cache: false
 
       - name: Run e2e tests
+        env:
+          GO_IOS_E2E_DEVICES: ${{ vars.GO_IOS_E2E_DEVICES }}
         run: go test -tags=e2e -count=1 -v ./test/e2e/...
