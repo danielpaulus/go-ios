@@ -73,7 +73,7 @@ func runIOS(t *testing.T, args ...string) []byte {
 func forEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
 	t.Helper()
 	if len(devices) == 0 {
-		t.Skip("GO_IOS_E2E_DEVICES not set")
+		t.Fatal("GO_IOS_E2E_DEVICES not set: at least one UDID is required")
 	}
 	for _, udid := range devices {
 		udid := udid
