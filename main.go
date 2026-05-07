@@ -2738,35 +2738,25 @@ func printDeviceInfo(device ios.DeviceEntry) {
 func runSyslog(device ios.DeviceEntry, parse bool) {
 	log.Debug("Run Syslog.")
 
-	syslogConnection, err := syslog.New(device)
+	conn, err := syslog.New(device)
 	exitIfError("Syslog connection failed", err)
+	defer conn.Close()
 
-	defer syslogConnection.Close()
-
-	var logFormatter func(string) string
-	if JSONdisabled {
-		logFormatter = rawSyslog
-	} else if parse {
-		logFormatter = parsedJsonSyslog()
-	} else {
-		logFormatter = legacyJsonSyslog()
+	format := syslog.FormatJSON
+	switch {
+	case JSONdisabled:
+		format = syslog.FormatRaw
+	case parse:
+		format = syslog.FormatParsedJSON
 	}
 
-	go func() {
-		for {
-			logMessage, err := syslogConnection.ReadLogMessage()
-			if err != nil {
-				exitIfError("failed reading syslog", err)
-			}
-			logMessage = strings.TrimSuffix(logMessage, "\x00")
-			logMessage = strings.TrimSuffix(logMessage, "\x0A")
+	streamer := syslog.NewStreamer(conn, syslog.StreamConfig{Format: format})
 
-			fmt.Println(logFormatter(logMessage))
-		}
-	}()
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	if err := streamer.Run(ctx, os.Stdout); err != nil {
+		exitIfError("syslog stream failed", err)
+	}
 }
 
 func runOsTrace(device ios.DeviceEntry, pid int, processName string, messageFilter uint16, streamFlags uint32, clientFilter ostrace.ClientFilter) {
@@ -2809,32 +2799,6 @@ func runOsTrace(device ios.DeviceEntry, pid int, processName string, messageFilt
 	case err := <-done:
 		conn.Close()
 		exitIfError("failed reading os_trace entry", err)
-	}
-}
-
-func rawSyslog(log string) string {
-	return log
-}
-
-func legacyJsonSyslog() func(log string) string {
-	messageContainer := map[string]string{}
-
-	return func(log string) string {
-		messageContainer["msg"] = log
-		return convertToJSONString(messageContainer)
-	}
-}
-
-func parsedJsonSyslog() func(log string) string {
-	parser := syslog.Parser()
-
-	return func(log string) string {
-		log_entry, err := parser(log)
-		if err != nil {
-			return convertToJSONString(map[string]string{"msg": log, "error": err.Error()})
-		}
-
-		return convertToJSONString(log_entry)
 	}
 }
 

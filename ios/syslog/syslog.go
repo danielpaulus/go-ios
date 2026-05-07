@@ -66,6 +66,15 @@ func (sysLogConn *Connection) ReadLogMessage() (string, error) {
 	return logmsg, nil
 }
 
+// ReadLogMessageBytes returns the next null-terminated log message as a slice
+// into the underlying bufio buffer. The returned slice is only valid until
+// the next call on the Connection — callers must finish processing (writing,
+// json-marshaling, copying) before reading the next message. Use this for
+// allocation-sensitive hot paths; otherwise use ReadLogMessage.
+func (sysLogConn *Connection) ReadLogMessageBytes() ([]byte, error) {
+	return sysLogConn.bufferedReader.ReadSlice(0)
+}
+
 // LogEntry represents a parsed log entry
 type LogEntry struct {
 	Timestamp string `json:"timestamp"`
@@ -78,46 +87,46 @@ type LogEntry struct {
 
 func Parser() func(log string) (*LogEntry, error) {
 	pattern := `(?P<Timestamp>[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+(?P<Device>\S+)\s+(?P<Process>[^\[]+)\[(?P<PID>\d+)\]\s+<(?P<Level>\w+)>: (?P<Message>.+)`
-	regexp := regexp.MustCompile(pattern)
+	re := regexp.MustCompile(pattern)
+
+	// Resolve named-group indexes once. Avoids per-line map[string]string +
+	// SubexpNames() walk that the previous implementation did for every line.
+	tsIdx := re.SubexpIndex("Timestamp")
+	devIdx := re.SubexpIndex("Device")
+	procIdx := re.SubexpIndex("Process")
+	pidIdx := re.SubexpIndex("PID")
+	lvlIdx := re.SubexpIndex("Level")
+	msgIdx := re.SubexpIndex("Message")
+	// Cache the current year. Syslog timestamps lack a year; we stamp with
+	// the year the parser was constructed. This drifts at year boundaries
+	// for long-running streams — a known limitation, same as upstream.
+	parserYear := time.Now().Year()
 
 	return func(log string) (*LogEntry, error) {
-		// Match the log message against the regex pattern
-		match := regexp.FindStringSubmatch(log)
-		if match == nil {
+		// FindStringSubmatchIndex returns []int with [start,end) byte ranges.
+		// The previous FindStringSubmatch allocated a fresh string per group;
+		// here we slice into the input string directly, which is zero-alloc.
+		loc := re.FindStringSubmatchIndex(log)
+		if loc == nil {
 			return nil, fmt.Errorf("failed to parse syslog message: %s", log)
 		}
 
-		// Create a map of named capture groups
-		result := make(map[string]string)
-		for i, name := range regexp.SubexpNames() {
-			if i != 0 && name != "" {
-				result[name] = match[i]
-			}
-		}
+		field := func(idx int) string { return log[loc[2*idx]:loc[2*idx+1]] }
 
-		// Parse the original timestamp
-		originalTimestamp := result["Timestamp"]
-		parsedTime, err := time.Parse("Jan 2 15:04:05", originalTimestamp)
-		// Set the year to the current year from the system (this might cause friction at year end)
-		parsedTime = parsedTime.AddDate(time.Now().Year()-parsedTime.Year(), 0, 0)
+		parsedTime, err := time.Parse("Jan 2 15:04:05", field(tsIdx))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse syslog timestamp: %s", log)
 		}
+		parsedTime = parsedTime.AddDate(parserYear-parsedTime.Year(), 0, 0)
 
-		// Convert to ISO 8601 format
-		isoTimestamp := parsedTime.Format("2006-01-02T15:04:05")
-
-		// Populate the LogEntry struct
-		entry := &LogEntry{
-			Timestamp: isoTimestamp,
-			Device:    result["Device"],
-			Process:   strings.TrimSpace(result["Process"]),
-			PID:       result["PID"],
-			Level:     result["Level"],
-			Message:   result["Message"],
-		}
-
-		return entry, nil
+		return &LogEntry{
+			Timestamp: parsedTime.Format("2006-01-02T15:04:05"),
+			Device:    field(devIdx),
+			Process:   strings.TrimSpace(field(procIdx)),
+			PID:       field(pidIdx),
+			Level:     field(lvlIdx),
+			Message:   field(msgIdx),
+		}, nil
 	}
 }
 
