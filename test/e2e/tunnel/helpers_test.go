@@ -19,6 +19,10 @@ func smoke(t *testing.T, udid string, args ...string) []byte {
 	return harness.Smoke(t, udid, args...)
 }
 
+func runIOSForDevice(t *testing.T, udid string, args ...string) []byte {
+	return harness.RunForDevice(t, udid, args...)
+}
+
 func forEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
 	harness.ForEachDevice(t, fn)
 }
