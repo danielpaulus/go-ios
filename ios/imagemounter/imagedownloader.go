@@ -92,7 +92,9 @@ const (
 	imageFile     = "DeveloperDiskImage.dmg"
 	signatureFile = "DeveloperDiskImage.dmg.signature"
 	devicebox     = "https://deviceboxhq.com/"
-	xcode15_4_ddi = "ddi-15F31d"
+	// iOS 17+ universal personalized developer disk image hosted on deviceboxhq.
+	// Bump this when a newer DDI is published there (was ddi-15F31d).
+	xcode15_4_ddi = "ddi-17E5179g"
 )
 
 func MatchAvailable(version string) string {
