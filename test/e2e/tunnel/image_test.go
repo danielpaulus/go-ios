@@ -12,10 +12,12 @@ import (
 // without it; only the developer services do not).
 
 // TestImageAuto downloads the DDI from deviceboxhq into a fresh dir and mounts
-// it, covering the full image-auto path end to end.
+// it, covering the full image-auto path end to end. These commands log to
+// stderr and print nothing to stdout, so success is asserted via a clean exit
+// (runIOSForDevice fails the test on a non-zero exit).
 func TestImageAuto(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		smoke(t, udid, "image", "auto", "--basedir="+t.TempDir())
+		runIOSForDevice(t, udid, "image", "auto", "--basedir="+t.TempDir())
 	})
 }
 
@@ -25,7 +27,7 @@ func TestImageAuto(t *testing.T) {
 func TestImageMount(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
 		dir := t.TempDir()
-		smoke(t, udid, "image", "auto", "--basedir="+dir)
+		runIOSForDevice(t, udid, "image", "auto", "--basedir="+dir)
 
 		restores, err := filepath.Glob(filepath.Join(dir, "*", "Restore"))
 		if err != nil || len(restores) == 0 {
@@ -33,6 +35,6 @@ func TestImageMount(t *testing.T) {
 		}
 
 		runIOSForDevice(t, udid, "image", "unmount")
-		smoke(t, udid, "image", "mount", "--path="+restores[0])
+		runIOSForDevice(t, udid, "image", "mount", "--path="+restores[0])
 	})
 }
