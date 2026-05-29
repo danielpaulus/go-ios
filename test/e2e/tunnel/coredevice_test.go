@@ -17,6 +17,10 @@ func TestPs(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "ps") })
 }
 
+func TestPsApps(t *testing.T) {
+	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "ps", "--apps") })
+}
+
 func TestDevicestateList(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "devicestate", "list") })
 }

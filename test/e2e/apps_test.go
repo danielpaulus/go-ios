@@ -10,3 +10,8 @@ import "testing"
 func TestApps(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "apps", "--system", "--list") })
 }
+
+// TestAppsAll lists all apps (system, user, and hidden).
+func TestAppsAll(t *testing.T) {
+	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "apps", "--all") })
+}
