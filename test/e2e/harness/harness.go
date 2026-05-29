@@ -1,6 +1,10 @@
 //go:build e2e
 
-package e2e_test
+// Package harness holds the shared plumbing for the go-ios real-device e2e
+// suites. It builds the ios binary once per suite process and exposes
+// per-device test helpers, so the tunnel-free suite (test/e2e) and the
+// tunnel-requiring suite (test/e2e/tunnel) stay thin and consistent.
+package harness
 
 import (
 	"bytes"
@@ -16,7 +20,9 @@ var (
 	devices []string
 )
 
-func TestMain(m *testing.M) {
+// Main builds the ios binary, parses the device list from GO_IOS_E2E_DEVICES,
+// and runs the suite. Call it from a TestMain in each suite package.
+func Main(m *testing.M) {
 	root, err := repoRoot()
 	if err != nil {
 		panic(err)
@@ -54,9 +60,9 @@ func repoRoot() (string, error) {
 	return filepath.Dir(strings.TrimSpace(string(out))), nil
 }
 
-// runIOS executes the ios binary with the given args and returns stdout.
+// RunIOS executes the ios binary with the given args and returns stdout.
 // On non-zero exit it fails the test with stderr + stdout for debugging.
-func runIOS(t *testing.T, args ...string) []byte {
+func RunIOS(t *testing.T, args ...string) []byte {
 	t.Helper()
 	var stderr bytes.Buffer
 	cmd := exec.Command(iosBin, args...)
@@ -68,26 +74,26 @@ func runIOS(t *testing.T, args ...string) []byte {
 	return out
 }
 
-// runIOSForDevice runs ios with --udid=<udid> appended.
-func runIOSForDevice(t *testing.T, udid string, args ...string) []byte {
+// RunForDevice runs ios with --udid=<udid> appended.
+func RunForDevice(t *testing.T, udid string, args ...string) []byte {
 	t.Helper()
-	return runIOS(t, append(args, "--udid="+udid)...)
+	return RunIOS(t, append(args, "--udid="+udid)...)
 }
 
-// smoke runs ios for the given device and fails the test if stdout is empty.
+// Smoke runs ios for the given device and fails the test if stdout is empty.
 // It returns the captured stdout for further inspection by the caller.
-func smoke(t *testing.T, udid string, args ...string) []byte {
+func Smoke(t *testing.T, udid string, args ...string) []byte {
 	t.Helper()
-	out := runIOSForDevice(t, udid, args...)
+	out := RunForDevice(t, udid, args...)
 	if len(bytes.TrimSpace(out)) == 0 {
 		t.Fatalf("ios %v: empty output", args)
 	}
 	return out
 }
 
-// forEachDevice runs fn as a parallel subtest per UDID from GO_IOS_E2E_DEVICES.
+// ForEachDevice runs fn as a parallel subtest per UDID from GO_IOS_E2E_DEVICES.
 // Fails the parent test if the env var is unset.
-func forEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
+func ForEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
 	t.Helper()
 	if len(devices) == 0 {
 		t.Fatal("GO_IOS_E2E_DEVICES not set: at least one UDID is required")

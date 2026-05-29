@@ -12,10 +12,6 @@ func TestLang(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "lang") })
 }
 
-func TestDevicestateList(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "devicestate", "list") })
-}
-
 func TestDiagnosticsList(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "diagnostics", "list") })
 }

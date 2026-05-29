@@ -8,10 +8,6 @@ func TestInfo(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "info") })
 }
 
-func TestInfoDisplay(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "info", "display") })
-}
-
 func TestInfoLockdown(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "info", "lockdown") })
 }

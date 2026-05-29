@@ -15,7 +15,3 @@ func TestBatterycheck(t *testing.T) {
 func TestBatteryregistry(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "batteryregistry") })
 }
-
-func TestPs(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "ps") })
-}

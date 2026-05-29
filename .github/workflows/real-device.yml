@@ -14,7 +14,21 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - name: Run e2e tests
+      # Commands served over the classic lockdown/usbmux services. These work on
+      # every device regardless of iOS version, so they run against the full
+      # device list.
+      - name: E2E tunnel-free (all devices)
         env:
           GO_IOS_E2E_DEVICES: ${{ vars.GO_IOS_E2E_DEVICES }}
-        run: go test -tags=e2e -count=1 -v ./test/e2e/...
+        run: go test -tags=e2e -count=1 -v ./test/e2e/
+
+      # Commands that need the iOS 17+ tunnel (RemoteServiceDiscovery /
+      # CoreDevice / instruments) and a mounted Developer Disk Image. They run
+      # only against tunnel-capable devices; set the GO_IOS_E2E_TUNNEL_DEVICES
+      # repo variable to that subset (falls back to the full list). Requires the
+      # `ios tunnel` daemon to be running on the runner host.
+      - name: E2E tunnel (iOS 17+)
+        if: ${{ !cancelled() }}
+        env:
+          GO_IOS_E2E_DEVICES: ${{ vars.GO_IOS_E2E_TUNNEL_DEVICES || vars.GO_IOS_E2E_DEVICES }}
+        run: go test -tags=e2e -count=1 -v ./test/e2e/tunnel/
