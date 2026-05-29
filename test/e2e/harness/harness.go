@@ -8,6 +8,7 @@ package harness
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,8 +22,9 @@ var (
 )
 
 // Main builds the ios binary, parses the device list from GO_IOS_E2E_DEVICES,
-// and runs the suite. Call it from a TestMain in each suite package.
-func Main(m *testing.M) {
+// runs any setup hooks, and runs the suite. Call it from a TestMain in each
+// suite package; the tunnel suite passes MountDeveloperImage as a setup hook.
+func Main(m *testing.M, setup ...func()) {
 	root, err := repoRoot()
 	if err != nil {
 		panic(err)
@@ -49,7 +51,30 @@ func Main(m *testing.M) {
 		}
 	}
 
+	for _, s := range setup {
+		s()
+	}
+
 	os.Exit(m.Run())
+}
+
+// MountDeveloperImage downloads and mounts the developer disk image on every
+// configured device. The tunnel suite uses it as a setup hook: CoreDevice
+// services such as "info display" require a mounted DDI, and a device reboot
+// (e.g. after enabling Developer Mode) unmounts it. Best-effort: failures are
+// logged, and the individual tests that need the DDI will report clear errors.
+func MountDeveloperImage() {
+	imgDir, err := os.MkdirTemp("", "ddi-")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "harness: could not create DDI temp dir: %v\n", err)
+		return
+	}
+	for _, udid := range devices {
+		out, err := exec.Command(iosBin, "image", "auto", "--basedir="+imgDir, "--udid="+udid).CombinedOutput()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "harness: image auto failed for %s: %v\n%s\n", udid, err, out)
+		}
+	}
 }
 
 func repoRoot() (string, error) {

@@ -13,7 +13,9 @@ import (
 	"github.com/danielpaulus/go-ios/test/e2e/harness"
 )
 
-func TestMain(m *testing.M) { harness.Main(m) }
+// The tunnel suite mounts the developer disk image up front: CoreDevice
+// services (e.g. info display) need it, and it is unmounted by device reboots.
+func TestMain(m *testing.M) { harness.Main(m, harness.MountDeveloperImage) }
 
 func smoke(t *testing.T, udid string, args ...string) []byte {
 	return harness.Smoke(t, udid, args...)
