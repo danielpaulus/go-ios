@@ -13,7 +13,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 var (
@@ -114,6 +116,28 @@ func Smoke(t *testing.T, udid string, args ...string) []byte {
 		t.Fatalf("ios %v: empty output", args)
 	}
 	return out
+}
+
+// StreamSmoke runs a streaming ios command (e.g. syslog) for the given device,
+// lets it stream for window, then kills its process group and fails the test if
+// nothing was written to stdout. Use this for commands that run until killed.
+func StreamSmoke(t *testing.T, udid string, window time.Duration, args ...string) {
+	t.Helper()
+	var out bytes.Buffer
+	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
+	cmd.Stdout = &out
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true} // own group so we can kill children too
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("ios %v: start: %v", args, err)
+	}
+
+	time.Sleep(window)
+	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	_ = cmd.Wait() // returns the kill signal error; ignored
+
+	if len(bytes.TrimSpace(out.Bytes())) == 0 {
+		t.Fatalf("ios %v: no streamed output within %s", args, window)
+	}
 }
 
 // ForEachDevice runs fn as a parallel subtest per UDID from GO_IOS_E2E_DEVICES.
