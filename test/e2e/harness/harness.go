@@ -140,6 +140,26 @@ func StreamSmoke(t *testing.T, udid string, window time.Duration, args ...string
 	}
 }
 
+// StreamInTempDir runs a streaming ios command in a fresh temp directory for
+// window, then kills its process group, and returns the directory so the caller
+// can inspect files the command wrote there (e.g. pcap's dump-*.pcap).
+func StreamInTempDir(t *testing.T, udid string, window time.Duration, args ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
+	cmd.Dir = dir
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true} // own group so we can kill children too
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("ios %v: start: %v", args, err)
+	}
+
+	time.Sleep(window)
+	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	_ = cmd.Wait() // returns the kill signal error; ignored
+
+	return dir
+}
+
 // ForEachDevice runs fn as a parallel subtest per UDID from GO_IOS_E2E_DEVICES.
 // Fails the parent test if the env var is unset.
 func ForEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
