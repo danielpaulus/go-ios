@@ -37,6 +37,10 @@ func runIOSForDevice(t *testing.T, udid string, args ...string) []byte {
 	return harness.RunForDevice(t, udid, args...)
 }
 
+func startBackground(t *testing.T, udid string, args ...string) func() {
+	return harness.StartBackground(t, udid, args...)
+}
+
 func forEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
 	harness.ForEachDevice(t, fn)
 }

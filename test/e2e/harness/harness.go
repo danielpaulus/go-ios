@@ -270,6 +270,32 @@ func snippet(b []byte) string {
 	return string(b)
 }
 
+// StartBackground starts an ios command that runs until signalled (e.g.
+// "devicestate enable", which holds a condition active only while running) and
+// returns a stop function. stop sends SIGTERM to the process group so the
+// command can clean up (reverting device state), escalating to SIGKILL if it
+// does not exit promptly. The caller must defer stop().
+func StartBackground(t *testing.T, udid string, args ...string) (stop func()) {
+	t.Helper()
+	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("ios %v: start: %v", args, err)
+	}
+	return func() {
+		pgid := cmd.Process.Pid
+		_ = syscall.Kill(-pgid, syscall.SIGTERM)
+		done := make(chan struct{})
+		go func() { _ = cmd.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			_ = syscall.Kill(-pgid, syscall.SIGKILL)
+			<-done
+		}
+	}
+}
+
 // ForEachDevice runs fn as a parallel subtest per UDID from GO_IOS_E2E_DEVICES.
 // Fails the parent test if the env var is unset.
 func ForEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
