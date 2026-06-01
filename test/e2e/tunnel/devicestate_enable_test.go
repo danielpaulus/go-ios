@@ -3,41 +3,34 @@
 package tunnel_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
 
-// TestDevicestateEnable activates a device condition profile and verifies a
-// separate "devicestate list" reports it active, then stops it. devicestate
-// enable only holds the condition while running, so SIGTERM (via startBackground)
-// reverts the device — the test is self-restoring.
+// TestDevicestateEnable activates a device condition profile and verifies the
+// command reports it active, then stops it. devicestate enable holds the
+// condition only while running, so SIGTERM (via startBackground's stop) reverts
+// the device — the test is self-restoring.
+//
+// Verification reads the enable command's own output rather than issuing a
+// concurrent "devicestate list": go-ios does not handle two simultaneous
+// RSD/tunnel sessions reliably.
 func TestDevicestateEnable(t *testing.T) {
 	const typeID, profileID = "SlowNetworkCondition", "SlowNetwork3GGood"
 	forEachDevice(t, func(t *testing.T, udid string) {
-		stop := startBackground(t, udid, "devicestate", "enable", typeID, profileID)
+		output, stop := startBackground(t, udid, "devicestate", "enable", typeID, profileID)
 		defer stop()
 
-		// Poll until the condition becomes active (it takes a moment to apply).
-		var gotProfile string
-		var active bool
-		for i := 0; i < 15; i++ {
-			gotProfile, active = "", false
-			for _, e := range smokeArr(t, udid, []string{"Identifier", "ActiveProfile", "IsActive"}, "devicestate", "list") {
-				m, _ := e.(map[string]any)
-				if m["Identifier"] == typeID {
-					gotProfile, _ = m["ActiveProfile"].(string)
-					active, _ = m["IsActive"].(bool)
-				}
-			}
-			if active {
-				break
+		// Wait for the command to report the profile active.
+		var out string
+		for i := 0; i < 20; i++ {
+			out = output()
+			if strings.Contains(out, "is active") {
+				return
 			}
 			time.Sleep(time.Second)
 		}
-
-		if !active || gotProfile != profileID {
-			t.Fatalf("devicestate enable %s %s: condition not active (ActiveProfile=%q, IsActive=%v)",
-				typeID, profileID, gotProfile, active)
-		}
+		t.Fatalf("devicestate enable %s %s: never reported active. output:\n%s", typeID, profileID, out)
 	})
 }

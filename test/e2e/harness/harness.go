@@ -270,19 +270,43 @@ func snippet(b []byte) string {
 	return string(b)
 }
 
+type syncBuf struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuf) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuf) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
 // StartBackground starts an ios command that runs until signalled (e.g.
-// "devicestate enable", which holds a condition active only while running) and
-// returns a stop function. stop sends SIGTERM to the process group so the
+// "devicestate enable", which holds a condition active only while running),
+// capturing its combined output. It returns output() to read what the command
+// has printed so far, and stop() which sends SIGTERM to the process group so the
 // command can clean up (reverting device state), escalating to SIGKILL if it
 // does not exit promptly. The caller must defer stop().
-func StartBackground(t *testing.T, udid string, args ...string) (stop func()) {
+//
+// Prefer reading the command's own output over issuing a second concurrent
+// command: go-ios does not reliably handle two simultaneous RSD/tunnel sessions.
+func StartBackground(t *testing.T, udid string, args ...string) (output func() string, stop func()) {
 	t.Helper()
+	buf := &syncBuf{}
 	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
+	cmd.Stdout = buf
+	cmd.Stderr = buf
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("ios %v: start: %v", args, err)
 	}
-	return func() {
+	return buf.String, func() {
 		pgid := cmd.Process.Pid
 		_ = syscall.Kill(-pgid, syscall.SIGTERM)
 		done := make(chan struct{})
