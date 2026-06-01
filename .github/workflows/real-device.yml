@@ -2,6 +2,11 @@ on:
   workflow_dispatch:
 
 name: CI Real Device Test
+
+# Least privilege: the job only checks out code and runs tests.
+permissions:
+  contents: read
+
 jobs:
   e2e:
     name: e2e (${{ matrix.os }})
