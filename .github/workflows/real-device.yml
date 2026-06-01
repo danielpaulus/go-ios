@@ -4,7 +4,20 @@ on:
 name: CI Real Device Test
 jobs:
   e2e:
-    runs-on: [self-hosted, macOS]
+    name: e2e (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Each self-hosted runner has its own attached device(s), so each row
+          # points at its own repo variables.
+          - os: macOS
+            devices: GO_IOS_E2E_DEVICES
+            tunnel_devices: GO_IOS_E2E_TUNNEL_DEVICES
+          - os: Linux
+            devices: GO_IOS_E2E_LINUX_DEVICES
+            tunnel_devices: GO_IOS_E2E_LINUX_TUNNEL_DEVICES
+    runs-on: [self-hosted, "${{ matrix.os }}"]
     steps:
       - uses: actions/checkout@v4
 
@@ -15,21 +28,18 @@ jobs:
           cache: false
 
       # Commands served over the classic lockdown/usbmux services. These work on
-      # every device regardless of iOS version, so point GO_IOS_E2E_DEVICES at
-      # the full device list.
+      # every device regardless of iOS version.
       - name: E2E tunnel-free
         env:
-          GO_IOS_E2E_DEVICES: ${{ vars.GO_IOS_E2E_DEVICES }}
+          GO_IOS_E2E_DEVICES: ${{ vars[matrix.devices] }}
         run: go test -tags=e2e -count=1 -v ./test/e2e/
 
       # Commands that need the iOS 17+ tunnel (RemoteServiceDiscovery /
       # CoreDevice / instruments) plus a mounted Developer Disk Image and
-      # Developer Mode enabled on the device. This step targets its own device
-      # list (GO_IOS_E2E_TUNNEL_DEVICES) so you can run it on a subset, and is
-      # skipped entirely when that variable is empty. Requires the `ios tunnel`
-      # daemon running on the runner host.
+      # Developer Mode on the device. Targets its own device list and is skipped
+      # when empty. Requires the `ios tunnel` daemon running on the runner host.
       - name: E2E tunnel (iOS 17+)
-        if: ${{ !cancelled() && vars.GO_IOS_E2E_TUNNEL_DEVICES != '' }}
+        if: ${{ !cancelled() && vars[matrix.tunnel_devices] != '' }}
         env:
-          GO_IOS_E2E_DEVICES: ${{ vars.GO_IOS_E2E_TUNNEL_DEVICES }}
+          GO_IOS_E2E_DEVICES: ${{ vars[matrix.tunnel_devices] }}
         run: go test -tags=e2e -count=1 -v ./test/e2e/tunnel/
