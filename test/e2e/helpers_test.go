@@ -36,6 +36,14 @@ func expectedDevice(udid string) (map[string]string, bool) {
 	return harness.ExpectedDevice(udid)
 }
 
+func smokeObj(t *testing.T, udid string, requiredKeys []string, args ...string) map[string]any {
+	return harness.SmokeJSONObject(t, udid, requiredKeys, args...)
+}
+
+func smokeArr(t *testing.T, udid string, elemKeys []string, args ...string) []any {
+	return harness.SmokeJSONArray(t, udid, elemKeys, args...)
+}
+
 func forEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
 	harness.ForEachDevice(t, fn)
 }

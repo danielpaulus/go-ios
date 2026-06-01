@@ -2,42 +2,58 @@
 
 package e2e_test
 
-import (
-	"encoding/json"
-	"testing"
-)
+import "testing"
 
-// TestInfo checks the lockdown info dump is valid JSON and carries a real
-// ProductVersion (e.g. "18.5"), not just non-empty output.
+// assertSnapshot, for a known (static) device, asserts every recorded identity
+// field in testdata/devices.json matches the live response. Unknown devices are
+// skipped so adding a device doesn't break CI.
+func assertSnapshot(t *testing.T, udid string, m map[string]any) {
+	t.Helper()
+	exp, ok := expectedDevice(udid)
+	if !ok {
+		return
+	}
+	for key, want := range exp {
+		if got, _ := m[key].(string); got != want {
+			t.Fatalf("%s = %q, want %q (test/e2e/testdata/devices.json)", key, got, want)
+		}
+	}
+}
+
 func TestInfo(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		var m map[string]any
-		if err := json.Unmarshal(smokeJSON(t, udid, "info"), &m); err != nil {
-			t.Fatalf("info: parse: %v", err)
-		}
-		if v, _ := m["ProductVersion"].(string); v == "" {
-			t.Fatalf("info: missing/empty ProductVersion in response")
-		}
-		// For known (static) devices, assert the identity fields match the
-		// recorded snapshot exactly.
-		if exp, ok := expectedDevice(udid); ok {
-			for _, key := range []string{"ProductType", "ProductVersion"} {
-				if got, _ := m[key].(string); got != exp[key] {
-					t.Fatalf("info %s = %q, want %q (test/e2e/testdata/devices.json)", key, got, exp[key])
-				}
-			}
-		}
+		m := smokeObj(t, udid, []string{
+			"ProductType", "ProductVersion", "BuildVersion", "DeviceClass",
+			"CPUArchitecture", "HardwareModel", "ProductName", "ModelNumber",
+			"SerialNumber", "UniqueDeviceID", "DeviceName",
+		}, "info")
+		assertSnapshot(t, udid, m)
 	})
 }
 
 func TestInfoLockdown(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smokeJSON(t, udid, "info", "lockdown") })
+	forEachDevice(t, func(t *testing.T, udid string) {
+		m := smokeObj(t, udid, []string{
+			"BuildVersion", "CPUArchitecture", "DeviceClass", "DeviceName",
+			"ProductType", "ProductVersion", "UniqueDeviceID",
+		}, "info", "lockdown")
+		assertSnapshot(t, udid, m)
+	})
 }
 
 func TestDevicename(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smokeJSON(t, udid, "devicename") })
+	forEachDevice(t, func(t *testing.T, udid string) {
+		m := smokeObj(t, udid, []string{"devicename"}, "devicename")
+		if name, _ := m["devicename"].(string); name == "" {
+			t.Fatalf("devicename: empty")
+		}
+	})
 }
 
+// TestDate reads the device clock; the values are volatile, so only assert the
+// response shape.
 func TestDate(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smokeJSON(t, udid, "date") })
+	forEachDevice(t, func(t *testing.T, udid string) {
+		smokeObj(t, udid, []string{"TimeIntervalSince1970", "formatedDate"}, "date")
+	})
 }

@@ -3,14 +3,18 @@
 package e2e_test
 
 import (
-	"bytes"
+	"encoding/json"
 	"testing"
 )
 
-// TestVersion does not target a device: it just verifies the built binary
-// runs and prints its version.
+// TestVersion does not target a device: it verifies the built binary runs and
+// prints a JSON object with a non-empty version string.
 func TestVersion(t *testing.T) {
-	if out := bytes.TrimSpace(runIOS(t, "version")); len(out) == 0 {
-		t.Fatal("ios version: empty output")
+	var m map[string]any
+	if err := json.Unmarshal(runIOS(t, "version"), &m); err != nil {
+		t.Fatalf("version: not JSON: %v", err)
+	}
+	if v, _ := m["version"].(string); v == "" {
+		t.Fatalf("version: missing/empty version field in %v", m)
 	}
 }

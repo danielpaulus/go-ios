@@ -1,10 +1,22 @@
 {
   "00008120-001905DE2E9B401E": {
     "ProductType": "iPhone15,2",
-    "ProductVersion": "18.5"
+    "ProductVersion": "18.5",
+    "BuildVersion": "22F76",
+    "DeviceClass": "iPhone",
+    "CPUArchitecture": "arm64e",
+    "HardwareModel": "D73AP",
+    "ProductName": "iPhone OS",
+    "ModelNumber": "MQ0T3"
   },
   "00008110-001C19A43420401E": {
     "ProductType": "iPhone14,2",
-    "ProductVersion": "18.4.1"
+    "ProductVersion": "18.4.1",
+    "BuildVersion": "22E252",
+    "DeviceClass": "iPhone",
+    "CPUArchitecture": "arm64e",
+    "HardwareModel": "D63AP",
+    "ProductName": "iPhone OS",
+    "ModelNumber": "MLVH3"
   }
 }

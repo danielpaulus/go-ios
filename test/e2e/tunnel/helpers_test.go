@@ -25,6 +25,14 @@ func smokeJSON(t *testing.T, udid string, args ...string) []byte {
 	return harness.SmokeJSON(t, udid, args...)
 }
 
+func smokeObj(t *testing.T, udid string, requiredKeys []string, args ...string) map[string]any {
+	return harness.SmokeJSONObject(t, udid, requiredKeys, args...)
+}
+
+func smokeArr(t *testing.T, udid string, elemKeys []string, args ...string) []any {
+	return harness.SmokeJSONArray(t, udid, elemKeys, args...)
+}
+
 func runIOSForDevice(t *testing.T, udid string, args ...string) []byte {
 	return harness.RunForDevice(t, udid, args...)
 }

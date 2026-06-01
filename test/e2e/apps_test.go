@@ -13,7 +13,10 @@ func TestApps(t *testing.T) {
 	})
 }
 
-// TestAppsAll lists all apps (system, user, and hidden) as JSON.
+// TestAppsAll lists all apps (system, user, and hidden) as a JSON array of app
+// info objects.
 func TestAppsAll(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smokeJSON(t, udid, "apps", "--all") })
+	forEachDevice(t, func(t *testing.T, udid string) {
+		smokeArr(t, udid, []string{"CFBundleIdentifier", "CFBundleName", "ApplicationType"}, "apps", "--all")
+	})
 }

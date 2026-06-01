@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -173,6 +174,55 @@ func SmokeJSON(t *testing.T, udid string, args ...string) []byte {
 		t.Fatalf("ios %v: output is not valid JSON:\n%s", args, snippet(out))
 	}
 	return out
+}
+
+// SmokeJSONObject runs ios, asserts the output is a JSON object containing every
+// key in requiredKeys, and returns the decoded map for further value checks.
+func SmokeJSONObject(t *testing.T, udid string, requiredKeys []string, args ...string) map[string]any {
+	t.Helper()
+	out := Smoke(t, udid, args...)
+	var m map[string]any
+	if err := json.Unmarshal(out, &m); err != nil {
+		t.Fatalf("ios %v: not a JSON object: %v\n%s", args, err, snippet(out))
+	}
+	for _, k := range requiredKeys {
+		if _, ok := m[k]; !ok {
+			t.Fatalf("ios %v: missing expected key %q (got %v)", args, k, keysOf(m))
+		}
+	}
+	return m
+}
+
+// SmokeJSONArray runs ios, asserts the output is a non-empty JSON array, and
+// (when elements are objects) that the first element contains every key in
+// elemKeys. Returns the decoded slice.
+func SmokeJSONArray(t *testing.T, udid string, elemKeys []string, args ...string) []any {
+	t.Helper()
+	out := Smoke(t, udid, args...)
+	var a []any
+	if err := json.Unmarshal(out, &a); err != nil {
+		t.Fatalf("ios %v: not a JSON array: %v\n%s", args, err, snippet(out))
+	}
+	if len(a) == 0 {
+		t.Fatalf("ios %v: empty array", args)
+	}
+	if first, ok := a[0].(map[string]any); ok {
+		for _, k := range elemKeys {
+			if _, ok := first[k]; !ok {
+				t.Fatalf("ios %v: array element missing key %q (got %v)", args, k, keysOf(first))
+			}
+		}
+	}
+	return a
+}
+
+func keysOf(m map[string]any) []string {
+	ks := make([]string, 0, len(m))
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
 }
 
 // SmokeContains runs ios for the device and fails the test unless stdout
