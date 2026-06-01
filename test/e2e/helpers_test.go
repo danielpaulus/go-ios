@@ -24,6 +24,18 @@ func smoke(t *testing.T, udid string, args ...string) []byte {
 	return harness.Smoke(t, udid, args...)
 }
 
+func smokeJSON(t *testing.T, udid string, args ...string) []byte {
+	return harness.SmokeJSON(t, udid, args...)
+}
+
+func smokeContains(t *testing.T, udid, want string, args ...string) []byte {
+	return harness.SmokeContains(t, udid, want, args...)
+}
+
+func expectedDevice(udid string) (map[string]string, bool) {
+	return harness.ExpectedDevice(udid)
+}
+
 func forEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
 	harness.ForEachDevice(t, fn)
 }

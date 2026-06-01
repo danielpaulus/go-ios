@@ -8,11 +8,13 @@ package harness
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -158,6 +160,64 @@ func StreamInTempDir(t *testing.T, udid string, window time.Duration, args ...st
 	_ = cmd.Wait() // returns the kill signal error; ignored
 
 	return dir
+}
+
+// SmokeJSON runs ios for the device and fails the test unless stdout is
+// non-empty AND valid JSON. Most go-ios commands emit JSON by default, so this
+// catches error text, log noise, or truncated output that a bare non-empty
+// check (Smoke) would let through. Returns the raw stdout for further checks.
+func SmokeJSON(t *testing.T, udid string, args ...string) []byte {
+	t.Helper()
+	out := Smoke(t, udid, args...)
+	if !json.Valid(bytes.TrimSpace(out)) {
+		t.Fatalf("ios %v: output is not valid JSON:\n%s", args, snippet(out))
+	}
+	return out
+}
+
+// SmokeContains runs ios for the device and fails the test unless stdout
+// contains want. Use for commands whose output is not JSON (e.g. text listings).
+func SmokeContains(t *testing.T, udid, want string, args ...string) []byte {
+	t.Helper()
+	out := Smoke(t, udid, args...)
+	if !bytes.Contains(out, []byte(want)) {
+		t.Fatalf("ios %v: output does not contain %q:\n%s", args, want, snippet(out))
+	}
+	return out
+}
+
+var (
+	snapshotOnce sync.Once
+	snapshots    map[string]map[string]string
+)
+
+// ExpectedDevice returns the recorded identity snapshot for a device UDID (from
+// test/e2e/testdata/devices.json) and whether one exists. The test devices are
+// not updated, so identity fields (ProductType, ProductVersion, ...) are stable
+// and can be asserted exactly. Unknown UDIDs return ok=false so tests can skip
+// the exact-match check rather than fail for a newly added device.
+func ExpectedDevice(udid string) (map[string]string, bool) {
+	snapshotOnce.Do(func() {
+		root, err := repoRoot()
+		if err != nil {
+			return
+		}
+		b, err := os.ReadFile(filepath.Join(root, "test", "e2e", "testdata", "devices.json"))
+		if err != nil {
+			return
+		}
+		_ = json.Unmarshal(b, &snapshots)
+	})
+	d, ok := snapshots[udid]
+	return d, ok
+}
+
+func snippet(b []byte) string {
+	const max = 400
+	if len(b) > max {
+		return string(b[:max]) + "..."
+	}
+	return string(b)
 }
 
 // ForEachDevice runs fn as a parallel subtest per UDID from GO_IOS_E2E_DEVICES.

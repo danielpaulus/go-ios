@@ -5,9 +5,9 @@ package e2e_test
 import "testing"
 
 func TestReadpair(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "readpair") })
+	forEachDevice(t, func(t *testing.T, udid string) { smokeJSON(t, udid, "readpair") })
 }
 
 func TestProfileList(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "profile", "list") })
+	forEachDevice(t, func(t *testing.T, udid string) { smokeJSON(t, udid, "profile", "list") })
 }

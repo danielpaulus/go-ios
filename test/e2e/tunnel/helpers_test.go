@@ -21,6 +21,10 @@ func smoke(t *testing.T, udid string, args ...string) []byte {
 	return harness.Smoke(t, udid, args...)
 }
 
+func smokeJSON(t *testing.T, udid string, args ...string) []byte {
+	return harness.SmokeJSON(t, udid, args...)
+}
+
 func runIOSForDevice(t *testing.T, udid string, args ...string) []byte {
 	return harness.RunForDevice(t, udid, args...)
 }

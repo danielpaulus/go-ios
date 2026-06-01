@@ -10,17 +10,17 @@ import "testing"
 // Developer Image?" when the tunnel daemon is not running on the host.
 
 func TestInfoDisplay(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "info", "display") })
+	forEachDevice(t, func(t *testing.T, udid string) { smokeJSON(t, udid, "info", "display") })
 }
 
 func TestPs(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "ps") })
+	forEachDevice(t, func(t *testing.T, udid string) { smokeJSON(t, udid, "ps") })
 }
 
 func TestPsApps(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "ps", "--apps") })
+	forEachDevice(t, func(t *testing.T, udid string) { smokeJSON(t, udid, "ps", "--apps") })
 }
 
 func TestDevicestateList(t *testing.T) {
-	forEachDevice(t, func(t *testing.T, udid string) { smoke(t, udid, "devicestate", "list") })
+	forEachDevice(t, func(t *testing.T, udid string) { smokeJSON(t, udid, "devicestate", "list") })
 }
