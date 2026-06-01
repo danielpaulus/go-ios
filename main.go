@@ -2928,7 +2928,7 @@ func convertToJSONString(data interface{}) string {
 
 func exitIfError(msg string, err error) {
 	if err != nil {
-		log.WithFields(log.Fields{"err": err}).Fatalf(msg)
+		log.WithFields(log.Fields{"err": err}).Fatal(msg)
 	}
 }
 
