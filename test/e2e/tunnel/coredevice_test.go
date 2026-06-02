@@ -16,15 +16,31 @@ func TestInfoDisplay(t *testing.T) {
 	})
 }
 
+// TestPs lists processes; assert launchd (pid 1) is present — it always is.
 func TestPs(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		smokeArr(t, udid, []string{"IsApplication", "Name", "Pid", "RealAppName", "StartDate"}, "ps")
+		ps := smokeArr(t, udid, []string{"IsApplication", "Name", "Pid", "RealAppName", "StartDate"}, "ps")
+		for _, p := range ps {
+			if m, ok := p.(map[string]any); ok && m["Pid"] == float64(1) && m["Name"] == "launchd" {
+				return
+			}
+		}
+		t.Fatalf("ps: launchd (pid 1) not found")
 	})
 }
 
+// TestPsApps lists app processes; assert at least one is flagged IsApplication.
 func TestPsApps(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		smokeArr(t, udid, []string{"IsApplication", "Name", "Pid", "RealAppName", "StartDate"}, "ps", "--apps")
+		ps := smokeArr(t, udid, []string{"IsApplication", "Name", "Pid", "RealAppName", "StartDate"}, "ps", "--apps")
+		for _, p := range ps {
+			if m, ok := p.(map[string]any); ok {
+				if app, _ := m["IsApplication"].(bool); app {
+					return
+				}
+			}
+		}
+		t.Fatalf("ps --apps: no entry flagged IsApplication")
 	})
 }
 

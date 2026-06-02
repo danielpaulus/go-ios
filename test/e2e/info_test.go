@@ -2,7 +2,10 @@
 
 package e2e_test
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 // assertSnapshot, for a known (static) device, asserts every recorded identity
 // field in testdata/devices.json matches the live response. Unknown devices are
@@ -50,10 +53,15 @@ func TestDevicename(t *testing.T) {
 	})
 }
 
-// TestDate reads the device clock; the values are volatile, so only assert the
-// response shape.
+// TestDate reads the device clock. The exact value is volatile, but assert
+// formatedDate parses as a real date (RFC850, e.g. "Tuesday, 02-Jun-26
+// 09:49:13 CEST") — i.e. the command returns a genuine, well-formed date.
 func TestDate(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		smokeObj(t, udid, []string{"TimeIntervalSince1970", "formatedDate"}, "date")
+		m := smokeObj(t, udid, []string{"TimeIntervalSince1970", "formatedDate"}, "date")
+		fd, _ := m["formatedDate"].(string)
+		if _, err := time.Parse(time.RFC850, fd); err != nil {
+			t.Fatalf("date: formatedDate %q is not a parseable date: %v", fd, err)
+		}
 	})
 }

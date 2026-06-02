@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/danielpaulus/go-ios/test/e2e/harness"
+	"github.com/google/gopacket/pcapgo"
 )
 
-// TestPcap captures packets for a few seconds (pcap runs until killed and
-// writes a dump-<ts>.pcap into its working dir), then asserts a valid pcap file
-// was produced. pcapd is a lockdown service, so no tunnel is required.
+// TestPcap captures packets for a few seconds (pcap runs until killed and writes
+// a dump-<ts>.pcap into its working dir), then parses it with pcapgo and asserts
+// at least one packet was captured.
 func TestPcap(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
 		dir := harness.StreamInTempDir(t, udid, 6*time.Second, "pcap")
@@ -22,9 +23,26 @@ func TestPcap(t *testing.T) {
 		if err != nil || len(caps) == 0 {
 			t.Fatalf("pcap: no .pcap file produced in %s: %v", dir, err)
 		}
-		// 24 bytes is the libpcap global header; a valid capture is at least that.
-		if fi, err := os.Stat(caps[0]); err != nil || fi.Size() < 24 {
-			t.Fatalf("pcap: %s is not a valid capture: %v size=%v", caps[0], err, fi)
+
+		f, err := os.Open(caps[0])
+		if err != nil {
+			t.Fatalf("pcap: open %s: %v", caps[0], err)
+		}
+		defer f.Close()
+
+		r, err := pcapgo.NewReader(f)
+		if err != nil {
+			t.Fatalf("pcap: %s is not a valid pcap file: %v", caps[0], err)
+		}
+		n := 0
+		for {
+			if _, _, err := r.ReadPacketData(); err != nil {
+				break
+			}
+			n++
+		}
+		if n < 1 {
+			t.Fatalf("pcap: captured 0 packets in %s", caps[0])
 		}
 	})
 }

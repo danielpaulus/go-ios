@@ -123,8 +123,9 @@ func Smoke(t *testing.T, udid string, args ...string) []byte {
 
 // StreamSmoke runs a streaming ios command (e.g. syslog) for the given device,
 // lets it stream for window, then kills its process group and fails the test if
-// nothing was written to stdout. Use this for commands that run until killed.
-func StreamSmoke(t *testing.T, udid string, window time.Duration, args ...string) {
+// nothing was written to stdout. It returns the captured stdout for the caller
+// to inspect. Use this for commands that run until killed.
+func StreamSmoke(t *testing.T, udid string, window time.Duration, args ...string) []byte {
 	t.Helper()
 	var out bytes.Buffer
 	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
@@ -138,9 +139,11 @@ func StreamSmoke(t *testing.T, udid string, window time.Duration, args ...string
 	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	_ = cmd.Wait() // returns the kill signal error; ignored
 
-	if len(bytes.TrimSpace(out.Bytes())) == 0 {
+	b := out.Bytes()
+	if len(bytes.TrimSpace(b)) == 0 {
 		t.Fatalf("ios %v: no streamed output within %s", args, window)
 	}
+	return b
 }
 
 // StreamInTempDir runs a streaming ios command in a fresh temp directory for

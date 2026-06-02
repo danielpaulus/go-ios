@@ -22,9 +22,20 @@ func TestLockdownGet(t *testing.T) {
 	})
 }
 
-// TestMobilegestalt queries a key via the diagnostics relay.
+// TestMobilegestalt queries a key via the diagnostics relay. MobileGestalt is
+// deprecated on current iOS, so it does not return the value (e.g. asking for
+// ProductVersion yields a "MobileGestaltDeprecated" status); assert the relay
+// processed the request successfully and returned that expected marker.
 func TestMobilegestalt(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		smokeObj(t, udid, []string{"Diagnostics", "Status"}, "mobilegestalt", "ProductVersion")
+		m := smokeObj(t, udid, []string{"Diagnostics", "Status"}, "mobilegestalt", "ProductVersion")
+		if status, _ := m["Status"].(string); status != "Success" {
+			t.Fatalf("mobilegestalt: Status = %q, want Success", status)
+		}
+		diag, _ := m["Diagnostics"].(map[string]any)
+		mg, _ := diag["MobileGestalt"].(map[string]any)
+		if s, _ := mg["Status"].(string); s != "MobileGestaltDeprecated" {
+			t.Fatalf("mobilegestalt: MobileGestalt.Status = %q, want MobileGestaltDeprecated", s)
+		}
 	})
 }
