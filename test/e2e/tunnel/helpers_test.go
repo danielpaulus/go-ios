@@ -8,6 +8,7 @@
 package tunnel_test
 
 import (
+	"syscall"
 	"testing"
 
 	"github.com/danielpaulus/go-ios/test/e2e/harness"
@@ -37,8 +38,8 @@ func runIOSForDevice(t *testing.T, udid string, args ...string) []byte {
 	return harness.RunForDevice(t, udid, args...)
 }
 
-func startBackground(t *testing.T, udid string, args ...string) (output func() string, stop func()) {
-	return harness.StartBackground(t, udid, args...)
+func startBackground(t *testing.T, udid string, stopSig syscall.Signal, args ...string) (output func() string, stop func()) {
+	return harness.StartBackground(t, udid, stopSig, args...)
 }
 
 func forEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {

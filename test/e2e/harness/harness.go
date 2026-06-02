@@ -288,15 +288,15 @@ func (s *syncBuf) String() string {
 }
 
 // StartBackground starts an ios command that runs until signalled (e.g.
-// "devicestate enable", which holds a condition active only while running),
-// capturing its combined output. It returns output() to read what the command
-// has printed so far, and stop() which sends SIGTERM to the process group so the
-// command can clean up (reverting device state), escalating to SIGKILL if it
-// does not exit promptly. The caller must defer stop().
+// "devicestate enable" or "setlocation", which hold device state only while
+// running), capturing its combined output. It returns output() to read what the
+// command has printed so far, and stop() which sends stopSig to the process
+// group so the command can clean up (reverting device state), escalating to
+// SIGKILL if it does not exit promptly. The caller must defer stop().
 //
-// Prefer reading the command's own output over issuing a second concurrent
-// command: go-ios does not reliably handle two simultaneous RSD/tunnel sessions.
-func StartBackground(t *testing.T, udid string, args ...string) (output func() string, stop func()) {
+// stopSig must match the signal the command waits for: devicestate enable uses
+// SIGTERM, setlocation uses SIGINT (os.Interrupt).
+func StartBackground(t *testing.T, udid string, stopSig syscall.Signal, args ...string) (output func() string, stop func()) {
 	t.Helper()
 	buf := &syncBuf{}
 	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
@@ -308,7 +308,7 @@ func StartBackground(t *testing.T, udid string, args ...string) (output func() s
 	}
 	return buf.String, func() {
 		pgid := cmd.Process.Pid
-		_ = syscall.Kill(-pgid, syscall.SIGTERM)
+		_ = syscall.Kill(-pgid, stopSig)
 		done := make(chan struct{})
 		go func() { _ = cmd.Wait(); close(done) }()
 		select {

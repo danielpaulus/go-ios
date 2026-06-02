@@ -4,6 +4,7 @@ package tunnel_test
 
 import (
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -19,7 +20,7 @@ import (
 func TestDevicestateEnable(t *testing.T) {
 	const typeID, profileID = "SlowNetworkCondition", "SlowNetwork3GGood"
 	forEachDevice(t, func(t *testing.T, udid string) {
-		output, stop := startBackground(t, udid, "devicestate", "enable", typeID, profileID)
+		output, stop := startBackground(t, udid, syscall.SIGTERM, "devicestate", "enable", typeID, profileID)
 		defer stop()
 
 		// Wait for the command to report the profile active.
