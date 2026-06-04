@@ -153,6 +153,8 @@ Usage:
   ios sysmontap [options]
   ios timeformat (24h | 12h | toggle | get) [--force] [options]
   ios tunnel ls [options]
+  ios tunnel stop --udid=<udid> [options]
+  ios tunnel refresh --udid=<udid> [options]
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
   ios tunnel stopagent
   ios ui install (wda | devicekit) --p12file=<p12file> --profile=<mobileprovision> [--p12password=<password>] [--path=<ipaOrZipOrApp>] [--output=<signedPath>] [--bundleid=<bundleid>] [options]
@@ -511,6 +513,10 @@ The commands work as following:
     ios tunnel ls                                                   List currently started tunnels.
                                                                     Use --enabletun to activate using TUN devices rather than user space network.
                                                                     Requires sudo/admin shells.
+
+    ios tunnel stop --udid=<udid>                                   Stop the tunnel for one device without stopping the tunnel agent.
+
+    ios tunnel refresh --udid=<udid>                                Stop the tunnel for one device and wait until the agent recreates it.
 
     ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]
                                                                     Creates a tunnel connection to the device.
