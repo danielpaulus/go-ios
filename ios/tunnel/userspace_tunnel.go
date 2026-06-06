@@ -134,7 +134,11 @@ func ioCopyWithErr(w io.Writer, r io.Reader, errCh chan error, ioCloser ioResour
 // The connToTUNIface needs to be connection that understands IP packets to a remote TUN device or sth.
 // provide mtu, ip address as a string and the prefix length of the interface.
 func (iface *UserSpaceTUNInterface) Init(mtu uint32, connToTUNIface io.ReadWriteCloser, ipAddrString string, prefixLength int) error {
-	addr := tcpip.AddrFromSlice(net.ParseIP(ipAddrString).To16())
+	parsedIP := net.ParseIP(ipAddrString)
+	if parsedIP == nil {
+		return fmt.Errorf("Init: invalid tunnel IP address %q", ipAddrString)
+	}
+	addr := tcpip.AddrFromSlice(parsedIP.To16())
 	addrWithPrefix := addr.WithPrefix()
 	addrWithPrefix.PrefixLen = prefixLength
 
@@ -194,8 +198,13 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 		return Tunnel{}, fmt.Errorf("could not exchange tunnel parameters. %w", err)
 	}
 	const prefixLength = 64
+	// The lockdown tunnel is a raw TCP byte stream carrying bare IPv6 packets, so
+	// wrap it to preserve packet boundaries: the gVisor link endpoint assumes one
+	// Read == one packet, and without reframing TCP coalescing corrupts and drops
+	// packets (see framing.go; the kernel path reframes in forwardTCPToInterface).
+	framedConn := newFramedIPv6Conn(connToDevice)
 	iface := UserSpaceTUNInterface{}
-	err = iface.Init(uint32(tunnelInfo.ClientParameters.Mtu), connToDevice, tunnelInfo.ClientParameters.Address, prefixLength)
+	err = iface.Init(uint32(tunnelInfo.ClientParameters.Mtu), framedConn, tunnelInfo.ClientParameters.Address, prefixLength)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
 	}
@@ -228,19 +237,35 @@ func listenToConns(iface UserSpaceTUNInterface, listener net.Listener) error {
 	for {
 		client, err := listener.Accept()
 		if err != nil {
+			// Accept fails permanently only when the listener is closed (tunnel
+			// teardown). Per-connection problems are handled in the goroutine, so
+			// they must never tear down the accept loop.
 			return err
 		}
-		golog.Info("Received connection request", "module", logModule, "from", client.RemoteAddr(), "to", client.LocalAddr())
-		remoteAddrBytes := make([]byte, 16)
-		_, err = client.Read(remoteAddrBytes)
-		if err != nil {
-			return err
-		}
+		go handleUserspaceConn(iface, client)
+	}
+}
 
-		remotePortBytes := make([]byte, 4)
-		_, err = client.Read(remotePortBytes)
-		port := binary.LittleEndian.Uint32(remotePortBytes)
-		golog.Info("Received connection request to device", "module", logModule, "ip", net.IP(remoteAddrBytes), "port", port)
-		go iface.TunnelRWCThroughInterface(0, net.IP(remoteAddrBytes), uint16(port), client)
+// handleUserspaceConn reads the fixed 20-byte preamble a client sends to select
+// the device endpoint (16-byte remote IPv6 address + 4-byte little-endian port),
+// then proxies the connection through the userspace interface. The preamble is
+// read here, off the accept loop, with io.ReadFull so that (a) a slow or stalled
+// client cannot block other connections from being accepted, and (b) a TCP
+// segment boundary inside the preamble cannot misroute the connection.
+func handleUserspaceConn(iface UserSpaceTUNInterface, client net.Conn) {
+	golog.Info("Received connection request", "module", logModule, "from", client.RemoteAddr(), "to", client.LocalAddr())
+
+	preamble := make([]byte, 20)
+	if _, err := io.ReadFull(client, preamble); err != nil {
+		golog.Error("failed to read userspace tunnel connection preamble", "module", logModule, "error", err)
+		client.Close()
+		return
+	}
+	remoteAddr := net.IP(preamble[:16])
+	port := binary.LittleEndian.Uint32(preamble[16:20])
+	golog.Info("Received connection request to device", "module", logModule, "ip", remoteAddr, "port", port)
+
+	if err := iface.TunnelRWCThroughInterface(0, remoteAddr, uint16(port), client); err != nil {
+		golog.Error("userspace tunnel connection failed", "module", logModule, "ip", remoteAddr, "port", port, "error", err)
 	}
 }
