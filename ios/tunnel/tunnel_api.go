@@ -49,10 +49,16 @@ func WaitUntilAgentReady() bool {
 		if err != nil {
 			return false
 		}
-		if resp.StatusCode == http.StatusOK {
+		ready := resp.StatusCode == http.StatusOK
+		resp.Body.Close()
+		if ready {
 			golog.Info("Go-iOS Agent is ready", "module", logModule)
 			return true
 		}
+		// Not ready yet (agent up but first tunnel update not finished): back off
+		// a little instead of hammering /ready in a tight loop, and close the body
+		// each iteration so responses don't leak.
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 
@@ -148,7 +154,6 @@ func tunnelInfoMux(tm *TunnelManager) *http.ServeMux {
 			return
 		}
 
-		var err error
 		if request.Method == "GET" {
 			t, err := tm.FindTunnel(udid)
 			if err != nil {
@@ -160,8 +165,11 @@ func tunnelInfoMux(tm *TunnelManager) *http.ServeMux {
 				return
 			}
 			writer.Header().Add("Content-Type", "application/json")
-			enc := json.NewEncoder(writer)
-			err = enc.Encode(t)
+			// The header/status are already committed, so an encode failure here
+			// can only be logged, not turned into an error response.
+			if err := json.NewEncoder(writer).Encode(t); err != nil {
+				golog.Error("failed to encode tunnel info", "module", logModule, "udid", udid, "error", err)
+			}
 		} else if request.Method == "DELETE" {
 			err := tm.RemoveTunnel(request.Context(), udid)
 			if errors.Is(err, ErrTunnelNotFound) {
@@ -173,14 +181,8 @@ func tunnelInfoMux(tm *TunnelManager) *http.ServeMux {
 				return
 			}
 			writer.WriteHeader(http.StatusNoContent)
-			return
 		} else {
 			writer.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
 		}
 	})
 	mux.HandleFunc("/tunnels", func(writer http.ResponseWriter, request *http.Request) {
