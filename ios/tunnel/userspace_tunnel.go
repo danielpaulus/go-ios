@@ -214,7 +214,6 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 		return Tunnel{}, fmt.Errorf("could not setup listener. %w", err)
 	}
 
-	listener.Addr()
 	go listenToConns(iface, listener)
 
 	closeFunc := func() error {

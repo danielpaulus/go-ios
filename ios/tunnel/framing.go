@@ -48,6 +48,11 @@ func (r *framedIPv6Reader) Read(p []byte) (int, error) {
 	payloadLength := int(binary.BigEndian.Uint16(p[4:6]))
 	total := ipv6HeaderLen + payloadLength
 	if total > len(p) {
+		// Failing loudly is intentional. The peer negotiated the MTU in the
+		// handshake, so a frame larger than the buffer means the stream is
+		// already desynced; the gVisor dispatch loop treats this as fatal and
+		// tears the inbound path down rather than silently corrupting every
+		// subsequent packet (the bug this reader exists to prevent).
 		return 0, fmt.Errorf("framedIPv6Reader: packet of %d bytes exceeds buffer of %d bytes", total, len(p))
 	}
 	if _, err := io.ReadFull(r.br, p[ipv6HeaderLen:total]); err != nil {
