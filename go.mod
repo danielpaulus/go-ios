@@ -34,6 +34,7 @@ require (
 require (
 	github.com/blacktop/go-dwarf v1.0.14 // indirect
 	github.com/blacktop/go-macho v1.1.258 // indirect
+	github.com/gorilla/websocket v1.5.3
 	github.com/vishvananda/netns v0.0.5 // indirect
 )
 

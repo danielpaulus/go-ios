@@ -261,6 +261,21 @@ commands:
   - path: uninstall
     usage: ios uninstall <bundleID> [options]
     summary: Uninstall app by bundle ID.
+  - path: webinspector list
+    usage: ios webinspector list [--timeout=<seconds>] [options]
+    summary: List inspectable Safari and WebView pages.
+  - path: webinspector launch
+    usage: ios webinspector launch <url> [--bundle-id=<bundleID>] [--timeout=<seconds>] [options]
+    summary: Launch and navigate Safari or another app by Remote Automation.
+  - path: webinspector eval
+    usage: ios webinspector eval <pageID> <expression> [--timeout=<seconds>] [--console-enable] [options]
+    summary: Evaluate JavaScript in an inspectable page.
+  - path: webinspector js-shell
+    usage: ios webinspector js-shell [<url>] [--bundle-id=<bundleID>] [--open-safari] [--timeout=<seconds>] [--console-enable] [options]
+    summary: Start an interactive JavaScript shell for an inspectable page.
+  - path: webinspector cdp
+    usage: ios webinspector cdp [--host=<host>] [--port=<port>] [options]
+    summary: Start a Chrome DevTools Protocol bridge.
   - path: version
     usage: ios --version | version [options]
     summary: Print version.

@@ -77,4 +77,5 @@ var deviceCommands = []command{
 	commandByBool("file", runFileCommand),
 	commandByBool("fsync", runFsyncCommand),
 	commandByBool("devmode", runDevModeCommand),
+	commandByBool("webinspector", runWebInspectorCommand),
 }

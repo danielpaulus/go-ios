@@ -100,6 +100,11 @@ Commands:
   uninstall                       Uninstall app by bundle ID.
   version                         Print version.
   voiceover                       Manage VoiceOver state.
+  webinspector cdp                Start a Chrome DevTools Protocol bridge.
+  webinspector eval               Evaluate JavaScript in an inspectable page.
+  webinspector js-shell           Start an interactive JavaScript shell for an inspectable page.
+  webinspector launch             Launch and navigate Safari or another app by Remote Automation.
+  webinspector list               List inspectable Safari and WebView pages.
   wifi                            Install or remove a Wi-Fi auto-connect profile (supervised + setup = silent, else confirm on device).
   zoom                            Manage Zoom state.
 
