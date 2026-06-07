@@ -110,6 +110,19 @@ func RunForDevice(t *testing.T, udid string, args ...string) []byte {
 	return RunIOS(t, append(args, "--udid="+udid)...)
 }
 
+// TryRun runs ios with exactly args (nothing appended) and returns stdout,
+// stderr and the run error (nil on exit 0) without failing the test. Use it for
+// negative tests that expect the command to fail.
+func TryRun(t *testing.T, args ...string) (stdout, stderr []byte, err error) {
+	t.Helper()
+	var o, e bytes.Buffer
+	cmd := exec.Command(iosBin, args...)
+	cmd.Stdout = &o
+	cmd.Stderr = &e
+	err = cmd.Run()
+	return o.Bytes(), e.Bytes(), err
+}
+
 // Smoke runs ios for the given device and fails the test if stdout is empty.
 // It returns the captured stdout for further inspection by the caller.
 func Smoke(t *testing.T, udid string, args ...string) []byte {
