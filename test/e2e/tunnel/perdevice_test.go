@@ -146,6 +146,68 @@ func TestTunnelAgentAllDevices(t *testing.T) {
 	}
 }
 
+// TestTunnelAgentMixed runs a general (all-devices) agent and a per-device agent
+// at the same time on different tunnel-info ports and proves they don't conflict:
+// they bind cleanly, each gets its own independent tunnel to the device with its
+// own userspace listener port (derived from its own tunnel-info port), and
+// stopping a device's tunnel on one agent never affects the other agent's tunnel.
+// People run go-ios like this in production, so it is verified, not assumed.
+func TestTunnelAgentMixed(t *testing.T) {
+	devs := harness.Devices()
+	if len(devs) == 0 {
+		t.Skip("GO_IOS_E2E_DEVICES not set")
+	}
+	udid := devs[0]
+
+	genPort := freeTunnelPort(t)
+	perPort := freeTunnelPort(t)
+	genArg := fmt.Sprintf("--tunnel-info-port=%d", genPort)
+	perArg := fmt.Sprintf("--tunnel-info-port=%d", perPort)
+
+	// General agent: empty udid => manage all devices.
+	genOut, stopGen := startBackground(t, "", syscall.SIGINT, "tunnel", "start", "--userspace", genArg)
+	defer stopGen()
+	// Per-device agent: only this device.
+	perOut, stopPer := startBackground(t, udid, syscall.SIGINT, "tunnel", "start", "--userspace", perArg)
+	defer stopPer()
+
+	gen := waitForTunnel(t, genPort, udid, 90*time.Second, genOut)
+	per := waitForTunnel(t, perPort, udid, 90*time.Second, perOut)
+
+	// Independent tunnels: distinct device addresses and distinct listener ports.
+	if gen.Address == per.Address {
+		t.Fatalf("expected two independent tunnels, both have address %s", gen.Address)
+	}
+	if gen.UserspaceTUNPort == per.UserspaceTUNPort {
+		t.Fatalf("userspace listener port collision: both agents on %d", gen.UserspaceTUNPort)
+	}
+	// Each agent's userspace port is derived from its OWN tunnel-info port.
+	if gen.UserspaceTUNPort <= genPort || gen.UserspaceTUNPort > genPort+1000 {
+		t.Fatalf("general agent userspace port %d not derived from its tunnel-info port %d", gen.UserspaceTUNPort, genPort)
+	}
+	if per.UserspaceTUNPort != perPort+1 {
+		t.Fatalf("per-device agent userspace port = %d, want %d", per.UserspaceTUNPort, perPort+1)
+	}
+
+	// Isolation 1: stopping the device on the general agent must not touch the
+	// per-device agent's tunnel.
+	smokeJSON(t, udid, "tunnel", "stop", genArg)
+	if still := waitForTunnel(t, perPort, udid, 5*time.Second, perOut); still.Address != per.Address {
+		t.Fatalf("per-device tunnel changed after stopping the device on the general agent: %s -> %s", per.Address, still.Address)
+	}
+
+	// Isolation 2: the reverse. The general agent recreated its own tunnel after
+	// the stop above; capture it, then stop on the per-device agent and confirm
+	// the general agent's tunnel is untouched.
+	genNow := waitForTunnel(t, genPort, udid, 30*time.Second, genOut)
+	smokeJSON(t, udid, "tunnel", "stop", perArg)
+	if after := waitForTunnel(t, genPort, udid, 5*time.Second, genOut); after.Address != genNow.Address {
+		t.Fatalf("general tunnel changed after stopping the device on the per-device agent: %s -> %s", genNow.Address, after.Address)
+	}
+	t.Logf("mixed agents ok: general %s (uPort %d) + per-device %s (uPort %d) coexist and are isolated",
+		gen.Address, gen.UserspaceTUNPort, per.Address, per.UserspaceTUNPort)
+}
+
 func tunnelStartArgs(userspace bool, portArg string) []string {
 	if userspace {
 		return []string{"tunnel", "start", "--userspace", portArg}

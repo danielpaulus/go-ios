@@ -336,12 +336,12 @@ func NewTunnelManager(pm PairRecordManager, userspaceTUN bool) *TunnelManager {
 	return newTunnelManager(pm, userspaceTUN, "", ios.HttpApiPort())
 }
 
-// NewTunnelManagerForDevice creates a TunnelManager that only manages the single
-// device udid, ignoring all other connected devices. Run one such agent per
-// device (each on its own tunnel-info port) for full per-device isolation, so a
-// stuck tunnel on one device can't affect the others. basePort is the agent's
-// tunnel-info port; userspace listener ports are derived from it so multiple
-// per-device agents do not clash.
+// NewTunnelManagerForDevice creates a TunnelManager bound to a specific
+// tunnel-info port. If udid is non-empty the manager only manages that one
+// device (ignoring all others), so you can run one isolated agent per device; an
+// empty udid manages all connected devices. basePort is the agent's tunnel-info
+// port: userspace listener ports are derived from it so multiple agents on
+// different ports (e.g. a general agent plus per-device agents) never clash.
 func NewTunnelManagerForDevice(pm PairRecordManager, userspaceTUN bool, udid string, basePort int) *TunnelManager {
 	return newTunnelManager(pm, userspaceTUN, udid, basePort)
 }

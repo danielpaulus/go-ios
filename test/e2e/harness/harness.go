@@ -110,6 +110,9 @@ func RunForDevice(t *testing.T, udid string, args ...string) []byte {
 	return RunIOS(t, append(args, "--udid="+udid)...)
 }
 
+// Devices returns the parsed GO_IOS_E2E_DEVICES list.
+func Devices() []string { return append([]string(nil), devices...) }
+
 // TryRun runs ios with exactly args (nothing appended) and returns stdout,
 // stderr and the run error (nil on exit 0) without failing the test. Use it for
 // negative tests that expect the command to fail.

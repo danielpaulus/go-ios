@@ -1829,13 +1829,14 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoHost string,
 	}
 	pm, err := tunnel.NewPairRecordManager(recordsPath)
 	exitIfError("could not creat pair record manager", err)
-	var tm *tunnel.TunnelManager
 	if udid != "" {
 		slog.Info("restricting tunnel agent to a single device", "udid", udid, "tunnelInfoPort", tunnelInfoPort)
-		tm = tunnel.NewTunnelManagerForDevice(pm, userspaceTUN, udid, tunnelInfoPort)
-	} else {
-		tm = tunnel.NewTunnelManager(pm, userspaceTUN)
 	}
+	// Always derive userspace listener ports from THIS agent's tunnel-info port
+	// (not the global default), so several agents on different ports — e.g. a
+	// general agent plus per-device agents — never collide. An empty udid means
+	// "manage all devices".
+	tm := tunnel.NewTunnelManagerForDevice(pm, userspaceTUN, udid, tunnelInfoPort)
 
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)
