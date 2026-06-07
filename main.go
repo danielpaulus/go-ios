@@ -511,6 +511,10 @@ The commands work as following:
                                                                     If the device was not paired with the host yet, device pairing will also be executed.
                                                                     On systems with System Integrity Protection enabled the argument '--pair-record-path=default'
                                                                     can be used to point to /var/db/lockdown/RemotePairing/user_501.
+                                                                    WARNING: macOS 26 (Tahoe) and newer block that path for third-party binaries via TCC
+                                                                    ('operation not permitted'). On those systems do NOT use '=default'; pass a stable
+                                                                    writable directory instead (e.g. --pair-record-path=/Users/Shared/go-ios) and go-ios
+                                                                    will manage its own tunnel identity. See https://github.com/danielpaulus/go-ios/issues/710
                                                                     If nothing is specified, the current dir is used for the pair record.
                                                                     This command needs to be executed with admin privileges.
                                                                     (On MacOS the process 'remoted' must be paused before starting a tunnel,

@@ -43,6 +43,13 @@ func dispatchTunnelCommand(ctx tunnelCommandContext) bool {
 		}
 		if strings.ToLower(pairRecordsPath) == "default" {
 			pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
+			slog.Warn("'--pair-record-path=default' reads Apple's own RemotePairing identity, "+
+				"which macOS 26 (Tahoe) and newer block for third-party binaries via TCC "+
+				"('operation not permitted'). If the tunnel fails to read selfIdentity.plist, "+
+				"drop '=default' and pass a stable writable directory instead "+
+				"(e.g. --pair-record-path=/Users/Shared/go-ios); go-ios then manages its own "+
+				"tunnel identity and pairs it on first use. See https://github.com/danielpaulus/go-ios/issues/710",
+				"pairRecordsPath", pairRecordsPath)
 		}
 		startTunnel(context.TODO(), pairRecordsPath, ctx.TunnelInfoHost, ctx.TunnelInfoPort, useUserspaceNetworking)
 	} else if listCommand {
