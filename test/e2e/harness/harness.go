@@ -301,10 +301,19 @@ func (s *syncBuf) String() string {
 // SIGTERM, setlocation uses SIGINT (os.Interrupt).
 func StartBackground(t *testing.T, udid string, stopSig syscall.Signal, args ...string) (output func() string, stop func()) {
 	t.Helper()
+	return StartBackgroundWithEnv(t, udid, nil, stopSig, args...)
+}
+
+// StartBackgroundWithEnv is StartBackground with extra environment variables.
+func StartBackgroundWithEnv(t *testing.T, udid string, extraEnv []string, stopSig syscall.Signal, args ...string) (output func() string, stop func()) {
+	t.Helper()
 	buf := &syncBuf{}
 	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
 	cmd.Stdout = buf
 	cmd.Stderr = buf
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("ios %v: start: %v", args, err)

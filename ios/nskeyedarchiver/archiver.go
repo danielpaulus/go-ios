@@ -37,7 +37,10 @@ func archiveObject(object interface{}) (interface{}, error) {
 	archiverSkeleton := createSkeleton(true)
 	objects := make([]interface{}, 1)
 	objects[0] = null
-	objects, pid := archive(object, objects)
+	objects, pid, err := archive(object, objects)
+	if err != nil {
+		return nil, err
+	}
 	archiverSkeleton[topKey] = map[string]interface{}{"root": pid}
 
 	archiverSkeleton[objectsKey] = objects
@@ -57,11 +60,11 @@ func createSkeleton(withRoot bool) map[string]interface{} {
 	}
 }
 
-func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UID, error) {
 	if object, ok := isPrimitiveObject(object); ok {
 		index := len(objects)
 		objects = append(objects, object)
-		return objects, plist.UID(index)
+		return objects, plist.UID(index), nil
 	}
 
 	if v, ok := object.([]interface{}); ok {
@@ -72,6 +75,9 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 		return serializeMap(v, objects, buildClassDict("NSDictionary", "NSObject"))
 	}
 	typeOf := reflect.TypeOf(object)
+	if typeOf == nil {
+		return nil, 0, fmt.Errorf("NSKeyedArchiver unsupported object: '%v' of type: %T", object, object)
+	}
 	name := typeOf.Name()
 	// seems like Name() can be empty for pointer types
 	if name == "" {
@@ -82,10 +88,10 @@ func archive(object interface{}, objects []interface{}) ([]interface{}, plist.UI
 		return encoderFunc(object, objects)
 	}
 
-	panic(fmt.Errorf("NSKeyedArchiver Unsupported object: '%s' of type:%s", object, typeOf))
+	return nil, 0, fmt.Errorf("NSKeyedArchiver unsupported object: '%s' of type: %s", object, typeOf)
 }
 
-func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, plist.UID, error) {
 	arrayDict := map[string]interface{}{}
 	arrayObjectIndex := len(objects)
 	objects = append(objects, arrayDict)
@@ -96,14 +102,18 @@ func serializeArray(array []interface{}, objects []interface{}) ([]interface{}, 
 	itemRefs := make([]plist.UID, len(array))
 	for index, item := range array {
 		var uid plist.UID
-		objects, uid = archive(item, objects)
+		var err error
+		objects, uid, err = archive(item, objects)
+		if err != nil {
+			return nil, 0, err
+		}
 		itemRefs[index] = uid
 	}
 	arrayDict["NS.objects"] = itemRefs
-	return objects, plist.UID(arrayObjectIndex)
+	return objects, plist.UID(arrayObjectIndex), nil
 }
 
-func serializeMutableArray(array []interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+func serializeMutableArray(array []interface{}, objects []interface{}) ([]interface{}, plist.UID, error) {
 	arrayDict := map[string]interface{}{}
 	arrayObjectIndex := len(objects)
 	objects = append(objects, arrayDict)
@@ -114,14 +124,18 @@ func serializeMutableArray(array []interface{}, objects []interface{}) ([]interf
 	itemRefs := make([]plist.UID, len(array))
 	for index, item := range array {
 		var uid plist.UID
-		objects, uid = archive(item, objects)
+		var err error
+		objects, uid, err = archive(item, objects)
+		if err != nil {
+			return nil, 0, err
+		}
 		itemRefs[index] = uid
 	}
 	arrayDict["NS.objects"] = itemRefs
-	return objects, plist.UID(arrayObjectIndex)
+	return objects, plist.UID(arrayObjectIndex), nil
 }
 
-func serializeSet(set []interface{}, objects []interface{}) ([]interface{}, plist.UID) {
+func serializeSet(set []interface{}, objects []interface{}) ([]interface{}, plist.UID, error) {
 	setDict := map[string]interface{}{}
 	setObjectIndex := len(objects)
 	objects = append(objects, setDict)
@@ -132,14 +146,18 @@ func serializeSet(set []interface{}, objects []interface{}) ([]interface{}, plis
 	itemRefs := make([]plist.UID, len(set))
 	for index, item := range set {
 		var uid plist.UID
-		objects, uid = archive(item, objects)
+		var err error
+		objects, uid, err = archive(item, objects)
+		if err != nil {
+			return nil, 0, err
+		}
 		itemRefs[index] = uid
 	}
 	setDict["NS.objects"] = itemRefs
-	return objects, plist.UID(setObjectIndex)
+	return objects, plist.UID(setObjectIndex), nil
 }
 
-func serializeMap(mapObject map[string]interface{}, objects []interface{}, classDict map[string]interface{}) ([]interface{}, plist.UID) {
+func serializeMap(mapObject map[string]interface{}, objects []interface{}, classDict map[string]interface{}) ([]interface{}, plist.UID, error) {
 	dictDict := map[string]interface{}{}
 	dictionaryRef := len(objects)
 	objects = append(objects, dictDict)
@@ -160,7 +178,11 @@ func serializeMap(mapObject map[string]interface{}, objects []interface{}, class
 	index = 0
 	for _, key := range keys {
 		var uid plist.UID
-		objects, uid = archive(key, objects)
+		var err error
+		objects, uid, err = archive(key, objects)
+		if err != nil {
+			return nil, 0, err
+		}
 		keyRefs[index] = uid
 		index++
 	}
@@ -170,13 +192,17 @@ func serializeMap(mapObject map[string]interface{}, objects []interface{}, class
 	valueRefs := make([]plist.UID, len(mapObject))
 	for _, key := range keys {
 		var uid plist.UID
-		objects, uid = archive(mapObject[key], objects)
+		var err error
+		objects, uid, err = archive(mapObject[key], objects)
+		if err != nil {
+			return nil, 0, err
+		}
 		valueRefs[index] = uid
 		index++
 	}
 	dictDict["NS.objects"] = valueRefs
 
-	return objects, plist.UID(dictionaryRef)
+	return objects, plist.UID(dictionaryRef), nil
 }
 
 func isArray(object interface{}) bool {

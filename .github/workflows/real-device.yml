@@ -46,11 +46,29 @@ jobs:
           go-version-file: go.mod
           cache: false
 
+      - name: Prepare App Store Connect API key
+        env:
+          GO_IOS_E2E_ASC_PRIVATE_KEY_B64: ${{ secrets.GO_IOS_E2E_ASC_PRIVATE_KEY_B64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/go-ios-e2e"
+          printf '%s' "$GO_IOS_E2E_ASC_PRIVATE_KEY_B64" | base64 --decode > "$RUNNER_TEMP/go-ios-e2e/AuthKey.p8"
+          echo "GO_IOS_E2E_ASC_PRIVATE_KEY=$RUNNER_TEMP/go-ios-e2e/AuthKey.p8" >> "$GITHUB_ENV"
+
       # Commands served over the classic lockdown/usbmux services. These work on
       # every device regardless of iOS version.
       - name: E2E tunnel-free
         env:
           GO_IOS_E2E_DEVICES: ${{ vars[matrix.devices] }}
+          GO_IOS_E2E_ASC_KEY_ID: ${{ secrets.GO_IOS_E2E_ASC_KEY_ID }}
+          GO_IOS_E2E_ASC_ISSUER_ID: ${{ secrets.GO_IOS_E2E_ASC_ISSUER_ID }}
+          GO_IOS_E2E_WDA_ARTIFACT_URL: ${{ vars.GO_IOS_E2E_WDA_ARTIFACT_URL }}
+          GO_IOS_E2E_DEVICEKIT_ARTIFACT_URL: ${{ vars.GO_IOS_E2E_DEVICEKIT_ARTIFACT_URL }}
+          GO_IOS_E2E_WDA_BUNDLE_ID: ${{ vars.GO_IOS_E2E_WDA_BUNDLE_ID }}
+          GO_IOS_E2E_WDA_XCTEST_CONFIG: ${{ vars.GO_IOS_E2E_WDA_XCTEST_CONFIG }}
+          GO_IOS_E2E_WDA_URL: ${{ vars.GO_IOS_E2E_WDA_URL }}
+          GO_IOS_E2E_WDA_URLS: ${{ vars.GO_IOS_E2E_WDA_URLS }}
+          GO_IOS_E2E_DEVICEKIT_URL: ${{ vars.GO_IOS_E2E_DEVICEKIT_URL }}
+          GO_IOS_E2E_DEVICEKIT_URLS: ${{ vars.GO_IOS_E2E_DEVICEKIT_URLS }}
         run: go test -tags=e2e -count=1 -v ./test/e2e/
 
       # Commands that need the iOS 17+ tunnel (RemoteServiceDiscovery /

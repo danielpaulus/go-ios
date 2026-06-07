@@ -36,6 +36,29 @@ func TestArchiveSlice(t *testing.T) {
 	fmt.Print(val)
 }
 
+func TestArchiveUnsupportedObjectReturnsError(t *testing.T) {
+	type unsupportedObject struct {
+		Value string
+	}
+
+	testCases := []struct {
+		name   string
+		object interface{}
+	}{
+		{name: "unknown struct", object: unsupportedObject{Value: "not encodable"}},
+		{name: "nil", object: nil},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			_, err := archiver.ArchiveXML(testCase.object)
+
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "unsupported object")
+		})
+	}
+}
+
 // TODO currently only partially decoding XCTestConfig is supported, fix later
 func TestXCTestconfig(t *testing.T) {
 	uuid := uuid.New()

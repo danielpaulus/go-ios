@@ -1,19 +1,19 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"log/slog"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"path"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -26,20 +26,8 @@ import (
 
 	"github.com/danielpaulus/go-ios/internal/clihelp"
 	"github.com/danielpaulus/go-ios/ios/debugproxy"
-	"github.com/danielpaulus/go-ios/ios/deviceinfo"
-	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 
-	"github.com/danielpaulus/go-ios/ios/amfi"
-	"github.com/danielpaulus/go-ios/ios/mobileactivation"
-
-	"github.com/danielpaulus/go-ios/ios/afc"
-	"github.com/danielpaulus/go-ios/ios/fileservice"
-
-	"github.com/danielpaulus/go-ios/ios/crashreport"
-	"github.com/danielpaulus/go-ios/ios/testmanagerd"
-
-	"github.com/danielpaulus/go-ios/ios/debugserver"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 
@@ -54,7 +42,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	"github.com/danielpaulus/go-ios/ios/notificationproxy"
 	"github.com/danielpaulus/go-ios/ios/ostrace"
-	"github.com/danielpaulus/go-ios/ios/pcap"
 	"github.com/danielpaulus/go-ios/ios/springboard"
 	syslog "github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/docopt/docopt-go"
@@ -151,6 +138,8 @@ Usage:
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
   ios runxctest [--xctestrun-file-path=<xctestrunFilePath>] [--log-output=<file>] [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
+  ios sign provision appstoreconnect --bundleid=<bundleid> --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> --p12-output=<p12file> --profile-output=<mobileprovision> [--p12password=<password>] [--bundle-name=<name>] [--profile-name=<name>] [--device-name=<name>] [options]
+  ios sign app --path=<ipaOrAppFolder> --p12file=<p12file> --profile=<mobileprovision> [--p12password=<password>] [--output=<signedPath>] [--bundleid=<bundleid>] [--install] [options]
   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]
   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
   ios shutdown [options]
@@ -165,7 +154,31 @@ Usage:
   ios tunnel ls [options]
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
   ios tunnel stopagent
+  ios ui install (wda | devicekit) --p12file=<p12file> --profile=<mobileprovision> [--p12password=<password>] [--path=<ipaOrZipOrApp>] [--output=<signedPath>] [--bundleid=<bundleid>] [options]
+  ios ui download [(wda | devicekit | all)] [--output=<dir>] [options]
+  ios ui status [--driver=<driver>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui api [--driver=<driver>] [--method=<method>] [--http-path=<path>] [--body=<json>] [--body-file=<file>] [--rpc-method=<method>] [--params=<json>] [--params-file=<file>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui raw [--driver=<driver>] [--method=<method>] [--http-path=<path>] [--body=<json>] [--body-file=<file>] [--rpc-method=<method>] [--params=<json>] [--params-file=<file>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui tap --x=<x> --y=<y> [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui swipe --from-x=<x> --from-y=<y> --to-x=<x> --to-y=<y> [--duration=<seconds>] [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui longpress --x=<x> --y=<y> [--duration=<seconds>] [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui type --text=<text> [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui button <button> [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui screenshot [--output=<outfile>] [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui source [--output=<outfile>] [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui size [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui orientation get [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui orientation set <orientation> [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui app launch <bundleID> [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui app terminate <bundleID> [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios ui app foreground [--driver=<driver>] [--devicekit-url=<url>] [options]
+  ios ui stream (mjpeg | h264) [--fps=<fps>] [--quality=<quality>] [--scale=<scale>] [--bitrate=<bitrate>] [--driver=<driver>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
   ios uninstall <bundleID> [options]
+  ios webinspector list [--timeout=<seconds>] [options]
+  ios webinspector launch <url> [--bundle-id=<bundleID>] [--timeout=<seconds>] [options]
+  ios webinspector eval <pageID> <expression> [--timeout=<seconds>] [--console-enable] [options]
+  ios webinspector js-shell [<url>] [--bundle-id=<bundleID>] [--open-safari] [--timeout=<seconds>] [--console-enable] [options]
+  ios webinspector cdp [--host=<host>] [--port=<port>] [options]
   ios voiceover (enable | disable | toggle | get) [--force] [options]
   ios zoom (enable | disable | toggle | get) [--force] [options]
 
@@ -192,6 +205,17 @@ Options:
                             A simple format like: "http://PROXY_LOGIN:PROXY_PASS@proxyIp:proxyPort" works.
                             Otherwise use the HTTP_PROXY system env var.
   --userspace-port=<port>   Optional. Set this if you run a command supplying rsd-port and address and your device is using userspace tunnel
+  --asc-key-id=<keyid>      App Store Connect API key id. Can also be set via GO_IOS_ASC_KEY_ID.
+  --asc-issuer-id=<issuerid>
+                            App Store Connect API issuer id. Can also be set via GO_IOS_ASC_ISSUER_ID.
+  --asc-private-key=<p8file>
+                            App Store Connect API .p8 private key path. Can also be set via GO_IOS_ASC_PRIVATE_KEY.
+  --p12file=<p12file>       P12 identity file path.
+  --profile=<mobileprovision>
+                            Provisioning profile path for app signing.
+  --driver=<driver>         UI automation backend: devicekit, wda, or auto. Defaults to devicekit.
+  --wda-url=<url>           WebDriverAgent base URL. Defaults to http://127.0.0.1:8100 or GO_IOS_WDA_URL.
+  --devicekit-url=<url>     DeviceKit base URL. Defaults to http://127.0.0.1:12004 or GO_IOS_DEVICEKIT_URL.
 
 The commands work as following:
   The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -394,6 +418,45 @@ The commands work as following:
                                                                     If --stream is supplied it starts an mjpeg server at 0.0.0.0:3333.
                                                                     Use --port to set another port.
 
+    ios sign provision appstoreconnect --bundleid=<bundleid> --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> --p12-output=<p12file> --profile-output=<mobileprovision>
+                                                                    Creates an iOS development signing certificate, P12, and provisioning profile through App Store Connect.
+                                                                    This command does not sign an app.
+
+    ios sign app --path=<ipaOrAppFolder> --p12file=<p12file> --profile=<mobileprovision>
+                                                                    Resigns the IPA or .app with go-codesign using local signing files,
+                                                                    and optionally installs the signed result with --install.
+                                                                    For WDA or DeviceKit artifacts, run "ios ui download" first and pass the downloaded path with --path.
+
+    ios ui install (wda | devicekit) --p12file=<p12file> --profile=<mobileprovision>
+                                                                    Downloads the default DeviceKit or WDA artifact from deviceboxhq.com unless --path is provided,
+                                                                    signs it with local signing files, and installs it on the selected device.
+                                                                    Run "ios ui download" to pre-download artifacts, or pass --path to use your own local build.
+
+    ios ui download [(wda | devicekit | all)] [--output=<dir>]       Downloads default WDA and/or DeviceKit artifacts from deviceboxhq.com,
+                                                                    extracts zip artifacts, and prints JSON describing the files.
+                                                                    Use the printed artifactPath or appPath with "ios ui install --path" or "ios sign app --path".
+
+    ios ui status [--driver=<driver>]                                Checks the configured UI automation backend. Defaults to DeviceKit.
+
+    ios ui api [--driver=<driver>]                                    Calls a backend-specific API directly.
+                                                                    For WDA, pass --http-path=<path>, optionally --method=<method> and --body=<json>.
+                                                                    For DeviceKit, pass --rpc-method=<method>, optionally --params=<json>.
+                                                                    Use --driver=auto to probe DeviceKit first, then WDA.
+                                                                    "raw" is accepted as an alias for "api".
+
+    ios ui tap --x=<x> --y=<y>                                       Taps at screen coordinates.
+    ios ui swipe --from-x=<x> --from-y=<y> --to-x=<x> --to-y=<y>     Swipes between screen coordinates.
+    ios ui longpress --x=<x> --y=<y> [--duration=<seconds>]          Long-presses at screen coordinates.
+    ios ui type --text=<text>                                        Types text.
+    ios ui button <button>                                           Presses a button. DeviceKit supports more buttons; WDA supports home.
+    ios ui screenshot [--output=<outfile>]                           Saves a screenshot, or writes PNG bytes to stdout.
+    ios ui source [--output=<outfile>]                               Dumps the UI hierarchy.
+    ios ui size                                                      Prints screen or window size information.
+    ios ui orientation (get | set <orientation>)                     Gets or sets orientation.
+    ios ui app (launch | terminate) <bundleID>                       Launches or terminates an app.
+    ios ui app foreground                                            Prints the foreground app through DeviceKit.
+    ios ui stream (mjpeg | h264)                                     Streams video to stdout. H264 requires DeviceKit; WDA supports MJPEG.
+
     ios setlocation [options] [--lat=<lat>] [--lon=<lon>]           Updates the location of the device to the provided by latitude and longitude coordinates.
                                                                     Ex.: setlocation --lat=40.730610 --lon=-73.935242
 
@@ -451,10 +514,27 @@ The commands work as following:
                                                                     If the device was not paired with the host yet, device pairing will also be executed.
                                                                     On systems with System Integrity Protection enabled the argument '--pair-record-path=default'
                                                                     can be used to point to /var/db/lockdown/RemotePairing/user_501.
+                                                                    WARNING: macOS 26 (Tahoe) and newer block that path for third-party binaries via TCC
+                                                                    ('operation not permitted'). On those systems do NOT use '=default'; pass a stable
+                                                                    writable directory instead (e.g. --pair-record-path=/Users/Shared/go-ios) and go-ios
+                                                                    will manage its own tunnel identity. See https://github.com/danielpaulus/go-ios/issues/710
                                                                     If nothing is specified, the current dir is used for the pair record.
                                                                     This command needs to be executed with admin privileges.
                                                                     (On MacOS the process 'remoted' must be paused before starting a tunnel,
                                                                     is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
+
+    ios webinspector list [--timeout=<seconds>] [options]           List inspectable Safari/WebView pages.
+
+    ios webinspector launch <url> [--bundle-id=<bundleID>] [--timeout=<seconds>] [options]
+                                                                    Launch Safari or another app and navigate by Remote Automation.
+
+    ios webinspector eval <pageID> <expression> [--timeout=<seconds>] [--console-enable] [options]
+                                                                    Evaluate JavaScript in an inspectable page.
+
+    ios webinspector js-shell [<url>] [--bundle-id=<bundleID>] [--open-safari] [--timeout=<seconds>] [--console-enable] [options]
+                                                                    Start an interactive JavaScript shell for an inspectable page.
+
+    ios webinspector cdp [--host=<host>] [--port=<port>] [options]  Start a Chrome DevTools Protocol bridge.
 
     ios voiceover (enable | disable | toggle | get) [--force] [options] Enables, disables, toggles, or returns the state of the "VoiceOver" software home-screen button.
                                                                     iOS 11+ only (Use --force to try on older versions).
@@ -465,1372 +545,30 @@ The commands work as following:
   `, version)
 	arguments, err := docopt.ParseDoc(usage)
 	exitIfError("failed parsing args", err)
-	disableJSON, _ := arguments.Bool("--nojson")
-	if disableJSON {
-		JSONdisabled = true
-	}
-
-	pretty, _ := arguments.Bool("--pretty")
-	if pretty {
-		prettyJSON = true
-	}
-
-	// Build a single slog logger from the flags and install it as the process
-	// default. go-ios's own logging (ios/golog) falls back to slog.Default(),
-	// so this configures the whole CLI; library embedders instead use
-	// ios.SetLogger to route go-ios without touching their slog.Default().
-	traceLevelEnabled, _ := arguments.Bool("--trace")
-	verboseLoggingEnabledLong, _ := arguments.Bool("--verbose")
-
-	level := slog.LevelInfo
-	if verboseLoggingEnabledLong {
-		level = slog.LevelDebug
-	}
-	if traceLevelEnabled {
-		// trace wins over verbose
-		level = ios.LevelTrace
-	}
-
-	handlerOpts := &slog.HandlerOptions{
-		Level: level,
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			// slog renders our custom trace level as "DEBUG-4"; rename it to "TRACE".
-			if a.Key == slog.LevelKey {
-				if lvl, ok := a.Value.Any().(slog.Level); ok && lvl == ios.LevelTrace {
-					a.Value = slog.StringValue("TRACE")
-				}
-			}
-			return a
-		},
-	}
-
-	var handler slog.Handler
-	if disableJSON {
-		// --nojson mirrors the old logrus TextFormatter default.
-		handler = slog.NewTextHandler(os.Stderr, handlerOpts)
-	} else {
-		handler = slog.NewJSONHandler(os.Stderr, handlerOpts)
-	}
-	logger := slog.New(handler)
-
-	// Wire up logging two ways:
-	//
-	//  1. slog.SetDefault makes this the process-wide default logger. The ios
-	//     CLI's own slog calls (and any third-party library using slog) go here.
-	//
-	//  2. ios.SetLogger explicitly routes go-ios's *library* logging to the same
-	//     logger. go-ios logs through its internal ios/golog seam, which falls
-	//     back to slog.Default() when SetLogger was never called — so for this
-	//     CLI the call below is technically redundant with SetDefault above.
-	//
-	// We still call it on purpose, as the canonical example for embedders: a
-	// program that imports go-ios as a library and wants to send *only*
-	// go-ios's logs to a custom logger (without commandeering its own
-	// slog.Default()) does exactly this — ios.SetLogger(yourLogger). Pass nil
-	// to restore go-ios's default behavior.
-	slog.SetDefault(logger)
-	ios.SetLogger(logger)
-
-	if traceLevelEnabled {
-		slog.Info("Set Trace mode")
-	} else if verboseLoggingEnabledLong {
-		slog.Info("Set Debug mode")
-	}
-	slog.Debug("parsed arguments", "args", arguments)
-
-	skipAgent, _ := os.LookupEnv("ENABLE_GO_IOS_AGENT")
-	if skipAgent == "user" || skipAgent == "kernel" {
-		tunnel.RunAgent(skipAgent)
-	}
-
-	if !tunnel.IsAgentRunning() {
-		slog.Warn("go-ios agent is not running. You might need to start it with 'ios tunnel start' for ios17+. Use ENABLE_GO_IOS_AGENT=user for userspace tunnel or ENABLE_GO_IOS_AGENT=kernel for kernel tunnel for the experimental daemon mode.")
-	}
-	shouldPrintVersionNoDashes, _ := arguments.Bool("version")
-	shouldPrintVersion, _ := arguments.Bool("--version")
-	if shouldPrintVersionNoDashes || shouldPrintVersion {
-		printVersion()
+	configureCLI(arguments)
+	if dispatchCommand(commandContext{Args: arguments}, preProxyCommands) {
 		return
 	}
+
 	proxyUrl, _ := arguments.String("--proxyurl")
 	exitIfError("could not parse proxy url", ios.UseHttpProxy(proxyUrl))
 
-	b, _ := arguments.Bool("listen")
-	if b {
-		startListening()
+	if dispatchCommand(commandContext{Args: arguments}, globalCommands) {
 		return
 	}
 
-	listCommand, _ := arguments.Bool("list")
-	diagnosticsCommand, _ := arguments.Bool("diagnostics")
-	imageCommand, _ := arguments.Bool("image")
-	deviceStateCommand, _ := arguments.Bool("devicestate")
-	profileCommand, _ := arguments.Bool("profile")
+	tunnelInfo := tunnelInfoConfigFromArgs(arguments)
+	device := resolveDevice(arguments, tunnelInfo)
 
-	if listCommand && !diagnosticsCommand && !imageCommand && !deviceStateCommand && !profileCommand {
-		b, _ = arguments.Bool("--details")
-		printDeviceList(b)
+	if dispatchCommand(commandContext{Args: arguments, Device: device}, deviceCommands) {
 		return
 	}
 
-	tunnelInfoHost, err := arguments.String("--tunnel-info-host")
-	if err != nil || tunnelInfoHost == "" {
-		tunnelInfoHost = ios.HttpApiHost()
-	}
-
-	tunnelInfoPort, err := arguments.Int("--tunnel-info-port")
-	if err != nil {
-		tunnelInfoPort = ios.HttpApiPort()
-	}
-
-	tunnelCommand, _ := arguments.Bool("tunnel")
-
-	udid, _ := arguments.String("--udid")
-	if udid == "" {
-		udid = os.Getenv("GO_IOS_UDID")
-	}
-	address, addressErr := arguments.String("--address")
-	rsdPort, rsdErr := arguments.Int("--rsd-port")
-	userspaceTunnelHost, userspaceTunnelHostErr := arguments.String("--userspace-host")
-	if userspaceTunnelHostErr != nil {
-		userspaceTunnelHost = ios.HttpApiHost()
-	}
-
-	userspaceTunnelPort, userspaceTunnelErr := arguments.Int("--userspace-port")
-
-	device, err := ios.GetDevice(udid)
-	// device address and rsd port are only available after the tunnel started
-	if !tunnelCommand {
-		exitIfError("Device not found: "+udid, err)
-		if addressErr == nil && rsdErr == nil {
-			if userspaceTunnelErr == nil {
-				device.UserspaceTUN = true
-				device.UserspaceTUNHost = userspaceTunnelHost
-				device.UserspaceTUNPort = userspaceTunnelPort
-			}
-			device = deviceWithRsdProvider(device, udid, address, rsdPort)
-		} else {
-			info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfoHost, tunnelInfoPort)
-			if err == nil {
-				device.UserspaceTUNPort = info.UserspaceTUNPort
-				device.UserspaceTUNHost = userspaceTunnelHost
-				device.UserspaceTUN = info.UserspaceTUN
-				device = deviceWithRsdProvider(device, udid, info.Address, info.RsdPort)
-			} else {
-				slog.Warn("failed to get tunnel info", "udid", device.Properties.SerialNumber)
-			}
-		}
-	}
-
-	b, _ = arguments.Bool("erase")
-	if b {
-		force, _ := arguments.Bool("--force")
-		if !force {
-			slog.Warn("are you sure you want to erase device? (y/n)", "udid", device.Properties.SerialNumber)
-			reader := bufio.NewReader(os.Stdin)
-			// ReadString will block until the delimiter is entered
-			input, err := reader.ReadString('\n')
-			exitIfError("An error occured while reading input", err)
-			if !strings.HasPrefix(input, "y") {
-				slog.Error("abort")
-				return
-			}
-		}
-
-		exitIfError("failed erasing", mcinstall.Erase(device))
-		fmt.Print(convertToJSONString("ok"))
-		return
-	}
-
-	rsdCommand, _ := arguments.Bool("rsd")
-	if rsdCommand {
-		listCommand, _ := arguments.Bool("ls")
-		if listCommand {
-			services := device.Rsd.GetServices()
-			if JSONdisabled {
-				fmt.Println(services)
-			} else {
-				b, err := marshalJSON(services)
-				exitIfError("failed json conversion", err)
-				fmt.Println(string(b))
-			}
-			return
-		}
-	}
-
-	if mobileGestaltCommand(device, arguments) {
-		return
-	}
-
-	if deviceStateCommand {
-		if listCommand {
-			deviceState(device, true, false, "", "")
-			return
-		}
-		enable, _ := arguments.Bool("enable")
-		profileTypeId, _ := arguments.String("<profileTypeId>")
-		profileId, _ := arguments.String("<profileId>")
-		deviceState(device, false, enable, profileTypeId, profileId)
-	}
-
-	b, _ = arguments.Bool("wifi")
-	if b {
-		ssid, _ := arguments.String("--ssid")
-		psw, _ := arguments.String("--password")
-		encType, _ := arguments.String("--enc-type")
-		remove, _ := arguments.Bool("--remove")
-
-		if encType == "" {
-			encType = "WPA"
-		}
-
-		if remove {
-			exitIfError("failed removing wifi", mcinstall.RemoveWifi(device, ssid))
-		} else {
-			exitIfError("failed preparing wifi", mcinstall.PrepareWifi(device, ssid, psw, encType))
-		}
-		fmt.Print(convertToJSONString("ok"))
-		return
-	}
-
-	b, _ = arguments.Bool("prepare")
-	if b {
-		b, _ = arguments.Bool("create-cert")
-		if b {
-			cert, err := ios.CreateDERFormattedSupervisionCert()
-			exitIfError("failed creating cert", err)
-			err = os.WriteFile("supervision-cert.der", cert.CertDER, 0o777)
-			slog.Info("supervision-cert.der")
-			exitIfError("failed writing cert", err)
-			err = os.WriteFile("supervision-cert.pem", cert.CertPEM, 0o777)
-			slog.Info("supervision-cert.pem")
-			exitIfError("failed writing cert", err)
-			err = os.WriteFile("supervision-private-key.key", cert.PrivateKeyDER, 0o777)
-			slog.Info("supervision-private-key.key")
-			exitIfError("failed writing cert", err)
-			err = os.WriteFile("supervision-private-key.pem", cert.PrivateKeyPEM, 0o777)
-			slog.Info("supervision-private-key.pem")
-			exitIfError("failed writing key", err)
-			err = os.WriteFile("supervision-csr.csr", []byte(cert.Csr), 0o777)
-			slog.Info("supervision-csr.csr")
-			exitIfError("failed writing cert", err)
-			slog.Info("Golang does not have good PKCS12 format sadly. If you need a p12 file run this: " +
-				"'openssl pkcs12 -export -inkey supervision-private-key.pem -in supervision-cert.pem -out certificate.p12 -password pass:a'")
-			return
-		}
-		b, _ = arguments.Bool("printskip")
-		if b {
-			fmt.Println(convertToJSONString(mcinstall.GetAllSetupSkipOptions()))
-			return
-		}
-		b, _ = arguments.Bool("cloudconfig")
-		if b {
-			conn, err := mcinstall.New(device)
-			exitIfError("failed connecting to mcinstall", err)
-			defer conn.Close()
-			config, err := conn.GetCloudConfiguration()
-			exitIfError("failed getting cloud configuration", err)
-			fmt.Println(convertToJSONString(config))
-			return
-		}
-		skip := mcinstall.GetAllSetupSkipOptions()
-		skip1 := arguments["--skip"].([]string)
-		if len(skip1) > 0 {
-			skip = skip1
-		}
-
-		certfile, _ := arguments.String("--certfile")
-		orgname, _ := arguments.String("--orgname")
-		locale, _ := arguments.String("--locale")
-		lang, _ := arguments.String("--lang")
-		p12password, _ := arguments.String("--p12password")
-		if p12password == "" {
-			p12password = os.Getenv("P12_PASSWORD")
-		}
-		var certBytes []byte
-		if certfile != "" {
-			rawCertBytes, err := os.ReadFile(certfile)
-			exitIfError("failed opening cert file", err)
-			if orgname == "" {
-				logFatal("--orgname must be specified if certfile for supervision is provided")
-			}
-			certBytes, err = extractDERCertificate(rawCertBytes, p12password)
-			exitIfError("failed to parse supervision certificate", err)
-		}
-		exitIfError("failed erasing", mcinstall.Prepare(device, skip, certBytes, orgname, locale, lang))
-		fmt.Print(convertToJSONString("ok"))
-		return
-	}
-
-	b, _ = arguments.Bool("set-wallpaper")
-	if b {
-		imagePath, _ := arguments.String("<imagePath>")
-		p12file, _ := arguments.String("--p12file")
-		p12password, _ := arguments.String("--password")
-		if p12password == "" {
-			p12password = os.Getenv("P12_PASSWORD")
-		}
-		screen, _ := arguments.String("--screen")
-		if screen == "" {
-			screen = "home"
-		}
-		handleSetWallpaper(device, imagePath, screen, p12file, p12password)
-		return
-	}
-
-	b, _ = arguments.Bool("get-wallpaper")
-	if b {
-		out, _ := arguments.String("--output")
-		if out == "" {
-			out = "wallpaper.png"
-		}
-		handleGetWallpaper(device, out)
-		return
-	}
-
-	b, _ = arguments.Bool("get-icon-layout")
-	if b {
-		out, _ := arguments.String("--output")
-		handleGetIconLayout(device, out)
-		return
-	}
-
-	b, _ = arguments.Bool("set-icon-layout")
-	if b {
-		layoutFile, _ := arguments.String("<layoutFile>")
-		handleSetIconLayout(device, layoutFile)
-		return
-	}
-
-	b, _ = arguments.Bool("activate")
-	if b {
-		exitIfError("failed activation", mobileactivation.Activate(device))
-		return
-	}
-
-	b, _ = arguments.Bool("ip")
-	if b {
-		ip, err := pcap.FindIp(device)
-		exitIfError("failed", err)
-		fmt.Println(convertToJSONString(ip))
-		return
-	}
-
-	if crashCommand(device, arguments) {
-		return
-	}
-	if instrumentsCommand(device, arguments) {
-		return
-	}
-
-	b, _ = arguments.Bool("pcap")
-	if b {
-		p, _ := arguments.String("--process")
-		i, _ := arguments.Int("--pid")
-		pcap.Pid = int32(i)
-		pcap.ProcName = p
-		err := pcap.Start(device)
-		if err != nil {
-			exitIfError("pcap failed", err)
-		}
-		return
-	}
-
-	b, _ = arguments.Bool("ps")
-	if b {
-		applicationsOnly, _ := arguments.Bool("--apps")
-		processList(device, applicationsOnly)
-		return
-	}
-
-	b, _ = arguments.Bool("install")
-	if b {
-		path, _ := arguments.String("--path")
-		installApp(device, path)
-		return
-	}
-
-	b, _ = arguments.Bool("uninstall")
-	if b {
-		bundleID, _ := arguments.String("<bundleID>")
-		uninstallApp(device, bundleID)
-		return
-	}
-
-	if imageCommand1(device, arguments) {
-		return
-	}
-
-	b, _ = arguments.Bool("lang")
-	if b {
-		locale, _ := arguments.String("--setlocale")
-		newlang, _ := arguments.String("--setlang")
-		slog.Debug("lang", "setlocale", locale, "setlang", newlang)
-		language(device, locale, newlang)
-		return
-	}
-
-	b, _ = arguments.Bool("assistivetouch")
-	if b {
-		force, _ := arguments.Bool("--force")
-		b, _ = arguments.Bool("enable")
-		if b {
-			assistiveTouch(device, "enable", force)
-		}
-		b, _ = arguments.Bool("disable")
-		if b {
-			assistiveTouch(device, "disable", force)
-		}
-		b, _ = arguments.Bool("toggle")
-		if b {
-			assistiveTouch(device, "toggle", force)
-		}
-		b, _ = arguments.Bool("get")
-		if b {
-			assistiveTouch(device, "get", force)
-		}
-	}
-
-	b, _ = arguments.Bool("voiceover")
-	if b {
-		force, _ := arguments.Bool("--force")
-		b, _ = arguments.Bool("enable")
-		if b {
-			voiceOver(device, "enable", force)
-		}
-		b, _ = arguments.Bool("disable")
-		if b {
-			voiceOver(device, "disable", force)
-		}
-		b, _ = arguments.Bool("toggle")
-		if b {
-			voiceOver(device, "toggle", force)
-		}
-		b, _ = arguments.Bool("get")
-		if b {
-			voiceOver(device, "get", force)
-		}
-	}
-
-	b, _ = arguments.Bool("zoom")
-	if b {
-		force, _ := arguments.Bool("--force")
-		b, _ = arguments.Bool("enable")
-		if b {
-			zoomTouch(device, "enable", force)
-		}
-		b, _ = arguments.Bool("disable")
-		if b {
-			zoomTouch(device, "disable", force)
-		}
-		b, _ = arguments.Bool("toggle")
-		if b {
-			zoomTouch(device, "toggle", force)
-		}
-		b, _ = arguments.Bool("get")
-		if b {
-			zoomTouch(device, "get", force)
-		}
-	}
-
-	b, _ = arguments.Bool("dproxy")
-	if b {
-		// NOTE: previously this forced a logrus TextFormatter for the dproxy
-		// path. Log formatting is now decided centrally from --nojson during
-		// logger setup, so this per-path override is dropped.
-		binaryMode, _ := arguments.Bool("--binary")
-		startDebugProxy(device, binaryMode)
-		return
-	}
-
-	b, _ = arguments.Bool("info")
-	if b {
-		if display, _ := arguments.Bool("display"); display {
-			deviceInfo, err := deviceinfo.NewDeviceInfo(device)
-			exitIfError("Can't connect to deviceinfo service", err)
-			defer deviceInfo.Close()
-
-			info, err := deviceInfo.GetDisplayInfo()
-			exitIfError("Can't fetch dispaly info", err)
-
-			fmt.Println(convertToJSONString(info))
-		} else if lockdown, _ := arguments.Bool("lockdown"); lockdown {
-			printDeviceInfo(device)
-		} else {
-			// When subcommand is missing, it defaults to lockdown.
-			// Unknown subcommands don't reach this line and quit early.
-			printDeviceInfo(device)
-		}
-		return
-	}
-
-	lockdownCommand, _ := arguments.Bool("lockdown")
-	if lockdownCommand {
-		b, _ = arguments.Bool("get")
-		if b {
-			key := ""
-			if keyArg := arguments["<key>"]; keyArg != nil {
-				if keys, ok := keyArg.([]string); ok && len(keys) > 0 {
-					key = keys[0]
-				}
-			}
-			domain, _ := arguments.String("--domain")
-
-			lockdownConnection, err := ios.ConnectLockdownWithSession(device)
-			exitIfError("failed connecting to lockdown", err)
-			defer lockdownConnection.Close()
-
-			if key == "" && domain == "" {
-				// No key or domain specified, return all values
-				allValues, err := lockdownConnection.GetValues()
-				exitIfError("failed getting lockdown values", err)
-				fmt.Println(convertToJSONString(allValues.Value))
-			} else if domain != "" {
-				// Query from specific domain (key is optional, empty key returns all domain values)
-				value, err := lockdownConnection.GetValueForDomain(key, domain)
-				exitIfError(fmt.Sprintf("failed getting value from domain '%s'", domain), err)
-				fmt.Println(convertToJSONString(value))
-			} else {
-				// Query specific key from default domain
-				value, err := lockdownConnection.GetValue(key)
-				exitIfError(fmt.Sprintf("failed getting lockdown value '%s'", key), err)
-				fmt.Println(convertToJSONString(value))
-			}
-			return
-		}
-	}
-
-	b, _ = arguments.Bool("syslog")
-	if b {
-		parse, _ := arguments.Bool("--parse")
-
-		runSyslog(device, parse)
-		return
-	}
-
-	b, _ = arguments.Bool("ostrace")
-	if b {
-		pidStr, _ := arguments.String("--pid")
-		processName, _ := arguments.String("--process")
-		levelStr, _ := arguments.String("--level")
-		subsystem, _ := arguments.String("--subsystem")
-		match, _ := arguments.String("--match")
-		exclude, _ := arguments.String("--exclude")
-		pid := -1
-		if pidStr != "" {
-			var err error
-			pid, err = strconv.Atoi(pidStr)
-			exitIfError("invalid --pid value", err)
-		}
-		levelFilter, err := ostrace.ParseLevelFilter(levelStr)
-		exitIfError("invalid --level value", err)
-		clientFilter := ostrace.ClientFilter{
-			Levels:    levelFilter.ClientLevels,
-			Subsystem: subsystem,
-			Match:     match,
-			Exclude:   exclude,
-		}
-		follow, _ := arguments.Bool("--follow")
-		runOsTrace(device, pid, processName, levelFilter.MessageFilter, levelFilter.StreamFlags, clientFilter, follow)
-		return
-	}
-
-	b, _ = arguments.Bool("screenshot")
-	if b {
-		stream, _ := arguments.Bool("--stream")
-		port, _ := arguments.String("--port")
-		path, _ := arguments.String("--output")
-		if stream {
-			if port == "" {
-				port = "3333"
-			}
-			err := instruments.StartMJPEGStreamingServer(device, port)
-			exitIfError("failed starting mjpeg", err)
-			return
-		}
-		saveScreenshot(device, path)
-		return
-	}
-
-	b, _ = arguments.Bool("setlocation")
-	if b {
-		lat, _ := arguments.String("--lat")
-		lon, _ := arguments.String("--lon")
-
-		if device.SupportsRsd() {
-			server, err := instruments.NewLocationSimulationService(device)
-			exitIfError("failed to create location simulation service:", err)
-
-			startLocationSimulation(server, lat, lon)
-			return
-		}
-
-		setLocation(device, lat, lon)
-		return
-	}
-
-	b, _ = arguments.Bool("setlocationgpx")
-	if b {
-		gpxFilePath, _ := arguments.String("--gpxfilepath")
-		setLocationGPX(device, gpxFilePath)
-		return
-	}
-
-	b, _ = arguments.Bool("resetlocation")
-	if b {
-		resetLocation(device)
-		return
-	}
-
-	b, _ = arguments.Bool("devicename")
-	if b {
-		printDeviceName(device)
-		return
-	}
-
-	b, _ = arguments.Bool("apps")
-
-	if b {
-		list, _ := arguments.Bool("--list")
-		system, _ := arguments.Bool("--system")
-		all, _ := arguments.Bool("--all")
-		filesharing, _ := arguments.Bool("--filesharing")
-		printInstalledApps(device, system, all, list, filesharing)
-		return
-	}
-
-	b, _ = arguments.Bool("date")
-	if b {
-		printDeviceDate(device)
-		return
-	}
-	b, _ = arguments.Bool("diagnostics")
-	if b {
-		printDiagnostics(device)
-		return
-	}
-
-	b, _ = arguments.Bool("timeformat")
-	if b {
-		force, _ := arguments.Bool("--force")
-		b, _ = arguments.Bool("24h")
-		if b {
-			timeFormat(device, "24h", force)
-		}
-		b, _ = arguments.Bool("12h")
-		if b {
-			timeFormat(device, "12h", force)
-		}
-		b, _ = arguments.Bool("toggle")
-		if b {
-			timeFormat(device, "toggle", force)
-		}
-		b, _ = arguments.Bool("get")
-		if b {
-			timeFormat(device, "get", force)
-		}
-	}
-
-	b, _ = arguments.Bool("pair")
-	if b {
-		org, _ := arguments.String("--p12file")
-		pwd, _ := arguments.String("--password")
-		if pwd == "" {
-			pwd = os.Getenv("P12_PASSWORD")
-		}
-		pairDevice(device, org, pwd)
-		return
-	}
-
-	b, _ = arguments.Bool("readpair")
-	if b {
-		readPair(device)
-		return
-	}
-
-	b, _ = arguments.Bool("httpproxy")
-	if b {
-		removeCommand, _ := arguments.Bool("remove")
-		if removeCommand {
-			mcinstall.RemoveProxy(device)
-			exitIfError("failed removing proxy", err)
-			slog.Info("success")
-			return
-		}
-		host, _ := arguments.String("<host>")
-		port, _ := arguments.String("<port>")
-		user, _ := arguments.String("<user>")
-		pass, _ := arguments.String("<pass>")
-		if pass == "" {
-			pass = os.Getenv("PROXY_PASSWORD")
-		}
-		p12file, _ := arguments.String("--p12file")
-		p12password, _ := arguments.String("--password")
-		if p12password == "" {
-			p12password = os.Getenv("P12_PASSWORD")
-		}
-		p12bytes, err := os.ReadFile(p12file)
-		exitIfError("could not read p12-file", err)
-
-		err = mcinstall.SetHttpProxy(device, host, port, user, pass, p12bytes, p12password)
-		exitIfError("failed", err)
-		slog.Info("success")
-		return
-	}
-
-	b, _ = arguments.Bool("profile")
-	if b {
-		if listCommand {
-			handleProfileList(device)
-		}
-		b, _ = arguments.Bool("add")
-		if b {
-			name, _ := arguments.String("<profileFile>")
-			p12file, _ := arguments.String("--p12file")
-			p12password, _ := arguments.String("--password")
-			if p12password == "" {
-				p12password = os.Getenv("P12_PASSWORD")
-			}
-			if p12file != "" {
-				handleProfileAddSupervised(device, name, p12file, p12password)
-				return
-			}
-			handleProfileAdd(device, name)
-		}
-		b, _ = arguments.Bool("remove")
-		if b {
-			name, _ := arguments.String("<profileName>")
-			handleProfileRemove(device, name)
-		}
-
-		return
-	}
-
-	b, _ = arguments.Bool("forward")
-	if b {
-		// Check for new --port syntax first (multi-forward)
-		mappings, _ := arguments["--port"].([]string)
-		if len(mappings) > 0 {
-			startMultiForwarding(device, mappings)
-		} else {
-			// Backwards compatible: single forward
-			hostPort, _ := arguments.Int("<hostPort>")
-			targetPort, _ := arguments.Int("<targetPort>")
-			startForwarding(device, uint16(hostPort), uint16(targetPort))
-		}
-		return
-	}
-
-	b, _ = arguments.Bool("launch")
-	if b {
-		wait, _ := arguments.Bool("--wait")
-		bKillExisting, _ := arguments.Bool("--kill-existing")
-		bundleID, _ := arguments.String("<bundleID>")
-		if bundleID == "" {
-			logFatal("please provide a bundleID")
-		}
-		pControl, err := instruments.NewProcessControl(device)
-		exitIfError("processcontrol failed", err)
-		opts := map[string]any{}
-		if bKillExisting {
-			opts["KillExisting"] = 1
-		} // end if
-		args := toArgs(arguments["--arg"].([]string))
-		envs := toEnvs(arguments["--env"].([]string))
-		pid, err := pControl.LaunchAppWithArgs(bundleID, args, envs, opts)
-		exitIfError("launch app command failed", err)
-		slog.Info("Process launched", "pid", pid)
-		if wait {
-			c := make(chan os.Signal, 1)
-			signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-			<-c
-			slog.Info("stop listening to logs", "pid", pid)
-		}
-	}
-
-	b, _ = arguments.Bool("sysmontap")
-	if b {
-		printSysmontapStats(device)
-	}
-
-	b, _ = arguments.Bool("memlimitoff")
-	if b {
-		processName, _ := arguments.String("--process")
-
-		pControl, err := instruments.NewProcessControl(device)
-		exitIfError("processcontrol failed", err)
-		defer pControl.Close()
-
-		svc, err := instruments.NewDeviceInfoService(device)
-		exitIfError("failed opening deviceInfoService for getting process list", err)
-		defer svc.Close()
-
-		process, err := svc.ProcessByName(processName)
-		exitIfError("process not found", err)
-		if process.Pid > 1 {
-			disabled, err := pControl.DisableMemoryLimit(process.Pid)
-			exitIfError("DisableMemoryLimit failed", err)
-			slog.Info("memory limit is off", "process", process.Name, "pid", process.Pid, "disabled", disabled)
-		}
-	}
-
-	b, _ = arguments.Bool("kill")
-	if b {
-		var response []installationproxy.AppInfo
-		bundleID, _ := arguments.String("<bundleID>")
-		processIDint, _ := arguments.Int("--pid")
-		processName, _ := arguments.String("--process")
-
-		processID := uint64(processIDint)
-
-		// Technically "Mach Kernel" is process 0, I suppose we provide no way to attempt to kill that.
-		if bundleID == "" && processID == 0 && processName == "" {
-			logFatal("please provide a bundleID")
-		}
-		pControl, err := instruments.NewProcessControl(device)
-		exitIfError("processcontrol failed", err)
-		svc, _ := installationproxy.New(device)
-
-		// Look for correct process exe name for this bundleID. By default, searches only user-installed apps.
-		if bundleID != "" {
-			response, err = svc.BrowseAllApps()
-			exitIfError("browsing apps failed", err)
-
-			for _, app := range response {
-				if app.CFBundleIdentifier() == bundleID {
-					processName = app.CFBundleExecutable()
-					break
-				}
-			}
-			if processName == "" {
-				slog.Error("not installed", "bundleID", bundleID)
-				os.Exit(1)
-				return
-			}
-		}
-
-		service, err := instruments.NewDeviceInfoService(device)
-		defer service.Close()
-		exitIfError("failed opening deviceInfoService for getting process list", err)
-		processList, _ := service.ProcessList()
-		// ps
-		for _, p := range processList {
-			if (processID > 0 && p.Pid == processID) || (processName != "" && p.Name == processName) {
-				err = pControl.KillProcess(p.Pid)
-				exitIfError("kill process failed ", err)
-				if bundleID != "" {
-					slog.Info("killed", "bundleID", bundleID, "pid", p.Pid)
-				} else {
-					slog.Info("killed", "process", p.Name, "pid", p.Pid)
-				}
-				return
-			}
-		}
-		if bundleID != "" {
-			slog.Error("process not found", "bundleID", bundleID)
-		} else if processName != "" {
-			slog.Error("process not found", "process", processName)
-		} else {
-			slog.Error("process not found", "pid", processID)
-		}
-		os.Exit(1)
-		return
-	}
-
-	b, _ = arguments.Bool("runtest")
-	if b {
-		bundleID, _ := arguments.String("--bundle-id")
-		testRunnerBundleId, _ := arguments.String("--test-runner-bundle-id")
-		xctestConfig, _ := arguments.String("--xctest-config")
-
-		testsToRunArg := arguments["--test-to-run"]
-		var testsToRun []string
-		if testsToRunArg != nil && len(testsToRunArg.([]string)) > 0 {
-			testsToRun = testsToRunArg.([]string)
-		}
-
-		testsToSkipArg := arguments["--test-to-skip"]
-		var testsToSkip []string
-		testsToSkip = nil
-		if testsToSkipArg != nil && len(testsToSkipArg.([]string)) > 0 {
-			testsToSkip = testsToSkipArg.([]string)
-		}
-
-		rawTestlog, rawTestlogErr := arguments.String("--log-output")
-		env := splitKeyValuePairs(arguments["--env"].([]string), "=")
-		isXCTest, _ := arguments.Bool("--xctest")
-
-		config := testmanagerd.TestConfig{
-			BundleId:           bundleID,
-			TestRunnerBundleId: testRunnerBundleId,
-			XctestConfigName:   xctestConfig,
-			Env:                env,
-			TestsToRun:         testsToRun,
-			TestsToSkip:        testsToSkip,
-			XcTest:             isXCTest,
-			Device:             device,
-		}
-
-		if rawTestlogErr == nil {
-			var writer *os.File = os.Stdout
-			if rawTestlog != "-" {
-				file, err := os.Create(rawTestlog)
-				exitIfError("Cannot open file "+rawTestlog, err)
-				writer = file
-			}
-			defer writer.Close()
-
-			config.Listener = testmanagerd.NewTestListener(writer, writer, os.TempDir())
-
-			testResults, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
-			if err != nil {
-				slog.Info("Failed running Xcuitest", "error", err)
-			}
-
-			slog.Info("test results", "results", testResults)
-		} else {
-			config.Listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
-			_, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
-			if err != nil {
-				slog.Info("Failed running Xcuitest", "error", err)
-			}
-		}
-		return
-	}
-
-	b, _ = arguments.Bool("runxctest")
-	if b {
-		xctestrunFilePath, _ := arguments.String("--xctestrun-file-path")
-
-		rawTestlog, rawTestlogErr := arguments.String("--log-output")
-
-		if rawTestlogErr == nil {
-			var writer *os.File = os.Stdout
-			if rawTestlog != "-" {
-				file, err := os.Create(rawTestlog)
-				exitIfError("Cannot open file "+rawTestlog, err)
-				writer = file
-			}
-			defer writer.Close()
-			var listener = testmanagerd.NewTestListener(writer, writer, os.TempDir())
-
-			testResults, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, device, listener)
-			if err != nil {
-				slog.Info("Failed running Xctest", "error", err)
-			}
-
-			slog.Info("test results", "results", testResults)
-		} else {
-			var listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
-			_, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, device, listener)
-			if err != nil {
-				slog.Info("Failed running Xctest", "error", err)
-			}
-		}
-		return
-	}
-
-	if runWdaCommand(device, arguments) {
-		return
-	}
-
-	b, _ = arguments.Bool("ax")
-	if b {
-		startAx(device, arguments)
-		return
-	}
-
-	b, _ = arguments.Bool("resetax")
-	if b {
-		resetAx(device)
-		return
-	}
-
-	b, _ = arguments.Bool("debug")
-	if b {
-		appPath, _ := arguments.String("<app_path>")
-		if appPath == "" {
-			logFatal("parameter bundleid and app_path must be specified")
-		}
-		stopAtEntry, _ := arguments.Bool("--stop-at-entry")
-		exitIfError("debug server failed", debugserver.Start(device, appPath, stopAtEntry))
-	}
-
-	b, _ = arguments.Bool("batteryregistry")
-	if b {
-		printBatteryRegistry(device)
-	}
-
-	b, _ = arguments.Bool("reboot")
-	if b {
-		err := diagnostics.Reboot(device)
-		if err != nil {
-			slog.Error("reboot failed", "error", err)
-		} else {
-			slog.Info("ok")
-		}
-		return
-	}
-
-	b, _ = arguments.Bool("shutdown")
-	if b {
-		err := diagnostics.Shutdown(device)
-		if err != nil {
-			slog.Error("shutdown failed", "error", err)
-		} else {
-			slog.Info("ok")
-		}
-		return
-	}
-
-	b, _ = arguments.Bool("file")
-	if b {
-		// file command uses RemoteXPC (iOS 17+) and requires tunnel
-		if !device.SupportsRsd() {
-			exitIfError("file command requires iOS 17+ with tunnel", fmt.Errorf("tunnel not running. Start with: ios tunnel start"))
-		}
-
-		// Determine domain from flags
-		bundleID, _ := arguments.String("--app")
-		groupID, _ := arguments.String("--app-group")
-		useCrash, _ := arguments.Bool("--crash")
-		useTemp, _ := arguments.Bool("--temp")
-
-		// Count how many domain flags were specified
-		flagCount := 0
-		if bundleID != "" {
-			flagCount++
-		}
-		if groupID != "" {
-			flagCount++
-		}
-		if useCrash {
-			flagCount++
-		}
-		if useTemp {
-			flagCount++
-		}
-
-		if flagCount > 1 {
-			exitIfError("file command", fmt.Errorf("can only specify one of: --app, --app-group, --crash, or --temp"))
-		}
-		if flagCount == 0 {
-			exitIfError("file command", fmt.Errorf("must specify one of: --app=<bundleID>, --app-group=<groupID>, --crash, or --temp"))
-		}
-
-		// Determine domain and identifier
-		var domain fileservice.Domain
-		var identifier string
-
-		if bundleID != "" {
-			domain = fileservice.DomainAppDataContainer
-			identifier = bundleID
-		} else if groupID != "" {
-			domain = fileservice.DomainAppGroupDataContainer
-			identifier = groupID
-		} else if useCrash {
-			domain = fileservice.DomainSystemCrashLogs
-			identifier = ""
-		} else if useTemp {
-			domain = fileservice.DomainTemporary
-			identifier = ""
-		}
-
-		// Create connection
-		conn, err := fileservice.New(device, domain, identifier)
-		exitIfError("file: failed to connect to file service", err)
-		defer func() {
-			if closeErr := conn.Close(); closeErr != nil {
-				slog.Error("Failed to close file service connection", "error", closeErr)
-			}
-		}()
-
-		// Handle ls subcommand
-		b, _ = arguments.Bool("ls")
-		if b {
-			path, _ := arguments.String("--path")
-			if path == "" {
-				path = "."
-			}
-
-			files, err := conn.ListDirectory(path)
-			exitIfError("file ls: failed to list directory", err)
-
-			if !JSONdisabled {
-				result := map[string]interface{}{
-					"path":  path,
-					"files": files,
-					"count": len(files),
-				}
-				fmt.Println(convertToJSONString(result))
-			} else {
-				fmt.Printf("Files in %s:\n", path)
-				for _, file := range files {
-					fmt.Printf("  %s\n", file)
-				}
-				fmt.Printf("\nTotal: %d files\n", len(files))
-			}
-		}
-
-		// Handle pull subcommand
-		b, _ = arguments.Bool("pull")
-		if b {
-			remotePath, _ := arguments.String("--remote")
-			localPath, _ := arguments.String("--local")
-
-			if remotePath == "" {
-				exitIfError("file pull", fmt.Errorf("--remote=<path> is required"))
-			}
-			if localPath == "" {
-				exitIfError("file pull", fmt.Errorf("--local=<path> is required"))
-			}
-
-			// Create output file for streaming
-			outputFile, err := os.Create(localPath)
-			exitIfError("file pull: failed to create output file", err)
-			defer outputFile.Close()
-
-			// Download file using streaming to minimize memory usage
-			slog.Info(fmt.Sprintf("Downloading %s to %s...", remotePath, localPath))
-			err = conn.PullFile(remotePath, outputFile)
-			exitIfError("file pull: failed to download file", err)
-
-			// Get file size for reporting
-			fileInfo, err := outputFile.Stat()
-			exitIfError("file pull: failed to get file info", err)
-			fileSize := fileInfo.Size()
-
-			if !JSONdisabled {
-				result := map[string]interface{}{
-					"remote": remotePath,
-					"local":  localPath,
-					"size":   fileSize,
-				}
-				fmt.Println(convertToJSONString(result))
-			} else {
-				slog.Info(fmt.Sprintf("Downloaded %d bytes to %s", fileSize, localPath))
-			}
-		}
-
-		b, _ = arguments.Bool("push")
-		if b {
-			localPath, _ := arguments.String("--local")
-			remotePath, _ := arguments.String("--remote")
-
-			if localPath == "" || remotePath == "" {
-				exitIfError("push requires --local and --remote paths", fmt.Errorf("missing required arguments"))
-			}
-
-			// Get file info to preserve permissions
-			fileInfo, err := os.Stat(localPath)
-			exitIfError("push: failed to stat local file", err)
-
-			// Get file permissions from source file, default UID (501) and GID (501)
-			permissions := int64(fileInfo.Mode().Perm())
-			uid := int64(501)
-			gid := int64(501)
-			fileSize := fileInfo.Size()
-
-			// Open file for streaming
-			file, err := os.Open(localPath)
-			exitIfError("push: failed to open local file", err)
-			defer file.Close()
-
-			// Upload file using streaming to minimize memory usage
-			slog.Info(fmt.Sprintf("Uploading %s to %s...", localPath, remotePath))
-			err = conn.PushFile(remotePath, file, fileSize, permissions, uid, gid)
-			exitIfError("push: failed to upload file", err)
-
-			if !JSONdisabled {
-				result := map[string]interface{}{
-					"remote": remotePath,
-					"local":  localPath,
-					"size":   fileSize,
-				}
-				fmt.Println(convertToJSONString(result))
-			} else {
-				slog.Info(fmt.Sprintf("Uploaded %d bytes to %s", fileSize, remotePath))
-			}
-		}
-
-		return
-	}
-
-	b, _ = arguments.Bool("fsync")
-	if b {
-		containerBundleId, _ := arguments.String("--app")
-		var afcService *afc.Client
-		if containerBundleId == "" {
-			afcService, err = afc.New(device)
-		} else {
-			afcService, err = house_arrest.New(device, containerBundleId)
-		}
-		exitIfError("fsync: connect afc service failed", err)
-		b, _ = arguments.Bool("rm")
-		if b {
-			path, _ := arguments.String("--path")
-			isRecursive, _ := arguments.Bool("--r")
-			if isRecursive {
-				err = afcService.RemoveAll(path)
-			} else {
-				err = afcService.Remove(path)
-			}
-			exitIfError("fsync: remove failed", err)
-		}
-
-		b, _ = arguments.Bool("tree")
-		if b {
-			path, _ := arguments.String("--path")
-			err := afcService.WalkDir(path, func(path string, info afc.FileInfo, err error) error {
-				s := strings.Split(path, string(os.PathSeparator))
-				_, f := filepath.Split(path)
-				prefix := strings.Repeat("|  ", len(s)-1)
-
-				suffix := ""
-				if info.Type == afc.S_IFDIR {
-					suffix = "/"
-				}
-
-				fmt.Printf("%s|-%s%s\n", prefix, f, suffix)
-				return nil
-			})
-			exitIfError("fsync: tree view failed", err)
-		}
-
-		b, _ = arguments.Bool("mkdir")
-		if b {
-			path, _ := arguments.String("--path")
-			err = afcService.MkDir(path)
-			exitIfError("fsync: mkdir failed", err)
-		}
-
-		b, _ = arguments.Bool("pull")
-		if b {
-			sp, _ := arguments.String("--srcPath")
-			dp, _ := arguments.String("--dstPath")
-			if dp != "" {
-				ret, _ := ios.PathExists(dp)
-				if !ret {
-					err = os.MkdirAll(dp, os.ModePerm)
-					exitIfError("mkdir failed", err)
-				}
-			}
-
-			dp = path.Join(dp, filepath.Base(sp))
-			err = afcService.Pull(sp, dp)
-			exitIfError("fsync: pull failed", err)
-		}
-		b, _ = arguments.Bool("push")
-		if b {
-			sp, _ := arguments.String("--srcPath")
-			dp, _ := arguments.String("--dstPath")
-
-			err = afcService.Push(sp, dp)
-			exitIfError("fsync: push failed", err)
-		}
-		afcService.Close()
-		return
-	}
-
-	b, _ = arguments.Bool("diskspace")
-	if b {
-		afcService, err := afc.New(device)
-		exitIfError("connect afc service failed", err)
-		info, err := afcService.DeviceInfo()
-		exitIfError("get device info push failed", err)
-		if JSONdisabled {
-			fmt.Printf("      Model: %s\n", info.Model)
-			fmt.Printf("  BlockSize: %d\n", info.BlockSize)
-			fmt.Printf("  FreeSpace: %s\n", ios.ByteCountDecimal(int64(info.FreeBytes)))
-			fmt.Printf("  UsedSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes-info.FreeBytes)))
-			fmt.Printf(" TotalSpace: %s\n", ios.ByteCountDecimal(int64(info.TotalBytes)))
-		} else {
-			fmt.Println(convertToJSONString(info))
-		}
-		return
-	}
-
-	b, _ = arguments.Bool("batterycheck")
-	if b {
-		printBatteryDiagnostics(device)
-		return
-	}
-
-	if tunnelCommand {
-		startCommand, _ := arguments.Bool("start")
-		useUserspaceNetworking, _ := arguments.Bool("--userspace")
-		if startCommand && !useUserspaceNetworking {
-			err := tunnel.CheckPermissions()
-			exitIfError("If --userspace is not set, we need sudo, an admin shell on Windows, or CAP_NET_ADMIN on Linux", err)
-		}
-		if useUserspaceNetworking {
-			slog.Info("Using userspace networking")
-		}
-		stopagent, _ := arguments.Bool("stopagent")
-		listCommand, _ := arguments.Bool("ls")
-		if startCommand {
-			pairRecordsPath, _ := arguments.String("--pair-record-path")
-			if len(pairRecordsPath) == 0 {
-				pairRecordsPath = "."
-			}
-			if strings.ToLower(pairRecordsPath) == "default" {
-				pairRecordsPath = "/var/db/lockdown/RemotePairing/user_501"
-			}
-			startTunnel(context.TODO(), pairRecordsPath, tunnelInfoHost, tunnelInfoPort, useUserspaceNetworking)
-		} else if listCommand {
-			tunnels, err := tunnel.ListRunningTunnels(tunnelInfoHost, tunnelInfoPort)
-			exitIfError("failed to get tunnel infos", err)
-			if disableJSON {
-				for index, t := range tunnels {
-					if 0 != index {
-						fmt.Println()
-					}
-					fmt.Printf("Udid: %s\n  Address: %s\n  RsdPort: %d\n  UserspaceTUN: %v\n  UserspaceTUNPort: %d\n",
-						t.Udid, t.Address, t.RsdPort, t.UserspaceTUN, t.UserspaceTUNPort)
-				}
-			} else {
-				fmt.Println(convertToJSONString(tunnels))
-			}
-		}
-		if stopagent {
-			err := tunnel.CloseAgent()
-			if err != nil {
-				exitIfError("failed to close agent", err)
-			}
-			return
-		}
-	}
-
-	b, _ = arguments.Bool("devmode")
-	if b {
-		enable, _ := arguments.Bool("enable")
-		get, _ := arguments.Bool("get")
-		enablePostRestart, _ := arguments.Bool("--enable-post-restart")
-		if enable {
-			err := amfi.EnableDeveloperMode(device, enablePostRestart)
-			exitIfError("Failed enabling developer mode", err)
-		}
-
-		if get {
-			devModeEnabled, _ := imagemounter.IsDevModeEnabled(device)
-			if JSONdisabled {
-				fmt.Printf("Developer mode enabled: %v\n", devModeEnabled)
-			} else {
-				result := map[string]interface{}{"DeveloperModeEnabled": devModeEnabled}
-				fmt.Println(convertToJSONString(result))
-			}
-		}
-
-		reveal, _ := arguments.Bool("reveal")
-		if reveal {
-			conn, err := amfi.New(device)
-			exitIfError("Failed connecting to AMFI service", err)
-			defer conn.Close()
-			err = conn.RevealDevMode()
-			exitIfError("Failed revealing developer mode menu", err)
-			slog.Info("Developer Mode menu has been revealed on the device. Go to Settings → Privacy & Security → Developer Mode to enable it.")
-		}
-
+	if dispatchTunnelCommand(tunnelCommandContext{
+		Args:           arguments,
+		TunnelInfoHost: tunnelInfo.Host,
+		TunnelInfoPort: tunnelInfo.Port,
+	}) {
 		return
 	}
 }
@@ -1871,177 +609,6 @@ func printSysmontapStats(device ios.DeviceEntry) {
 	}
 }
 
-func mobileGestaltCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
-	b, _ := arguments.Bool("mobilegestalt")
-	if b {
-		conn, _ := diagnostics.New(device)
-		keys := arguments["<key>"].([]string)
-		plist, _ := arguments.Bool("--plist")
-		resp, _ := conn.MobileGestaltQuery(keys)
-		if plist {
-			fmt.Printf("%s\n", ios.ToPlist(resp))
-			return true
-		}
-		jb, _ := marshalJSON(resp)
-		fmt.Printf("%s\n", jb)
-		return true
-	}
-	return b
-}
-
-func imageCommand1(device ios.DeviceEntry, arguments docopt.Opts) bool {
-	b, _ := arguments.Bool("image")
-	if b {
-		list, _ := arguments.Bool("list")
-		if list {
-			listMountedImages(device)
-		}
-
-		path, _ := arguments.String("--path")
-
-		auto, _ := arguments.Bool("auto")
-		if auto {
-			basedir, _ := arguments.String("--basedir")
-			if basedir == "" {
-				basedir = "./devimages"
-			}
-
-			var err error
-			path, err = imagemounter.DownloadImageFor(device, basedir)
-			if err != nil {
-				slog.Error("failed downloading image", "basedir", basedir, "udid", device.Properties.SerialNumber, "err", err)
-				return false
-			}
-
-			slog.Info("success downloaded image", "basedir", basedir, "udid", device.Properties.SerialNumber)
-		}
-
-		mount, _ := arguments.Bool("mount")
-		if mount || auto {
-			err := imagemounter.MountImage(device, path)
-			if err != nil {
-				slog.Error("error mounting image", "image", path, "udid", device.Properties.SerialNumber, "err", err)
-				return true
-			}
-			slog.Info("success mounting image", "image", path, "udid", device.Properties.SerialNumber)
-		}
-
-		unmount, _ := arguments.Bool("unmount")
-		if unmount {
-			err := imagemounter.UnmountImage(device)
-			if err != nil {
-				slog.Error("error unmounting image", "udid", device.Properties.SerialNumber, "err", err)
-				return true
-			}
-			slog.Info("success unmounting image", "udid", device.Properties.SerialNumber)
-		}
-	}
-	return b
-}
-
-func runWdaCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
-	b, _ := arguments.Bool("runwda")
-	if b {
-		bundleID, _ := arguments.String("--bundleid")
-		testbundleID, _ := arguments.String("--testrunnerbundleid")
-		xctestconfig, _ := arguments.String("--xctestconfig")
-		wdaargs := arguments["--arg"].([]string)
-		wdaenv := splitKeyValuePairs(arguments["--env"].([]string), "=")
-
-		if bundleID == "" && testbundleID == "" && xctestconfig == "" {
-			slog.Info("no bundle ids specified, falling back to defaults")
-			bundleID, testbundleID, xctestconfig = "com.facebook.WebDriverAgentRunner.xctrunner", "com.facebook.WebDriverAgentRunner.xctrunner", "WebDriverAgentRunner.xctest"
-		}
-		if bundleID == "" || testbundleID == "" || xctestconfig == "" {
-			slog.Error("please specify either NONE of bundleid, testbundleid and xctestconfig or ALL of them. At least one was empty.", "bundleid", bundleID, "testbundleid", testbundleID, "xctestconfig", xctestconfig)
-			return true
-		}
-		slog.Info("Running wda", "bundleid", bundleID, "testbundleid", testbundleID, "xctestconfig", xctestconfig)
-
-		rawTestlog, rawTestlogErr := arguments.String("--log-output")
-
-		var writer io.Writer
-
-		if rawTestlogErr == nil {
-			writerCloser := os.Stdout
-			writer = writerCloser
-			if rawTestlog != "-" {
-				file, err := os.Create(rawTestlog)
-				exitIfError("Cannot open file "+rawTestlog, err)
-				writer = file
-			}
-			defer writerCloser.Close()
-		} else {
-			writer = io.Discard
-		}
-
-		errorChannel := make(chan error)
-		defer close(errorChannel)
-		ctx, stopWda := context.WithCancel(context.Background())
-		go func() {
-			_, err := testmanagerd.RunTestWithConfig(ctx, testmanagerd.TestConfig{
-				BundleId:           bundleID,
-				TestRunnerBundleId: testbundleID,
-				XctestConfigName:   xctestconfig,
-				Env:                wdaenv,
-				Args:               wdaargs,
-				Device:             device,
-				Listener:           testmanagerd.NewTestListener(writer, writer, os.TempDir()),
-			})
-			if err != nil {
-				errorChannel <- err
-			}
-			stopWda()
-		}()
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-
-		select {
-		case err := <-errorChannel:
-			slog.Error("Failed running WDA", "error", err)
-			stopWda()
-			os.Exit(1)
-		case <-ctx.Done():
-			slog.Error("WDA process ended unexpectedly")
-			os.Exit(1)
-		case signal := <-c:
-			slog.Info(fmt.Sprintf("os signal %d received, closing...", signal))
-			stopWda()
-		}
-		slog.Info("Done Closing")
-	}
-	return b
-}
-
-func instrumentsCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
-	b, _ := arguments.Bool("instruments")
-	if b {
-		listenerFunc, closeFunc, err := instruments.ListenAppStateNotifications(device)
-		if err != nil {
-			logFatal("failed listening to app state notifications", "error", err)
-		}
-		go func() {
-			for {
-				notification, err := listenerFunc()
-				if err != nil {
-					slog.Error("listener error", "error", err)
-					return
-				}
-				s, _ := json.Marshal(notification)
-				fmt.Println(string(s))
-			}
-		}()
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		<-c
-		err = closeFunc()
-		if err != nil {
-			slog.Warn("timeout during close", "error", err)
-		}
-	}
-	return b
-}
-
 func toArgs(argsIn []string) []interface{} {
 	args := []interface{}{}
 	for _, arg := range argsIn {
@@ -2061,44 +628,6 @@ func toEnvs(envsIn []string) map[string]interface{} {
 	}
 
 	return env
-}
-
-func crashCommand(device ios.DeviceEntry, arguments docopt.Opts) bool {
-	b, _ := arguments.Bool("crash")
-	if b {
-		ls, _ := arguments.Bool("ls")
-		if ls {
-			pattern, err := arguments.String("<pattern>")
-			if err != nil || pattern == "" {
-				pattern = "*"
-			}
-			files, err := crashreport.ListReports(device, pattern)
-			exitIfError("failed listing crashreports", err)
-			fmt.Println(
-				convertToJSONString(
-					map[string]interface{}{"files": files, "length": len(files)},
-				),
-			)
-		}
-		cp, _ := arguments.Bool("cp")
-		if cp {
-			pattern, _ := arguments.String("<srcpattern>")
-			target, _ := arguments.String("<target>")
-			slog.Debug("cp", "srcpattern", pattern, "target", target)
-			err := crashreport.DownloadReports(device, pattern, target)
-			exitIfError("failed downloading crashreports", err)
-		}
-
-		rm, _ := arguments.Bool("rm")
-		if rm {
-			cwd, _ := arguments.String("<cwd>")
-			pattern, _ := arguments.String("<pattern>")
-			slog.Debug("rm", "cwd", cwd, "pattern", pattern)
-			err := crashreport.RemoveReports(device, cwd, pattern)
-			exitIfError("failed deleting crashreports", err)
-		}
-	}
-	return b
 }
 
 func deviceState(device ios.DeviceEntry, list bool, enable bool, profileTypeId string, profileId string) {
@@ -3256,6 +1785,18 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 }
 
 func startTunnel(ctx context.Context, recordsPath string, tunnelInfoHost string, tunnelInfoPort int, userspaceTUN bool) {
+	// Optional profiling endpoint: set GO_IOS_PPROF=host:port (e.g. 127.0.0.1:6060)
+	// to expose net/http/pprof (CPU, heap, block and mutex profiles) on the agent.
+	if addr := os.Getenv("GO_IOS_PPROF"); addr != "" {
+		runtime.SetBlockProfileRate(1)     // record goroutine blocking events
+		runtime.SetMutexProfileFraction(1) // record mutex contention
+		go func() {
+			slog.Info("pprof listening", "addr", addr)
+			if err := http.ListenAndServe(addr, nil); err != nil {
+				slog.Warn("pprof server stopped", "error", err)
+			}
+		}()
+	}
 	pm, err := tunnel.NewPairRecordManager(recordsPath)
 	exitIfError("could not creat pair record manager", err)
 	tm := tunnel.NewTunnelManager(pm, userspaceTUN)

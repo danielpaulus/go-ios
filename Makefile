@@ -19,7 +19,7 @@ GOEXEC=$(strip $(foreach v,OS ARCH,$(and $($v),GO$v=$($v) )) go)
 # Build the Go program
 build:
 	@$(GOEXEC) work use .
-	@$(GOEXEC) build -o $(GO_IOS_BINARY_NAME) ./main.go
+	@$(GOEXEC) build -o $(GO_IOS_BINARY_NAME) .
 	@$(GOEXEC) work use ./ncm
 	@CGO_ENABLED=1 $(GOEXEC) build -o $(NCM_BINARY_NAME) ./cmd/cdc-ncm/main.go
 

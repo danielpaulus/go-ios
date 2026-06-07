@@ -6,6 +6,7 @@ toolchain go1.26.4
 
 require (
 	github.com/Masterminds/semver v1.5.0
+	github.com/aluedeke/go-codesign v0.0.6
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.1.2
@@ -18,7 +19,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tadglines/go-pkgs v0.0.0-20210623144937-b983b20f54f9
 	github.com/vishvananda/netlink v1.3.1
-	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
+	go.mozilla.org/pkcs7 v0.9.0
 	golang.org/x/crypto v0.24.0
 	golang.org/x/exp v0.0.0-20230725093048-515e97ebf090
 	golang.org/x/net v0.26.0
@@ -26,11 +27,16 @@ require (
 	golang.org/x/term v0.21.0
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2
 	gvisor.dev/gvisor v0.0.0-20240405191320-0878b34101b5
-	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5
-	software.sslmate.com/src/go-pkcs12 v0.2.0
+	howett.net/plist v1.0.1
+	software.sslmate.com/src/go-pkcs12 v0.7.0
 )
 
-require github.com/vishvananda/netns v0.0.5 // indirect
+require (
+	github.com/blacktop/go-dwarf v1.0.14 // indirect
+	github.com/blacktop/go-macho v1.1.258 // indirect
+	github.com/gorilla/websocket v1.5.3
+	github.com/vishvananda/netns v0.0.5 // indirect
+)
 
 require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect

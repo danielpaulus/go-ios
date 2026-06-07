@@ -216,6 +216,12 @@ commands:
   - path: screenshot
     usage: ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
     summary: Capture screenshot or stream MJPEG.
+  - path: sign provision appstoreconnect
+    usage: ios sign provision appstoreconnect --bundleid=<bundleid> --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> --p12-output=<p12file> --profile-output=<mobileprovision> [--p12password=<password>] [--bundle-name=<name>] [--profile-name=<name>] [--device-name=<name>] [options]
+    summary: Create signing assets through App Store Connect.
+  - path: sign app
+    usage: ios sign app --path=<ipaOrAppFolder> --p12file=<p12file> --profile=<mobileprovision> [--p12password=<password>] [--output=<signedPath>] [--bundleid=<bundleid>] [--install] [options]
+    summary: Sign an app with a P12 and profile; run ui download first for WDA or DeviceKit artifacts.
   - path: setlocation
     usage: ios setlocation [options] [--lat=<lat>] [--lon=<lon>]
     summary: Set simulated location coordinates.
@@ -243,9 +249,33 @@ commands:
   - path: tunnel stopagent
     usage: ios tunnel stopagent
     summary: Stop tunnel agent.
+  - path: ui install
+    usage: ios ui install (wda | devicekit) --p12file=<p12file> --profile=<mobileprovision> [--p12password=<password>] [--path=<ipaOrZipOrApp>] [--output=<signedPath>] [--bundleid=<bundleid>] [options]
+    summary: Download defaults, or use --path, then sign and install WDA or DeviceKit.
+  - path: ui download
+    usage: ios ui download [(wda | devicekit | all)] [--output=<dir>] [options]
+    summary: Download WDA and/or DeviceKit artifacts and print paths as JSON.
+  - path: ui
+    usage: ios ui <download|status|api|tap|swipe|longpress|type|button|screenshot|source|size|orientation|app|stream|raw> [options]
+    summary: Control UI through WebDriverAgent or DeviceKit.
   - path: uninstall
     usage: ios uninstall <bundleID> [options]
     summary: Uninstall app by bundle ID.
+  - path: webinspector list
+    usage: ios webinspector list [--timeout=<seconds>] [options]
+    summary: List inspectable Safari and WebView pages.
+  - path: webinspector launch
+    usage: ios webinspector launch <url> [--bundle-id=<bundleID>] [--timeout=<seconds>] [options]
+    summary: Launch and navigate Safari or another app by Remote Automation.
+  - path: webinspector eval
+    usage: ios webinspector eval <pageID> <expression> [--timeout=<seconds>] [--console-enable] [options]
+    summary: Evaluate JavaScript in an inspectable page.
+  - path: webinspector js-shell
+    usage: ios webinspector js-shell [<url>] [--bundle-id=<bundleID>] [--open-safari] [--timeout=<seconds>] [--console-enable] [options]
+    summary: Start an interactive JavaScript shell for an inspectable page.
+  - path: webinspector cdp
+    usage: ios webinspector cdp [--host=<host>] [--port=<port>] [options]
+    summary: Start a Chrome DevTools Protocol bridge.
   - path: version
     usage: ios --version | version [options]
     summary: Print version.
