@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -47,6 +49,9 @@ type UserSpaceTUNInterface struct {
 	//If EnableSniffer, raw TCP packets will be dumped to the console.
 	EnableSniffer bool
 	networkStack  *stack.Stack
+	// endpoint is the link endpoint driving the device data plane; its Wait
+	// returns once both packet-pump loops have stopped (i.e. the data plane died).
+	endpoint *Endpoint
 }
 
 func (iface *UserSpaceTUNInterface) TunnelRWCThroughInterface(localPort uint16, remoteAddr net.IP, remotePort uint16, rw io.ReadWriteCloser) error {
@@ -150,11 +155,12 @@ func (iface *UserSpaceTUNInterface) Init(mtu uint32, connToTUNIface io.ReadWrite
 
 	// connToTUNIface needs to be connection that understands IP packets,
 	// so we can use it to link it against a virtual network interface
-	var linkEP stack.LinkEndpoint
-	linkEP, err := RWCEndpointNew(connToTUNIface, mtu, 0)
+	rwcEP, err := RWCEndpointNew(connToTUNIface, mtu, 0)
 	if err != nil {
 		return fmt.Errorf("initVirtualInterface: RWCEndpointNew failed: %+v", err)
 	}
+	iface.endpoint = rwcEP
+	var linkEP stack.LinkEndpoint = rwcEP
 
 	nicID := tcpip.NICID(iface.networkStack.UniqueID())
 	iface.nicID = nicID
@@ -197,6 +203,7 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not exchange tunnel parameters. %w", err)
 	}
+	golog.Info("userspace tunnel negotiated", "module", logModule, "udid", device.Properties.SerialNumber, "grantedMtu", tunnelInfo.ClientParameters.Mtu)
 	const prefixLength = 64
 	// The lockdown tunnel is a raw TCP byte stream carrying bare IPv6 packets, so
 	// wrap it to preserve packet boundaries: the gVisor link endpoint assumes one
@@ -216,9 +223,45 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 
 	go listenToConns(iface, listener)
 
+	var closeOnce sync.Once
+	var explicitClose atomic.Bool
+	statsDone := make(chan struct{})
+	doClose := func() error {
+		var err error
+		closeOnce.Do(func() {
+			close(statsDone)
+			iface.networkStack.Close()
+			err = errors.Join(connToDevice.Close(), listener.Close())
+		})
+		return err
+	}
+
+	// Optional data-plane telemetry: set GO_IOS_TUNNEL_STATS to log, every 2s,
+	// throughput plus where each pump loop spends wall-time (device read / gVisor
+	// inject / waiting for gVisor / device write) and the gVisor TCP stats
+	// (retransmits, timeouts, failed connections). Used to locate the concurrency
+	// bottleneck without guessing.
+	if os.Getenv("GO_IOS_TUNNEL_STATS") != "" {
+		go logUserspaceTunnelStats(iface, device.Properties.SerialNumber, statsDone)
+	}
+
+	// If the data plane dies on its own (e.g. a fatal read error in the inbound
+	// dispatch loop, which also stops the outbound loop), tear the tunnel down so
+	// client connections fail fast instead of hanging forever against a half-dead
+	// tunnel whose listener still accepts. Auto-recreation is the TunnelManager's
+	// job once the tunnel is gone.
+	go func() {
+		iface.endpoint.Wait()
+		if explicitClose.Load() {
+			return
+		}
+		golog.Error("userspace tunnel data plane stopped unexpectedly, tearing down tunnel", "module", logModule, "udid", device.Properties.SerialNumber)
+		_ = doClose()
+	}()
+
 	closeFunc := func() error {
-		iface.networkStack.Close()
-		return errors.Join(connToDevice.Close(), listener.Close())
+		explicitClose.Store(true)
+		return doClose()
 	}
 	return Tunnel{
 		Address: tunnelInfo.ServerAddress,
@@ -226,6 +269,44 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 		Udid:    device.Properties.SerialNumber,
 		closer:  closeFunc,
 	}, nil
+}
+
+// logUserspaceTunnelStats periodically logs data-plane throughput, per-stage
+// wall-time, and gVisor TCP counters until statsDone is closed.
+func logUserspaceTunnelStats(iface UserSpaceTUNInterface, udid string, statsDone <-chan struct{}) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	var prev EndpointStats
+	ms := func(nanos uint64) uint64 { return nanos / 1_000_000 }
+	for {
+		select {
+		case <-statsDone:
+			return
+		case <-ticker.C:
+			s := iface.endpoint.Stats()
+			t := iface.networkStack.Stats().TCP
+			golog.Info("userspace tunnel stats", "module", logModule, "udid", udid,
+				"cumPktsIn", s.PktsIn, "cumBytesIn", s.BytesIn,
+				"pktsIn", s.PktsIn-prev.PktsIn,
+				"pktsOut", s.PktsOut-prev.PktsOut,
+				"bytesIn", s.BytesIn-prev.BytesIn,
+				"bytesOut", s.BytesOut-prev.BytesOut,
+				"drops", s.Drops,
+				"readMs", ms(s.ReadNanos-prev.ReadNanos),
+				"injectMs", ms(s.InjectNanos-prev.InjectNanos),
+				"waitMs", ms(s.WaitNanos-prev.WaitNanos),
+				"writeMs", ms(s.WriteNanos-prev.WriteNanos),
+				"tcpSegSent", t.SegmentsSent.Value(),
+				"tcpSegRcvd", t.ValidSegmentsReceived.Value(),
+				"tcpRetransmit", t.Retransmits.Value(),
+				"tcpTimeouts", t.Timeouts.Value(),
+				"tcpFastRetransmit", t.FastRetransmit.Value(),
+				"tcpFailedConn", t.FailedConnectionAttempts.Value(),
+				"tcpEstablished", t.CurrentEstablished.Value(),
+			)
+			prev = s
+		}
+	}
 }
 
 func listenToConns(iface UserSpaceTUNInterface, listener net.Listener) error {
