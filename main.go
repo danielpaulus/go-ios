@@ -153,8 +153,8 @@ Usage:
   ios sysmontap [options]
   ios timeformat (24h | 12h | toggle | get) [--force] [options]
   ios tunnel ls [options]
-  ios tunnel stop --udid=<udid> [options]
-  ios tunnel refresh --udid=<udid> [options]
+  ios tunnel stop [options]
+  ios tunnel refresh [options]
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
   ios tunnel stopagent
   ios ui install (wda | devicekit) --p12file=<p12file> --profile=<mobileprovision> [--p12password=<password>] [--path=<ipaOrZipOrApp>] [--output=<signedPath>] [--bundleid=<bundleid>] [options]
@@ -528,6 +528,8 @@ The commands work as following:
                                                                     writable directory instead (e.g. --pair-record-path=/Users/Shared/go-ios) and go-ios
                                                                     will manage its own tunnel identity. See https://github.com/danielpaulus/go-ios/issues/710
                                                                     If nothing is specified, the current dir is used for the pair record.
+                                                                    Pass --udid=<udid> to restrict the agent to a single device (isolated
+                                                                    per-device tunnel agent); run one per device on its own --tunnel-info-port.
                                                                     This command needs to be executed with admin privileges.
                                                                     (On MacOS the process 'remoted' must be paused before starting a tunnel,
                                                                     is possible 'sudo pkill -SIGSTOP remoted', and 'sudo pkill -SIGCONT remoted' to resume)
@@ -1812,7 +1814,7 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	slog.Info(fmt.Sprintf("Successfully paired %s", device.Properties.SerialNumber))
 }
 
-func startTunnel(ctx context.Context, recordsPath string, tunnelInfoHost string, tunnelInfoPort int, userspaceTUN bool) {
+func startTunnel(ctx context.Context, recordsPath string, tunnelInfoHost string, tunnelInfoPort int, userspaceTUN bool, udid string) {
 	// Optional profiling endpoint: set GO_IOS_PPROF=host:port (e.g. 127.0.0.1:6060)
 	// to expose net/http/pprof (CPU, heap, block and mutex profiles) on the agent.
 	if addr := os.Getenv("GO_IOS_PPROF"); addr != "" {
@@ -1827,7 +1829,13 @@ func startTunnel(ctx context.Context, recordsPath string, tunnelInfoHost string,
 	}
 	pm, err := tunnel.NewPairRecordManager(recordsPath)
 	exitIfError("could not creat pair record manager", err)
-	tm := tunnel.NewTunnelManager(pm, userspaceTUN)
+	var tm *tunnel.TunnelManager
+	if udid != "" {
+		slog.Info("restricting tunnel agent to a single device", "udid", udid, "tunnelInfoPort", tunnelInfoPort)
+		tm = tunnel.NewTunnelManagerForDevice(pm, userspaceTUN, udid, tunnelInfoPort)
+	} else {
+		tm = tunnel.NewTunnelManager(pm, userspaceTUN)
+	}
 
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)

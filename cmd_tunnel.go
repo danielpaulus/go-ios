@@ -65,7 +65,9 @@ func dispatchTunnelCommand(ctx tunnelCommandContext) bool {
 				"tunnel identity and pairs it on first use. See https://github.com/danielpaulus/go-ios/issues/710",
 				"pairRecordsPath", pairRecordsPath)
 		}
-		startTunnel(context.TODO(), pairRecordsPath, ctx.TunnelInfoHost, ctx.TunnelInfoPort, useUserspaceNetworking)
+		// If --udid is given, restrict this agent to that one device so it can run
+		// as an isolated per-device tunnel agent (see NewTunnelManagerForDevice).
+		startTunnel(context.TODO(), pairRecordsPath, ctx.TunnelInfoHost, ctx.TunnelInfoPort, useUserspaceNetworking, tunnelTargetUDID(ctx.Args))
 	} else if listCommand {
 		tunnels, err := tunnel.ListRunningTunnels(ctx.TunnelInfoHost, ctx.TunnelInfoPort)
 		exitIfError("failed to get tunnel infos", err)

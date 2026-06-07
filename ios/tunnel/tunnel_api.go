@@ -322,11 +322,34 @@ type TunnelManager struct {
 	userspaceTUN         bool
 	closeOnce            sync.Once
 	portOffset           int
+	// udidFilter, when non-empty, restricts the manager to a single device so
+	// you can run one isolated tunnel agent per device.
+	udidFilter string
+	// basePort is the base for derived userspace listener ports (the agent's own
+	// tunnel-info port), so per-device agents on different ports don't collide.
+	basePort int
 }
 
 // NewTunnelManager creates a new TunnelManager instance for setting up device tunnels for all connected devices
 // If userspaceTUN is set to true, the network stack will run in user space.
 func NewTunnelManager(pm PairRecordManager, userspaceTUN bool) *TunnelManager {
+	return newTunnelManager(pm, userspaceTUN, "", ios.HttpApiPort())
+}
+
+// NewTunnelManagerForDevice creates a TunnelManager that only manages the single
+// device udid, ignoring all other connected devices. Run one such agent per
+// device (each on its own tunnel-info port) for full per-device isolation, so a
+// stuck tunnel on one device can't affect the others. basePort is the agent's
+// tunnel-info port; userspace listener ports are derived from it so multiple
+// per-device agents do not clash.
+func NewTunnelManagerForDevice(pm PairRecordManager, userspaceTUN bool, udid string, basePort int) *TunnelManager {
+	return newTunnelManager(pm, userspaceTUN, udid, basePort)
+}
+
+func newTunnelManager(pm PairRecordManager, userspaceTUN bool, udidFilter string, basePort int) *TunnelManager {
+	if basePort == 0 {
+		basePort = ios.HttpApiPort()
+	}
 	return &TunnelManager{
 		ts:                 manualPairingTunnelStart{},
 		dl:                 deviceList{},
@@ -334,6 +357,8 @@ func NewTunnelManager(pm PairRecordManager, userspaceTUN bool) *TunnelManager {
 		tunnels:            map[string]Tunnel{},
 		startTunnelTimeout: 10 * time.Second,
 		userspaceTUN:       userspaceTUN,
+		udidFilter:         udidFilter,
+		basePort:           basePort,
 		portOffset:         1,
 	}
 }
@@ -387,11 +412,14 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 	}
 	for _, d := range devices.DeviceList {
 		udid := d.Properties.SerialNumber
+		if m.udidFilter != "" && udid != m.udidFilter {
+			continue
+		}
 		if _, exists := localTunnels[udid]; exists {
 			continue
 		}
 		if m.userspaceTUN && d.UserspaceTUNPort == 0 {
-			d.UserspaceTUNPort = ios.HttpApiPort() + m.portOffset
+			d.UserspaceTUNPort = m.basePort + m.portOffset
 			m.portOffset++
 		}
 		t, err := m.startTunnel(ctx, d)
