@@ -40,7 +40,13 @@ func (d *ScreenshotService) TakeScreenshot() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("TakeScreenshot: %s", err)
 	}
-	imageBytes := msg.Payload[0].([]byte)
+	if len(msg.Payload) == 0 {
+		return nil, fmt.Errorf("TakeScreenshot: empty response payload")
+	}
+	imageBytes, ok := msg.Payload[0].([]byte)
+	if !ok {
+		return nil, fmt.Errorf("TakeScreenshot: unexpected payload type %T", msg.Payload[0])
+	}
 
 	return imageBytes, nil
 }

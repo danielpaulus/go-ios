@@ -170,10 +170,10 @@ func EnableDeveloperMode(device ios.DeviceEntry, enablePostRestart bool) error {
 	if err != nil {
 		return fmt.Errorf("EnableDeveloperMode: failed connecting to amfi service with err: %w", err)
 	}
+	defer conn.Close()
 
 	err = conn.EnableDevMode()
 	if err != nil {
-		conn.Close()
 		// If ARM fails (e.g. passcode set), at least reveal the menu
 		revealConn, revealErr := New(device)
 		if revealErr == nil {
@@ -189,6 +189,10 @@ func EnableDeveloperMode(device ios.DeviceEntry, enablePostRestart bool) error {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
+	// A single deadline for the whole wait loop. Creating time.After inside the
+	// select would reset the deadline on every tick so it would never fire.
+	deadline := time.After(60 * time.Second)
+
 	// Loop trying to reinit the device to find out if it restarted
 WaitLoop:
 	for {
@@ -200,7 +204,7 @@ WaitLoop:
 				continue WaitLoop
 			}
 			break WaitLoop
-		case <-time.After(60 * time.Second):
+		case <-deadline:
 			ticker.Stop()
 			if err != nil {
 				return errors.New("Device was not restarted in 60 seconds")

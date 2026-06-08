@@ -8,10 +8,17 @@ func convertToStringList(payload []interface{}) ([]string, error) {
 	if len(payload) != 1 {
 		return nil, fmt.Errorf("invalid payload length %d", len(payload))
 	}
-	list := payload[0].([]interface{})
+	list, ok := payload[0].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("expected payload element to be a list, got %T", payload[0])
+	}
 	result := make([]string, len(list))
 	for i, v := range list {
-		result[i] = v.(string)
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected list element %d to be a string, got %T", i, v)
+		}
+		result[i] = s
 	}
 	return result, nil
 }

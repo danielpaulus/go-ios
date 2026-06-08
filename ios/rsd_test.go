@@ -20,6 +20,15 @@ func TestGetRsdPorts(t *testing.T) {
 	})
 }
 
+func TestGetServiceSkipsUnparseablePort(t *testing.T) {
+	rsd := RsdPortProviderJson{
+		"com.apple.broken":  service{Port: "not-a-number"},
+		"com.apple.working": service{Port: "50340"},
+	}
+	// A malformed port on one entry must not abort the lookup of valid entries.
+	assert.Equal(t, "com.apple.working", rsd.GetService(50340))
+}
+
 const rsdOutput = `
 {
   "MessageType": "Handshake",

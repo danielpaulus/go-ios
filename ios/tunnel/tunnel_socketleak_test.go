@@ -30,6 +30,7 @@ func TestFailedDeviceBackoff(t *testing.T) {
 		failCount int
 		want      time.Duration
 	}{
+		{0, 30 * time.Second}, // shift<0 guard clamps to 0
 		{1, 30 * time.Second},
 		{2, 60 * time.Second},
 		{3, 120 * time.Second},

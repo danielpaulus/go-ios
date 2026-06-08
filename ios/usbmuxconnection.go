@@ -175,6 +175,9 @@ func (muxConn UsbMuxConnection) decode(r io.Reader) (UsbMuxMessage, error) {
 		return UsbMuxMessage{}, err
 	}
 
+	if muxHeader.Length < 16 {
+		return UsbMuxMessage{}, fmt.Errorf("invalid usbmux header length %d, must be at least 16", muxHeader.Length)
+	}
 	payloadBytes := make([]byte, muxHeader.Length-16)
 	n, err := io.ReadFull(r, payloadBytes)
 	if err != nil {

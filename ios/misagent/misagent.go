@@ -26,6 +26,11 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	return &c, nil
 }
 
+// Close closes the underlying device connection.
+func (c *Connection) Close() error {
+	return c.deviceConn.Close()
+}
+
 func (c *Connection) CopyAll() error {
 	msg := map[string]interface{}{
 		"MessageType": "CopyAll",

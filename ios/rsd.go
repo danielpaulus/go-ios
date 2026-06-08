@@ -61,7 +61,7 @@ func (r RsdPortProviderJson) GetService(p int) string {
 		port, err := strconv.ParseInt(s.Port, 10, 64)
 		if err != nil {
 			golog.Error("GetService: failed to parse port", "module", logModule, "service", name, "error", err)
-			return ""
+			continue
 		}
 		if port == int64(p) {
 			return name

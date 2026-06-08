@@ -229,7 +229,6 @@ func findImage(dir string, imageToFind string) (string, error) {
 
 func validateBaseDirAndLookForImage(baseDir string, imageToFind string) (string, error) {
 	dirHandle, err := os.Open(baseDir)
-	defer dirHandle.Close()
 	if err != nil {
 		err := os.MkdirAll(baseDir, 0o777)
 		if err != nil {
@@ -237,6 +236,7 @@ func validateBaseDirAndLookForImage(baseDir string, imageToFind string) (string,
 		}
 		return "", nil
 	}
+	defer dirHandle.Close()
 
 	dmgPath, err := findImage(baseDir, imageToFind)
 	if err != nil {
@@ -260,6 +260,10 @@ func downloadFile(filepath string, url string) error {
 		return err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("downloadFile: unexpected status code %d downloading %s", resp.StatusCode, url)
+	}
 
 	// Create the file
 	out, err := os.Create(filepath)

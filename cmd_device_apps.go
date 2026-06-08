@@ -92,7 +92,8 @@ func runKillCommand(ctx commandContext) {
 	}
 	pControl, err := instruments.NewProcessControl(ctx.Device)
 	exitIfError("processcontrol failed", err)
-	svc, _ := installationproxy.New(ctx.Device)
+	svc, err := installationproxy.New(ctx.Device)
+	exitIfError("failed creating installationproxy", err)
 
 	if bundleID != "" {
 		response, err = svc.BrowseAllApps()
@@ -112,8 +113,8 @@ func runKillCommand(ctx commandContext) {
 	}
 
 	service, err := instruments.NewDeviceInfoService(ctx.Device)
-	defer service.Close()
 	exitIfError("failed opening deviceInfoService for getting process list", err)
+	defer service.Close()
 	processList, _ := service.ProcessList()
 	for _, p := range processList {
 		if (processID > 0 && p.Pid == processID) || (processName != "" && p.Name == processName) {

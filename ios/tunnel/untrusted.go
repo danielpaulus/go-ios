@@ -313,10 +313,12 @@ func (t *tunnelService) verifyPair() error {
 
 	selfId := t.pairRecords.selfId
 
-	err := t.controlChannel.writeEvent(&event)
+	if err := t.controlChannel.writeEvent(&event); err != nil {
+		return err
+	}
 
 	var devP pairingData
-	err = t.controlChannel.readEvent(&devP)
+	err := t.controlChannel.readEvent(&devP)
 	if err != nil {
 		return err
 	}
