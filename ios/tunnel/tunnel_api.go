@@ -278,8 +278,12 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 
 	devices, err := m.dl.ListDevices()
 	if err != nil {
+		// ListDevices can fail transiently while a device disconnects/reconnects
+		// (notably on Linux). Tear down the local tunnels so a stale one can't
+		// survive and block the device's next connection; they get recreated on
+		// the next successful update.
 		for udid, tun := range localTunnels {
-			log.WithField("udid", udid).Info("stopping tunnel due to device list error")
+			golog.Info("stopping tunnel due to device list error", "module", logModule, "udid", udid)
 			_ = m.stopTunnel(tun)
 		}
 		return fmt.Errorf("UpdateTunnels: failed to get list of devices: %w", err)
