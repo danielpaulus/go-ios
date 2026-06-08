@@ -60,6 +60,10 @@ func resolveDevice(arguments docopt.Opts, tunnelInfo tunnelInfoConfig) ios.Devic
 		return deviceWithRsdProvider(device, udid, address, rsdPort)
 	}
 
+	if !needsAutomaticTunnelInfo(arguments) {
+		return device
+	}
+
 	info, err := tunnel.TunnelInfoForDevice(device.Properties.SerialNumber, tunnelInfo.Host, tunnelInfo.Port)
 	if err == nil {
 		device.UserspaceTUNPort = info.UserspaceTUNPort
@@ -70,4 +74,36 @@ func resolveDevice(arguments docopt.Opts, tunnelInfo tunnelInfoConfig) ios.Devic
 
 	slog.Warn("failed to get tunnel info", "udid", device.Properties.SerialNumber)
 	return device
+}
+
+func needsAutomaticTunnelInfo(args docopt.Opts) bool {
+	if boolArg(args, "rsd") || boolArg(args, "file") || boolArg(args, "webinspector") {
+		return true
+	}
+	if boolArg(args, "info") && boolArg(args, "display") {
+		return true
+	}
+
+	for _, commandName := range []string{
+		"debug",
+		"instruments",
+		"kill",
+		"launch",
+		"memlimitoff",
+		"ostrace",
+		"ps",
+		"runwda",
+		"runxctest",
+		"runtest",
+		"screenshot",
+		"setlocation",
+		"syslog",
+		"sysmontap",
+	} {
+		if boolArg(args, commandName) {
+			return true
+		}
+	}
+
+	return false
 }
