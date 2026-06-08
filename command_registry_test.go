@@ -41,7 +41,7 @@ func TestDeviceListCommandOnlyMatchesTopLevelList(t *testing.T) {
 		t.Fatal("top-level list command did not match")
 	}
 
-	for _, commandName := range []string{"diagnostics", "image", "devicestate", "profile"} {
+	for _, commandName := range []string{"diagnostics", "image", "devicestate", "profile", "webinspector"} {
 		args := docopt.Opts{"list": true, commandName: true}
 		if isDeviceListCommand(args) {
 			t.Fatalf("list subcommand for %s matched top-level list", commandName)
