@@ -3,10 +3,12 @@ package tunnel
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -153,6 +155,53 @@ func TestRefreshTunnelForDeviceWaitsForRecreatedTunnel(t *testing.T) {
 	}
 	if tun.Address != "fd00::new" || tun.RsdPort != 4321 {
 		t.Fatalf("refreshed tunnel = %+v, want recreated tunnel", tun)
+	}
+}
+
+// TestTunnelManagerConcurrentAccess guards the TunnelManager's mutex: the
+// per-device DELETE (RemoveTunnel/stopTunnel) deletes from m.tunnels while the
+// UpdateTunnels loop and the tunnel-info GET handlers (ListTunnels/FindTunnel)
+// read it. Run under `go test -race`: if any of those touch m.tunnels without
+// the lock (the bug RemoveTunnel had before #738) the race detector trips.
+func TestTunnelManagerConcurrentAccess(t *testing.T) {
+	const n = 200
+	tunnels := make(map[string]Tunnel, n)
+	for i := 0; i < n; i++ {
+		udid := fmt.Sprintf("serial-%d", i)
+		tunnels[udid] = Tunnel{Udid: udid, closer: func() error { return nil }}
+	}
+	tm := tunnelManagerWithTunnels(tunnels)
+
+	var wg sync.WaitGroup
+	// Concurrent writers: each removes one tunnel (so removes also race removes).
+	for i := 0; i < n; i++ {
+		udid := fmt.Sprintf("serial-%d", i)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = tm.RemoveTunnel(context.Background(), udid)
+		}()
+	}
+	// Concurrent readers: list and look up while the removes happen.
+	for r := 0; r < 16; r++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < n; j++ {
+				_, _ = tm.ListTunnels()
+				_, _ = tm.FindTunnel(fmt.Sprintf("serial-%d", j))
+			}
+		}()
+	}
+	wg.Wait()
+
+	// Every tunnel was removed exactly once and the map is left consistent.
+	left, err := tm.ListTunnels()
+	if err != nil {
+		t.Fatalf("ListTunnels: %v", err)
+	}
+	if len(left) != 0 {
+		t.Fatalf("expected all %d tunnels removed, %d remain", n, len(left))
 	}
 }
 
