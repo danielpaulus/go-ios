@@ -20,6 +20,7 @@ type uiRunTarget struct {
 	defaultBundle string
 	devicePort    uint16
 	healthPath    string
+	xctestConfig  string
 }
 
 // runUIRunCommand runs a UI automation runner (WebDriverAgent or DeviceKit) and
@@ -31,9 +32,9 @@ func runUIRunCommand(ctx commandContext) {
 	var target uiRunTarget
 	switch {
 	case boolArg(ctx.Args, "wda"):
-		target = uiRunTarget{name: "wda", defaultBundle: defaultWDABundleID, devicePort: 8100, healthPath: "/status"}
+		target = uiRunTarget{name: "wda", defaultBundle: defaultWDABundleID, devicePort: 8100, healthPath: "/status", xctestConfig: "WebDriverAgentRunner.xctest"}
 	case boolArg(ctx.Args, "devicekit"):
-		target = uiRunTarget{name: "devicekit", defaultBundle: defaultDeviceKitBundleID, devicePort: 12004, healthPath: "/health"}
+		target = uiRunTarget{name: "devicekit", defaultBundle: defaultDeviceKitBundleID, devicePort: 12004, healthPath: "/health", xctestConfig: "devicekit-iosUITests.xctest"}
 	default:
 		logFatal("unknown ui run target; use 'ios ui run wda' or 'ios ui run devicekit'")
 	}
@@ -41,6 +42,16 @@ func runUIRunCommand(ctx commandContext) {
 	bundleID, _ := ctx.Args.String("--bundleid")
 	if bundleID == "" {
 		bundleID = target.defaultBundle
+	}
+	// The runner bundle is also the test host. Allow overrides for non-default
+	// builds, but default to the runner bundle id and the target's xctest config.
+	testRunnerBundleID, _ := ctx.Args.String("--test-runner-bundleid")
+	if testRunnerBundleID == "" {
+		testRunnerBundleID = bundleID
+	}
+	xctestConfig, _ := ctx.Args.String("--xctest-config")
+	if xctestConfig == "" {
+		xctestConfig = target.xctestConfig
 	}
 	hostPort := target.devicePort
 	if hp, err := ctx.Args.Int("--host-port"); err == nil && hp > 0 {
@@ -54,9 +65,11 @@ func runUIRunCommand(ctx commandContext) {
 	runErr := make(chan error, 1)
 	go func() {
 		_, err := testmanagerd.RunTestWithConfig(runCtx, testmanagerd.TestConfig{
-			BundleId: bundleID,
-			Device:   ctx.Device,
-			Listener: testmanagerd.NewTestListener(uiRunLogWriter(ctx), uiRunLogWriter(ctx), os.TempDir()),
+			BundleId:           bundleID,
+			TestRunnerBundleId: testRunnerBundleID,
+			XctestConfigName:   xctestConfig,
+			Device:             ctx.Device,
+			Listener:           testmanagerd.NewTestListener(uiRunLogWriter(ctx), uiRunLogWriter(ctx), os.TempDir()),
 		})
 		if err != nil {
 			runErr <- err

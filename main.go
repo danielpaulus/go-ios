@@ -159,7 +159,7 @@ Usage:
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
   ios tunnel stopagent
   ios ui install (wda | devicekit) --p12file=<p12file> --profile=<mobileprovision> [--p12password=<password>] [--path=<ipaOrZipOrApp>] [--output=<signedPath>] [--bundleid=<bundleid>] [options]
-  ios ui run (wda | devicekit) [--bundleid=<bundleid>] [--host-port=<port>] [--log-output=<file>] [options]
+  ios ui run (wda | devicekit) [--bundleid=<bundleid>] [--test-runner-bundleid=<id>] [--xctest-config=<name>] [--host-port=<port>] [--log-output=<file>] [options]
   ios ui download [(wda | devicekit | all)] [--output=<dir>] [options]
   ios ui status [--driver=<driver>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
   ios ui api [--driver=<driver>] [--method=<method>] [--http-path=<path>] [--body=<json>] [--body-file=<file>] [--rpc-method=<method>] [--params=<json>] [--params-file=<file>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
