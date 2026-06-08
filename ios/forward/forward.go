@@ -101,20 +101,46 @@ func StartNewProxyConnection(ctx context.Context, clientConn io.ReadWriteCloser,
 	golog.Info("connected to port", "module", logModule, "deviceID", deviceID, "conn", fmt.Sprintf("%#v", clientConn), "phonePort", phonePort)
 	deviceConn := usbmuxConn.ReleaseDeviceConnection()
 
-	// proxyConn := iosproxy{clientConn, deviceConn}
-	ctx2, cancel := context.WithCancel(ctx)
-	var wg sync.WaitGroup
+	proxyConns(ctx, clientConn, deviceConn, deviceID, phonePort)
+	return nil
+}
 
-	closed := false
-	copyAndClose := func(dst io.Writer, src io.Reader, msg string) {
-		defer wg.Done()
-		_, err := io.Copy(dst, src)
-		if ctx2.Err() == nil {
+// deviceRWConn is the subset of ios.DeviceConnectionInterface that the proxy
+// pump needs. Narrowing it to this lets proxyConns be exercised with in-memory
+// pipes in tests, without standing up a usbmux/device connection.
+type deviceRWConn interface {
+	Reader() io.Reader
+	Writer() io.Writer
+	Close() error
+}
+
+// proxyConns is the device-free core of the forward: it pumps bytes in both
+// directions between clientConn and deviceConn until either side closes (or ctx
+// is cancelled), then tears both down exactly once and waits for both copy
+// goroutines to finish. Teardown is funnelled through a sync.Once so the two
+// copiers and the ctx watcher can all race to close without a data race or a
+// double-close, and so it returns with no goroutines left running.
+func proxyConns(ctx context.Context, clientConn io.ReadWriteCloser, deviceConn deviceRWConn, deviceID int, phonePort uint16) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Closing the conns unblocks whichever io.Copy is still parked in a read,
+	// and cancel() releases the watcher below. sync.Once makes this safe to
+	// call from all three goroutines concurrently.
+	var once sync.Once
+	teardown := func() {
+		once.Do(func() {
 			cancel()
 			clientConn.Close()
 			deviceConn.Close()
-			closed = true
-		}
+		})
+	}
+
+	var wg sync.WaitGroup
+	copyAndClose := func(dst io.Writer, src io.Reader, msg string) {
+		defer wg.Done()
+		_, err := io.Copy(dst, src)
+		teardown()
 
 		if err == nil || errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
 			golog.Debug(msg, "module", logModule, "deviceID", deviceID, "phonePort", phonePort)
@@ -123,20 +149,13 @@ func StartNewProxyConnection(ctx context.Context, clientConn io.ReadWriteCloser,
 		}
 	}
 
-	wg.Add(1)
+	wg.Add(2)
 	go copyAndClose(clientConn, deviceConn.Reader(), "forward: close clientConn <-- deviceConn")
-
-	wg.Add(1)
 	go copyAndClose(deviceConn.Writer(), clientConn, "forward: close clientConn --> deviceConn")
 
-	<-ctx2.Done()
-	if !closed {
-		clientConn.Close()
-		deviceConn.Close()
-	}
-
+	<-ctx.Done()
+	teardown()
 	wg.Wait()
-	return nil
 }
 
 func (proxyConn *iosproxy) Close() {
