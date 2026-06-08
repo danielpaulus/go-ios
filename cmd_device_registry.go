@@ -22,6 +22,13 @@ var deviceCommands = []command{
 		},
 		run: runUIInstallCommand,
 	},
+	{
+		name: "ui run",
+		match: func(args docopt.Opts) bool {
+			return boolArg(args, "ui") && boolArg(args, "run")
+		},
+		run: runUIRunCommand,
+	},
 	commandByBool("uninstall", runUninstallCommand),
 	commandByBool("lang", runLangCommand),
 	commandByBool("dproxy", runDproxyCommand),

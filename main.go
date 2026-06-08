@@ -159,6 +159,7 @@ Usage:
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
   ios tunnel stopagent
   ios ui install (wda | devicekit) --p12file=<p12file> --profile=<mobileprovision> [--p12password=<password>] [--path=<ipaOrZipOrApp>] [--output=<signedPath>] [--bundleid=<bundleid>] [options]
+  ios ui run (wda | devicekit) [--bundleid=<bundleid>] [--host-port=<port>] [--log-output=<file>] [options]
   ios ui download [(wda | devicekit | all)] [--output=<dir>] [options]
   ios ui status [--driver=<driver>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
   ios ui api [--driver=<driver>] [--method=<method>] [--http-path=<path>] [--body=<json>] [--body-file=<file>] [--rpc-method=<method>] [--params=<json>] [--params-file=<file>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
@@ -439,6 +440,12 @@ The commands work as following:
                                                                     Downloads the default DeviceKit or WDA artifact from deviceboxhq.com unless --path is provided,
                                                                     signs it with local signing files, and installs it on the selected device.
                                                                     Run "ios ui download" to pre-download artifacts, or pass --path to use your own local build.
+
+    ios ui run (wda | devicekit) [--bundleid=<bundleid>] [--host-port=<port>] [--log-output=<file>]
+                                                                    Runs an installed UI automation runner (WebDriverAgent or DeviceKit) and forwards
+                                                                    its port to the host, so "ios ui ..." can reach it at http://127.0.0.1:<host-port>
+                                                                    (defaults: WDA 8100, DeviceKit 12004). Blocks until interrupted. The run
+                                                                    counterpart to "ios ui install".
 
     ios ui download [(wda | devicekit | all)] [--output=<dir>]       Downloads default WDA and/or DeviceKit artifacts from deviceboxhq.com,
                                                                     extracts zip artifacts, and prints JSON describing the files.

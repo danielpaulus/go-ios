@@ -43,37 +43,7 @@ const (
 
 func TestUIInstallWDARunAndUI(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		bundleID := e2eEnv("GO_IOS_E2E_WDA_BUNDLE_ID")
-		if bundleID == "" {
-			bundleID = defaultE2EWDABundleID
-		}
-		xctestConfig := e2eEnv("GO_IOS_E2E_WDA_XCTEST_CONFIG")
-		if xctestConfig == "" {
-			xctestConfig = defaultE2EWDAConfig
-		}
-		p12Path, profilePath := provisionSigningAssets(t, udid, bundleID, "WDA E2E")
-
-		runIOSForDevice(t, udid,
-			"ui", "install", "wda",
-			"--bundleid="+bundleID,
-			"--p12file="+p12Path,
-			"--profile="+profilePath,
-			"--p12password=go-ios-e2e",
-		)
-
-		output, stop := harness.StartBackgroundWithEnv(t, udid, nil, syscall.SIGINT,
-			"runtest",
-			"--bundle-id="+bundleID,
-			"--test-runner-bundle-id="+bundleID,
-			"--xctest-config="+xctestConfig,
-			"--log-output=-",
-		)
-		defer stop()
-
-		// WDA's HTTP server runs on the device; reach it through our own port
-		// forward so the test doesn't depend on an ambient forward (the Linux
-		// runner has one on WDA's default port, the macOS runner does not).
-		wdaURL := forwardWDA(t, udid, waitForWDAURL(t, output))
+		wdaURL := runWDA(t, udid)
 		smoke(t, udid, "ui", "status", "--driver=wda", "--wda-url="+wdaURL)
 		smoke(t, udid, "ui", "api", "--driver=wda", "--method=GET", "--http-path=/status", "--wda-url="+wdaURL)
 
@@ -81,6 +51,41 @@ func TestUIInstallWDARunAndUI(t *testing.T) {
 		runIOSForDevice(t, udid, "ui", "screenshot", "--driver=wda", "--wda-url="+wdaURL, "--output="+screenshot)
 		assertPNG(t, screenshot)
 	})
+}
+
+// runWDA provisions, installs, and runs WebDriverAgent, returning a base URL the
+// host can reach. WDA serves on the device, so a port is forwarded (the macOS
+// runner has no ambient forward). Background processes are cleaned up via
+// t.Cleanup, so callers can use the returned URL directly.
+func runWDA(t *testing.T, udid string) string {
+	t.Helper()
+	bundleID := e2eEnv("GO_IOS_E2E_WDA_BUNDLE_ID")
+	if bundleID == "" {
+		bundleID = defaultE2EWDABundleID
+	}
+	xctestConfig := e2eEnv("GO_IOS_E2E_WDA_XCTEST_CONFIG")
+	if xctestConfig == "" {
+		xctestConfig = defaultE2EWDAConfig
+	}
+	p12Path, profilePath := provisionSigningAssets(t, udid, bundleID, "WDA E2E")
+
+	runIOSForDevice(t, udid,
+		"ui", "install", "wda",
+		"--bundleid="+bundleID,
+		"--p12file="+p12Path,
+		"--profile="+profilePath,
+		"--p12password=go-ios-e2e",
+	)
+
+	output, stop := harness.StartBackgroundWithEnv(t, udid, nil, syscall.SIGINT,
+		"runtest",
+		"--bundle-id="+bundleID,
+		"--test-runner-bundle-id="+bundleID,
+		"--xctest-config="+xctestConfig,
+		"--log-output=-",
+	)
+	t.Cleanup(stop)
+	return forwardWDA(t, udid, waitForWDAURL(t, output))
 }
 
 // forwardWDA forwards a free local port to WDA's device port (parsed from the URL
@@ -209,8 +214,7 @@ func TestDeviceKitUI(t *testing.T) {
 
 func TestWDAUICommands(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		wdaURL := wdaURLForDevice(t, udid)
-		urlArg := "--wda-url=" + wdaURL
+		urlArg := "--wda-url=" + runWDA(t, udid)
 		driverArg := "--driver=wda"
 
 		smoke(t, udid, "ui", "status", driverArg, urlArg)
@@ -234,11 +238,6 @@ func TestWDAUICommands(t *testing.T) {
 func deviceKitURLForDevice(t *testing.T, udid string) string {
 	t.Helper()
 	return urlForDevice(t, "GO_IOS_E2E_DEVICEKIT_URL", udid)
-}
-
-func wdaURLForDevice(t *testing.T, udid string) string {
-	t.Helper()
-	return urlForDevice(t, "GO_IOS_E2E_WDA_URL", udid)
 }
 
 func urlForDevice(t *testing.T, baseEnv string, udid string) string {
