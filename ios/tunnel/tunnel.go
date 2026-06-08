@@ -280,22 +280,21 @@ func exchangeCoreTunnelParameters(stream io.ReadWriteCloser) (tunnelParameters, 
 	}
 
 	header := make([]byte, len("CDTunnel")+2)
-	n, err := stream.Read(header)
-	if err != nil {
-		return tunnelParameters{}, fmt.Errorf("could not header read from stream. %w", err)
+	// Use io.ReadFull rather than a single Read: the tunnel is a byte stream and
+	// a short read would leave the length byte (and body) uninitialized/garbage.
+	if _, err := io.ReadFull(stream, header); err != nil {
+		return tunnelParameters{}, fmt.Errorf("could not read header from stream. %w", err)
 	}
 
 	bodyLen := header[len(header)-1]
 
 	res := make([]byte, bodyLen)
-	n, err = stream.Read(res)
-	if err != nil {
-		return tunnelParameters{}, fmt.Errorf("could not read from stream. %w", err)
+	if _, err := io.ReadFull(stream, res); err != nil {
+		return tunnelParameters{}, fmt.Errorf("could not read body from stream. %w", err)
 	}
 
 	var parameters tunnelParameters
-	err = json.Unmarshal(res[:n], &parameters)
-	if err != nil {
+	if err := json.Unmarshal(res, &parameters); err != nil {
 		return tunnelParameters{}, err
 	}
 	return parameters, nil

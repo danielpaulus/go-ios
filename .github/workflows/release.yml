@@ -32,6 +32,9 @@ on:
 
 name: Release-Go-iOS
 
+permissions:
+  contents: read
+
 jobs:
   prepare_version:
     runs-on: ubuntu-latest
@@ -270,3 +273,28 @@ jobs:
           echo "$OUTPUT" | grep -q "\"version\":\"${EXPECTED_VERSION}\"" \
             || { echo "::error::expected version ${EXPECTED_VERSION} not found in 'ios version' output"; exit 1; }
           echo "OK: go-ios@${EXPECTED_VERSION} installed and runs on ${{ matrix.os }}"
+
+  notify_discord:
+    needs: [prepare_version, release_and_publish, verify_install]
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          VERSION: ${{ needs.prepare_version.outputs.version }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL is not set; skipping Discord notification."
+            exit 0
+          fi
+          NOTES="$(printf '%s' "$RELEASE_NOTES" | head -c 3500)"
+          jq -n \
+            --arg title "go-ios v${VERSION} released" \
+            --arg desc "$NOTES" \
+            --arg url "https://github.com/${REPO}/releases/tag/v${VERSION}" \
+            '{embeds: [{title: $title, description: $desc, url: $url, color: 3447003}]}' \
+          | curl -fsS -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"

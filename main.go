@@ -8,9 +8,12 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log/slog"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -511,6 +514,10 @@ The commands work as following:
                                                                     If the device was not paired with the host yet, device pairing will also be executed.
                                                                     On systems with System Integrity Protection enabled the argument '--pair-record-path=default'
                                                                     can be used to point to /var/db/lockdown/RemotePairing/user_501.
+                                                                    WARNING: macOS 26 (Tahoe) and newer block that path for third-party binaries via TCC
+                                                                    ('operation not permitted'). On those systems do NOT use '=default'; pass a stable
+                                                                    writable directory instead (e.g. --pair-record-path=/Users/Shared/go-ios) and go-ios
+                                                                    will manage its own tunnel identity. See https://github.com/danielpaulus/go-ios/issues/710
                                                                     If nothing is specified, the current dir is used for the pair record.
                                                                     This command needs to be executed with admin privileges.
                                                                     (On MacOS the process 'remoted' must be paused before starting a tunnel,
@@ -1778,6 +1785,18 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 }
 
 func startTunnel(ctx context.Context, recordsPath string, tunnelInfoHost string, tunnelInfoPort int, userspaceTUN bool) {
+	// Optional profiling endpoint: set GO_IOS_PPROF=host:port (e.g. 127.0.0.1:6060)
+	// to expose net/http/pprof (CPU, heap, block and mutex profiles) on the agent.
+	if addr := os.Getenv("GO_IOS_PPROF"); addr != "" {
+		runtime.SetBlockProfileRate(1)     // record goroutine blocking events
+		runtime.SetMutexProfileFraction(1) // record mutex contention
+		go func() {
+			slog.Info("pprof listening", "addr", addr)
+			if err := http.ListenAndServe(addr, nil); err != nil {
+				slog.Warn("pprof server stopped", "error", err)
+			}
+		}()
+	}
 	pm, err := tunnel.NewPairRecordManager(recordsPath)
 	exitIfError("could not creat pair record manager", err)
 	tm := tunnel.NewTunnelManager(pm, userspaceTUN)

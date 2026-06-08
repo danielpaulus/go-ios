@@ -148,6 +148,12 @@ func (devModeConn *Connection) EnableDevModePostRestart() error {
 }
 
 func EnableDeveloperMode(device ios.DeviceEntry, enablePostRestart bool) error {
+	// Developer Mode was introduced in iOS 16; older devices have no such
+	// toggle, so fail with a clear explanation instead of an opaque service error.
+	if v, err := ios.GetProductVersion(device); err == nil && v != nil && v.LessThan(ios.IOS16()) {
+		return fmt.Errorf("EnableDeveloperMode: Developer Mode was introduced in iOS 16, but this device runs iOS %s — there is no Developer Mode to enable", v.String())
+	}
+
 	// Don't try to enable if it already is
 	devModeEnabled, err := imagemounter.IsDevModeEnabled(device)
 	if err != nil {

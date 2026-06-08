@@ -11,7 +11,10 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"sync/atomic"
+	"time"
 
+	"github.com/danielpaulus/go-ios/ios/golog"
 	"gvisor.dev/gvisor/pkg/buffer"
 	"gvisor.dev/gvisor/pkg/tcpip"
 	"gvisor.dev/gvisor/pkg/tcpip/header"
@@ -44,6 +47,44 @@ type Endpoint struct {
 
 	// wg keeps track of running goroutines.
 	wg sync.WaitGroup
+
+	// metrics counts packets/bytes and accumulates wall-time spent in each stage
+	// of the two pump loops, so we can see where the data plane spends its time
+	// (device read vs gVisor inject vs waiting for gVisor vs device write).
+	metrics endpointMetrics
+}
+
+type endpointMetrics struct {
+	pktsIn      atomic.Uint64
+	bytesIn     atomic.Uint64
+	pktsOut     atomic.Uint64
+	bytesOut    atomic.Uint64
+	drops       atomic.Uint64 // inbound reads dropped (n==0 or n>mtu)
+	readNanos   atomic.Uint64 // time blocked in device conn.Read (inbound)
+	injectNanos atomic.Uint64 // time in InjectInbound (gVisor inbound processing)
+	waitNanos   atomic.Uint64 // time in ReadContext waiting for gVisor to produce outbound packets
+	writeNanos  atomic.Uint64 // time blocked in device conn.Write (outbound)
+}
+
+// EndpointStats is a snapshot of the endpoint metrics.
+type EndpointStats struct {
+	PktsIn, BytesIn, PktsOut, BytesOut, Drops     uint64
+	ReadNanos, InjectNanos, WaitNanos, WriteNanos uint64
+}
+
+// Stats returns a snapshot of the cumulative endpoint metrics.
+func (e *Endpoint) Stats() EndpointStats {
+	return EndpointStats{
+		PktsIn:      e.metrics.pktsIn.Load(),
+		BytesIn:     e.metrics.bytesIn.Load(),
+		PktsOut:     e.metrics.pktsOut.Load(),
+		BytesOut:    e.metrics.bytesOut.Load(),
+		Drops:       e.metrics.drops.Load(),
+		ReadNanos:   e.metrics.readNanos.Load(),
+		InjectNanos: e.metrics.injectNanos.Load(),
+		WaitNanos:   e.metrics.waitNanos.Load(),
+		WriteNanos:  e.metrics.writeNanos.Load(),
+	}
 }
 
 // RWCEndpointNew creates a new io.ReadWriter based endpoint. It is used to
@@ -106,29 +147,42 @@ func (e *Endpoint) dispatchLoop(cancel context.CancelFunc) {
 	for {
 		data := make([]byte, offset+mtu)
 
+		readStart := time.Now()
 		n, err := e.rw.Read(data)
+		e.metrics.readNanos.Add(uint64(time.Since(readStart)))
 		if err != nil {
+			// This loop dying tears down the whole tunnel data plane (its
+			// deferred cancel also stops outboundLoop), so make the cause
+			// visible instead of failing silently.
+			golog.Error("userspace tunnel inbound dispatch loop stopped", "module", logModule, "error", err)
 			break
 		}
 
 		if n == 0 || n > mtu {
+			e.metrics.drops.Add(1)
 			continue
 		}
 
 		if !e.IsAttached() {
+			e.metrics.drops.Add(1)
 			continue /* unattached, drop packet */
 		}
+
+		e.metrics.pktsIn.Add(1)
+		e.metrics.bytesIn.Add(uint64(n))
 
 		pkt := stack.NewPacketBuffer(stack.PacketBufferOptions{
 			Payload: buffer.MakeWithData(data[offset : offset+n]),
 		})
 
+		injectStart := time.Now()
 		switch header.IPVersion(data[offset:]) {
 		case header.IPv4Version:
 			e.InjectInbound(header.IPv4ProtocolNumber, pkt)
 		case header.IPv6Version:
 			e.InjectInbound(header.IPv6ProtocolNumber, pkt)
 		}
+		e.metrics.injectNanos.Add(uint64(time.Since(injectStart)))
 		pkt.DecRef()
 	}
 }
@@ -137,7 +191,9 @@ func (e *Endpoint) dispatchLoop(cancel context.CancelFunc) {
 // writePacket to send those packets back to lower layer.
 func (e *Endpoint) outboundLoop(ctx context.Context) {
 	for {
+		waitStart := time.Now()
 		pkt := e.ReadContext(ctx)
+		e.metrics.waitNanos.Add(uint64(time.Since(waitStart)))
 		if pkt == nil {
 			break
 		}
@@ -156,8 +212,15 @@ func (e *Endpoint) writePacket(pkt *stack.PacketBuffer) tcpip.Error {
 		_ = buf.Prepend(v)
 	}
 
-	if _, err := e.rw.Write(buf.Flatten()); err != nil {
+	flat := buf.Flatten()
+	writeStart := time.Now()
+	_, err := e.rw.Write(flat)
+	e.metrics.writeNanos.Add(uint64(time.Since(writeStart)))
+	if err != nil {
+		golog.Error("userspace tunnel outbound write to device failed", "module", logModule, "error", err)
 		return &tcpip.ErrInvalidEndpointState{}
 	}
+	e.metrics.pktsOut.Add(1)
+	e.metrics.bytesOut.Add(uint64(len(flat)))
 	return nil
 }
