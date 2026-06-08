@@ -126,6 +126,37 @@ func TryRun(t *testing.T, args ...string) (stdout, stderr []byte, err error) {
 	return o.Bytes(), e.Bytes(), err
 }
 
+// AuditAfterLaunch launches bundleID and runs the accessibility audit against
+// it, asserting it reports at least one issue and that each issue carries an
+// issueType. The audit targets the frontmost app, and `launch` is asynchronous,
+// so the first audits can come back empty before the app settles into the
+// foreground — poll until the audit reports issues (or time out) rather than
+// auditing once after a fixed sleep, which flaked when the app was slow to show.
+func AuditAfterLaunch(t *testing.T, udid, bundleID string) {
+	t.Helper()
+	RunForDevice(t, udid, "launch", bundleID)
+
+	var issues []any
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		out, _, err := TryRun(t, "ax", "audit", "--udid="+udid)
+		if err == nil && json.Unmarshal(out, &issues) == nil && len(issues) > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("ax audit reported no issues within 30s for %s after launching %s", udid, bundleID)
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	for i, raw := range issues {
+		m, _ := raw.(map[string]any)
+		if _, ok := m["issueType"]; !ok {
+			t.Fatalf("ax audit issue %d missing issueType: %v", i, m)
+		}
+	}
+}
+
 // Smoke runs ios for the given device and fails the test if stdout is empty.
 // It returns the captured stdout for further inspection by the caller.
 func Smoke(t *testing.T, udid string, args ...string) []byte {

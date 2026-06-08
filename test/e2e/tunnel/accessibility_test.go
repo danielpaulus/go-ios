@@ -4,7 +4,8 @@ package tunnel_test
 
 import (
 	"testing"
-	"time"
+
+	"github.com/danielpaulus/go-ios/test/e2e/harness"
 )
 
 // TestAccessibilityAudit launches a content-rich system app and runs the
@@ -15,8 +16,6 @@ import (
 // (integer categories via deviceBeginAuditTypes:).
 func TestAccessibilityAudit(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		runIOSForDevice(t, udid, "launch", "com.apple.Preferences")
-		time.Sleep(2 * time.Second) // let the app settle into the foreground
-		smokeArr(t, udid, []string{"issueType"}, "ax", "audit")
+		harness.AuditAfterLaunch(t, udid, "com.apple.Preferences")
 	})
 }

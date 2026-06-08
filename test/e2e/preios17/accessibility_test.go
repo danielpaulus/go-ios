@@ -4,7 +4,8 @@ package preios17_test
 
 import (
 	"testing"
-	"time"
+
+	"github.com/danielpaulus/go-ios/test/e2e/harness"
 )
 
 // TestAccessibilityAudit launches a content-rich system app and runs the
@@ -13,8 +14,6 @@ import (
 // (named case IDs via deviceBeginAuditCaseIDs:).
 func TestAccessibilityAudit(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		runIOSForDevice(t, udid, "launch", knownSystemApp)
-		time.Sleep(2 * time.Second) // let the app settle into the foreground
-		smokeArr(t, udid, []string{"issueType"}, "ax", "audit")
+		harness.AuditAfterLaunch(t, udid, knownSystemApp)
 	})
 }
