@@ -5,10 +5,12 @@ package tunnel_test
 import (
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"io"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
@@ -77,6 +79,9 @@ func perDeviceAgentSuite(t *testing.T, udid string, userspace bool) {
 		t.Fatalf("--udid filter: agent should manage exactly %s, got %+v", udid, tunnels)
 	}
 
+	// The freshly established tunnel must actually carry traffic.
+	assertTunnelCarriesTraffic(t, udid, portArg)
+
 	// negative cases — these must fail, not panic or hang.
 	bogus := "00000000-000000000000000B"
 	assertFails(t, "stop bogus udid", "tunnel", "stop", "--udid="+bogus, portArg)
@@ -106,7 +111,15 @@ func perDeviceAgentSuite(t *testing.T, udid string, userspace bool) {
 	if refreshed.Udid != udid || refreshed.RsdPort == 0 || refreshed.UserspaceTUN != userspace {
 		t.Fatalf("tunnel refresh: expected a fresh %s tunnel for %s, got %+v", transportName(userspace), udid, refreshed)
 	}
-	t.Logf("per-device %s tunnel ok: %s rsdPort=%d", transportName(userspace), udid, refreshed.RsdPort)
+	// refresh must produce a genuinely NEW tunnel, not hand back the same stale
+	// one (the #712 case is recovering from a stale tunnel after a reboot).
+	if refreshed.Address == recreated.Address && refreshed.RsdPort == recreated.RsdPort {
+		t.Fatalf("tunnel refresh: returned the same tunnel (%s rsd %d), expected a fresh one", refreshed.Address, refreshed.RsdPort)
+	}
+	// and the refreshed tunnel must actually work.
+	assertTunnelCarriesTraffic(t, udid, portArg)
+	t.Logf("per-device %s tunnel ok: refreshed %s rsd %d -> %s rsd %d",
+		transportName(userspace), recreated.Address, recreated.RsdPort, refreshed.Address, refreshed.RsdPort)
 
 	// HTTP shutdown (what `tunnel stopagent` does, but targeted at this agent's
 	// port): the agent stops and its API becomes unreachable.
@@ -134,9 +147,12 @@ func TestTunnelAgentAllDevices(t *testing.T) {
 
 	tunnels := waitForAnyTunnel(t, port, 90*time.Second, agentOut)
 	t.Logf("non-filtered agent established %d tunnel(s)", len(tunnels))
+	target := tunnels[0].Udid
+
+	// The non-filtered agent's tunnel must actually carry traffic.
+	assertTunnelCarriesTraffic(t, target, portArg)
 
 	// Stop one device's tunnel; the agent must stay up and keep serving.
-	target := tunnels[0].Udid
 	var stopped struct{ Status string }
 	if err := json.Unmarshal(smokeJSON(t, target, "tunnel", "stop", portArg), &stopped); err != nil || stopped.Status != "stopped" {
 		t.Fatalf("tunnel stop %s: status=%q err=%v", target, stopped.Status, err)
@@ -189,6 +205,10 @@ func TestTunnelAgentMixed(t *testing.T) {
 		t.Fatalf("per-device agent userspace port = %d, want %d", per.UserspaceTUNPort, perPort+1)
 	}
 
+	// Both tunnels to the same device must actually carry traffic simultaneously.
+	assertTunnelCarriesTraffic(t, udid, genArg)
+	assertTunnelCarriesTraffic(t, udid, perArg)
+
 	// Isolation 1: stopping the device on the general agent must not touch the
 	// per-device agent's tunnel.
 	smokeJSON(t, udid, "tunnel", "stop", genArg)
@@ -229,6 +249,29 @@ func assertFails(t *testing.T, what string, args ...string) {
 	stdout, stderr, err := harness.TryRun(t, args...)
 	if err == nil {
 		t.Fatalf("%s: expected failure, but command succeeded\nstdout: %s\nstderr: %s", what, stdout, stderr)
+	}
+}
+
+// assertTunnelCarriesTraffic proves the agent's tunnel actually works — that it
+// carries RemoteXPC traffic — not merely that the tunnel-info API lists it. A
+// zombie tunnel still lists fine while its data plane is dead, so the only
+// honest check is to drive a real developer-service command through it: capture
+// a screenshot through this agent's tunnel and verify it decodes as a PNG.
+func assertTunnelCarriesTraffic(t *testing.T, udid, portArg string) {
+	t.Helper()
+	out := filepath.Join(t.TempDir(), "shot.png")
+	runIOSForDevice(t, udid, "screenshot", "--output="+out, portArg)
+	f, err := os.Open(out)
+	if err != nil {
+		t.Fatalf("screenshot through tunnel: output not created: %v", err)
+	}
+	defer f.Close()
+	img, err := png.Decode(f)
+	if err != nil {
+		t.Fatalf("screenshot through tunnel: not a valid PNG (tunnel data plane likely broken): %v", err)
+	}
+	if b := img.Bounds(); b.Dx() <= 0 || b.Dy() <= 0 {
+		t.Fatalf("screenshot through tunnel: invalid dimensions %dx%d", b.Dx(), b.Dy())
 	}
 }
 
