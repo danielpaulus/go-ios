@@ -2,6 +2,7 @@ package forward
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -96,11 +97,11 @@ func StartNewProxyConnection(ctx context.Context, clientConn io.ReadWriteCloser,
 	// proxyConn := iosproxy{clientConn, deviceConn}
 	ctx2, cancel := context.WithCancel(ctx)
 	var wg sync.WaitGroup
-	wg.Add(1)
 
 	closed := false
-	go func() {
-		io.Copy(clientConn, deviceConn.Reader())
+	copyAndClose := func(dst io.Writer, src io.Reader, msg string) {
+		defer wg.Done()
+		_, err := io.Copy(dst, src)
 		if ctx2.Err() == nil {
 			cancel()
 			clientConn.Close()
@@ -108,23 +109,18 @@ func StartNewProxyConnection(ctx context.Context, clientConn io.ReadWriteCloser,
 			closed = true
 		}
 
-		golog.Error("forward: close clientConn <-- deviceConn", "module", logModule, "deviceID", deviceID, "phonePort", phonePort)
-		wg.Done()
-	}()
+		if err == nil || errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+			golog.Debug(msg, "module", logModule, "deviceID", deviceID, "phonePort", phonePort)
+		} else {
+			golog.Error(msg, "module", logModule, "deviceID", deviceID, "phonePort", phonePort, "error", err)
+		}
+	}
 
 	wg.Add(1)
-	go func() {
-		io.Copy(deviceConn.Writer(), clientConn)
-		if ctx2.Err() == nil {
-			cancel()
-			clientConn.Close()
-			deviceConn.Close()
-			closed = true
-		}
+	go copyAndClose(clientConn, deviceConn.Reader(), "forward: close clientConn <-- deviceConn")
 
-		golog.Error("forward: close clientConn --> deviceConn", "module", logModule, "deviceID", deviceID, "phonePort", phonePort)
-		wg.Done()
-	}()
+	wg.Add(1)
+	go copyAndClose(deviceConn.Writer(), clientConn, "forward: close clientConn --> deviceConn")
 
 	<-ctx2.Done()
 	if !closed {
