@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"image/png"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -235,6 +237,107 @@ func TestTunnelAgentMixed(t *testing.T) {
 		gen.Address, gen.UserspaceTUNPort, per.Address, per.UserspaceTUNPort)
 }
 
+// TestTunnelRebootRecovery reboots ONE randomly chosen tunnel device and proves
+// the agent recovers it: after the device drops off USB and comes back, the
+// now-stale tunnel must be replaced by a fresh, working one. This reproduces
+// #712 (a stale tunnel after a reboot fails with "read: network is
+// unreachable"). Only one device is rebooted per run — we don't need to cycle
+// every device on every CI run, just to keep the recovery path honest.
+func TestTunnelRebootRecovery(t *testing.T) {
+	devs := harness.Devices()
+	if len(devs) == 0 {
+		t.Skip("GO_IOS_E2E_DEVICES not set")
+	}
+	udid := devs[rand.IntN(len(devs))]
+	t.Logf("tunnel reboot recovery: rebooting %s", udid)
+
+	port := freeTunnelPort(t)
+	portArg := fmt.Sprintf("--tunnel-info-port=%d", port)
+	agentOut, stop := startBackground(t, udid, syscall.SIGINT, tunnelStartArgs(true, portArg)...)
+	defer stop()
+
+	before := waitForTunnel(t, port, udid, 90*time.Second, agentOut)
+	assertTunnelReachable(t, udid, portArg) // the tunnel works before the reboot
+	t.Logf("tunnel up before reboot: %s rsd %d", before.Address, before.RsdPort)
+
+	// Reboot, then watch the device leave USB and come back.
+	runIOSForDevice(t, udid, "reboot")
+	if waitUntilEvery(120*time.Second, 3*time.Second, func() bool { return !devicePresent(t, udid) }) {
+		t.Logf("%s dropped off USB; waiting for it to return", udid)
+		if !waitUntilEvery(240*time.Second, 3*time.Second, func() bool { return devicePresent(t, udid) }) {
+			t.Fatalf("device %s never came back after reboot", udid)
+		}
+	} else {
+		t.Logf("did not observe %s leave USB (it may have rebooted quickly); proceeding to recovery", udid)
+	}
+	t.Logf("%s reconnected; recovering tunnel", udid)
+
+	// The agent must survive its only device vanishing, and refresh must hand back
+	// a genuinely fresh tunnel once the device is ready. Retry: the device may
+	// still be finishing its boot when it first reappears on USB.
+	var refreshed tunnelInfo
+	if !waitUntilEvery(180*time.Second, 3*time.Second, func() bool {
+		out, _, err := harness.TryRun(t, "tunnel", "refresh", "--udid="+udid, portArg)
+		if err != nil {
+			return false
+		}
+		refreshed = tunnelInfo{}
+		return json.Unmarshal(out, &refreshed) == nil && refreshed.RsdPort != 0
+	}) {
+		t.Fatalf("tunnel never recovered for %s after reboot:\n%s", udid, agentOut())
+	}
+	if refreshed.Address == before.Address && refreshed.RsdPort == before.RsdPort {
+		t.Fatalf("tunnel not refreshed after reboot, still %s rsd %d", before.Address, before.RsdPort)
+	}
+
+	// The recovered tunnel actually carries traffic again.
+	assertTunnelReachable(t, udid, portArg)
+	t.Logf("tunnel recovered after reboot: %s rsd %d -> %s rsd %d",
+		before.Address, before.RsdPort, refreshed.Address, refreshed.RsdPort)
+
+	// A reboot unmounts the Developer Disk Image; re-mount it over the recovered
+	// tunnel so the rest of the suite's developer-service tests on this device
+	// still work. Best-effort — the device may still be settling.
+	remountDeveloperImage(t, udid, portArg)
+}
+
+// devicePresent reports whether the device currently shows up on USB.
+func devicePresent(t *testing.T, udid string) bool {
+	t.Helper()
+	out, _, err := harness.TryRun(t, "list")
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(out), udid)
+}
+
+// assertTunnelReachable proves the agent's tunnel carries RemoteXPC traffic via
+// an RSD service listing. Unlike a screenshot it needs no Developer Disk Image —
+// which a reboot unmounts — so it works as a post-reboot recovery probe.
+func assertTunnelReachable(t *testing.T, udid, portArg string) {
+	t.Helper()
+	out := runIOSForDevice(t, udid, "rsd", "ls", portArg)
+	if len(strings.TrimSpace(string(out))) == 0 {
+		t.Fatalf("rsd ls through tunnel returned no services (data plane likely broken)")
+	}
+}
+
+// remountDeveloperImage re-mounts the DDI over the given agent's tunnel, retrying
+// while the just-rebooted device settles. Best-effort: it logs rather than fails,
+// since it only restores state for later tests on this device.
+func remountDeveloperImage(t *testing.T, udid, portArg string) {
+	t.Helper()
+	dir := t.TempDir()
+	if waitUntilEvery(120*time.Second, 3*time.Second, func() bool {
+		_, _, err := harness.TryRun(t, "image", "auto", "--basedir="+dir, portArg, "--udid="+udid)
+		return err == nil
+	}) {
+		return
+	}
+	t.Logf("warning: could not re-mount the Developer Disk Image on %s after reboot; "+
+		"later developer-service tests on this device may fail", udid)
+}
+
 func tunnelStartArgs(userspace bool, portArg string) []string {
 	if userspace {
 		return []string{"tunnel", "start", "--userspace", portArg}
@@ -337,12 +440,18 @@ func waitForAnyTunnel(t *testing.T, port int, timeout time.Duration, agentOut fu
 }
 
 func waitUntil(timeout time.Duration, cond func() bool) bool {
+	return waitUntilEvery(timeout, 250*time.Millisecond, cond)
+}
+
+// waitUntilEvery is waitUntil with a caller-chosen poll interval — use a coarse
+// one for long waits whose probe spawns an ios process (reboot, recovery).
+func waitUntilEvery(timeout, interval time.Duration, cond func() bool) bool {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		if cond() {
 			return true
 		}
-		time.Sleep(250 * time.Millisecond)
+		time.Sleep(interval)
 	}
 	return false
 }
