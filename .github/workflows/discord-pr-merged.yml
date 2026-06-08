@@ -4,6 +4,9 @@ on:
   pull_request_target:
     types: [closed]
 
+permissions:
+  contents: read
+
 jobs:
   notify:
     if: github.event.pull_request.merged == true

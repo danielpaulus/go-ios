@@ -32,6 +32,9 @@ on:
 
 name: Release-Go-iOS
 
+permissions:
+  contents: read
+
 jobs:
   prepare_version:
     runs-on: ubuntu-latest
