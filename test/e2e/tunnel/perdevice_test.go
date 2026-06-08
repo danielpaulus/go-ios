@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -28,7 +29,8 @@ type tunnelInfo struct {
 }
 
 // tunnelTransports is the transport matrix the agent supports. The kernel-TUN
-// variant needs root (CAP_NET_ADMIN) and is skipped otherwise.
+// variant needs root (CAP_NET_ADMIN) and is skipped otherwise; it is also
+// skipped on macOS, where go-ios sticks to userspace tunnels.
 var tunnelTransports = []struct {
 	name      string
 	userspace bool
@@ -46,8 +48,13 @@ func TestTunnelAgent(t *testing.T) {
 	for _, tr := range tunnelTransports {
 		tr := tr
 		t.Run(tr.name, func(t *testing.T) {
-			if !tr.userspace && os.Geteuid() != 0 {
-				t.Skip("kernel TUN tunnel needs root (CAP_NET_ADMIN); run the suite as root to cover it")
+			if !tr.userspace {
+				if runtime.GOOS == "darwin" {
+					t.Skip("kernel TUN tunnel is not exercised on macOS — go-ios uses userspace tunnels there")
+				}
+				if os.Geteuid() != 0 {
+					t.Skip("kernel TUN tunnel needs root (CAP_NET_ADMIN); run the suite as root to cover it")
+				}
 			}
 			forEachDevice(t, func(t *testing.T, udid string) { perDeviceAgentSuite(t, udid, tr.userspace) })
 		})
