@@ -83,6 +83,11 @@ func needsAutomaticTunnelInfo(args docopt.Opts) bool {
 	if boolArg(args, "info") && boolArg(args, "display") {
 		return true
 	}
+	// `ui run` launches an XCUITest runner via testmanagerd, which needs the
+	// tunnel on iOS 17+; the other `ui` commands are HTTP-to-a-URL and don't.
+	if boolArg(args, "ui") && boolArg(args, "run") {
+		return true
+	}
 
 	for _, commandName := range []string{
 		"debug",
