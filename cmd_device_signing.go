@@ -18,6 +18,30 @@ func runSignCommand(ctx commandContext) {
 	}
 }
 
+// runSignCertificateAppStoreConnectCommand creates a single iOS Development
+// certificate + P12 through App Store Connect. It needs no device, so it is
+// dispatched as a global command and can run on a hosted CI runner to mint the
+// shared signing identity.
+func runSignCertificateAppStoreConnectCommand(ctx commandContext) {
+	p12Password, _ := ctx.Args.String("--p12password")
+	p12Output, _ := ctx.Args.String("--p12-output")
+	keyID, _ := ctx.Args.String("--asc-key-id")
+	issuerID, _ := ctx.Args.String("--asc-issuer-id")
+	privateKeyPath, _ := ctx.Args.String("--asc-private-key")
+	revokeExisting, _ := ctx.Args.Bool("--revoke-existing")
+	creds, err := signing.LoadAppStoreConnectCredentials(keyID, issuerID, privateKeyPath)
+	exitIfError("failed loading App Store Connect credentials", err)
+
+	result, err := signing.PrepareCertificate(context.Background(), signing.PrepareCertificateOptions{
+		P12Password:    p12Password,
+		P12Output:      p12Output,
+		Credentials:    creds,
+		RevokeExisting: revokeExisting,
+	})
+	exitIfError("failed creating signing certificate", err)
+	slog.Info("created signing certificate", "p12", result.P12Path, "certificateID", result.CertificateID)
+}
+
 func runSignProvisionAppStoreConnectCommand(ctx commandContext) {
 	bundleID, _ := ctx.Args.String("--bundleid")
 	bundleName, _ := ctx.Args.String("--bundle-name")
@@ -30,22 +54,26 @@ func runSignProvisionAppStoreConnectCommand(ctx commandContext) {
 	keyID, _ := ctx.Args.String("--asc-key-id")
 	issuerID, _ := ctx.Args.String("--asc-issuer-id")
 	privateKeyPath, _ := ctx.Args.String("--asc-private-key")
+	revokeExisting, _ := ctx.Args.Bool("--revoke-existing")
+	certificateID, _ := ctx.Args.String("--certificate-id")
 	creds, err := signing.LoadAppStoreConnectCredentials(keyID, issuerID, privateKeyPath)
 	exitIfError("failed loading App Store Connect credentials", err)
 
 	result, err := signing.PrepareSigningAssets(context.Background(), signing.PrepareAssetsOptions{
-		BundleID:    bundleID,
-		BundleName:  bundleName,
-		ProfileName: profileName,
-		DeviceName:  deviceName,
-		P12Password: p12Password,
-		P12Output:   p12Output,
-		ProfileOut:  profileOutput,
-		Credentials: creds,
-		Device:      ctx.Device,
+		BundleID:       bundleID,
+		BundleName:     bundleName,
+		ProfileName:    profileName,
+		DeviceName:     deviceName,
+		P12Password:    p12Password,
+		P12Output:      p12Output,
+		ProfileOut:     profileOutput,
+		Credentials:    creds,
+		Device:         ctx.Device,
+		RevokeExisting: revokeExisting,
+		CertificateID:  certificateID,
 	})
 	exitIfError("failed creating signing assets", err)
-	slog.Info("created signing assets", "bundleID", result.BundleID, "p12", result.P12Path, "profile", result.ProfilePath, "udid", ctx.Device.Properties.SerialNumber)
+	slog.Info("created signing assets", "bundleID", result.BundleID, "p12", result.P12Path, "profile", result.ProfilePath, "certificateID", result.CertificateID, "udid", ctx.Device.Properties.SerialNumber)
 }
 
 func runSignAppCommand(ctx commandContext) {

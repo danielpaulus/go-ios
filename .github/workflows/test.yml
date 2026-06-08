@@ -59,7 +59,9 @@ jobs:
         run: make build --trace
 
       - name: Run unit tests
-        run: go test ./...
+        # -race so the data-race detector runs in CI (e.g. the TunnelManager
+        # mutex test). cgo is already on for libusb, so the detector is supported.
+        run: go test -race ./...
 
       - name: Verify code formatting
         run: test -z "$(gofmt -l .)"
@@ -73,5 +75,8 @@ jobs:
     needs: [lint, test_on_windows, test_on_linux]
     if: github.event.pull_request.head.repo.full_name == github.repository
     uses: ./.github/workflows/real-device.yml
+    # Pass repo secrets (App Store Connect signing keys etc.) into the reusable
+    # workflow so the opt-in signing e2e actually runs instead of skipping.
+    secrets: inherit
     permissions:
       contents: read

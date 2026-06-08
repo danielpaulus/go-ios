@@ -18,6 +18,7 @@ const (
 	defaultWDAArtifactURL       = "https://deviceboxhq.com/WebDriverAgentRunner-13.2.0.zip"
 	defaultDeviceKitArtifactURL = "https://deviceboxhq.com/devicekit-ios-runner-0.0.18.ipa"
 	defaultWDABundleID          = "com.deviceboxhq.goios.WebDriverAgentRunner.xctrunner"
+	defaultDeviceKitBundleID    = "com.deviceboxhq.goios.devicekit.runner"
 )
 
 func runUIInstallCommand(ctx commandContext) {

@@ -1,154 +1,228 @@
 package tunnel
 
-//disabled for now
-/*
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"sync"
 	"sync/atomic"
 	"testing"
-
-	"github.com/Masterminds/semver"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"time"
 )
 
-func TestSuccessStartForMultipleConnectedDevices(t *testing.T) {
-	tm, ts, dl := setupTunnelManager()
-
-	d1 := ios.DeviceEntry{
-		Properties: ios.DeviceProperties{
-			SerialNumber: "serial1",
+func TestRemoveTunnelStopsOnlyRequestedTunnel(t *testing.T) {
+	var closedA atomic.Uint64
+	var closedB atomic.Uint64
+	tm := tunnelManagerWithTunnels(map[string]Tunnel{
+		"serial-a": {
+			Udid:   "serial-a",
+			closer: func() error { closedA.Add(1); return nil },
 		},
-	}
-	d2 := ios.DeviceEntry{
-		Properties: ios.DeviceProperties{
-			SerialNumber: "serial2",
+		"serial-b": {
+			Udid:   "serial-b",
+			closer: func() error { closedB.Add(1); return nil },
 		},
-	}
-
-	dl.On("ListDevices").Return(ios.DeviceList{DeviceList: []ios.DeviceEntry{d1, d2}}, nil)
-
-	ts.On("StartTunnel", mock.Anything, d1, mock.Anything).Return(Tunnel{
-		Address: "addr1",
-		RsdPort: 1,
-		Udid:    "serial1",
-	}, nil)
-	ts.On("StartTunnel", mock.Anything, d2, mock.Anything).Return(Tunnel{
-		Address: "addr2",
-		RsdPort: 2,
-		Udid:    "serial2",
-	}, nil)
-
-	err := tm.UpdateTunnels(context.Background())
-	assert.NoError(t, err)
-
-	tunnels, err := tm.ListTunnels()
-
-	assert.Contains(t, tunnels, Tunnel{
-		Address: "addr1",
-		RsdPort: 1,
-		Udid:    "serial1",
 	})
-	assert.Contains(t, tunnels, Tunnel{
-		Address: "addr2",
-		RsdPort: 2,
-		Udid:    "serial2",
+
+	err := tm.RemoveTunnel(context.Background(), "serial-a")
+	if err != nil {
+		t.Fatalf("RemoveTunnel returned error: %v", err)
+	}
+
+	if closedA.Load() != 1 {
+		t.Fatalf("serial-a closer called %d times, want 1", closedA.Load())
+	}
+	if closedB.Load() != 0 {
+		t.Fatalf("serial-b closer called %d times, want 0", closedB.Load())
+	}
+	if _, exists := tm.tunnels["serial-a"]; exists {
+		t.Fatal("serial-a tunnel was not removed")
+	}
+	if _, exists := tm.tunnels["serial-b"]; !exists {
+		t.Fatal("serial-b tunnel was removed")
+	}
+}
+
+func TestRemoveTunnelReturnsNotFound(t *testing.T) {
+	tm := tunnelManagerWithTunnels(nil)
+	err := tm.RemoveTunnel(context.Background(), "missing")
+	if !errors.Is(err, ErrTunnelNotFound) {
+		t.Fatalf("RemoveTunnel error = %v, want ErrTunnelNotFound", err)
+	}
+}
+
+func TestTunnelInfoMuxDeleteTunnel(t *testing.T) {
+	var closed atomic.Uint64
+	tm := tunnelManagerWithTunnels(map[string]Tunnel{
+		"serial-a": {
+			Udid:    "serial-a",
+			Address: "fd00::1",
+			RsdPort: 1234,
+			closer:  func() error { closed.Add(1); return nil },
+		},
+		"serial-b": {
+			Udid:    "serial-b",
+			Address: "fd00::2",
+			RsdPort: 5678,
+			closer:  func() error { return nil },
+		},
 	})
+	server := httptest.NewServer(tunnelInfoMux(tm))
+	defer server.Close()
+
+	host, port := serverHostPort(t, server.URL)
+	if err := StopTunnelForDevice("serial-a", host, port); err != nil {
+		t.Fatalf("StopTunnelForDevice returned error: %v", err)
+	}
+
+	if closed.Load() != 1 {
+		t.Fatalf("closer called %d times, want 1", closed.Load())
+	}
+	if _, exists := tm.tunnels["serial-a"]; exists {
+		t.Fatal("serial-a tunnel was not removed")
+	}
+	if _, exists := tm.tunnels["serial-b"]; !exists {
+		t.Fatal("serial-b tunnel was removed")
+	}
 }
 
-func TestCloseTunnelsOnDisconnect(t *testing.T) {
-	tm, ts, dl := setupTunnelManager()
+func TestTunnelInfoMuxDeleteMissingTunnel(t *testing.T) {
+	tm := tunnelManagerWithTunnels(nil)
+	server := httptest.NewServer(tunnelInfoMux(tm))
+	defer server.Close()
 
-	d1 := ios.DeviceEntry{
-		Properties: ios.DeviceProperties{
-			SerialNumber: "serial",
+	host, port := serverHostPort(t, server.URL)
+	err := StopTunnelForDevice("missing", host, port)
+	if !errors.Is(err, ErrTunnelNotFound) {
+		t.Fatalf("StopTunnelForDevice error = %v, want ErrTunnelNotFound", err)
+	}
+}
+
+func TestTunnelInfoMuxRejectsUnsupportedMethod(t *testing.T) {
+	tm := tunnelManagerWithTunnels(nil)
+	req := httptest.NewRequest(http.MethodPost, "/tunnel/serial-a", nil)
+	rec := httptest.NewRecorder()
+
+	tunnelInfoMux(tm).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusMethodNotAllowed)
+	}
+}
+
+func TestTunnelInfoForDeviceMapsNotFound(t *testing.T) {
+	tm := tunnelManagerWithTunnels(nil)
+	server := httptest.NewServer(tunnelInfoMux(tm))
+	defer server.Close()
+
+	host, port := serverHostPort(t, server.URL)
+	_, err := TunnelInfoForDevice("missing", host, port)
+	if !errors.Is(err, ErrTunnelNotFound) {
+		t.Fatalf("TunnelInfoForDevice error = %v, want ErrTunnelNotFound", err)
+	}
+}
+
+func TestRefreshTunnelForDeviceWaitsForRecreatedTunnel(t *testing.T) {
+	tm := tunnelManagerWithTunnels(map[string]Tunnel{
+		"serial-a": {
+			Udid:   "serial-a",
+			closer: func() error { return nil },
 		},
+	})
+	server := httptest.NewServer(tunnelInfoMux(tm))
+	defer server.Close()
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		tm.mux.Lock()
+		tm.tunnels["serial-a"] = Tunnel{
+			Udid:    "serial-a",
+			Address: "fd00::new",
+			RsdPort: 4321,
+			closer:  func() error { return nil },
+		}
+		tm.mux.Unlock()
+	}()
+
+	host, port := serverHostPort(t, server.URL)
+	tun, err := RefreshTunnelForDevice("serial-a", host, port, 2*time.Second)
+	if err != nil {
+		t.Fatalf("RefreshTunnelForDevice returned error: %v", err)
 	}
-	var closerCalls atomic.Uint64
-	closer := func() error {
-		closerCalls.Add(1)
-		return nil
+	if tun.Address != "fd00::new" || tun.RsdPort != 4321 {
+		t.Fatalf("refreshed tunnel = %+v, want recreated tunnel", tun)
 	}
-
-	dl.On("ListDevices").
-		Return(ios.DeviceList{DeviceList: []ios.DeviceEntry{d1}}, nil).
-		Once()
-	ts.On("StartTunnel", mock.Anything, d1, mock.Anything).Return(Tunnel{
-		Address: "addr1",
-		RsdPort: 1,
-		closer:  closer,
-	}, nil)
-
-	err := tm.UpdateTunnels(context.Background())
-	assert.NoError(t, err)
-
-	tunnels, _ := tm.ListTunnels()
-	assert.Len(t, tunnels, 1)
-
-	dl.On("ListDevices").
-		Return(ios.DeviceList{}, nil).
-		Once()
-
-	err = tm.UpdateTunnels(context.Background())
-	assert.NoError(t, err)
-	tunnels, _ = tm.ListTunnels()
-	assert.Len(t, tunnels, 0)
-	assert.GreaterOrEqual(t, closerCalls.Load(), uint64(1))
 }
 
-func TestBridgeIsOnlyStarteOnce(t *testing.T) {
-	tm, ts, dl := setupTunnelManager()
-
-	d1 := ios.DeviceEntry{
-		Properties: ios.DeviceProperties{
-			SerialNumber: "serial",
-		},
+// TestTunnelManagerConcurrentAccess guards the TunnelManager's mutex: the
+// per-device DELETE (RemoveTunnel/stopTunnel) deletes from m.tunnels while the
+// UpdateTunnels loop and the tunnel-info GET handlers (ListTunnels/FindTunnel)
+// read it. Run under `go test -race`: if any of those touch m.tunnels without
+// the lock (the bug RemoveTunnel had before #738) the race detector trips.
+func TestTunnelManagerConcurrentAccess(t *testing.T) {
+	const n = 200
+	tunnels := make(map[string]Tunnel, n)
+	for i := 0; i < n; i++ {
+		udid := fmt.Sprintf("serial-%d", i)
+		tunnels[udid] = Tunnel{Udid: udid, closer: func() error { return nil }}
 	}
+	tm := tunnelManagerWithTunnels(tunnels)
 
-	closer := func() error { return nil }
-	dl.On("ListDevices").
-		Return(ios.DeviceList{DeviceList: []ios.DeviceEntry{d1}}, nil)
-	ts.On("StartTunnel", mock.Anything, d1, mock.Anything).Return(Tunnel{
-		Address: "addr1",
-		RsdPort: 1,
-		closer:  closer,
-	}, nil)
+	var wg sync.WaitGroup
+	// Concurrent writers: each removes one tunnel (so removes also race removes).
+	for i := 0; i < n; i++ {
+		udid := fmt.Sprintf("serial-%d", i)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = tm.RemoveTunnel(context.Background(), udid)
+		}()
+	}
+	// Concurrent readers: list and look up while the removes happen.
+	for r := 0; r < 16; r++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < n; j++ {
+				_, _ = tm.ListTunnels()
+				_, _ = tm.FindTunnel(fmt.Sprintf("serial-%d", j))
+			}
+		}()
+	}
+	wg.Wait()
 
-	err := tm.UpdateTunnels(context.Background())
-	assert.NoError(t, err)
-	err = tm.UpdateTunnels(context.Background())
-	assert.NoError(t, err)
-
-	ts.AssertNumberOfCalls(t, "StartTunnel", 1)
+	// Every tunnel was removed exactly once and the map is left consistent.
+	left, err := tm.ListTunnels()
+	if err != nil {
+		t.Fatalf("ListTunnels: %v", err)
+	}
+	if len(left) != 0 {
+		t.Fatalf("expected all %d tunnels removed, %d remain", n, len(left))
+	}
 }
 
-func setupTunnelManager() (*TunnelManager, *tunnelStarterMock, *deviceListerMock) {
-	ts := new(tunnelStarterMock)
-	dl := new(deviceListerMock)
-
+func tunnelManagerWithTunnels(tunnels map[string]Tunnel) *TunnelManager {
+	if tunnels == nil {
+		tunnels = map[string]Tunnel{}
+	}
 	return &TunnelManager{
-		ts:      ts,
-		dl:      dl,
-		tunnels: map[string]Tunnel{},
-	}, ts, dl
+		tunnels: tunnels,
+	}
 }
 
-type tunnelStarterMock struct {
-	mock.Mock
+func serverHostPort(t *testing.T, rawURL string) (string, int) {
+	t.Helper()
+	host, portString, err := net.SplitHostPort(rawURL[len("http://"):])
+	if err != nil {
+		t.Fatalf("SplitHostPort(%q): %v", rawURL, err)
+	}
+	port, err := strconv.Atoi(portString)
+	if err != nil {
+		t.Fatalf("Atoi(%q): %v", portString, err)
+	}
+	return host, port
 }
-
-func (t *tunnelStarterMock) StartTunnel(ctx context.Context, device ios.DeviceEntry, p PairRecordManager, version *semver.Version) (Tunnel, error) {
-	args := t.Mock.Called(ctx, device, p)
-	return args.Get(0).(Tunnel), args.Error(1)
-}
-
-type deviceListerMock struct {
-	mock.Mock
-}
-
-func (d *deviceListerMock) ListDevices() (ios.DeviceList, error) {
-	args := d.Called()
-	return args.Get(0).(ios.DeviceList), args.Error(1)
-}
-*/

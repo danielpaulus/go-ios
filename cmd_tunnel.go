@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/docopt/docopt-go"
@@ -20,12 +22,24 @@ func isTunnelCommand(args docopt.Opts) bool {
 	return boolArg(args, "tunnel")
 }
 
+// tunnelTargetUDID returns the device udid for a per-device tunnel command,
+// falling back to the GO_IOS_UDID environment variable.
+func tunnelTargetUDID(args docopt.Opts) string {
+	udid, _ := args.String("--udid")
+	if udid == "" {
+		udid = os.Getenv("GO_IOS_UDID")
+	}
+	return udid
+}
+
 func dispatchTunnelCommand(ctx tunnelCommandContext) bool {
 	if !isTunnelCommand(ctx.Args) {
 		return false
 	}
 
 	startCommand, _ := ctx.Args.Bool("start")
+	stopCommand, _ := ctx.Args.Bool("stop")
+	refreshCommand, _ := ctx.Args.Bool("refresh")
 	useUserspaceNetworking, _ := ctx.Args.Bool("--userspace")
 	if startCommand && !useUserspaceNetworking {
 		err := tunnel.CheckPermissions()
@@ -51,7 +65,9 @@ func dispatchTunnelCommand(ctx tunnelCommandContext) bool {
 				"tunnel identity and pairs it on first use. See https://github.com/danielpaulus/go-ios/issues/710",
 				"pairRecordsPath", pairRecordsPath)
 		}
-		startTunnel(context.TODO(), pairRecordsPath, ctx.TunnelInfoHost, ctx.TunnelInfoPort, useUserspaceNetworking)
+		// If --udid is given, restrict this agent to that one device so it can run
+		// as an isolated per-device tunnel agent (see NewTunnelManagerForDevice).
+		startTunnel(context.TODO(), pairRecordsPath, ctx.TunnelInfoHost, ctx.TunnelInfoPort, useUserspaceNetworking, tunnelTargetUDID(ctx.Args))
 	} else if listCommand {
 		tunnels, err := tunnel.ListRunningTunnels(ctx.TunnelInfoHost, ctx.TunnelInfoPort)
 		exitIfError("failed to get tunnel infos", err)
@@ -65,6 +81,31 @@ func dispatchTunnelCommand(ctx tunnelCommandContext) bool {
 			}
 		} else {
 			fmt.Println(convertToJSONString(tunnels))
+		}
+	} else if stopCommand {
+		udid := tunnelTargetUDID(ctx.Args)
+		if udid == "" {
+			exitIfError("failed to stop tunnel", fmt.Errorf("--udid is required"))
+		}
+		err := tunnel.StopTunnelForDevice(udid, ctx.TunnelInfoHost, ctx.TunnelInfoPort)
+		exitIfError("failed to stop tunnel", err)
+		if JSONdisabled {
+			fmt.Printf("Stopped tunnel for %s\n", udid)
+		} else {
+			fmt.Println(convertToJSONString(map[string]string{"udid": udid, "status": "stopped"}))
+		}
+	} else if refreshCommand {
+		udid := tunnelTargetUDID(ctx.Args)
+		if udid == "" {
+			exitIfError("failed to refresh tunnel", fmt.Errorf("--udid is required"))
+		}
+		tun, err := tunnel.RefreshTunnelForDevice(udid, ctx.TunnelInfoHost, ctx.TunnelInfoPort, 30*time.Second)
+		exitIfError("failed to refresh tunnel", err)
+		if JSONdisabled {
+			fmt.Printf("Refreshed tunnel for %s\n  Address: %s\n  RsdPort: %d\n  UserspaceTUN: %v\n  UserspaceTUNPort: %d\n",
+				tun.Udid, tun.Address, tun.RsdPort, tun.UserspaceTUN, tun.UserspaceTUNPort)
+		} else {
+			fmt.Println(convertToJSONString(tun))
 		}
 	}
 	if stopagent {

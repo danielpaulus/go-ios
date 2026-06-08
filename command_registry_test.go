@@ -77,6 +77,8 @@ func TestNeedsAutomaticTunnelInfo(t *testing.T) {
 		{name: "devicestate needs tunnel (instruments)", args: docopt.Opts{"devicestate": true}, want: true},
 		{name: "resetlocation needs tunnel (instruments)", args: docopt.Opts{"resetlocation": true}, want: true},
 		{name: "setlocationgpx needs tunnel (instruments)", args: docopt.Opts{"setlocationgpx": true}, want: true},
+		{name: "ui run needs tunnel (testmanagerd)", args: docopt.Opts{"ui": true, "run": true}, want: true},
+		{name: "ui status stays tunnel-free", args: docopt.Opts{"ui": true, "status": true}, want: false},
 	}
 
 	for _, testCase := range testCases {

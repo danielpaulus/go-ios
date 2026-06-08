@@ -1,0 +1,84 @@
+# Re-provisions the shared App Store Connect signing identity used by the
+# real-device signing e2e and publishes it as repo secrets:
+#   - GO_IOS_E2E_SIGNING_P12_B64  (base64 of the .p12: certificate + private key)
+#   - GO_IOS_E2E_SIGNING_CERT_ID  (the certificate's App Store Connect resource id)
+#
+# Apple permits only one current iOS Development certificate, so creating one per
+# CI run hits a 409. Instead this job creates the single certificate (revoking any
+# existing one first) on a schedule, and the e2e mints per-bundle provisioning
+# profiles against it via `ios sign provision appstoreconnect --certificate-id`
+# — no certificate creation in CI, so the signing tests stay parallel.
+#
+# Runs on a GitHub-hosted runner: minting a certificate needs no device, and the
+# runner has `gh` for writing the secrets. Requires a SIGNING_SECRET_WRITER_PAT
+# secret (a PAT with Secrets: write — the default GITHUB_TOKEN cannot manage
+# secrets). Daily, off-peak, so it won't revoke the certificate while a PR's
+# signing test is using it.
+name: Refresh signing identity
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-signing-identity
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Refresh signing identity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Install libusb
+        run: sudo apt-get update && sudo apt-get install -y libusb-1.0-0-dev
+
+      - name: Build ios
+        run: go build -o "$RUNNER_TEMP/ios" .
+
+      - name: Prepare App Store Connect API key
+        env:
+          GO_IOS_E2E_ASC_PRIVATE_KEY_B64: ${{ secrets.GO_IOS_E2E_ASC_PRIVATE_KEY_B64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s' "$GO_IOS_E2E_ASC_PRIVATE_KEY_B64" | base64 --decode > "$RUNNER_TEMP/asc/AuthKey.p8"
+
+      - name: Provision a fresh signing certificate
+        id: provision
+        env:
+          ASC_KEY_ID: ${{ secrets.GO_IOS_E2E_ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.GO_IOS_E2E_ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/provision.log"
+          "$RUNNER_TEMP/ios" sign certificate appstoreconnect \
+            --revoke-existing \
+            --p12password=go-ios-e2e \
+            --p12-output="$RUNNER_TEMP/identity.p12" \
+            --asc-key-id="$ASC_KEY_ID" \
+            --asc-issuer-id="$ASC_ISSUER_ID" \
+            --asc-private-key="$RUNNER_TEMP/asc/AuthKey.p8" 2> "$log"
+          cat "$log"
+          certid="$(grep '"msg":"created signing certificate"' "$log" | tail -1 | sed -E 's/.*"certificateID":"([^"]*)".*/\1/')"
+          if [ -z "$certid" ]; then echo "could not determine certificate id"; exit 1; fi
+          echo "certid=$certid" >> "$GITHUB_OUTPUT"
+
+      - name: Publish identity to repo secrets
+        env:
+          GH_TOKEN: ${{ secrets.SIGNING_SECRET_WRITER_PAT }}
+          CERT_ID: ${{ steps.provision.outputs.certid }}
+        run: |
+          set -euo pipefail
+          base64 -w0 "$RUNNER_TEMP/identity.p12" | gh secret set GO_IOS_E2E_SIGNING_P12_B64 --repo "$GITHUB_REPOSITORY"
+          printf '%s' "$CERT_ID" | gh secret set GO_IOS_E2E_SIGNING_CERT_ID --repo "$GITHUB_REPOSITORY"

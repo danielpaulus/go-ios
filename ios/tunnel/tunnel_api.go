@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -23,6 +24,8 @@ import (
 var netClient = &http.Client{
 	Timeout: time.Millisecond * 200,
 }
+
+var ErrTunnelNotFound = errors.New("tunnel not found")
 
 func CloseAgent() error {
 	_, err := netClient.Get(fmt.Sprintf("http://%s:%d/shutdown", ios.HttpApiHost(), ios.HttpApiPort()))
@@ -46,10 +49,16 @@ func WaitUntilAgentReady() bool {
 		if err != nil {
 			return false
 		}
-		if resp.StatusCode == http.StatusOK {
+		ready := resp.StatusCode == http.StatusOK
+		resp.Body.Close()
+		if ready {
 			golog.Info("Go-iOS Agent is ready", "module", logModule)
 			return true
 		}
+		// Not ready yet (agent up but first tunnel update not finished): back off
+		// a little instead of hammering /ready in a tight loop, and close the body
+		// each iteration so responses don't leak.
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 
@@ -96,11 +105,26 @@ func RunAgent(mode string, args ...string) error {
 // 3. GET    {HOST}:{PORT}/tunnels       to get a list of all tunnels
 // The host defaults to 127.0.0.1 and can be changed with --tunnel-info-host / GO_IOS_AGENT_HOST.
 func ServeTunnelInfo(tm *TunnelManager, host string, port int) error {
+	if err := http.ListenAndServe(net.JoinHostPort(host, fmt.Sprintf("%d", port)), tunnelInfoMux(tm)); err != nil {
+		return fmt.Errorf("ServeTunnelInfo: failed to start http server: %w", err)
+	}
+	return nil
+}
+
+func tunnelInfoMux(tm *TunnelManager) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			writer.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		writer.WriteHeader(http.StatusOK)
 	})
 	mux.HandleFunc("/ready", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			writer.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		if tm.FirstUpdateCompleted() {
 			writer.WriteHeader(http.StatusOK)
 		} else {
@@ -108,6 +132,10 @@ func ServeTunnelInfo(tm *TunnelManager, host string, port int) error {
 		}
 	})
 	mux.HandleFunc("/shutdown", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			writer.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		err := tm.Close()
 		if err != nil {
 			golog.Error("failed to close tunnel manager", "module", logModule, "error", err)
@@ -122,32 +150,46 @@ func ServeTunnelInfo(tm *TunnelManager, host string, port int) error {
 	mux.HandleFunc("/tunnel/", func(writer http.ResponseWriter, request *http.Request) {
 		udid := strings.TrimPrefix(request.URL.Path, "/tunnel/")
 		if len(udid) == 0 {
-			return
-		}
-
-		t, err := tm.FindTunnel(udid)
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if len(t.Udid) == 0 {
-			http.Error(writer, "", http.StatusNotFound)
+			http.Error(writer, "missing udid", http.StatusBadRequest)
 			return
 		}
 
 		if request.Method == "GET" {
+			t, err := tm.FindTunnel(udid)
+			if err != nil {
+				http.Error(writer, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if len(t.Udid) == 0 {
+				http.Error(writer, ErrTunnelNotFound.Error(), http.StatusNotFound)
+				return
+			}
 			writer.Header().Add("Content-Type", "application/json")
-			enc := json.NewEncoder(writer)
-			err = enc.Encode(t)
+			// The header/status are already committed, so an encode failure here
+			// can only be logged, not turned into an error response.
+			if err := json.NewEncoder(writer).Encode(t); err != nil {
+				golog.Error("failed to encode tunnel info", "module", logModule, "udid", udid, "error", err)
+			}
 		} else if request.Method == "DELETE" {
-			err = tm.stopTunnel(t)
-		}
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
-			return
+			err := tm.RemoveTunnel(request.Context(), udid)
+			if errors.Is(err, ErrTunnelNotFound) {
+				http.Error(writer, err.Error(), http.StatusNotFound)
+				return
+			}
+			if err != nil {
+				http.Error(writer, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			writer.WriteHeader(http.StatusNoContent)
+		} else {
+			writer.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
 	mux.HandleFunc("/tunnels", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			writer.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		tunnels, err := tm.ListTunnels()
 		if err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
@@ -162,17 +204,14 @@ func ServeTunnelInfo(tm *TunnelManager, host string, port int) error {
 			return
 		}
 	})
-	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), mux); err != nil {
-		return fmt.Errorf("ServeTunnelInfo: failed to start http server: %w", err)
-	}
-	return nil
+	return mux
 }
 
 func TunnelInfoForDevice(udid string, tunnelInfoHost string, tunnelInfoPort int) (Tunnel, error) {
 	c := http.Client{
 		Timeout: 5 * time.Second,
 	}
-	res, err := c.Get(fmt.Sprintf("http://%s:%d/tunnel/%s", tunnelInfoHost, tunnelInfoPort, udid))
+	res, err := c.Get(fmt.Sprintf("http://%s/tunnel/%s", net.JoinHostPort(tunnelInfoHost, fmt.Sprintf("%d", tunnelInfoPort)), udid))
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("TunnelInfoForDevice: failed to get tunnel info: %w", err)
 	}
@@ -181,6 +220,12 @@ func TunnelInfoForDevice(udid string, tunnelInfoHost string, tunnelInfoPort int)
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("TunnelInfoForDevice: failed to read body: %w", err)
+	}
+	if res.StatusCode == http.StatusNotFound {
+		return Tunnel{}, ErrTunnelNotFound
+	}
+	if res.StatusCode != http.StatusOK {
+		return Tunnel{}, fmt.Errorf("TunnelInfoForDevice: unexpected status %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
 	}
 	var info Tunnel
 	err = json.Unmarshal(body, &info)
@@ -194,7 +239,7 @@ func ListRunningTunnels(tunnelInfoHost string, tunnelInfoPort int) ([]Tunnel, er
 	c := http.Client{
 		Timeout: 5 * time.Second,
 	}
-	res, err := c.Get(fmt.Sprintf("http://%s:%d/tunnels", tunnelInfoHost, tunnelInfoPort))
+	res, err := c.Get(fmt.Sprintf("http://%s/tunnels", net.JoinHostPort(tunnelInfoHost, fmt.Sprintf("%d", tunnelInfoPort))))
 	if err != nil {
 		return nil, fmt.Errorf("TunnelInfoForDevice: failed to get tunnel info: %w", err)
 	}
@@ -204,12 +249,64 @@ func ListRunningTunnels(tunnelInfoHost string, tunnelInfoPort int) ([]Tunnel, er
 	if err != nil {
 		return nil, fmt.Errorf("TunnelInfoForDevice: failed to read body: %w", err)
 	}
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("TunnelInfoForDevice: unexpected status %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+	}
 	var info []Tunnel
 	err = json.Unmarshal(body, &info)
 	if err != nil {
 		return nil, fmt.Errorf("TunnelInfoForDevice: failed to parse response: %w", err)
 	}
 	return info, nil
+}
+
+func StopTunnelForDevice(udid string, tunnelInfoHost string, tunnelInfoPort int) error {
+	if udid == "" {
+		return fmt.Errorf("StopTunnelForDevice: udid is required")
+	}
+	c := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("http://%s/tunnel/%s", net.JoinHostPort(tunnelInfoHost, fmt.Sprintf("%d", tunnelInfoPort)), udid), nil)
+	if err != nil {
+		return fmt.Errorf("StopTunnelForDevice: failed to create request: %w", err)
+	}
+	res, err := c.Do(req)
+	if err != nil {
+		return fmt.Errorf("StopTunnelForDevice: failed to stop tunnel: %w", err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("StopTunnelForDevice: failed to read body: %w", err)
+	}
+	if res.StatusCode == http.StatusNotFound {
+		return ErrTunnelNotFound
+	}
+	if res.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("StopTunnelForDevice: unexpected status %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+func RefreshTunnelForDevice(udid string, tunnelInfoHost string, tunnelInfoPort int, timeout time.Duration) (Tunnel, error) {
+	if err := StopTunnelForDevice(udid, tunnelInfoHost, tunnelInfoPort); err != nil && !errors.Is(err, ErrTunnelNotFound) {
+		return Tunnel{}, err
+	}
+	deadline := time.Now().Add(timeout)
+	for {
+		t, err := TunnelInfoForDevice(udid, tunnelInfoHost, tunnelInfoPort)
+		if err == nil {
+			return t, nil
+		}
+		if !errors.Is(err, ErrTunnelNotFound) {
+			return Tunnel{}, err
+		}
+		if time.Now().After(deadline) {
+			return Tunnel{}, fmt.Errorf("RefreshTunnelForDevice: timed out waiting for tunnel %s", udid)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 // TunnelManager starts tunnels for devices when needed (if no tunnel is running yet) and stores the information
@@ -225,11 +322,34 @@ type TunnelManager struct {
 	userspaceTUN         bool
 	closeOnce            sync.Once
 	portOffset           int
+	// udidFilter, when non-empty, restricts the manager to a single device so
+	// you can run one isolated tunnel agent per device.
+	udidFilter string
+	// basePort is the base for derived userspace listener ports (the agent's own
+	// tunnel-info port), so per-device agents on different ports don't collide.
+	basePort int
 }
 
 // NewTunnelManager creates a new TunnelManager instance for setting up device tunnels for all connected devices
 // If userspaceTUN is set to true, the network stack will run in user space.
 func NewTunnelManager(pm PairRecordManager, userspaceTUN bool) *TunnelManager {
+	return newTunnelManager(pm, userspaceTUN, "", ios.HttpApiPort())
+}
+
+// NewTunnelManagerForDevice creates a TunnelManager bound to a specific
+// tunnel-info port. If udid is non-empty the manager only manages that one
+// device (ignoring all others), so you can run one isolated agent per device; an
+// empty udid manages all connected devices. basePort is the agent's tunnel-info
+// port: userspace listener ports are derived from it so multiple agents on
+// different ports (e.g. a general agent plus per-device agents) never clash.
+func NewTunnelManagerForDevice(pm PairRecordManager, userspaceTUN bool, udid string, basePort int) *TunnelManager {
+	return newTunnelManager(pm, userspaceTUN, udid, basePort)
+}
+
+func newTunnelManager(pm PairRecordManager, userspaceTUN bool, udidFilter string, basePort int) *TunnelManager {
+	if basePort == 0 {
+		basePort = ios.HttpApiPort()
+	}
 	return &TunnelManager{
 		ts:                 manualPairingTunnelStart{},
 		dl:                 deviceList{},
@@ -237,6 +357,8 @@ func NewTunnelManager(pm PairRecordManager, userspaceTUN bool) *TunnelManager {
 		tunnels:            map[string]Tunnel{},
 		startTunnelTimeout: 10 * time.Second,
 		userspaceTUN:       userspaceTUN,
+		udidFilter:         udidFilter,
+		basePort:           basePort,
 		portOffset:         1,
 	}
 }
@@ -290,11 +412,14 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 	}
 	for _, d := range devices.DeviceList {
 		udid := d.Properties.SerialNumber
+		if m.udidFilter != "" && udid != m.udidFilter {
+			continue
+		}
 		if _, exists := localTunnels[udid]; exists {
 			continue
 		}
 		if m.userspaceTUN && d.UserspaceTUNPort == 0 {
-			d.UserspaceTUNPort = ios.HttpApiPort() + m.portOffset
+			d.UserspaceTUNPort = m.basePort + m.portOffset
 			m.portOffset++
 		}
 		t, err := m.startTunnel(ctx, d)
@@ -322,21 +447,25 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 }
 
 func (m *TunnelManager) RemoveTunnel(ctx context.Context, serialNumber string) error {
-	for udid, tun := range m.tunnels {
-		if udid == serialNumber {
-			err := m.stopTunnel(tun)
-			return err
-		}
+	m.mux.Lock()
+	tun, exists := m.tunnels[serialNumber]
+	if exists {
+		delete(m.tunnels, serialNumber)
 	}
+	m.mux.Unlock()
 
-	return errors.New("tunnel not found")
+	if !exists {
+		return ErrTunnelNotFound
+	}
+	golog.Info("stopping tunnel", "module", logModule, "udid", tun.Udid)
+	return tun.Close()
 }
 
 func (m *TunnelManager) stopTunnel(t Tunnel) error {
 	m.mux.Lock()
-	defer m.mux.Unlock()
 	golog.Info("stopping tunnel", "module", logModule, "udid", t.Udid)
 	delete(m.tunnels, t.Udid)
+	m.mux.Unlock()
 
 	return t.Close()
 }

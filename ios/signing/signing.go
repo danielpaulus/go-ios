@@ -12,6 +12,7 @@ import (
 
 	"github.com/aluedeke/go-codesign/pkg/codesign"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/golog"
 	"software.sslmate.com/src/go-pkcs12"
 )
 
@@ -41,6 +42,17 @@ type PrepareAssetsOptions struct {
 	ProfileOut  string
 	Credentials AppStoreConnectCredentials
 	Device      ios.DeviceEntry
+	// RevokeExisting revokes every existing iOS Development certificate before
+	// creating a new one. Apple allows only one current certificate of that type,
+	// so without this a second create fails with a 409. Intended for a dedicated
+	// (CI) account where the signing identity is disposable.
+	RevokeExisting bool
+	// CertificateID, when set, provisions a profile against an existing
+	// certificate (by App Store Connect resource id) instead of creating a new
+	// one. No certificate is created or revoked and no P12 is written — the caller
+	// already holds the matching P12. This lets CI mint per-bundle profiles in
+	// parallel against one shared, pre-provisioned certificate.
+	CertificateID string
 }
 
 type PrepareAndSignResult struct {
@@ -54,6 +66,24 @@ type PrepareAssetsResult struct {
 	P12Path     string
 	ProfilePath string
 	BundleID    string
+	// CertificateID is the App Store Connect resource id of the certificate used
+	// (created, or reused via PrepareAssetsOptions.CertificateID). Store it so
+	// later profile-only provisioning can reference the same certificate.
+	CertificateID string
+}
+
+type PrepareCertificateOptions struct {
+	P12Password string
+	P12Output   string
+	Credentials AppStoreConnectCredentials
+	// RevokeExisting revokes every existing iOS Development certificate first; see
+	// PrepareAssetsOptions.RevokeExisting.
+	RevokeExisting bool
+}
+
+type PrepareCertificateResult struct {
+	P12Path       string
+	CertificateID string
 }
 
 type SignWithFilesOptions struct {
@@ -138,10 +168,6 @@ func PrepareSigningAssets(ctx context.Context, opts PrepareAssetsOptions) (Prepa
 		opts.ProfileName = fmt.Sprintf("go-ios %s %s", opts.BundleID, time.Now().UTC().Format("20060102150405"))
 	}
 
-	privateKey, csrPEM, err := GenerateCertificateRequest("go-ios " + opts.BundleID)
-	if err != nil {
-		return PrepareAssetsResult{}, err
-	}
 	client := NewAppStoreConnectClient(opts.Credentials)
 
 	bundleResourceID, err := client.EnsureBundleID(ctx, opts.BundleID, opts.BundleName)
@@ -152,34 +178,109 @@ func PrepareSigningAssets(ctx context.Context, opts PrepareAssetsOptions) (Prepa
 	if err != nil {
 		return PrepareAssetsResult{}, fmt.Errorf("failed ensuring device: %w", err)
 	}
-	certificateResourceID, certDER, err := client.CreateCertificate(ctx, csrPEM)
-	if err != nil {
-		return PrepareAssetsResult{}, fmt.Errorf("failed creating certificate: %w", err)
-	}
-	profile, err := client.CreateDevelopmentProfile(ctx, opts.ProfileName, bundleResourceID, certificateResourceID, deviceResourceID)
-	if err != nil {
-		return PrepareAssetsResult{}, fmt.Errorf("failed creating provisioning profile: %w", err)
+
+	result := PrepareAssetsResult{ProfilePath: opts.ProfileOut, BundleID: opts.BundleID, CertificateID: opts.CertificateID}
+
+	// Reuse mode: provision a profile against an existing certificate. No
+	// certificate is created/revoked and no P12 is written.
+	if opts.CertificateID == "" {
+		privateKey, csrPEM, err := GenerateCertificateRequest("go-ios " + opts.BundleID)
+		if err != nil {
+			return PrepareAssetsResult{}, err
+		}
+		if opts.RevokeExisting {
+			if err := revokeAllDevelopmentCertificates(ctx, client); err != nil {
+				return PrepareAssetsResult{}, fmt.Errorf("failed revoking existing certificates: %w", err)
+			}
+		}
+		certificateResourceID, certDER, err := client.CreateCertificate(ctx, csrPEM)
+		if err != nil {
+			return PrepareAssetsResult{}, fmt.Errorf("failed creating certificate: %w", err)
+		}
+		result.CertificateID = certificateResourceID
+
+		cert, err := x509.ParseCertificate(certDER)
+		if err != nil {
+			return PrepareAssetsResult{}, fmt.Errorf("failed parsing Apple certificate: %w", err)
+		}
+		p12, err := pkcs12.Encode(rand.Reader, privateKey, cert, nil, opts.P12Password)
+		if err != nil {
+			return PrepareAssetsResult{}, fmt.Errorf("failed encoding P12: %w", err)
+		}
+		if err := writeFile(opts.P12Output, p12, 0600); err != nil {
+			return PrepareAssetsResult{}, err
+		}
+		result.P12Path = opts.P12Output
 	}
 
-	cert, err := x509.ParseCertificate(certDER)
+	profile, err := client.CreateDevelopmentProfile(ctx, opts.ProfileName, bundleResourceID, result.CertificateID, deviceResourceID)
 	if err != nil {
-		return PrepareAssetsResult{}, fmt.Errorf("failed parsing Apple certificate: %w", err)
-	}
-	p12, err := pkcs12.Encode(rand.Reader, privateKey, cert, nil, opts.P12Password)
-	if err != nil {
-		return PrepareAssetsResult{}, fmt.Errorf("failed encoding P12: %w", err)
-	}
-	if err := writeFile(opts.P12Output, p12, 0600); err != nil {
-		return PrepareAssetsResult{}, err
+		return PrepareAssetsResult{}, fmt.Errorf("failed creating provisioning profile: %w", err)
 	}
 	if err := writeFile(opts.ProfileOut, profile, 0644); err != nil {
 		return PrepareAssetsResult{}, err
 	}
-	return PrepareAssetsResult{
-		P12Path:     opts.P12Output,
-		ProfilePath: opts.ProfileOut,
-		BundleID:    opts.BundleID,
-	}, nil
+	return result, nil
+}
+
+// PrepareCertificate creates one iOS Development certificate and writes its P12
+// (certificate + private key). Unlike PrepareSigningAssets it needs no device,
+// bundle id, or provisioning profile — it is the account-wide half of signing,
+// used to mint the shared identity that profile-only provisioning
+// (PrepareAssetsOptions.CertificateID) then reuses. Because it needs no device it
+// can run on a hosted CI runner.
+func PrepareCertificate(ctx context.Context, opts PrepareCertificateOptions) (PrepareCertificateResult, error) {
+	if opts.P12Output == "" {
+		opts.P12Output = "identity.p12"
+	}
+	privateKey, csrPEM, err := GenerateCertificateRequest("go-ios signing identity")
+	if err != nil {
+		return PrepareCertificateResult{}, err
+	}
+	client := NewAppStoreConnectClient(opts.Credentials)
+	if opts.RevokeExisting {
+		if err := revokeAllDevelopmentCertificates(ctx, client); err != nil {
+			return PrepareCertificateResult{}, fmt.Errorf("failed revoking existing certificates: %w", err)
+		}
+	}
+	certificateResourceID, certDER, err := client.CreateCertificate(ctx, csrPEM)
+	if err != nil {
+		return PrepareCertificateResult{}, fmt.Errorf("failed creating certificate: %w", err)
+	}
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		return PrepareCertificateResult{}, fmt.Errorf("failed parsing Apple certificate: %w", err)
+	}
+	p12, err := pkcs12.Encode(rand.Reader, privateKey, cert, nil, opts.P12Password)
+	if err != nil {
+		return PrepareCertificateResult{}, fmt.Errorf("failed encoding P12: %w", err)
+	}
+	if err := writeFile(opts.P12Output, p12, 0600); err != nil {
+		return PrepareCertificateResult{}, err
+	}
+	return PrepareCertificateResult{P12Path: opts.P12Output, CertificateID: certificateResourceID}, nil
+}
+
+// revokeAllDevelopmentCertificates revokes every IOS_DEVELOPMENT certificate on
+// the account. Apple permits only one current certificate of this type, and a
+// leftover one (whatever its name) blocks creating a new one, so a reliable
+// "create a fresh certificate" needs to clear them all first. Only use this on a
+// dedicated signing account — it does not discriminate by name.
+func revokeAllDevelopmentCertificates(ctx context.Context, client *AppStoreConnectClient) error {
+	certs, err := client.ListDevelopmentCertificates(ctx)
+	if err != nil {
+		return err
+	}
+	for _, cert := range certs {
+		name, _ := cert.Attributes["name"].(string)
+		displayName, _ := cert.Attributes["displayName"].(string)
+		golog.Info("revoking existing iOS Development certificate",
+			"module", logModule, "id", cert.ID, "name", name, "displayName", displayName)
+		if err := client.RevokeCertificate(ctx, cert.ID); err != nil {
+			return fmt.Errorf("revoking certificate %s: %w", cert.ID, err)
+		}
+	}
+	return nil
 }
 
 func SignWithFiles(opts SignWithFilesOptions) (SignWithFilesResult, error) {

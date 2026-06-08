@@ -98,7 +98,24 @@ func loadScreenshots(t *testing.T, udid string, n int) {
 	start := time.Now()
 	for i := 0; i < n; i++ {
 		out := filepath.Join(dir, fmt.Sprintf("shot-%d.png", i))
-		runIOSForDevice(t, udid, "screenshot", "--output="+out)
+		// Every screenshot opens a fresh RemoteXPC/RSD connection. iOS rate-limits
+		// how many can be *established* at once (the same limit the strand
+		// staggering works around), so under this test's concurrent load a setup
+		// is occasionally reset (RST/STREAM_CLOSED). Retry the establishment — the
+		// strand measures sustained throughput, not single-attempt connect odds.
+		var lastErr error
+		for attempt := 0; attempt < 4; attempt++ {
+			_, stderr, err := harness.TryRun(t, "screenshot", "--output="+out, "--udid="+udid)
+			if err == nil {
+				lastErr = nil
+				break
+			}
+			lastErr = fmt.Errorf("%v: %s", err, stderr)
+			time.Sleep(500 * time.Millisecond)
+		}
+		if lastErr != nil {
+			t.Fatalf("screenshot %d failed after retries: %v", i, lastErr)
+		}
 
 		f, err := os.Open(out)
 		if err != nil {

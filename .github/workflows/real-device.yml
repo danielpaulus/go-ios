@@ -61,6 +61,11 @@ jobs:
           GO_IOS_E2E_DEVICES: ${{ vars[matrix.devices] }}
           GO_IOS_E2E_ASC_KEY_ID: ${{ secrets.GO_IOS_E2E_ASC_KEY_ID }}
           GO_IOS_E2E_ASC_ISSUER_ID: ${{ secrets.GO_IOS_E2E_ASC_ISSUER_ID }}
+          # Shared signing identity refreshed by refresh-signing-identity.yml; the
+          # signing tests mint per-bundle profiles against it instead of creating
+          # certificates (Apple allows only one development certificate).
+          GO_IOS_E2E_SIGNING_P12_B64: ${{ secrets.GO_IOS_E2E_SIGNING_P12_B64 }}
+          GO_IOS_E2E_SIGNING_CERT_ID: ${{ secrets.GO_IOS_E2E_SIGNING_CERT_ID }}
           GO_IOS_E2E_WDA_ARTIFACT_URL: ${{ vars.GO_IOS_E2E_WDA_ARTIFACT_URL }}
           GO_IOS_E2E_DEVICEKIT_ARTIFACT_URL: ${{ vars.GO_IOS_E2E_DEVICEKIT_ARTIFACT_URL }}
           GO_IOS_E2E_WDA_BUNDLE_ID: ${{ vars.GO_IOS_E2E_WDA_BUNDLE_ID }}
@@ -79,7 +84,20 @@ jobs:
         if: ${{ !cancelled() && vars[matrix.tunnel_devices] != '' }}
         env:
           GO_IOS_E2E_DEVICES: ${{ vars[matrix.tunnel_devices] }}
-        run: go test -tags=e2e -count=1 -v ./test/e2e/tunnel/
+        # Run as root where we can (Linux with passwordless sudo) so the
+        # kernel-TUN per-device tunnel tests run instead of being skipped
+        # (creating a utun needs CAP_NET_ADMIN). Elsewhere (e.g. macOS, or no
+        # passwordless sudo) fall back to a normal run — the kernel cases skip
+        # themselves. Isolated Go caches keep root's build artifacts out of the
+        # runner user's caches.
+        run: |
+          if [ "$(uname)" = "Linux" ] && sudo -n true 2>/dev/null; then
+            sudo -E env "PATH=$PATH" \
+              GOCACHE="$RUNNER_TEMP/go-build-root" GOMODCACHE="$RUNNER_TEMP/go-mod-root" \
+              go test -tags=e2e -count=1 -v ./test/e2e/tunnel/
+          else
+            go test -tags=e2e -count=1 -v ./test/e2e/tunnel/
+          fi
 
       # Pre-iOS17 devices serve the entire go-ios feature set — including the
       # instruments/DTX commands (ps, screenshot, launch/kill) that need the

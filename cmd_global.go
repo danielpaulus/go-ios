@@ -18,7 +18,9 @@ var globalCommands = []command{
 	{
 		name: "ui",
 		match: func(args docopt.Opts) bool {
-			return boolArg(args, "ui") && !boolArg(args, "install")
+			// `ui install` and `ui run` need a device, so they are device
+			// commands; everything else under `ui` is a URL-based client command.
+			return boolArg(args, "ui") && !boolArg(args, "install") && !boolArg(args, "run")
 		},
 		run: runUICommand,
 	},
@@ -27,6 +29,15 @@ var globalCommands = []command{
 		name:  "list",
 		match: isDeviceListCommand,
 		run:   runDeviceListCommand,
+	},
+	{
+		// `sign certificate appstoreconnect` mints an account-wide certificate and
+		// needs no device, so it is global (dispatched before device resolution).
+		name: "sign certificate",
+		match: func(args docopt.Opts) bool {
+			return boolArg(args, "sign") && boolArg(args, "certificate")
+		},
+		run: runSignCertificateAppStoreConnectCommand,
 	},
 }
 
