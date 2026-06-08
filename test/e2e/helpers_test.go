@@ -8,10 +8,24 @@ package e2e_test
 import (
 	"testing"
 
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/test/e2e/harness"
 )
 
 func TestMain(m *testing.M) { harness.Main(m) }
+
+// deviceVersion returns the device's live iOS version (ProductVersion) parsed as
+// a semver, so tests can branch explicitly on it (e.g. against ios.IOS26()).
+func deviceVersion(t *testing.T, udid string) *semver.Version {
+	t.Helper()
+	m := smokeObj(t, udid, []string{"ProductVersion"}, "info")
+	raw, _ := m["ProductVersion"].(string)
+	v, err := semver.NewVersion(raw)
+	if err != nil {
+		t.Fatalf("parse ProductVersion %q: %v", raw, err)
+	}
+	return v
+}
 
 // Thin aliases so the per-command test files read cleanly.
 func runIOS(t *testing.T, args ...string) []byte { return harness.RunIOS(t, args...) }

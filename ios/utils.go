@@ -150,6 +150,10 @@ func PathExists(path string) (bool, error) {
 	return false, err
 }
 
+func IOS26() *semver.Version {
+	return semver.MustParse("26.0")
+}
+
 func IOS17() *semver.Version {
 	return semver.MustParse("17.0")
 }
