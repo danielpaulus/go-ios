@@ -69,6 +69,13 @@ func connectionAccept(cl *ConnListener, deviceID int, phonePort uint16) {
 		default:
 			clientConn, err := cl.listener.Accept()
 			if err != nil {
+				// Close() shuts the listener down, which unblocks this Accept()
+				// with net.ErrClosed. That's a clean teardown, not a failure, so
+				// don't log it as an error — just exit the accept loop.
+				if errors.Is(err, net.ErrClosed) {
+					golog.Info("closed listener successfully", "module", logModule, "deviceID", deviceID, "phonePort", phonePort)
+					return
+				}
 				golog.Error("error accepting new connection", "module", logModule, "deviceID", deviceID, "phonePort", phonePort, "error", err)
 				continue
 			}
