@@ -10,6 +10,17 @@
     "ModelNumber": "MQ0T3",
     "ConnectionType": "USB"
   },
+  "00008110-001C58C00A88401E": {
+    "ProductType": "iPhone14,6",
+    "ProductVersion": "26.5",
+    "BuildVersion": "23F77",
+    "DeviceClass": "iPhone",
+    "CPUArchitecture": "arm64e",
+    "HardwareModel": "D49AP",
+    "ProductName": "iPhone OS",
+    "ModelNumber": "MMXH3",
+    "ConnectionType": "USB"
+  },
   "00008110-001C19A43420401E": {
     "ProductType": "iPhone14,2",
     "ProductVersion": "18.4.1",
