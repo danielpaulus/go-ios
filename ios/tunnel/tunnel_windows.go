@@ -50,10 +50,13 @@ func initTUNwrapper(device Device) *tunWrapper {
 	t.buffer = make([][]byte, 1)
 	t.buffer[0] = make([]byte, mtu)
 	go func() {
-		for {
-			e := <-device.Events()
+		// Ranging over the channel exits when device.Events() is closed on
+		// disconnect; the old `for { <-device.Events() }` busy-looped on the
+		// closed channel forever, leaking this goroutine.
+		for e := range device.Events() {
 			golog.Info("tun device event", "module", logModule, "event", e)
 		}
+		golog.Info("tun device events channel closed", "module", logModule)
 	}()
 	return t
 }
