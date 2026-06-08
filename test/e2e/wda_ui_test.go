@@ -16,11 +16,15 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -38,13 +42,6 @@ const (
 )
 
 func TestUIInstallWDARunAndUI(t *testing.T) {
-	// Skipped: signing + `ui install wda` + `runtest` succeed, but WDA's HTTP
-	// server runs on the device and this test queries it at 127.0.0.1:8100
-	// without forwarding that port, so `ui status` gets "connection refused".
-	// This only surfaced once signing started running (it used to skip). The
-	// install/sign path is covered by TestUIInstallDeviceKit and
-	// TestSignCommandDeviceKit; re-enable once the WDA port is forwarded.
-	t.Skip("WDA HTTP server is not reachable without a port-forward; install coverage is in TestUIInstallDeviceKit")
 	forEachDevice(t, func(t *testing.T, udid string) {
 		bundleID := e2eEnv("GO_IOS_E2E_WDA_BUNDLE_ID")
 		if bundleID == "" {
@@ -73,7 +70,10 @@ func TestUIInstallWDARunAndUI(t *testing.T) {
 		)
 		defer stop()
 
-		wdaURL := waitForWDAURL(t, output)
+		// WDA's HTTP server runs on the device; reach it through our own port
+		// forward so the test doesn't depend on an ambient forward (the Linux
+		// runner has one on WDA's default port, the macOS runner does not).
+		wdaURL := forwardWDA(t, udid, waitForWDAURL(t, output))
 		smoke(t, udid, "ui", "status", "--driver=wda", "--wda-url="+wdaURL)
 		smoke(t, udid, "ui", "api", "--driver=wda", "--method=GET", "--http-path=/status", "--wda-url="+wdaURL)
 
@@ -81,6 +81,49 @@ func TestUIInstallWDARunAndUI(t *testing.T) {
 		runIOSForDevice(t, udid, "ui", "screenshot", "--driver=wda", "--wda-url="+wdaURL, "--output="+screenshot)
 		assertPNG(t, screenshot)
 	})
+}
+
+// forwardWDA forwards a free local port to WDA's device port (parsed from the URL
+// WDA prints) and returns a base URL the host can reach, once WDA answers over
+// it. The macOS runner has no ambient forward on WDA's port, so the test sets up
+// its own; `ios forward` works on both platforms.
+func forwardWDA(t *testing.T, udid, deviceURL string) string {
+	t.Helper()
+	u, err := url.Parse(deviceURL)
+	if err != nil {
+		t.Fatalf("parse WDA URL %q: %v", deviceURL, err)
+	}
+	devicePort := u.Port()
+	if devicePort == "" {
+		devicePort = "8100"
+	}
+
+	hostPort := freeLocalPort(t)
+	_, stop := harness.StartBackground(t, udid, syscall.SIGINT, "forward", strconv.Itoa(hostPort), devicePort)
+	t.Cleanup(stop)
+
+	localURL := fmt.Sprintf("http://127.0.0.1:%d", hostPort)
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		if _, _, err := harness.TryRun(t, "ui", "status", "--driver=wda", "--wda-url="+localURL, "--udid="+udid); err == nil {
+			return localURL
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("WDA not reachable at %s within 30s (forwarding device port %s)", localURL, devicePort)
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+func freeLocalPort(t *testing.T) int {
+	t.Helper()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("allocate local port: %v", err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	_ = l.Close()
+	return port
 }
 
 func TestUIInstallDeviceKit(t *testing.T) {
