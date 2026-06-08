@@ -74,6 +74,9 @@ func TestNeedsAutomaticTunnelInfo(t *testing.T) {
 		{name: "plain info stays tunnel-free", args: docopt.Opts{"info": true}, want: false},
 		{name: "syslog needs tunnel when available", args: docopt.Opts{"syslog": true}, want: true},
 		{name: "runtest needs tunnel on iOS 17", args: docopt.Opts{"runtest": true}, want: true},
+		{name: "devicestate needs tunnel (instruments)", args: docopt.Opts{"devicestate": true}, want: true},
+		{name: "resetlocation needs tunnel (instruments)", args: docopt.Opts{"resetlocation": true}, want: true},
+		{name: "setlocationgpx needs tunnel (instruments)", args: docopt.Opts{"setlocationgpx": true}, want: true},
 	}
 
 	for _, testCase := range testCases {

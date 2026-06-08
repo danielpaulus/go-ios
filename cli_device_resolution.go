@@ -86,17 +86,20 @@ func needsAutomaticTunnelInfo(args docopt.Opts) bool {
 
 	for _, commandName := range []string{
 		"debug",
+		"devicestate",
 		"instruments",
 		"kill",
 		"launch",
 		"memlimitoff",
 		"ostrace",
 		"ps",
+		"resetlocation",
 		"runwda",
 		"runxctest",
 		"runtest",
 		"screenshot",
 		"setlocation",
+		"setlocationgpx",
 		"syslog",
 		"sysmontap",
 	} {
