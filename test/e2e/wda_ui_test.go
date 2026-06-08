@@ -15,6 +15,7 @@ package e2e_test
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/base64"
 	"io"
 	"net/http"
 	"os"
@@ -246,12 +247,35 @@ func appStoreConnectCredentials(t *testing.T) (string, string, string) {
 	return ascKeyID, ascIssuerID, ascPrivateKey
 }
 
+// provisionSigningAssets returns a (p12, profile) pair for signing/installing
+// the given bundle. It reuses the shared signing identity refreshed by the
+// refresh-signing-identity workflow and published as secrets
+// (GO_IOS_E2E_SIGNING_P12_B64 + GO_IOS_E2E_SIGNING_CERT_ID): the P12 comes
+// straight from the secret and only a per-bundle provisioning profile is minted
+// against that existing certificate. No certificate is created here, so the
+// tests never hit Apple's "one development certificate" limit and run in
+// parallel.
 func provisionSigningAssets(t *testing.T, udid string, bundleID string, label string) (string, string) {
 	t.Helper()
 	ascKeyID, ascIssuerID, ascPrivateKey := appStoreConnectCredentials(t)
+
+	p12B64 := e2eEnv("GO_IOS_E2E_SIGNING_P12_B64")
+	certID := e2eEnv("GO_IOS_E2E_SIGNING_CERT_ID")
+	if p12B64 == "" || certID == "" {
+		t.Skip("set GO_IOS_E2E_SIGNING_P12_B64 and GO_IOS_E2E_SIGNING_CERT_ID (refreshed by the refresh-signing-identity workflow) to run signing e2e")
+	}
+	p12, err := base64.StdEncoding.DecodeString(strings.TrimSpace(p12B64))
+	if err != nil {
+		t.Fatalf("decode GO_IOS_E2E_SIGNING_P12_B64: %v", err)
+	}
+
 	tempDir := t.TempDir()
-	p12Path := filepath.Join(tempDir, strings.ToLower(strings.ReplaceAll(label, " ", "-"))+".p12")
-	profilePath := filepath.Join(tempDir, strings.ToLower(strings.ReplaceAll(label, " ", "-"))+".mobileprovision")
+	slug := strings.ToLower(strings.ReplaceAll(label, " ", "-"))
+	p12Path := filepath.Join(tempDir, slug+".p12")
+	if err := os.WriteFile(p12Path, p12, 0600); err != nil {
+		t.Fatalf("write p12: %v", err)
+	}
+	profilePath := filepath.Join(tempDir, slug+".mobileprovision")
 
 	runIOSForDevice(t, udid,
 		"sign", "provision", "appstoreconnect",
@@ -259,9 +283,8 @@ func provisionSigningAssets(t *testing.T, udid string, bundleID string, label st
 		"--bundle-name=go-ios "+label,
 		"--profile-name=go-ios "+label+" "+time.Now().UTC().Format("20060102150405"),
 		"--device-name=go-ios-e2e-"+udid,
-		"--p12password=go-ios-e2e",
-		"--p12-output="+p12Path,
 		"--profile-output="+profilePath,
+		"--certificate-id="+certID,
 		"--asc-key-id="+ascKeyID,
 		"--asc-issuer-id="+ascIssuerID,
 		"--asc-private-key="+ascPrivateKey,

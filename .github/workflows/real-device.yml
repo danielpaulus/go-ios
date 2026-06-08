@@ -61,6 +61,11 @@ jobs:
           GO_IOS_E2E_DEVICES: ${{ vars[matrix.devices] }}
           GO_IOS_E2E_ASC_KEY_ID: ${{ secrets.GO_IOS_E2E_ASC_KEY_ID }}
           GO_IOS_E2E_ASC_ISSUER_ID: ${{ secrets.GO_IOS_E2E_ASC_ISSUER_ID }}
+          # Shared signing identity refreshed by refresh-signing-identity.yml; the
+          # signing tests mint per-bundle profiles against it instead of creating
+          # certificates (Apple allows only one development certificate).
+          GO_IOS_E2E_SIGNING_P12_B64: ${{ secrets.GO_IOS_E2E_SIGNING_P12_B64 }}
+          GO_IOS_E2E_SIGNING_CERT_ID: ${{ secrets.GO_IOS_E2E_SIGNING_CERT_ID }}
           GO_IOS_E2E_WDA_ARTIFACT_URL: ${{ vars.GO_IOS_E2E_WDA_ARTIFACT_URL }}
           GO_IOS_E2E_DEVICEKIT_ARTIFACT_URL: ${{ vars.GO_IOS_E2E_DEVICEKIT_ARTIFACT_URL }}
           GO_IOS_E2E_WDA_BUNDLE_ID: ${{ vars.GO_IOS_E2E_WDA_BUNDLE_ID }}

@@ -28,6 +28,15 @@ var globalCommands = []command{
 		match: isDeviceListCommand,
 		run:   runDeviceListCommand,
 	},
+	{
+		// `sign certificate appstoreconnect` mints an account-wide certificate and
+		// needs no device, so it is global (dispatched before device resolution).
+		name: "sign certificate",
+		match: func(args docopt.Opts) bool {
+			return boolArg(args, "sign") && boolArg(args, "certificate")
+		},
+		run: runSignCertificateAppStoreConnectCommand,
+	},
 }
 
 func runListenCommand(ctx commandContext) {

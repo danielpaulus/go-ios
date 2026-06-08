@@ -139,7 +139,8 @@ Usage:
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
   ios runxctest [--xctestrun-file-path=<xctestrunFilePath>] [--log-output=<file>] [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
-  ios sign provision appstoreconnect --bundleid=<bundleid> --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> --p12-output=<p12file> --profile-output=<mobileprovision> [--p12password=<password>] [--bundle-name=<name>] [--profile-name=<name>] [--device-name=<name>] [options]
+  ios sign certificate appstoreconnect --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> [--p12-output=<p12file>] [--p12password=<password>] [--revoke-existing] [options]
+  ios sign provision appstoreconnect --bundleid=<bundleid> --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> --profile-output=<mobileprovision> [--p12-output=<p12file>] [--certificate-id=<id>] [--revoke-existing] [--p12password=<password>] [--bundle-name=<name>] [--profile-name=<name>] [--device-name=<name>] [options]
   ios sign app --path=<ipaOrAppFolder> --p12file=<p12file> --profile=<mobileprovision> [--p12password=<password>] [--output=<signedPath>] [--bundleid=<bundleid>] [--install] [options]
   ios setlocation [options] [--lat=<lat>] [--lon=<lon>]
   ios setlocationgpx [options] [--gpxfilepath=<gpxfilepath>]
@@ -213,6 +214,8 @@ Options:
                             App Store Connect API issuer id. Can also be set via GO_IOS_ASC_ISSUER_ID.
   --asc-private-key=<p8file>
                             App Store Connect API .p8 private key path. Can also be set via GO_IOS_ASC_PRIVATE_KEY.
+  --revoke-existing         Revoke every existing iOS Development certificate before creating a new one. Apple allows only one current development certificate, so set this to keep provisioning repeatable (use only on a dedicated signing account, e.g. CI).
+  --certificate-id=<id>     Provision a profile against an existing App Store Connect certificate (by resource id) instead of creating one. No certificate is created/revoked and no P12 is written; reuse a pre-provisioned signing identity.
   --p12file=<p12file>       P12 identity file path.
   --profile=<mobileprovision>
                             Provisioning profile path for app signing.
@@ -425,7 +428,7 @@ The commands work as following:
 
     ios sign provision appstoreconnect --bundleid=<bundleid> --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> --p12-output=<p12file> --profile-output=<mobileprovision>
                                                                     Creates an iOS development signing certificate, P12, and provisioning profile through App Store Connect.
-                                                                    This command does not sign an app.
+                                                                    This command does not sign an app. Pass --revoke-existing to revoke a leftover go-ios certificate first (repeatable provisioning).
 
     ios sign app --path=<ipaOrAppFolder> --p12file=<p12file> --profile=<mobileprovision>
                                                                     Resigns the IPA or .app with go-codesign using local signing files,

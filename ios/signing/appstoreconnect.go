@@ -169,6 +169,25 @@ func (c *AppStoreConnectClient) CreateCertificate(ctx context.Context, csrPEM []
 	return resp.Data.ID, certDER, nil
 }
 
+// ListDevelopmentCertificates returns the account's IOS_DEVELOPMENT certificates.
+// Apple allows only one current certificate of this type, so listing is used to
+// revoke an existing one before creating a fresh certificate.
+func (c *AppStoreConnectClient) ListDevelopmentCertificates(ctx context.Context) ([]jsonAPIResource, error) {
+	var list jsonAPIListResponse
+	q := url.Values{}
+	q.Set("filter[certificateType]", "IOS_DEVELOPMENT")
+	q.Set("limit", "200")
+	if err := c.do(ctx, http.MethodGet, "/v1/certificates?"+q.Encode(), nil, &list); err != nil {
+		return nil, err
+	}
+	return list.Data, nil
+}
+
+// RevokeCertificate revokes (deletes) the certificate with the given resource ID.
+func (c *AppStoreConnectClient) RevokeCertificate(ctx context.Context, id string) error {
+	return c.do(ctx, http.MethodDelete, "/v1/certificates/"+url.PathEscape(id), nil, nil)
+}
+
 func (c *AppStoreConnectClient) CreateDevelopmentProfile(ctx context.Context, name, bundleID, certID, deviceID string) ([]byte, error) {
 	req := map[string]interface{}{
 		"data": map[string]interface{}{
