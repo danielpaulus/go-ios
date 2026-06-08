@@ -57,3 +57,30 @@ func TestTunnelCommandMatcher(t *testing.T) {
 		t.Fatal("non-tunnel command matched")
 	}
 }
+
+func TestNeedsAutomaticTunnelInfo(t *testing.T) {
+	testCases := []struct {
+		name string
+		args docopt.Opts
+		want bool
+	}{
+		{name: "zoom stays tunnel-free", args: docopt.Opts{"zoom": true}, want: false},
+		{name: "voiceover stays tunnel-free", args: docopt.Opts{"voiceover": true}, want: false},
+		{name: "assistivetouch stays tunnel-free", args: docopt.Opts{"assistivetouch": true}, want: false},
+		{name: "timeformat stays tunnel-free", args: docopt.Opts{"timeformat": true}, want: false},
+		{name: "file needs tunnel", args: docopt.Opts{"file": true}, want: true},
+		{name: "rsd needs tunnel", args: docopt.Opts{"rsd": true}, want: true},
+		{name: "display info needs tunnel", args: docopt.Opts{"info": true, "display": true}, want: true},
+		{name: "plain info stays tunnel-free", args: docopt.Opts{"info": true}, want: false},
+		{name: "syslog needs tunnel when available", args: docopt.Opts{"syslog": true}, want: true},
+		{name: "runtest needs tunnel on iOS 17", args: docopt.Opts{"runtest": true}, want: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := needsAutomaticTunnelInfo(testCase.args); got != testCase.want {
+				t.Fatalf("needsAutomaticTunnelInfo() = %t, want %t", got, testCase.want)
+			}
+		})
+	}
+}
