@@ -59,7 +59,9 @@ jobs:
         run: make build --trace
 
       - name: Run unit tests
-        run: go test ./...
+        # -race so the data-race detector runs in CI (e.g. the TunnelManager
+        # mutex test). cgo is already on for libusb, so the detector is supported.
+        run: go test -race ./...
 
       - name: Verify code formatting
         run: test -z "$(gofmt -l .)"
