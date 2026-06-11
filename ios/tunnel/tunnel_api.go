@@ -456,7 +456,7 @@ func (m *TunnelManager) RunDeviceDiscovery(ctx context.Context) {
 	refresh := func() {
 		discoverCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
-		devices := discovery.Discover(discoverCtx, m.tunnelInfos())
+		devices := discovery.Discover(discoverCtx, m.tunnelInfos(), false)
 		m.deviceCacheMux.Lock()
 		m.deviceCache = devices
 		m.deviceCacheMux.Unlock()

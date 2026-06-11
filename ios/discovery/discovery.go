@@ -114,11 +114,19 @@ func MergeDevices(usbmux []ios.DeviceEntry, bonjour []ios.RemotedDevice, tunnels
 	return result
 }
 
-// Discover gathers devices from usbmux and Bonjour/remoted (both best-effort)
-// and merges them with the supplied running tunnels. Each source failure is
-// logged and skipped; Discover never returns an error that aborts the listing —
-// it returns whatever it managed to merge. The Bonjour browse is bounded by ctx.
-func Discover(ctx context.Context, tunnels []TunnelInfo) []Device {
+// Discover gathers devices from usbmux and (optionally) Bonjour/remoted, both
+// best-effort, and merges them with the supplied running tunnels. Each source
+// failure is logged and skipped; Discover never returns an error that aborts the
+// listing — it returns whatever it managed to merge. The Bonjour browse is
+// bounded by ctx.
+//
+// browseBonjour MUST be false for any caller that already holds an RSD/tunnel
+// session to the devices (notably the running tunnel agent): a device allows
+// only one RemoteXPC/RSD session at a time, so a second handshake from the
+// Bonjour browse is RST'd by the device (see issue #724) and, run repeatedly,
+// can destabilise the agent's own tunnels. The ad-hoc CLI path sets it true
+// because it only runs when no agent holds a session.
+func Discover(ctx context.Context, tunnels []TunnelInfo, browseBonjour bool) []Device {
 	var usbmux []ios.DeviceEntry
 	deviceList, err := ios.ListDevices()
 	if err != nil {
@@ -127,10 +135,13 @@ func Discover(ctx context.Context, tunnels []TunnelInfo) []Device {
 		usbmux = deviceList.DeviceList
 	}
 
-	bonjour, err := ios.BrowseRemoted(ctx)
-	if err != nil {
-		golog.Debug("failed to browse remoted devices, continuing", "module", logModule, "err", err)
-		bonjour = nil
+	var bonjour []ios.RemotedDevice
+	if browseBonjour {
+		bonjour, err = ios.BrowseRemoted(ctx)
+		if err != nil {
+			golog.Debug("failed to browse remoted devices, continuing", "module", logModule, "err", err)
+			bonjour = nil
+		}
 	}
 
 	return MergeDevices(usbmux, bonjour, tunnels)

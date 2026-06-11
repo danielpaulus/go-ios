@@ -41,7 +41,7 @@ func printMergedDeviceList(details bool, adhoc bool, cfg tunnelInfoConfig) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		merged = discovery.Discover(ctx, tunnels)
+		merged = discovery.Discover(ctx, tunnels, true)
 	}
 
 	if details {
