@@ -1,151 +1,133 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
-	"sort"
+	"net/http"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/discovery"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 )
 
-// Transport describes one way a discovered device is reachable.
-type Transport struct {
-	Type                string `json:"type"`   // "usb" | "network" | "tunnel"
-	Source              string `json:"source"` // "usbmux" | "tunnel-agent"
-	Address             string `json:"address,omitempty"`
-	RsdPort             int    `json:"rsdPort,omitempty"`
-	UserspaceTunnelPort int    `json:"userspaceTunnelPort,omitempty"`
-}
+// printMergedDeviceList lists all devices merged across discovery sources. It
+// prefers the warm path: a running `ios tunnel start` agent serving GET /devices
+// is queried first (short timeout). If the agent is unavailable (or --adhoc is
+// set), it falls back to discovering ad-hoc itself, folding in any running
+// tunnels reported by the agent's /tunnels endpoint. With --details, usb/network
+// devices are enriched with lockdown values. Output is a human table (--nojson)
+// or JSON.
+func printMergedDeviceList(details bool, adhoc bool, cfg tunnelInfoConfig) {
+	var merged []discovery.Device
 
-// DiscoveredDevice is a single device merged from all discovery sources, keyed by udid.
-type DiscoveredDevice struct {
-	Udid           string      `json:"udid"`
-	ProductType    string      `json:"productType,omitempty"`
-	ProductVersion string      `json:"productVersion,omitempty"`
-	ProductName    string      `json:"productName,omitempty"`
-	Transports     []Transport `json:"transports"`
-}
-
-// mergeDiscoveredDevices merges usbmux entries and tunnel-agent tunnels into one
-// DiscoveredDevice per udid, with usbmux transport(s) listed before tunnel ones.
-// It is pure (no I/O) and returns devices sorted by udid for deterministic output.
-func mergeDiscoveredDevices(usbmux []ios.DeviceEntry, tunnels []tunnel.Tunnel) []DiscoveredDevice {
-	byUdid := map[string]*DiscoveredDevice{}
-	var order []string
-
-	get := func(udid string) *DiscoveredDevice {
-		if d, ok := byUdid[udid]; ok {
-			return d
+	if !adhoc {
+		if devices, ok := devicesFromAgent(cfg); ok {
+			merged = devices
 		}
-		d := &DiscoveredDevice{Udid: udid}
-		byUdid[udid] = d
-		order = append(order, udid)
-		return d
 	}
 
-	for _, entry := range usbmux {
-		udid := entry.Properties.SerialNumber
-		if udid == "" {
-			continue
+	if merged == nil {
+		var tunnels []discovery.TunnelInfo
+		running, err := tunnel.ListRunningTunnels(cfg.Host, cfg.Port)
+		if err != nil {
+			slog.Debug("failed to list running tunnels, continuing without tunnel sources", "err", err)
+		} else {
+			tunnels = tunnelInfosFromTunnels(running)
 		}
-		d := get(udid)
-		d.Transports = append(d.Transports, Transport{
-			Type:   usbmuxTransportType(entry),
-			Source: "usbmux",
-		})
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		merged = discovery.Discover(ctx, tunnels)
 	}
-
-	for _, t := range tunnels {
-		if t.Udid == "" {
-			continue
-		}
-		d := get(t.Udid)
-		d.Transports = append(d.Transports, Transport{
-			Type:                "tunnel",
-			Source:              "tunnel-agent",
-			Address:             t.Address,
-			RsdPort:             t.RsdPort,
-			UserspaceTunnelPort: t.UserspaceTUNPort,
-		})
-	}
-
-	result := make([]DiscoveredDevice, 0, len(order))
-	for _, udid := range order {
-		result = append(result, *byUdid[udid])
-	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Udid < result[j].Udid
-	})
-	return result
-}
-
-// usbmuxTransportType maps a usbmux device's connection type to a transport type.
-// usbmuxd's default (empty connection type) is a USB connection.
-func usbmuxTransportType(entry ios.DeviceEntry) string {
-	switch entry.Properties.ConnectionType {
-	case "USB":
-		return "usb"
-	case "Network":
-		return "network"
-	case "":
-		return "usb"
-	default:
-		return strings.ToLower(entry.ConnectionTypeLabel())
-	}
-}
-
-// printMergedDeviceList fetches devices from usbmux and the tunnel agent, merges
-// them by udid, optionally enriches usb/network devices with lockdown values, and
-// prints either a human table (--nojson) or JSON.
-func printMergedDeviceList(details bool, cfg tunnelInfoConfig) {
-	deviceList, err := ios.ListDevices()
-	exitIfError("failed getting device list", err)
-
-	tunnels, err := tunnel.ListRunningTunnels(cfg.Host, cfg.Port)
-	if err != nil {
-		slog.Debug("failed to list running tunnels, continuing without tunnel sources", "err", err)
-		tunnels = nil
-	}
-
-	merged := mergeDiscoveredDevices(deviceList.DeviceList, tunnels)
 
 	if details {
-		entryByUdid := map[string]ios.DeviceEntry{}
-		for _, entry := range deviceList.DeviceList {
-			entryByUdid[entry.Properties.SerialNumber] = entry
-		}
-		for i := range merged {
-			if !hasLocalTransport(merged[i]) {
-				continue
-			}
-			entry, ok := entryByUdid[merged[i].Udid]
-			if !ok {
-				continue
-			}
-			allValues, err := ios.GetValues(entry)
-			if err != nil {
-				slog.Debug("failed getting values for device", "udid", merged[i].Udid, "err", err)
-				continue
-			}
-			merged[i].ProductType = allValues.Value.ProductType
-			merged[i].ProductVersion = allValues.Value.ProductVersion
-			merged[i].ProductName = allValues.Value.ProductName
-		}
+		enrichLocalDevices(merged)
 	}
 
 	if JSONdisabled {
 		fmt.Print(renderDeviceTable(merged))
 	} else {
-		fmt.Println(convertToJSONString(map[string][]DiscoveredDevice{"devices": merged}))
+		fmt.Println(convertToJSONString(map[string][]discovery.Device{"devices": merged}))
+	}
+}
+
+// devicesFromAgent fetches the warm device list from a running tunnel agent's
+// GET /devices endpoint with a short timeout. It returns (devices, true) on a
+// successful 200 + JSON response, and (nil, false) if the agent is unavailable
+// or returns an error, signalling the caller to fall back to ad-hoc discovery.
+func devicesFromAgent(cfg tunnelInfoConfig) ([]discovery.Device, bool) {
+	c := http.Client{Timeout: 1 * time.Second}
+	resp, err := c.Get(fmt.Sprintf("http://%s:%d/devices", cfg.Host, cfg.Port))
+	if err != nil {
+		slog.Debug("tunnel agent /devices unavailable, falling back to ad-hoc discovery", "err", err)
+		return nil, false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		slog.Debug("tunnel agent /devices returned non-200, falling back to ad-hoc discovery", "status", resp.StatusCode)
+		return nil, false
+	}
+	var devices []discovery.Device
+	if err := json.NewDecoder(resp.Body).Decode(&devices); err != nil {
+		slog.Debug("failed to decode tunnel agent /devices response, falling back to ad-hoc discovery", "err", err)
+		return nil, false
+	}
+	return devices, true
+}
+
+// tunnelInfosFromTunnels maps tunnel-agent tunnels to the plain TunnelInfo input
+// the discovery package consumes.
+func tunnelInfosFromTunnels(tunnels []tunnel.Tunnel) []discovery.TunnelInfo {
+	infos := make([]discovery.TunnelInfo, 0, len(tunnels))
+	for _, t := range tunnels {
+		infos = append(infos, discovery.TunnelInfo{
+			Udid:                t.Udid,
+			Address:             t.Address,
+			RsdPort:             t.RsdPort,
+			UserspaceTunnelPort: t.UserspaceTUNPort,
+		})
+	}
+	return infos
+}
+
+// enrichLocalDevices fills in product info for devices reachable over usb or
+// network by querying lockdown values (best-effort).
+func enrichLocalDevices(devices []discovery.Device) {
+	deviceList, err := ios.ListDevices()
+	if err != nil {
+		slog.Debug("failed getting device list for enrichment", "err", err)
+		return
+	}
+	entryByUdid := map[string]ios.DeviceEntry{}
+	for _, entry := range deviceList.DeviceList {
+		entryByUdid[entry.Properties.SerialNumber] = entry
+	}
+	for i := range devices {
+		if !hasLocalTransport(devices[i]) {
+			continue
+		}
+		entry, ok := entryByUdid[devices[i].Udid]
+		if !ok {
+			continue
+		}
+		allValues, err := ios.GetValues(entry)
+		if err != nil {
+			slog.Debug("failed getting values for device", "udid", devices[i].Udid, "err", err)
+			continue
+		}
+		devices[i].ProductType = allValues.Value.ProductType
+		devices[i].ProductVersion = allValues.Value.ProductVersion
+		devices[i].ProductName = allValues.Value.ProductName
 	}
 }
 
 // hasLocalTransport reports whether the device is reachable over usb or network
 // (i.e. a usbmux source we can query lockdown values from).
-func hasLocalTransport(d DiscoveredDevice) bool {
+func hasLocalTransport(d discovery.Device) bool {
 	for _, t := range d.Transports {
 		if t.Type == "usb" || t.Type == "network" {
 			return true
@@ -156,7 +138,7 @@ func hasLocalTransport(d DiscoveredDevice) bool {
 
 // renderDeviceTable renders devices as a human-readable, column-aligned table.
 // It is pure (no I/O) and returns the table as a string.
-func renderDeviceTable(devices []DiscoveredDevice) string {
+func renderDeviceTable(devices []discovery.Device) string {
 	var sb strings.Builder
 	w := tabwriter.NewWriter(&sb, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "UDID\tMODEL\tOS\tVIA\tADDRESS")
@@ -181,7 +163,7 @@ func dashIfEmpty(s string) string {
 }
 
 // transportVia joins transport types with commas (e.g. "usb,tunnel").
-func transportVia(transports []Transport) string {
+func transportVia(transports []discovery.Transport) string {
 	types := make([]string, len(transports))
 	for i, t := range transports {
 		types[i] = t.Type
@@ -191,7 +173,7 @@ func transportVia(transports []Transport) string {
 
 // transportAddress returns "<address>:<rsdPort>" for the first transport that
 // carries an address, or "-" if none do.
-func transportAddress(transports []Transport) string {
+func transportAddress(transports []discovery.Transport) string {
 	for _, t := range transports {
 		if t.Address != "" {
 			return fmt.Sprintf("%s:%d", t.Address, t.RsdPort)

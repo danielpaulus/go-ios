@@ -67,5 +67,6 @@ func runDeviceListCommand(ctx commandContext) {
 		printDeviceList(details) // legacy path, unchanged output
 		return
 	}
-	printMergedDeviceList(details, tunnelInfoConfigFromArgs(ctx.Args))
+	adhoc, _ := ctx.Args.Bool("--adhoc")
+	printMergedDeviceList(details, adhoc, tunnelInfoConfigFromArgs(ctx.Args))
 }
