@@ -17,18 +17,17 @@ import (
 
 // printMergedDeviceList lists all devices merged across discovery sources. It
 // prefers the warm path: a running `ios tunnel start` agent serving GET /devices
-// is queried first (short timeout). If the agent is unavailable (or --adhoc is
-// set), it falls back to discovering ad-hoc itself, folding in any running
-// tunnels reported by the agent's /tunnels endpoint. With --details, usb/network
-// devices are enriched with lockdown values. Output is a human table (--nojson)
-// or JSON.
-func printMergedDeviceList(details bool, adhoc bool, includeWifiPairing bool, cfg tunnelInfoConfig) {
+// is queried first (short timeout). If the agent is unavailable, it falls back
+// to discovering ad-hoc itself, folding in any running tunnels reported by the
+// agent's /tunnels endpoint. Wi-Fi remote-pairing candidates are added so `list`
+// reflects devices Xcode can see even before go-ios has a usable transport. With
+// --details, usb/network devices are enriched with lockdown values. Output is a
+// human table (--nojson) or JSON.
+func printMergedDeviceList(details bool, cfg tunnelInfoConfig) {
 	var merged []discovery.Device
 
-	if !adhoc {
-		if devices, ok := devicesFromAgent(cfg); ok {
-			merged = devices
-		}
+	if devices, ok := devicesFromAgent(cfg); ok {
+		merged = devices
 	}
 
 	if merged == nil {
@@ -44,12 +43,10 @@ func printMergedDeviceList(details bool, adhoc bool, includeWifiPairing bool, cf
 		merged = discovery.Discover(ctx, tunnels, true)
 	}
 
-	if includeWifiPairing {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		merged = discovery.MergeCandidates(merged, discoverCoreDeviceWifiPairing(ctx))
-		merged = discovery.MergeWifiPairing(merged, discovery.DiscoverWifiPairing(ctx))
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	merged = discovery.MergeCandidates(merged, discoverCoreDeviceWifiPairing(ctx))
+	merged = discovery.MergeWifiPairing(merged, discovery.DiscoverWifiPairing(ctx))
 
 	if details {
 		enrichLocalDevices(merged)

@@ -145,7 +145,7 @@ commands:
     usage: ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
     summary: Launch app by bundle ID.
   - path: list
-    usage: ios list [options] [--details] [--usbmuxd-only] [--adhoc] [--wifi]
+    usage: ios list [options] [--details] [--usbmuxd-only]
     summary: List connected devices.
   - path: listen
     usage: ios listen [options]

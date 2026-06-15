@@ -114,7 +114,7 @@ Usage:
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
-  ios list [options] [--details] [--usbmuxd-only] [--adhoc] [--wifi]
+  ios list [options] [--details] [--usbmuxd-only]
   ios listen [options]
   ios lockdown get [<key>] [--domain=<domain>] [options]
   ios memlimitoff (--process=<processName>) [options]
@@ -224,8 +224,6 @@ Options:
   --wda-url=<url>           WebDriverAgent base URL. Defaults to http://127.0.0.1:8100 or GO_IOS_WDA_URL.
   --devicekit-url=<url>     DeviceKit base URL. Defaults to http://127.0.0.1:12004 or GO_IOS_DEVICEKIT_URL.
   --usbmuxd-only            Only discover devices via usbmuxd (legacy behaviour, original output format).
-  --adhoc                   For 'list': skip the running tunnel agent and discover devices ad-hoc (usbmux + Bonjour).
-  --wifi                    For 'list': also show Wi-Fi remote-pairing candidates that may not be paired yet.
 
 The commands work as following:
   The default output of all commands is JSON. Should you prefer human readable outout, specify the --nojson option with your command.
@@ -346,7 +344,7 @@ The commands work as following:
                                                                        Launch app with the bundleID on the device. Get your bundle ID from the apps command.
                                                                        --wait keeps the connection open if you want logs.
 
-    ios list [options] [--details] [--usbmuxd-only] [--adhoc] [--wifi]           Prints a list of all connected device's udids.
+    ios list [options] [--details] [--usbmuxd-only]                    Prints a list of all connected device's udids.
                                                                        If --details is specified, it includes version, name and model of each device.
 
     ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
