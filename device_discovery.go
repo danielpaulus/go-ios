@@ -16,37 +16,55 @@ import (
 )
 
 // printMergedDeviceList lists all devices merged across discovery sources. It
-// prefers the warm path: a running `ios tunnel start` agent serving GET /devices
-// is queried first (short timeout). If the agent is unavailable, it falls back
-// to discovering ad-hoc itself, folding in any running tunnels reported by the
-// agent's /tunnels endpoint. Wi-Fi remote-pairing candidates are added so `list`
-// reflects devices Xcode can see even before go-ios has a usable transport. With
+// starts the warm path (a running `ios tunnel start` agent serving GET /devices)
+// and ad-hoc discovery in parallel. If the agent returns a usable list, the
+// ad-hoc result is discarded; otherwise the ad-hoc result is used. Wi-Fi
+// remote-pairing candidates are discovered in parallel too, so `list` reflects
+// devices Xcode can see even before go-ios has a usable transport. With
 // --details, usb/network devices are enriched with lockdown values. Output is a
 // human table (--nojson) or JSON.
 func printMergedDeviceList(details bool, cfg tunnelInfoConfig) {
-	var merged []discovery.Device
+	adHocCtx, cancelAdHoc := context.WithCancel(context.Background())
+	defer cancelAdHoc()
 
-	if devices, ok := devicesFromAgent(cfg); ok {
-		merged = devices
-	}
+	agentCh := make(chan agentDeviceResult, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		devices, ok := devicesFromAgent(ctx, cfg)
+		agentCh <- agentDeviceResult{devices: devices, ok: ok}
+	}()
 
-	if merged == nil {
-		var tunnels []discovery.TunnelInfo
-		running, err := tunnel.ListRunningTunnels(cfg.Host, cfg.Port)
-		if err != nil {
-			slog.Debug("failed to list running tunnels, continuing without tunnel sources", "err", err)
-		} else {
-			tunnels = tunnelInfosFromTunnels(running)
-		}
+	adHocCh := make(chan []discovery.Device, 1)
+	go func() {
+		adHocCh <- discoverAdHocDevices(adHocCtx, cfg)
+	}()
+
+	coreDeviceWifiCh := make(chan []discovery.Device, 1)
+	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		merged = discovery.Discover(ctx, tunnels, true)
+		coreDeviceWifiCh <- discoverCoreDeviceWifiPairing(ctx)
+	}()
+
+	bonjourWifiCh := make(chan []ios.WifiPairingDevice, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		bonjourWifiCh <- discovery.DiscoverWifiPairing(ctx)
+	}()
+
+	agent := <-agentCh
+	var merged []discovery.Device
+	if agent.ok {
+		merged = agent.devices
+		cancelAdHoc()
+	} else {
+		merged = <-adHocCh
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	merged = discovery.MergeCandidates(merged, discoverCoreDeviceWifiPairing(ctx))
-	merged = discovery.MergeWifiPairing(merged, discovery.DiscoverWifiPairing(ctx))
+	merged = discovery.MergeCandidates(merged, <-coreDeviceWifiCh)
+	merged = discovery.MergeWifiPairing(merged, <-bonjourWifiCh)
 
 	if details {
 		enrichLocalDevices(merged)
@@ -59,13 +77,36 @@ func printMergedDeviceList(details bool, cfg tunnelInfoConfig) {
 	}
 }
 
+type agentDeviceResult struct {
+	devices []discovery.Device
+	ok      bool
+}
+
+func discoverAdHocDevices(ctx context.Context, cfg tunnelInfoConfig) []discovery.Device {
+	var tunnels []discovery.TunnelInfo
+	running, err := tunnel.ListRunningTunnels(cfg.Host, cfg.Port)
+	if err != nil {
+		slog.Debug("failed to list running tunnels, continuing without tunnel sources", "err", err)
+	} else {
+		tunnels = tunnelInfosFromTunnels(running)
+	}
+	discoverCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	return discovery.Discover(discoverCtx, tunnels, true)
+}
+
 // devicesFromAgent fetches the warm device list from a running tunnel agent's
 // GET /devices endpoint with a short timeout. It returns (devices, true) on a
 // successful 200 + JSON response, and (nil, false) if the agent is unavailable
 // or returns an error, signalling the caller to fall back to ad-hoc discovery.
-func devicesFromAgent(cfg tunnelInfoConfig) ([]discovery.Device, bool) {
-	c := http.Client{Timeout: 1 * time.Second}
-	resp, err := c.Get(fmt.Sprintf("http://%s:%d/devices", cfg.Host, cfg.Port))
+func devicesFromAgent(ctx context.Context, cfg tunnelInfoConfig) ([]discovery.Device, bool) {
+	c := http.Client{}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://%s:%d/devices", cfg.Host, cfg.Port), nil)
+	if err != nil {
+		slog.Debug("failed to create tunnel agent /devices request, falling back to ad-hoc discovery", "err", err)
+		return nil, false
+	}
+	resp, err := c.Do(req)
 	if err != nil {
 		slog.Debug("tunnel agent /devices unavailable, falling back to ad-hoc discovery", "err", err)
 		return nil, false
