@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/danielpaulus/go-ios/ios/golog"
@@ -16,6 +17,18 @@ type RemotedDevice struct {
 	Udid    string
 	Address string // "<ip6>%<iface>"
 	RsdPort int
+}
+
+// WifiPairingDevice is a device advertised for CoreDevice remote pairing over
+// Bonjour. It may not expose a UDID until it is paired; Identifier is the
+// remote-pairing/CoreDevice identifier from the TXT record or service name.
+type WifiPairingDevice struct {
+	Identifier string
+	Name       string
+	Model      string
+	Service    string
+	Address    string
+	Port       int
 }
 
 // BrowseRemoted discovers all devices reachable over a RemoteServiceDiscovery
@@ -83,6 +96,102 @@ func BrowseRemoted(ctx context.Context) ([]RemotedDevice, error) {
 		result = append(result, d)
 	}
 	return result, nil
+}
+
+// BrowseWifiPairing discovers devices advertising CoreDevice remote-pairing
+// services. These entries are not necessarily usable by go-ios yet; they are
+// pairable/known Wi-Fi candidates surfaced so users can see what Xcode sees.
+func BrowseWifiPairing(ctx context.Context) ([]WifiPairingDevice, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, fmt.Errorf("BrowseWifiPairing: failed to get network interfaces: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var mu sync.Mutex
+	byID := map[string]WifiPairingDevice{}
+	var wg sync.WaitGroup
+	for _, iface := range ifaces {
+		for _, service := range []string{"_remotepairing-manual-pairing._tcp", "_remotepairing._tcp"} {
+			resolver, err := zeroconf.NewResolver(zeroconf.SelectIfaces([]net.Interface{iface}))
+			if err != nil {
+				golog.Debug("failed to initialize resolver", "module", logModule, "interface", iface.Name, "service", service, "err", err)
+				continue
+			}
+			entries := make(chan *zeroconf.ServiceEntry)
+			if err := resolver.Browse(ctx, service, "local.", entries); err != nil {
+				golog.Debug("failed to browse wifi pairing service", "module", logModule, "interface", iface.Name, "service", service, "err", err)
+				continue
+			}
+			wg.Add(1)
+			go func(service string, entries chan *zeroconf.ServiceEntry) {
+				defer wg.Done()
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case entry := <-entries:
+						if entry == nil {
+							continue
+						}
+						dev := wifiPairingDeviceFromEntry(entry, service)
+						if dev.Identifier == "" {
+							continue
+						}
+						mu.Lock()
+						existing, exists := byID[dev.Identifier]
+						if !exists || existing.Name == "" {
+							byID[dev.Identifier] = dev
+						}
+						mu.Unlock()
+					}
+				}
+			}(service, entries)
+		}
+	}
+
+	<-ctx.Done()
+	wg.Wait()
+
+	result := make([]WifiPairingDevice, 0, len(byID))
+	for _, d := range byID {
+		result = append(result, d)
+	}
+	return result, nil
+}
+
+func wifiPairingDeviceFromEntry(entry *zeroconf.ServiceEntry, service string) WifiPairingDevice {
+	txt := txtRecordMap(entry.Text)
+	identifier := txt["identifier"]
+	if identifier == "" {
+		identifier = entry.Instance
+	}
+	address := entry.HostName
+	if address != "" && entry.Port > 0 {
+		address = fmt.Sprintf("%s:%d", address, entry.Port)
+	}
+	return WifiPairingDevice{
+		Identifier: identifier,
+		Name:       txt["name"],
+		Model:      txt["model"],
+		Service:    service,
+		Address:    address,
+		Port:       entry.Port,
+	}
+}
+
+func txtRecordMap(records []string) map[string]string {
+	result := map[string]string{}
+	for _, record := range records {
+		key, value, ok := strings.Cut(record, "=")
+		if !ok {
+			continue
+		}
+		result[key] = value
+	}
+	return result
 }
 
 // handshakeRemoted RSD-handshakes a single discovered remoted address to read

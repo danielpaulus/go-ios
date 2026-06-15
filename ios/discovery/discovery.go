@@ -32,6 +32,7 @@ type Transport struct {
 // Device is a single device merged from all discovery sources, keyed by udid.
 type Device struct {
 	Udid           string      `json:"udid"`
+	Identifier     string      `json:"identifier,omitempty"`
 	ProductType    string      `json:"productType,omitempty"`
 	ProductVersion string      `json:"productVersion,omitempty"`
 	ProductName    string      `json:"productName,omitempty"`
@@ -114,6 +115,82 @@ func MergeDevices(usbmux []ios.DeviceEntry, bonjour []ios.RemotedDevice, tunnels
 	return result
 }
 
+// MergeWifiPairing appends Wi-Fi remote-pairing candidates that are not already
+// represented by a usable device. Pairing candidates often do not expose a UDID,
+// so Identifier is used as their stable display key.
+func MergeWifiPairing(devices []Device, wifi []ios.WifiPairingDevice) []Device {
+	seen := map[string]bool{}
+	seenPairingLabel := map[string]bool{}
+	for _, d := range devices {
+		if d.Udid != "" {
+			seen[d.Udid] = true
+		}
+		if d.Identifier != "" {
+			seen[d.Identifier] = true
+		}
+		if label := pairingLabel(d.ProductName, d.ProductType); label != "" {
+			seenPairingLabel[label] = true
+		}
+	}
+	for _, w := range wifi {
+		label := pairingLabel(w.Name, w.Model)
+		if w.Identifier == "" || seen[w.Identifier] || (label != "" && seenPairingLabel[label]) {
+			continue
+		}
+		seen[w.Identifier] = true
+		if label != "" {
+			seenPairingLabel[label] = true
+		}
+		devices = append(devices, Device{
+			Identifier:  w.Identifier,
+			ProductType: w.Model,
+			ProductName: w.Name,
+			Transports: []Transport{{
+				Type:    "wifi-pairing",
+				Source:  "bonjour",
+				Address: w.Address,
+			}},
+		})
+	}
+	sort.Slice(devices, func(i, j int) bool {
+		return deviceSortKey(devices[i]) < deviceSortKey(devices[j])
+	})
+	return devices
+}
+
+// MergeCandidates appends already-normalized device candidates, skipping any
+// entry whose UDID or identifier is already represented.
+func MergeCandidates(devices []Device, candidates []Device) []Device {
+	seen := map[string]bool{}
+	for _, d := range devices {
+		if d.Udid != "" {
+			seen[d.Udid] = true
+		}
+		if d.Identifier != "" {
+			seen[d.Identifier] = true
+		}
+	}
+	for _, c := range candidates {
+		if c.Udid == "" && c.Identifier == "" {
+			continue
+		}
+		if (c.Udid != "" && seen[c.Udid]) || (c.Identifier != "" && seen[c.Identifier]) {
+			continue
+		}
+		if c.Udid != "" {
+			seen[c.Udid] = true
+		}
+		if c.Identifier != "" {
+			seen[c.Identifier] = true
+		}
+		devices = append(devices, c)
+	}
+	sort.Slice(devices, func(i, j int) bool {
+		return deviceSortKey(devices[i]) < deviceSortKey(devices[j])
+	})
+	return devices
+}
+
 // Discover gathers devices from usbmux and (optionally) Bonjour/remoted, both
 // best-effort, and merges them with the supplied running tunnels. Each source
 // failure is logged and skipped; Discover never returns an error that aborts the
@@ -147,6 +224,16 @@ func Discover(ctx context.Context, tunnels []TunnelInfo, browseBonjour bool) []D
 	return MergeDevices(usbmux, bonjour, tunnels)
 }
 
+// DiscoverWifiPairing gathers remote-pairing Bonjour candidates.
+func DiscoverWifiPairing(ctx context.Context) []ios.WifiPairingDevice {
+	wifi, err := ios.BrowseWifiPairing(ctx)
+	if err != nil {
+		golog.Debug("failed to browse wifi pairing devices, continuing", "module", logModule, "err", err)
+		return nil
+	}
+	return wifi
+}
+
 // usbmuxTransportType maps a usbmux device's connection type to a transport type.
 // usbmuxd's default (empty connection type) is a USB connection.
 func usbmuxTransportType(entry ios.DeviceEntry) string {
@@ -160,4 +247,18 @@ func usbmuxTransportType(entry ios.DeviceEntry) string {
 	default:
 		return strings.ToLower(entry.ConnectionTypeLabel())
 	}
+}
+
+func deviceSortKey(d Device) string {
+	if d.Udid != "" {
+		return d.Udid
+	}
+	return d.Identifier
+}
+
+func pairingLabel(name, productType string) string {
+	if name == "" || productType == "" {
+		return ""
+	}
+	return name + "\x00" + productType
 }

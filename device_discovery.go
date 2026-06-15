@@ -22,7 +22,7 @@ import (
 // tunnels reported by the agent's /tunnels endpoint. With --details, usb/network
 // devices are enriched with lockdown values. Output is a human table (--nojson)
 // or JSON.
-func printMergedDeviceList(details bool, adhoc bool, cfg tunnelInfoConfig) {
+func printMergedDeviceList(details bool, adhoc bool, includeWifiPairing bool, cfg tunnelInfoConfig) {
 	var merged []discovery.Device
 
 	if !adhoc {
@@ -42,6 +42,13 @@ func printMergedDeviceList(details bool, adhoc bool, cfg tunnelInfoConfig) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		merged = discovery.Discover(ctx, tunnels, true)
+	}
+
+	if includeWifiPairing {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		merged = discovery.MergeCandidates(merged, discoverCoreDeviceWifiPairing(ctx))
+		merged = discovery.MergeWifiPairing(merged, discovery.DiscoverWifiPairing(ctx))
 	}
 
 	if details {
@@ -141,10 +148,10 @@ func hasLocalTransport(d discovery.Device) bool {
 func renderDeviceTable(devices []discovery.Device) string {
 	var sb strings.Builder
 	w := tabwriter.NewWriter(&sb, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "UDID\tMODEL\tOS\tVIA\tADDRESS")
+	fmt.Fprintln(w, "UDID/ID\tMODEL\tOS\tVIA\tADDRESS")
 	for _, d := range devices {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-			d.Udid,
+			deviceDisplayID(d),
 			dashIfEmpty(d.ProductType),
 			dashIfEmpty(d.ProductVersion),
 			transportVia(d.Transports),
@@ -153,6 +160,13 @@ func renderDeviceTable(devices []discovery.Device) string {
 	}
 	w.Flush()
 	return sb.String()
+}
+
+func deviceDisplayID(d discovery.Device) string {
+	if d.Udid != "" {
+		return d.Udid
+	}
+	return d.Identifier
 }
 
 func dashIfEmpty(s string) string {
@@ -176,6 +190,9 @@ func transportVia(transports []discovery.Transport) string {
 func transportAddress(transports []discovery.Transport) string {
 	for _, t := range transports {
 		if t.Address != "" {
+			if t.RsdPort == 0 {
+				return t.Address
+			}
 			return fmt.Sprintf("%s:%d", t.Address, t.RsdPort)
 		}
 	}

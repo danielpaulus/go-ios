@@ -123,3 +123,67 @@ func TestMergeDevices(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeWifiPairing(t *testing.T) {
+	devices := []Device{
+		{Udid: "usb", Transports: []Transport{{Type: "usb", Source: "usbmux"}}},
+		{
+			Udid:        "coredevice-udid",
+			Identifier:  "coredevice-id",
+			ProductType: "iPhone15,2",
+			ProductName: "iPhone",
+			Transports:  []Transport{{Type: "wifi-pairing", Source: "coredevice"}},
+		},
+	}
+	wifi := []ios.WifiPairingDevice{
+		{Identifier: "pairable", Name: "iPhone", Model: "iPhone15,2", Address: "host.local.:1234"},
+		{Identifier: "other-pairable", Name: "Other", Model: "iPhone15,3", Address: "other.local.:1234"},
+		{Identifier: "pairable", Name: "iPhone", Model: "iPhone15,2", Address: "host.local.:1234"},
+		{Identifier: ""},
+	}
+
+	got := MergeWifiPairing(devices, wifi)
+	want := []Device{
+		{
+			Udid:        "coredevice-udid",
+			Identifier:  "coredevice-id",
+			ProductType: "iPhone15,2",
+			ProductName: "iPhone",
+			Transports:  []Transport{{Type: "wifi-pairing", Source: "coredevice"}},
+		},
+		{
+			Identifier:  "other-pairable",
+			ProductType: "iPhone15,3",
+			ProductName: "Other",
+			Transports:  []Transport{{Type: "wifi-pairing", Source: "bonjour", Address: "other.local.:1234"}},
+		},
+		{
+			Udid:       "usb",
+			Transports: []Transport{{Type: "usb", Source: "usbmux"}},
+		},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("MergeWifiPairing() = %+v, want %+v", got, want)
+	}
+}
+
+func TestMergeCandidates(t *testing.T) {
+	devices := []Device{{Udid: "existing"}}
+	candidates := []Device{
+		{Udid: "candidate", Identifier: "candidate-id"},
+		{Udid: "existing", Identifier: "duplicate-udid"},
+		{Identifier: "candidate-id"},
+		{},
+	}
+
+	got := MergeCandidates(devices, candidates)
+	want := []Device{
+		{Udid: "candidate", Identifier: "candidate-id"},
+		{Udid: "existing"},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("MergeCandidates() = %+v, want %+v", got, want)
+	}
+}
