@@ -52,11 +52,21 @@ const (
 // extracting it from a snapshot.
 var textUTIs = []string{UTIUTF8PlainText, UTIPlainText, UTIText}
 
+// xpcConn is the subset of *xpc.Connection used by the pasteboard client. It is
+// extracted as an interface so the request/reply logic can be exercised with a
+// fake in unit tests.
+type xpcConn interface {
+	Send(data map[string]interface{}, flags ...uint32) error
+	ReceiveOnServerClientStream() (map[string]interface{}, error)
+	Close() error
+}
+
 // Connection represents a connection to the pasteboard service on an iOS 17+
 // device. It is not safe for concurrent use.
 type Connection struct {
-	conn   *xpc.Connection
-	device ios.DeviceEntry
+	conn    xpcConn
+	device  ios.DeviceEntry
+	timeout time.Duration
 }
 
 // New connects to the pasteboard service on the device. Requires a running
@@ -66,7 +76,7 @@ func New(device ios.DeviceEntry) (*Connection, error) {
 	if err != nil {
 		return nil, fmt.Errorf("New: failed to connect to pasteboard service: %w", err)
 	}
-	return &Connection{conn: xpcConn, device: device}, nil
+	return &Connection{conn: xpcConn, device: device, timeout: requestTimeout}, nil
 }
 
 // Close closes the connection to the pasteboard service.
@@ -168,11 +178,19 @@ func (c *Connection) Get() (map[string]interface{}, error) {
 	return reply, nil
 }
 
-// sendReceive sends a request expecting a reply and waits for it, bounded by
-// requestTimeout. A wedged pasteboard daemon leaves the channel half-open and
-// the read never returns; the timeout turns that into a clear error instead of
-// an indefinite hang. The pending read is unblocked when the connection is
-// closed.
+// sendReceive sends a request expecting a reply and returns the first populated
+// reply frame, bounded by c.timeout.
+//
+// Two device behaviours shape this:
+//   - The device interleaves empty control/heartbeat frames (e.g. the
+//     wanting-reply ack) with the real reply. Returning the first frame can hand
+//     back an empty one and leave the real reply queued on the stream, where the
+//     next request would pick it up as a stale read — so empty-bodied frames are
+//     skipped and the first populated dict is returned.
+//   - A wedged daemon never replies and the read blocks forever. The read runs
+//     in a goroutine and cannot be cancelled directly, so on timeout the
+//     connection is closed to unblock it and let the goroutine exit. After a
+//     timeout the Connection is therefore dead; create a new one to retry.
 func (c *Connection) sendReceive(request map[string]interface{}) (map[string]interface{}, error) {
 	if err := c.conn.Send(request, xpc.HeartbeatRequestFlag); err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
@@ -182,13 +200,9 @@ func (c *Connection) sendReceive(request map[string]interface{}) (map[string]int
 		reply map[string]interface{}
 		err   error
 	}
+	// Buffered so the goroutine never blocks on send after we return on timeout.
 	ch := make(chan result, 1)
 	go func() {
-		// The device interleaves empty control/heartbeat frames (e.g. the
-		// wanting-reply ack) with the real reply. Reading a single frame can
-		// return one of those empties and leave the real reply queued on the
-		// stream, where the next request would pick it up as a stale read. Skip
-		// empty-bodied frames and return the first one carrying a populated dict.
 		for {
 			reply, err := c.conn.ReceiveOnServerClientStream()
 			if err != nil {
@@ -203,14 +217,20 @@ func (c *Connection) sendReceive(request map[string]interface{}) (map[string]int
 		}
 	}()
 
+	timer := time.NewTimer(c.timeout)
+	defer timer.Stop()
+
 	select {
 	case r := <-ch:
 		if r.err != nil {
 			return nil, fmt.Errorf("failed to receive reply: %w", r.err)
 		}
 		return r.reply, nil
-	case <-time.After(requestTimeout):
-		return nil, fmt.Errorf("timed out after %s waiting for the pasteboard service; it may be wedged — reboot the device and try again", requestTimeout)
+	case <-timer.C:
+		// Closing terminates the orphaned read so the goroutine can't linger and
+		// race a future read on the same stream.
+		_ = c.conn.Close()
+		return nil, fmt.Errorf("timed out after %s waiting for the pasteboard service; it may be wedged — reboot the device and try again", c.timeout)
 	}
 }
 

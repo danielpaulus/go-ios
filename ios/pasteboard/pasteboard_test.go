@@ -1,6 +1,130 @@
 package pasteboard
 
-import "testing"
+import (
+	"errors"
+	"sync"
+	"testing"
+	"time"
+)
+
+// fakeConn is a scripted xpcConn for exercising sendReceive without a device.
+// ReceiveOnServerClientStream replays frames in order; a frame may be empty (to
+// simulate a heartbeat/ack), carry a body, or carry an error. When the script
+// is exhausted it blocks until Close is called (simulating a wedged daemon),
+// then returns errClosed.
+type fakeConn struct {
+	frames []frame
+
+	mu        sync.Mutex
+	idx       int
+	sent      []map[string]interface{}
+	closed    chan struct{}
+	closeOnce sync.Once
+}
+
+type frame struct {
+	body map[string]interface{}
+	err  error
+}
+
+var errClosed = errors.New("connection closed")
+
+func newFakeConn(frames ...frame) *fakeConn {
+	return &fakeConn{frames: frames, closed: make(chan struct{})}
+}
+
+func (f *fakeConn) Send(data map[string]interface{}, _ ...uint32) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sent = append(f.sent, data)
+	return nil
+}
+
+func (f *fakeConn) ReceiveOnServerClientStream() (map[string]interface{}, error) {
+	f.mu.Lock()
+	if f.idx < len(f.frames) {
+		fr := f.frames[f.idx]
+		f.idx++
+		f.mu.Unlock()
+		return fr.body, fr.err
+	}
+	f.mu.Unlock()
+	// Script exhausted: block like a wedged daemon until Close unblocks us.
+	<-f.closed
+	return nil, errClosed
+}
+
+func (f *fakeConn) Close() error {
+	f.closeOnce.Do(func() { close(f.closed) })
+	return nil
+}
+
+func newTestConn(timeout time.Duration, frames ...frame) *Connection {
+	return &Connection{conn: newFakeConn(frames...), timeout: timeout}
+}
+
+func TestSendReceiveSkipsEmptyFrames(t *testing.T) {
+	tests := []struct {
+		name   string
+		frames []frame
+		want   string
+	}{
+		{
+			name:   "reply on first frame",
+			frames: []frame{{body: map[string]interface{}{"command": "PULL_REPLY", "marker": "first"}}},
+			want:   "first",
+		},
+		{
+			name: "skips leading nil and empty frames",
+			frames: []frame{
+				{body: nil},
+				{body: map[string]interface{}{}},
+				{body: map[string]interface{}{"command": "PULL_REPLY", "marker": "real"}},
+			},
+			want: "real",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newTestConn(time.Second, tt.frames...)
+			reply, err := c.sendReceive(map[string]interface{}{"command": "PULL"})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got, _ := reply["marker"].(string); got != tt.want {
+				t.Fatalf("expected marker %q, got %q", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestSendReceivePropagatesReceiveError(t *testing.T) {
+	wantErr := errors.New("stream broke")
+	c := newTestConn(time.Second, frame{err: wantErr})
+	_, err := c.sendReceive(map[string]interface{}{"command": "PULL"})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected wrapped %v, got %v", wantErr, err)
+	}
+}
+
+func TestSendReceiveTimesOutAndClosesConn(t *testing.T) {
+	// No frames => ReceiveOnServerClientStream blocks => the timeout fires and
+	// must close the connection to release the blocked reader.
+	fake := newFakeConn() // empty script: blocks until Close
+	c := &Connection{conn: fake, timeout: 20 * time.Millisecond}
+
+	_, err := c.sendReceive(map[string]interface{}{"command": "PULL"})
+	if err == nil {
+		t.Fatal("expected timeout error, got nil")
+	}
+
+	select {
+	case <-fake.closed:
+		// Connection was closed on timeout, as required to unblock the reader.
+	case <-time.After(time.Second):
+		t.Fatal("timeout did not close the connection; reader would leak")
+	}
+}
 
 func TestTextItem(t *testing.T) {
 	item := TextItem("héllo 🌍")
