@@ -38,6 +38,11 @@ func (m buildManifest) findIdentity(identifiers personalizationIdentifiers) (bui
 	return buildIdentity{}, fmt.Errorf("findIdentity: failed to find identity for ApBoardId 0x%x and ApChipId 0x%x", identifiers.BoardId, identifiers.ChipID)
 }
 
+type restoreRequestRule struct {
+	Actions    map[string]interface{} `plist:"Actions"`
+	Conditions map[string]interface{} `plist:"Conditions"`
+}
+
 type manifestEntry struct {
 	Digest  []byte
 	Trusted bool `plist:"Trusted"`
@@ -46,6 +51,10 @@ type manifestEntry struct {
 	Name    string
 	Info    struct {
 		Path string
+		// RestoreRequestRules dynamically determine fields such as EPRO/ESEC that must be
+		// sent to Apple's TSS. iOS 17+ (notably iOS 26) manifests omit static EPRO/ESEC and
+		// rely on these rules; without applying them TSS rejects the request with status 94.
+		RestoreRequestRules []restoreRequestRule `plist:"RestoreRequestRules"`
 	}
 }
 

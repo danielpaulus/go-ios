@@ -48,6 +48,20 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 		"UID_MODE":          false,
 	}
 
+	// Context used to evaluate RestoreRequestRules conditions. Mirrors pymobiledevice3 /
+	// idevicerestore: production + secure + Img4 device. ApSupportsImg4 maps the
+	// ApRequiresImage4 condition and is only used for rule evaluation, not sent to Apple.
+	ruleParams := map[string]interface{}{
+		"ApProductionMode": true,
+		"ApSecurityMode":   true,
+		"ApSupportsImg4":   true,
+	}
+	// RestoreRequestRules live on the LoadableTrustCache entry and are applied to every entry.
+	var rules []restoreRequestRule
+	if ltc, ok := identity.Manifest["LoadableTrustCache"]; ok {
+		rules = ltc.Info.RestoreRequestRules
+	}
+
 	for key, entry := range identity.Manifest {
 		if !entry.Trusted {
 			continue
@@ -55,9 +69,15 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 		entryParams := map[string]interface{}{
 			"Digest":  entry.Digest,
 			"Trusted": true,
-			"EPRO":    entry.EPRO,
-			"ESEC":    entry.ESEC,
 		}
+		// Apply any statically declared values first, then let the rules override them.
+		if entry.EPRO {
+			entryParams["EPRO"] = entry.EPRO
+		}
+		if entry.ESEC {
+			entryParams["ESEC"] = entry.ESEC
+		}
+		applyRestoreRequestRules(entryParams, ruleParams, rules)
 		if key == "PersonalizedDMG" || key == "PersonalizedDmg" {
 			if entry.Name != "" {
 				entryParams["Name"] = entry.Name
@@ -117,6 +137,44 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 		}
 	}
 	return nil, fmt.Errorf("getSignature: unexpected response status %d", res.StatusCode)
+}
+
+// restoreRequestRuleConditionMap maps RestoreRequestRules condition keys to the
+// request parameter keys they test against (same mapping used by idevicerestore).
+var restoreRequestRuleConditionMap = map[string]string{
+	"ApRawProductionMode":      "ApProductionMode",
+	"ApCurrentProductionMode":  "ApProductionMode",
+	"ApRawSecurityMode":        "ApSecurityMode",
+	"ApRequiresImage4":         "ApSupportsImg4",
+	"ApDemotionPolicyOverride": "DemotionPolicy",
+	"ApInRomDFU":               "ApInRomDFU",
+}
+
+// applyRestoreRequestRules mutates entry with the Actions of every rule whose
+// Conditions are all satisfied by params. This computes fields such as EPRO/ESEC
+// that newer (iOS 17+/26) BuildManifests omit but Apple's TSS still requires.
+func applyRestoreRequestRules(entry map[string]interface{}, params map[string]interface{}, rules []restoreRequestRule) {
+	for _, rule := range rules {
+		fulfilled := true
+		for condKey, condVal := range rule.Conditions {
+			paramKey, ok := restoreRequestRuleConditionMap[condKey]
+			if !ok {
+				fulfilled = false
+				break
+			}
+			paramVal, ok := params[paramKey]
+			if !ok || paramVal != condVal {
+				fulfilled = false
+				break
+			}
+		}
+		if !fulfilled {
+			continue
+		}
+		for actionKey, actionVal := range rule.Actions {
+			entry[actionKey] = actionVal
+		}
+	}
 }
 
 type response struct {
