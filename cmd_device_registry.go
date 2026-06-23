@@ -69,6 +69,7 @@ var deviceCommands = []command{
 	commandByBool("setlocationgpx", runSetLocationGPXCommand),
 	commandByBool("timeformat", runTimeFormatCommand),
 	commandByBool("httpproxy", runHTTPProxyCommand),
+	commandByBool("mdm", runMdmCommand),
 	commandByBool("profile", runProfileCommand),
 	commandByBool("forward", runForwardCommand),
 	commandByBool("launch", runLaunchCommand),

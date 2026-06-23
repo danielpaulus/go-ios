@@ -270,3 +270,44 @@ func runDevModeCommand(ctx commandContext) {
 		slog.Info("Developer Mode menu has been revealed on the device. Go to Settings → Privacy & Security → Developer Mode to enable it.")
 	}
 }
+
+func runMdmCommand(ctx commandContext) {
+	p12file, _ := ctx.Args.String("--p12file")
+	p12password, _ := ctx.Args.String("--password")
+	if p12password == "" {
+		p12password = os.Getenv("P12_PASSWORD")
+	}
+
+	p12bytes, err := os.ReadFile(p12file)
+	exitIfError("could not read p12file", err)
+
+	conn, err := mcinstall.New(ctx.Device)
+	exitIfError("failed to connect to MCInstall service", err)
+
+	if fetchToken, _ := ctx.Args.Bool("fetch-unlock-token"); fetchToken {
+		output, _ := ctx.Args.String("--output")
+		token, err := conn.FetchUnlockTokenSupervised(p12bytes, p12password)
+		exitIfError("failed to fetch unlock token", err)
+		err = os.WriteFile(output, token, 0o600)
+		exitIfError("failed to write token file", err)
+		fmt.Println(convertToJSONString(map[string]any{"path": output, "bytes": len(token)}))
+		return
+	}
+
+	if clearPasscode, _ := ctx.Args.Bool("clear-passcode"); clearPasscode {
+		tokenFile, _ := ctx.Args.String("--token")
+		tokenBytes, err := os.ReadFile(tokenFile)
+		exitIfError("could not read token file", err)
+		err = conn.ClearPasscodeSupervised(p12bytes, p12password, tokenBytes)
+		exitIfError("failed to clear passcode", err)
+		fmt.Println(convertToJSONString(map[string]any{"status": "ok"}))
+		return
+	}
+
+	if clearScreenTime, _ := ctx.Args.Bool("clear-screen-time-password"); clearScreenTime {
+		err = conn.ClearScreenTimePasswordSupervised(p12bytes, p12password)
+		exitIfError("failed to clear Screen Time password", err)
+		fmt.Println(convertToJSONString(map[string]any{"status": "ok"}))
+		return
+	}
+}

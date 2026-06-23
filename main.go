@@ -118,6 +118,9 @@ Usage:
   ios listen [options]
   ios lockdown get [<key>] [--domain=<domain>] [options]
   ios memlimitoff (--process=<processName>) [options]
+  ios mdm fetch-unlock-token --p12file=<p12file> --output=<output> [--password=<p12password>] [options]
+  ios mdm clear-passcode --p12file=<p12file> --token=<tokenFile> [--password=<p12password>] [options]
+  ios mdm clear-screen-time-password --p12file=<p12file> [--password=<p12password>] [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pasteboard (set [<text>] | get) [options]
@@ -354,6 +357,24 @@ The commands work as following:
                                                                        Ex.: "ios lockdown get DeviceName", "ios lockdown get --domain=com.apple.PurpleBuddy"
 
     ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
+
+    ios mdm fetch-unlock-token --p12file=<p12file> --output=<output> [--password=<p12password>]
+                                                                       Save the device passcode unlock token to a file.
+                                                                       The device must have no passcode set; run once during provisioning.
+                                                                       The saved token can be passed to "mdm clear-passcode" at any time later.
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
+    ios mdm clear-passcode --p12file=<p12file> --token=<tokenFile> [--password=<p12password>]
+                                                                       Remove the device lock passcode using a previously saved unlock token.
+                                                                       The token must have been saved before the passcode was set.
+                                                                       Works regardless of current lock state; does not require knowing the passcode.
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
+    ios mdm clear-screen-time-password --p12file=<p12file> [--password=<p12password>]
+                                                                       Clear the Screen Time restrictions passcode (4-digit PIN protecting Screen Time settings).
+                                                                       No unlock token required; supervisor identity alone suffices.
+                                                                       Does not affect profile-based restrictions or the device lock passcode.
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
 
     ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys.
                                                                        Standard output is json but if desired you can get it in plist format by adding the --plist param.

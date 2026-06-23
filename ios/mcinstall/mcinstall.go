@@ -414,3 +414,66 @@ func (mcInstallConn *Connection) SetWallpaperSupervised(image []byte, screen Wal
 func (mcInstallConn *Connection) GetCloudConfiguration() (map[string]interface{}, error) {
 	return mcInstallConn.sendAndReceive(request("GetCloudConfiguration"))
 }
+
+// FetchUnlockToken retrieves the passcode unlock token from an already-escalated
+// MCInstall connection. The device must have no passcode set; it returns an error
+// with DMCKeybagErrorDomain code 37002 if a passcode is active.
+func (mcInstallConn *Connection) FetchUnlockToken() ([]byte, error) {
+	response, err := mcInstallConn.sendAndReceive(request("RequestUnlockToken"))
+	if err != nil {
+		return nil, err
+	}
+	if !checkStatus(response) {
+		return nil, fmt.Errorf("RequestUnlockToken failed: %+v", response)
+	}
+	token, ok := response["UnlockToken"].([]byte)
+	if !ok {
+		return nil, fmt.Errorf("UnlockToken missing or wrong type in response")
+	}
+	return token, nil
+}
+
+// FetchUnlockTokenSupervised escalates with the supervisor PKCS#12 identity and
+// fetches the passcode unlock token. The device must have no passcode set.
+// Store the returned token; it can be passed to ClearPasscodeSupervised later.
+func (mcInstallConn *Connection) FetchUnlockTokenSupervised(p12bytes []byte, p12Password string) ([]byte, error) {
+	if err := mcInstallConn.Escalate(p12bytes, p12Password); err != nil {
+		return nil, err
+	}
+	return mcInstallConn.FetchUnlockToken()
+}
+
+// ClearPasscodeSupervised escalates with the supervisor PKCS#12 identity and
+// clears the device lock passcode using a previously saved unlock token.
+func (mcInstallConn *Connection) ClearPasscodeSupervised(p12bytes []byte, p12Password string, unlockToken []byte) error {
+	if err := mcInstallConn.Escalate(p12bytes, p12Password); err != nil {
+		return err
+	}
+	response, err := mcInstallConn.sendAndReceive(map[string]interface{}{
+		"RequestType": "ClearPasscode",
+		"UnlockToken": unlockToken,
+	})
+	if err != nil {
+		return err
+	}
+	if !checkStatus(response) {
+		return fmt.Errorf("ClearPasscode failed: %+v", response)
+	}
+	return nil
+}
+
+// ClearScreenTimePasswordSupervised escalates with the supervisor PKCS#12 identity
+// and clears the Screen Time restrictions passcode. No unlock token is required.
+func (mcInstallConn *Connection) ClearScreenTimePasswordSupervised(p12bytes []byte, p12Password string) error {
+	if err := mcInstallConn.Escalate(p12bytes, p12Password); err != nil {
+		return err
+	}
+	response, err := mcInstallConn.sendAndReceive(request("ClearRestrictionsPassword"))
+	if err != nil {
+		return err
+	}
+	if !checkStatus(response) {
+		return fmt.Errorf("ClearRestrictionsPassword failed: %+v", response)
+	}
+	return nil
+}
