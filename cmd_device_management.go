@@ -285,9 +285,12 @@ func runMdmCommand(ctx commandContext) {
 	conn, err := mcinstall.New(ctx.Device)
 	exitIfError("failed to connect to MCInstall service", err)
 
+	err = conn.Escalate(p12bytes, p12password)
+	exitIfError("failed to escalate MCInstall session", err)
+
 	if fetchToken, _ := ctx.Args.Bool("fetch-unlock-token"); fetchToken {
 		output, _ := ctx.Args.String("--output")
-		token, err := conn.FetchUnlockTokenSupervised(p12bytes, p12password)
+		token, err := conn.FetchUnlockToken()
 		exitIfError("failed to fetch unlock token", err)
 		if output == "-" {
 			fmt.Println(base64.StdEncoding.EncodeToString(token))
@@ -312,14 +315,14 @@ func runMdmCommand(ctx commandContext) {
 			tokenBytes, err = os.ReadFile(tokenFile)
 			exitIfError("could not read token file", err)
 		}
-		err = conn.ClearPasscodeSupervised(p12bytes, p12password, tokenBytes)
+		err = conn.ClearPasscode(tokenBytes)
 		exitIfError("failed to clear passcode", err)
 		fmt.Println(convertToJSONString(map[string]any{"status": "ok"}))
 		return
 	}
 
 	if clearScreenTime, _ := ctx.Args.Bool("clear-screen-time-password"); clearScreenTime {
-		err = conn.ClearScreenTimePasswordSupervised(p12bytes, p12password)
+		err = conn.ClearScreenTimePassword()
 		exitIfError("failed to clear Screen Time password", err)
 		fmt.Println(convertToJSONString(map[string]any{"status": "ok"}))
 		return

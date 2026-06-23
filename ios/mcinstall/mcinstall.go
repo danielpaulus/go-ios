@@ -433,22 +433,9 @@ func (mcInstallConn *Connection) FetchUnlockToken() ([]byte, error) {
 	return token, nil
 }
 
-// FetchUnlockTokenSupervised escalates with the supervisor PKCS#12 identity and
-// fetches the passcode unlock token. The device must have no passcode set.
-// Store the returned token; it can be passed to ClearPasscodeSupervised later.
-func (mcInstallConn *Connection) FetchUnlockTokenSupervised(p12bytes []byte, p12Password string) ([]byte, error) {
-	if err := mcInstallConn.Escalate(p12bytes, p12Password); err != nil {
-		return nil, err
-	}
-	return mcInstallConn.FetchUnlockToken()
-}
-
-// ClearPasscodeSupervised escalates with the supervisor PKCS#12 identity and
-// clears the device lock passcode using a previously saved unlock token.
-func (mcInstallConn *Connection) ClearPasscodeSupervised(p12bytes []byte, p12Password string, unlockToken []byte) error {
-	if err := mcInstallConn.Escalate(p12bytes, p12Password); err != nil {
-		return err
-	}
+// ClearPasscode removes the device lock passcode using a previously saved unlock
+// token on an already-escalated MCInstall connection.
+func (mcInstallConn *Connection) ClearPasscode(unlockToken []byte) error {
 	response, err := mcInstallConn.sendAndReceive(map[string]interface{}{
 		"RequestType": "ClearPasscode",
 		"UnlockToken": unlockToken,
@@ -462,12 +449,9 @@ func (mcInstallConn *Connection) ClearPasscodeSupervised(p12bytes []byte, p12Pas
 	return nil
 }
 
-// ClearScreenTimePasswordSupervised escalates with the supervisor PKCS#12 identity
-// and clears the Screen Time restrictions passcode. No unlock token is required.
-func (mcInstallConn *Connection) ClearScreenTimePasswordSupervised(p12bytes []byte, p12Password string) error {
-	if err := mcInstallConn.Escalate(p12bytes, p12Password); err != nil {
-		return err
-	}
+// ClearScreenTimePassword clears the Screen Time restrictions passcode on an
+// already-escalated MCInstall connection. No unlock token is required.
+func (mcInstallConn *Connection) ClearScreenTimePassword() error {
 	response, err := mcInstallConn.sendAndReceive(request("ClearRestrictionsPassword"))
 	if err != nil {
 		return err
