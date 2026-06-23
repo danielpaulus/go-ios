@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"os"
@@ -288,16 +289,29 @@ func runMdmCommand(ctx commandContext) {
 		output, _ := ctx.Args.String("--output")
 		token, err := conn.FetchUnlockTokenSupervised(p12bytes, p12password)
 		exitIfError("failed to fetch unlock token", err)
-		err = os.WriteFile(output, token, 0o600)
-		exitIfError("failed to write token file", err)
-		fmt.Println(convertToJSONString(map[string]any{"path": output, "bytes": len(token)}))
+		if output == "-" {
+			fmt.Println(base64.StdEncoding.EncodeToString(token))
+		} else {
+			err = os.WriteFile(output, token, 0o600)
+			exitIfError("failed to write token file", err)
+			fmt.Println(convertToJSONString(map[string]any{"path": output, "bytes": len(token)}))
+		}
 		return
 	}
 
 	if clearPasscode, _ := ctx.Args.Bool("clear-passcode"); clearPasscode {
 		tokenFile, _ := ctx.Args.String("--token")
-		tokenBytes, err := os.ReadFile(tokenFile)
-		exitIfError("could not read token file", err)
+		var tokenBytes []byte
+		if tokenFile == "-" {
+			var encoded string
+			_, err = fmt.Scan(&encoded)
+			exitIfError("could not read token from stdin", err)
+			tokenBytes, err = base64.StdEncoding.DecodeString(encoded)
+			exitIfError("could not base64-decode token", err)
+		} else {
+			tokenBytes, err = os.ReadFile(tokenFile)
+			exitIfError("could not read token file", err)
+		}
 		err = conn.ClearPasscodeSupervised(p12bytes, p12password, tokenBytes)
 		exitIfError("failed to clear passcode", err)
 		fmt.Println(convertToJSONString(map[string]any{"status": "ok"}))

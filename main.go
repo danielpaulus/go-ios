@@ -359,15 +359,19 @@ The commands work as following:
     ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
 
     ios mdm fetch-unlock-token --p12file=<p12file> --output=<output> [--password=<p12password>]
-                                                                       Save the device passcode unlock token to a file.
-                                                                       The device must have no passcode set; run once during provisioning.
-                                                                       The saved token can be passed to "mdm clear-passcode" at any time later.
+                                                                       Save the device passcode unlock token. The device must have no passcode
+                                                                       set; run once during provisioning. The token can be passed to
+                                                                       "mdm clear-passcode" at any time later.
+                                                                       Use --output=<file> to write raw bytes to a file, or --output=- to
+                                                                       print base64-encoded token to stdout (for piping into a secrets manager).
                                                                        Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
 
     ios mdm clear-passcode --p12file=<p12file> --token=<tokenFile> [--password=<p12password>]
                                                                        Remove the device lock passcode using a previously saved unlock token.
                                                                        The token must have been saved before the passcode was set.
                                                                        Works regardless of current lock state; does not require knowing the passcode.
+                                                                       Use --token=<file> for a raw token file, or --token=- to read a
+                                                                       base64-encoded token from stdin.
                                                                        Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
 
     ios mdm clear-screen-time-password --p12file=<p12file> [--password=<p12password>]
