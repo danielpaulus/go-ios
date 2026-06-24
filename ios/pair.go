@@ -90,7 +90,10 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 	if err != nil {
 		return err
 	}
-	escrow := respMap["EscrowBag"].([]byte)
+	if errMsg, ok := respMap["Error"].(string); ok {
+		return fmt.Errorf("PairSupervised failed: %s", errMsg)
+	}
+	escrow, _ := respMap["EscrowBag"].([]byte)
 
 	usbmuxConn, err = NewUsbMuxConnectionSimple()
 	defer usbmuxConn.Close()
