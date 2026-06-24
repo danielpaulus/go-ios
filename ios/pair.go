@@ -93,7 +93,13 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 	if errMsg, ok := respMap["Error"].(string); ok {
 		return fmt.Errorf("PairSupervised failed: %s", errMsg)
 	}
-	escrow, _ := respMap["EscrowBag"].([]byte)
+	escrow, ok := respMap["EscrowBag"].([]byte)
+	if !ok {
+		// Device is locked — it accepted the supervisor identity but cannot update its
+		// trust store or generate a new escrow bag while the passcode screen is active.
+		// The existing pair record in usbmuxd is still valid; skip saving a new one.
+		return nil
+	}
 
 	usbmuxConn, err = NewUsbMuxConnectionSimple()
 	defer usbmuxConn.Close()
