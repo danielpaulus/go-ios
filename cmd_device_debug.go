@@ -142,7 +142,7 @@ func runImageCommand(ctx commandContext) {
 		err := imagemounter.MountImage(ctx.Device, imagePath)
 		if err != nil {
 			slog.Error("error mounting image", "image", imagePath, "udid", ctx.Device.Properties.SerialNumber, "err", err)
-			return
+			os.Exit(1)
 		}
 		slog.Info("success mounting image", "image", imagePath, "udid", ctx.Device.Properties.SerialNumber)
 	}
