@@ -1879,6 +1879,9 @@ func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, 
 	exitIfError(fmt.Sprintf("could not connect to RSD, host %s, port %d", address, rsdPort), err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
+	// An unchecked handshake error would leave an empty RSD service list, and every
+	// service lookup would then misreport as 'service not available in RSD'.
+	exitIfError(fmt.Sprintf("RSD handshake failed, host %s, port %d", address, rsdPort), err)
 	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	device1.UserspaceTUN = device.UserspaceTUN
 	device1.UserspaceTUNHost = device.UserspaceTUNHost

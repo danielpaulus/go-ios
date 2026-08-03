@@ -17,13 +17,13 @@ func TestRsdPortForService(t *testing.T) {
 	}
 
 	t.Run("service is listed in rsd", func(t *testing.T) {
-		port, err := rsdPortForService(device, "com.apple.mobile.notification_proxy.shim.remote")
+		port, err := RsdPortForService(device.Rsd, "com.apple.mobile.notification_proxy.shim.remote")
 		require.NoError(t, err)
 		assert.Equal(t, 50123, port)
 	})
 
 	t.Run("service is missing from rsd", func(t *testing.T) {
-		_, err := rsdPortForService(device, "com.apple.instruments.dtservicehub")
+		_, err := RsdPortForService(device.Rsd, "com.apple.instruments.dtservicehub")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "com.apple.instruments.dtservicehub")
 		assert.Contains(t, err.Error(), "developer disk image")

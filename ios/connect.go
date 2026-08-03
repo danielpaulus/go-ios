@@ -108,13 +108,15 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	return muxConn.ReleaseDeviceConnection(), nil
 }
 
-// rsdPortForService looks up the port a service is listening on in the RSD service list of the device.
-// Services provided by the developer disk image only show up after it has been mounted. Without this
-// check we would dial port 0 and report a confusing 'connection refused' instead of the actual cause.
-func rsdPortForService(device DeviceEntry, service string) (int, error) {
-	port := device.Rsd.GetPort(service)
+// RsdPortForService looks up the port a service is listening on in the given RSD service list.
+// Services provided by the developer disk image only show up after a recent enough image has been
+// mounted: mounting adds them, but an outdated image can lack newer services even when mounted.
+// Without this check we would dial port 0 and report a confusing 'connection refused' instead of
+// the actual cause.
+func RsdPortForService(rsd RsdPortProvider, service string) (int, error) {
+	port := rsd.GetPort(service)
 	if port == 0 {
-		return 0, fmt.Errorf("service '%s' is not available in RSD. If it is provided by the developer disk image, make sure the image is mounted (run `ios image auto`)", service)
+		return 0, fmt.Errorf("service '%s' is not available in RSD. If it is provided by the developer disk image, make sure a recent image is mounted (run `ios image auto`) — an outdated image can lack this service even when mounted", service)
 	}
 	return port, nil
 }
@@ -126,7 +128,7 @@ func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionI
 	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToShimService: Cannot connect to %s, missing tunnel address and RSD port.  To start the tunnel, run `ios tunnel start`", service)
 	}
-	port, err := rsdPortForService(device, service)
+	port, err := RsdPortForService(device.Rsd, service)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToShimService: %w", err)
 	}
@@ -147,7 +149,7 @@ func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xp
 	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToXpcServiceTunnelIface: Cannot connect to %s, missing tunnel address and RSD port. To start the tunnel, run `ios tunnel start`", serviceName)
 	}
-	port, err := rsdPortForService(device, serviceName)
+	port, err := RsdPortForService(device.Rsd, serviceName)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToXpcServiceTunnelIface: %w", err)
 	}
@@ -168,7 +170,7 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToServiceTunnelIface: Cannot connect to %s, missing tunnel address and RSD port. To start the tunnel, run `ios tunnel start`", serviceName)
 	}
-	port, err := rsdPortForService(device, serviceName)
+	port, err := RsdPortForService(device.Rsd, serviceName)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToServiceTunnelIface: %w", err)
 	}
@@ -298,6 +300,12 @@ func initializeXpcConnection(h *http.HttpConnection) error {
 // If the device is a userspaceTUN device provided by go-ios agent, it will connect to this
 // automatically. Otherwise it will try a operating system level TUN device.
 func ConnectTUNDevice(remoteIp string, port int, d DeviceEntry) (*net.TCPConn, error) {
+	// Backstop for callers that skip the RsdPortForService check: on the
+	// userspace-TUN path a port-0 dial would not even fail — the forwarder
+	// accepts it and the caller hangs later with no pointer to the cause.
+	if port <= 0 {
+		return nil, fmt.Errorf("ConnectTUNDevice: invalid port %d for %s — the service is not available in RSD (is the developer disk image mounted and recent enough?)", port, remoteIp)
+	}
 	if !d.UserspaceTUN {
 		return connectTUN(remoteIp, port)
 	}
