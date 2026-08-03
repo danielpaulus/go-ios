@@ -23,8 +23,12 @@ func runPasteboardCommand(ctx commandContext) {
 	}()
 
 	if set, _ := ctx.Args.Bool("set"); set {
-		text, _ := ctx.Args.String("<text>")
-		if text == "" {
+		var text string
+		if ctx.Args["<text>"] != nil {
+			text, _ = ctx.Args.String("<text>")
+		} else {
+			// <text> omitted entirely: read the payload from stdin. An explicit
+			// empty argument (`set ""`) must set empty text, not block on stdin.
 			data, err := io.ReadAll(os.Stdin)
 			exitIfError("pasteboard set: failed to read stdin", err)
 			text = string(data)
