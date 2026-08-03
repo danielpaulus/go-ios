@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -124,6 +125,22 @@ func TryRun(t *testing.T, args ...string) (stdout, stderr []byte, err error) {
 	cmd.Stderr = &e
 	err = cmd.Run()
 	return o.Bytes(), e.Bytes(), err
+}
+
+// RunForDeviceWithStdin runs ios with --udid=<udid> appended and the given
+// reader wired to stdin. Use it for commands that consume stdin (e.g.
+// `pasteboard set` without a <text> argument).
+func RunForDeviceWithStdin(t *testing.T, udid string, stdin io.Reader, args ...string) []byte {
+	t.Helper()
+	var stderr bytes.Buffer
+	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
+	cmd.Stdin = stdin
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("ios %v: %v\nstderr: %s\nstdout: %s", args, err, stderr.String(), out)
+	}
+	return out
 }
 
 // AuditAfterLaunch launches bundleID and runs the accessibility audit against
