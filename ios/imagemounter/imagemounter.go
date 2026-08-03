@@ -108,7 +108,7 @@ func (conn *DeveloperDiskImageMounter) UnmountImage() error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return readUnmountResponse(conn.plistRw)
 }
 
 func (conn *DeveloperDiskImageMounter) mountImage(signatureBytes []byte) error {
@@ -175,6 +175,26 @@ func waitForUploadComplete(plistRw ios.PlistCodecReadWriter) error {
 	}
 	if "Complete" != status {
 		return fmt.Errorf("unexpected response: %+v", plist)
+	}
+	return nil
+}
+
+// readUnmountResponse reads the reply to an 'UnmountImage' command. The device rejects the
+// command when it is locked or when no image is mounted, so without inspecting the reply an
+// unmount that never happened is reported as a success.
+func readUnmountResponse(plistRw ios.PlistCodecReadWriter) error {
+	var res map[string]interface{}
+	err := plistRw.Read(&res)
+	if err != nil {
+		return fmt.Errorf("readUnmountResponse: failed to read response for 'UnmountImage': %w", err)
+	}
+	golog.Debug("unmount response", "module", logModule, "response", res)
+	status, ok := res["Status"]
+	if !ok {
+		return fmt.Errorf("readUnmountResponse: unexpected response: %+v", res)
+	}
+	if status != "Complete" {
+		return fmt.Errorf("readUnmountResponse: unexpected response: %+v", res)
 	}
 	return nil
 }

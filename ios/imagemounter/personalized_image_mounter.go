@@ -159,7 +159,7 @@ func (p PersonalizedDeveloperDiskImageMounter) UnmountImage() error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return readUnmountResponse(p.plistRw)
 }
 
 func (p PersonalizedDeveloperDiskImageMounter) queryPersonalizationManifest(dmgPath string) ([]byte, error) {
