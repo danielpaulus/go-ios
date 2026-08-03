@@ -108,6 +108,17 @@ func ConnectToService(device DeviceEntry, serviceName string) (DeviceConnectionI
 	return muxConn.ReleaseDeviceConnection(), nil
 }
 
+// rsdPortForService looks up the port a service is listening on in the RSD service list of the device.
+// Services provided by the developer disk image only show up after it has been mounted. Without this
+// check we would dial port 0 and report a confusing 'connection refused' instead of the actual cause.
+func rsdPortForService(device DeviceEntry, service string) (int, error) {
+	port := device.Rsd.GetPort(service)
+	if port == 0 {
+		return 0, fmt.Errorf("service '%s' is not available in RSD. If it is provided by the developer disk image, make sure the image is mounted (run `ios image auto`)", service)
+	}
+	return port, nil
+}
+
 // ConnectToShimService opens a new connection of the tunnel interface of the provided device
 // to the provided service.
 // The 'RSDCheckin' required by shim services is also executed before returning the connection to the caller
@@ -115,7 +126,10 @@ func ConnectToShimService(device DeviceEntry, service string) (DeviceConnectionI
 	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToShimService: Cannot connect to %s, missing tunnel address and RSD port.  To start the tunnel, run `ios tunnel start`", service)
 	}
-	port := device.Rsd.GetPort(service)
+	port, err := rsdPortForService(device, service)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToShimService: %w", err)
+	}
 	conn, err := ConnectTUNDevice(device.Address, port, device)
 	if err != nil {
 		return nil, err
@@ -133,7 +147,10 @@ func ConnectToXpcServiceTunnelIface(device DeviceEntry, serviceName string) (*xp
 	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToXpcServiceTunnelIface: Cannot connect to %s, missing tunnel address and RSD port. To start the tunnel, run `ios tunnel start`", serviceName)
 	}
-	port := device.Rsd.GetPort(serviceName)
+	port, err := rsdPortForService(device, serviceName)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToXpcServiceTunnelIface: %w", err)
+	}
 
 	conn, err := ConnectTUNDevice(device.Address, port, device)
 	if err != nil {
@@ -151,7 +168,10 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 	if !device.SupportsRsd() {
 		return nil, fmt.Errorf("ConnectToServiceTunnelIface: Cannot connect to %s, missing tunnel address and RSD port. To start the tunnel, run `ios tunnel start`", serviceName)
 	}
-	port := device.Rsd.GetPort(serviceName)
+	port, err := rsdPortForService(device, serviceName)
+	if err != nil {
+		return nil, fmt.Errorf("ConnectToServiceTunnelIface: %w", err)
+	}
 
 	conn, err := ConnectTUNDevice(device.Address, port, device)
 	if err != nil {
