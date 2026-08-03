@@ -13,6 +13,10 @@ Use `## [Unreleased]` to jot down notable changes between releases if you like.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-08-03
+
+* fix(imagemounter): derive EPRO/ESEC from RestoreRequestRules for TSS [#781](https://github.com/danielpaulus/go-ios/pull/781)
+
 ## [1.2.0] - 2026-06-08
 
 ## Highlights
