@@ -296,6 +296,14 @@ func (p PersonalizedDeveloperDiskImageMounter) mountPersonalizedImage(signatureB
 	if err != nil {
 		return fmt.Errorf("mountPersonalizedImage: failed to read response for 'MountImage': %w", err)
 	}
+	golog.Debug("mount response", "module", logModule, "response", res)
+	status, ok := res["Status"]
+	if !ok {
+		return fmt.Errorf("mountPersonalizedImage: unexpected response: %+v", res)
+	}
+	if status != "Complete" {
+		return fmt.Errorf("mountPersonalizedImage: unexpected response: %+v", res)
+	}
 	return nil
 }
 
