@@ -225,6 +225,9 @@ func (c *Connection) sendReceive(request map[string]interface{}) (map[string]int
 		if r.err != nil {
 			return nil, fmt.Errorf("failed to receive reply: %w", r.err)
 		}
+		if err := serviceError(r.reply); err != nil {
+			return nil, err
+		}
 		return r.reply, nil
 	case <-timer.C:
 		// Closing terminates the orphaned read so the goroutine can't linger and
@@ -232,6 +235,29 @@ func (c *Connection) sendReceive(request map[string]interface{}) (map[string]int
 		_ = c.conn.Close()
 		return nil, fmt.Errorf("timed out after %s waiting for the pasteboard service; it may be wedged — reboot the device and try again", c.timeout)
 	}
+}
+
+// serviceError converts an error reply frame into a Go error. The daemon
+// reports failures as {"error": {"code": ..., "domain": ..., "userInfo": ...}}
+// frames instead of a *_REPLY (observed on device: NSCocoaErrorDomain 4864
+// "array required here" for a malformed SET, com.apple.dt.CoreDeviceError -1
+// "Unknown pasteboard command" for an unknown command verb). Returns nil for
+// regular replies.
+func serviceError(reply map[string]interface{}) error {
+	errDict, ok := reply["error"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	domain, _ := errDict["domain"].(string)
+	description := ""
+	if userInfo, ok := errDict["userInfo"].(map[string]interface{}); ok {
+		if s, ok := userInfo["NSLocalizedDescription"].(string); ok {
+			description = s
+		} else if s, ok := userInfo["NSDebugDescription"].(string); ok {
+			description = s
+		}
+	}
+	return fmt.Errorf("pasteboard service returned an error: %s (domain %s, code %v)", description, domain, errDict["code"])
 }
 
 // snapshotText extracts UTF-8 text from a pull reply. In the reply the items

@@ -2,6 +2,7 @@ package pasteboard
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -123,6 +124,83 @@ func TestSendReceiveTimesOutAndClosesConn(t *testing.T) {
 		// Connection was closed on timeout, as required to unblock the reader.
 	case <-time.After(time.Second):
 		t.Fatal("timeout did not close the connection; reader would leak")
+	}
+}
+
+// Error frames as captured from a real device (iPhone14,2 / iOS 18.4.1, DDI
+// 27A5194q): a malformed SET and an unknown command verb.
+func TestSendReceiveSurfacesErrorFrames(t *testing.T) {
+	tests := []struct {
+		name    string
+		frame   map[string]interface{}
+		wantSub string
+	}{
+		{
+			name: "NSCocoaErrorDomain decode error with NSDebugDescription",
+			frame: map[string]interface{}{
+				"error": map[string]interface{}{
+					"code":   int64(4864),
+					"domain": "NSCocoaErrorDomain",
+					"userInfo": map[string]interface{}{
+						"NSCodingPath":       `[CodingKeys(stringValue: "items", intValue: nil)]`,
+						"NSDebugDescription": "array required here",
+					},
+				},
+			},
+			wantSub: "array required here",
+		},
+		{
+			name: "CoreDeviceError with NSLocalizedDescription",
+			frame: map[string]interface{}{
+				"error": map[string]interface{}{
+					"code":   int64(-1),
+					"domain": "com.apple.dt.CoreDeviceError",
+					"userInfo": map[string]interface{}{
+						"NSLocalizedDescription": "Unknown pasteboard command: FROBNICATE",
+					},
+				},
+			},
+			wantSub: "Unknown pasteboard command",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newTestConn(time.Second, frame{body: tt.frame})
+			_, err := c.sendReceive(map[string]interface{}{"command": "SET"})
+			if err == nil {
+				t.Fatal("expected an error for an error reply frame, got nil")
+			}
+			if !strings.Contains(err.Error(), tt.wantSub) {
+				t.Fatalf("error %q does not contain %q", err, tt.wantSub)
+			}
+		})
+	}
+}
+
+func TestSetSurfacesServiceError(t *testing.T) {
+	c := newTestConn(time.Second, frame{body: map[string]interface{}{
+		"error": map[string]interface{}{
+			"code":     int64(4864),
+			"domain":   "NSCocoaErrorDomain",
+			"userInfo": map[string]interface{}{"NSDebugDescription": "array required here"},
+		},
+	}})
+	if err := c.SetText("x"); err == nil {
+		t.Fatal("expected SetText to surface the service error, got nil")
+	}
+}
+
+func TestGetTextSurfacesServiceError(t *testing.T) {
+	c := newTestConn(time.Second, frame{body: map[string]interface{}{
+		"error": map[string]interface{}{
+			"code":     int64(-1),
+			"domain":   "com.apple.dt.CoreDeviceError",
+			"userInfo": map[string]interface{}{"NSLocalizedDescription": "boom"},
+		},
+	}})
+	_, _, err := c.GetText()
+	if err == nil {
+		t.Fatal("expected GetText to surface the service error, got nil")
 	}
 }
 
