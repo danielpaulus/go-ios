@@ -11,6 +11,12 @@ import (
 	"software.sslmate.com/src/go-pkcs12"
 )
 
+// ErrDeviceLockedPairingDeferred reports that the device accepted the supervisor
+// identity but is locked, so it returned no EscrowBag and no pair record could be
+// persisted. Any pre-existing pair record is left untouched and stays usable; if there
+// was none, the device must be unlocked once before it can be paired.
+var ErrDeviceLockedPairingDeferred = errors.New("device is locked: supervised pairing was accepted but no pair record could be persisted, unlock the device once and pair again")
+
 // PairSupervised uses an organization id from apple configurator so you can pair
 // a supervised device without the need for user interaction (the trust popup)
 // Arguments are the device, the p12 files raw contents and the password used for the p12
@@ -90,7 +96,22 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 	if err != nil {
 		return err
 	}
-	escrow := respMap["EscrowBag"].([]byte)
+	// Not all rejections are encoded as a string: this protocol also returns maps
+	// (see ExtendedResponse handling elsewhere in this file), so match on presence and
+	// format whatever the device sent rather than only the string case. Missing this
+	// would let a genuine rejection fall through to the locked-device branch below.
+	if errValue, ok := respMap["Error"]; ok {
+		return fmt.Errorf("PairSupervised failed: %v", errValue)
+	}
+	escrow, ok := respMap["EscrowBag"].([]byte)
+	if !ok {
+		// Device is locked: it accepted the supervisor identity but cannot update its
+		// trust store or generate a new escrow bag while the passcode screen is active.
+		// Saving a record with freshly generated certificates here would corrupt a
+		// working one, so skip savePair -- but this is NOT a successful pairing, and
+		// reporting it as one leaves callers believing a record exists when none does.
+		return ErrDeviceLockedPairingDeferred
+	}
 
 	usbmuxConn, err = NewUsbMuxConnectionSimple()
 	defer usbmuxConn.Close()
