@@ -59,10 +59,6 @@ func TestUsesProxy(t *testing.T) {
 		t.Skip("No device attached")
 		return
 	}
-	// the device rejects 'MountImage' when an image is already mounted, so start from a clean state
-	if err := imagemounter.UnmountImage(d.DeviceList[0]); err != nil {
-		log.Printf("could not unmount an already mounted developer disk image: %v", err)
-	}
 	wg.Add(1)
 	m, err := imagemounter.NewPersonalizedDeveloperDiskImageMounter(d.DeviceList[0], ios.IOS17())
 	if !assert.Nil(t, err) {
@@ -96,10 +92,6 @@ func TestWorksWithoutProxy(t *testing.T) {
 	if len(d.DeviceList) == 0 {
 		t.Skip("No device attached")
 		return
-	}
-	// the device rejects 'MountImage' when an image is already mounted, so start from a clean state
-	if err := imagemounter.UnmountImage(d.DeviceList[0]); err != nil {
-		log.Printf("could not unmount an already mounted developer disk image: %v", err)
 	}
 	m, err := imagemounter.NewPersonalizedDeveloperDiskImageMounter(d.DeviceList[0], ios.IOS17())
 	if !assert.Nil(t, err) {

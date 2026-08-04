@@ -113,7 +113,7 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 		return fmt.Errorf("MountImage: %w", err)
 	}
 
-	err = sendUploadRequest(p.plistRw, "Personalized", signature, imageSize)
+	err = sendUploadRequest(p.plistRw, p.entry.Properties.SerialNumber, "Personalized", signature, imageSize)
 	if err != nil {
 		return fmt.Errorf("MountImage: failed to send upload request for image: %w", err)
 	}
@@ -127,7 +127,7 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 	if err != nil {
 		return fmt.Errorf("MountImage: could not copy developer disk image to the device: %w", err)
 	}
-	err = waitForUploadComplete(p.plistRw)
+	err = waitForUploadComplete(p.plistRw, p.entry.Properties.SerialNumber)
 	if err != nil {
 		return err
 	}
@@ -159,7 +159,7 @@ func (p PersonalizedDeveloperDiskImageMounter) UnmountImage() error {
 	if err != nil {
 		return err
 	}
-	return readUnmountResponse(p.plistRw)
+	return readUnmountResponse(p.plistRw, p.entry.Properties.SerialNumber)
 }
 
 func (p PersonalizedDeveloperDiskImageMounter) queryPersonalizationManifest(dmgPath string) ([]byte, error) {
@@ -291,20 +291,7 @@ func (p PersonalizedDeveloperDiskImageMounter) mountPersonalizedImage(signatureB
 		return fmt.Errorf("mountPersonalizedImage: failed to write 'MountImage' command: %w", err)
 	}
 
-	var res map[string]interface{}
-	err = p.plistRw.Read(&res)
-	if err != nil {
-		return fmt.Errorf("mountPersonalizedImage: failed to read response for 'MountImage': %w", err)
-	}
-	golog.Debug("mount response", "module", logModule, "response", res)
-	status, ok := res["Status"]
-	if !ok {
-		return fmt.Errorf("mountPersonalizedImage: unexpected response: %+v", res)
-	}
-	if status != "Complete" {
-		return fmt.Errorf("mountPersonalizedImage: unexpected response: %+v", res)
-	}
-	return nil
+	return readImageMounterResponse(p.plistRw, p.entry.Properties.SerialNumber, "MountImage", "Complete")
 }
 
 func getFileSize(p string) (uint64, error) {

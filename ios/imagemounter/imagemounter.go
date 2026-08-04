@@ -22,6 +22,7 @@ type DeveloperDiskImageMounter struct {
 	plistCodec ios.PlistCodec
 	version    *semver.Version
 	plistRw    ios.PlistCodecReadWriter
+	udid       string
 }
 
 // ImageMounter mounts developer disk images to an iOS device, and give a list of already mounted images
@@ -43,6 +44,7 @@ func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Versio
 		plistCodec: ios.NewPlistCodec(),
 		version:    version,
 		plistRw:    ios.NewPlistCodecReadWriter(deviceConn.Reader(), deviceConn.Writer()),
+		udid:       device.Properties.SerialNumber,
 	}, nil
 }
 
@@ -72,7 +74,7 @@ func (conn *DeveloperDiskImageMounter) MountImage(imagePath string) error {
 	if err != nil {
 		return err
 	}
-	err = sendUploadRequest(conn.plistRw, "Developer", signatureBytes, uint64(imageSize))
+	err = sendUploadRequest(conn.plistRw, conn.udid, "Developer", signatureBytes, uint64(imageSize))
 	if err != nil {
 		return err
 	}
@@ -82,11 +84,11 @@ func (conn *DeveloperDiskImageMounter) MountImage(imagePath string) error {
 	}
 	defer imageFile.Close()
 	n, err := io.Copy(conn.deviceConn.Writer(), imageFile)
-	golog.Debug("bytes written", "module", logModule, "imagePath", imagePath, "count", n)
+	golog.Debug("bytes written", "module", logModule, "udid", conn.udid, "imagePath", imagePath, "count", n)
 	if err != nil {
 		return err
 	}
-	err = waitForUploadComplete(conn.plistRw)
+	err = waitForUploadComplete(conn.plistRw, conn.udid)
 	if err != nil {
 		return err
 	}
@@ -103,12 +105,12 @@ func (conn *DeveloperDiskImageMounter) UnmountImage() error {
 		"Command":   "UnmountImage",
 		"MountPath": "/Developer",
 	}
-	golog.Debug("sending", "module", logModule, "request", req)
+	golog.Debug("sending", "module", logModule, "udid", conn.udid, "request", req)
 	err := conn.plistRw.Write(req)
 	if err != nil {
 		return err
 	}
-	return readUnmountResponse(conn.plistRw)
+	return readUnmountResponse(conn.plistRw, conn.udid)
 }
 
 func (conn *DeveloperDiskImageMounter) mountImage(signatureBytes []byte) error {
@@ -117,12 +119,12 @@ func (conn *DeveloperDiskImageMounter) mountImage(signatureBytes []byte) error {
 		"ImageSignature": signatureBytes,
 		"ImageType":      "Developer",
 	}
-	golog.Debug("sending", "module", logModule, "request", req)
+	golog.Debug("sending", "module", logModule, "udid", conn.udid, "request", req)
 	err := conn.plistRw.Write(req)
 	if err != nil {
 		return err
 	}
-	return nil
+	return readImageMounterResponse(conn.plistRw, conn.udid, "MountImage", "Complete")
 }
 
 func validatePathAndLoadSignature(imagePath string) ([]byte, int64, error) {
@@ -162,41 +164,59 @@ func (conn *DeveloperDiskImageMounter) Close() error {
 	return conn.deviceConn.Close()
 }
 
-func waitForUploadComplete(plistRw ios.PlistCodecReadWriter) error {
-	var plist map[string]interface{}
-	err := plistRw.Read(&plist)
+func waitForUploadComplete(plistRw ios.PlistCodecReadWriter, udid string) error {
+	return readImageMounterResponse(plistRw, udid, "ReceiveBytes", "Complete")
+}
+
+// deviceRefusedError is returned when the image mounter service answered with an 'Error' key
+// instead of carrying out the command.
+type deviceRefusedError struct {
+	command     string
+	deviceError string
+	detail      string
+}
+
+func (e deviceRefusedError) Error() string {
+	if e.detail != "" {
+		return fmt.Sprintf("%s: device responded with error: %s: %s", e.command, e.deviceError, e.detail)
+	}
+	return fmt.Sprintf("%s: device responded with error: %s", e.command, e.deviceError)
+}
+
+// readImageMounterResponse reads the reply to command and fails unless the device reported
+// expectedStatus. The device signals a refusal (locked device, developer mode disabled, nothing
+// mounted) in the reply body, so a command whose reply is left unread cannot be told apart from
+// one that actually ran.
+func readImageMounterResponse(plistRw ios.PlistCodecReadWriter, udid string, command string, expectedStatus string) error {
+	var resp map[string]interface{}
+	err := plistRw.Read(&resp)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: failed to read response: %w", command, err)
 	}
-	golog.Debug("received complete", "module", logModule, "response", plist)
-	status, ok := plist["Status"]
-	if !ok {
-		return fmt.Errorf("unexpected response: %+v", plist)
+	golog.Debug("received response", "module", logModule, "udid", udid, "command", command, "response", resp)
+	if deviceError, ok := resp["Error"]; ok {
+		refused := deviceRefusedError{command: command, deviceError: fmt.Sprintf("%v", deviceError)}
+		if detail, ok := resp["DetailedError"]; ok {
+			refused.detail = fmt.Sprintf("%v", detail)
+		}
+		return refused
 	}
-	if "Complete" != status {
-		return fmt.Errorf("unexpected response: %+v", plist)
+	if status, ok := resp["Status"]; !ok || status != expectedStatus {
+		return fmt.Errorf("%s: unexpected response: %+v", command, resp)
 	}
 	return nil
 }
 
-// readUnmountResponse reads the reply to an 'UnmountImage' command. The device rejects the
-// command when it is locked or when no image is mounted, so without inspecting the reply an
-// unmount that never happened is reported as a success.
-func readUnmountResponse(plistRw ios.PlistCodecReadWriter) error {
-	var res map[string]interface{}
-	err := plistRw.Read(&res)
-	if err != nil {
-		return fmt.Errorf("readUnmountResponse: failed to read response for 'UnmountImage': %w", err)
+// readUnmountResponse reads the reply to an 'UnmountImage' command. Devices predating the command
+// answer with 'UnknownCommand'; treat that as a no-op so unmounting stays best-effort there.
+func readUnmountResponse(plistRw ios.PlistCodecReadWriter, udid string) error {
+	err := readImageMounterResponse(plistRw, udid, "UnmountImage", "Complete")
+	var refused deviceRefusedError
+	if errors.As(err, &refused) && refused.deviceError == "UnknownCommand" {
+		golog.Debug("device does not support unmounting developer disk images", "module", logModule, "udid", udid)
+		return nil
 	}
-	golog.Debug("unmount response", "module", logModule, "response", res)
-	status, ok := res["Status"]
-	if !ok {
-		return fmt.Errorf("readUnmountResponse: unexpected response: %+v", res)
-	}
-	if status != "Complete" {
-		return fmt.Errorf("readUnmountResponse: unexpected response: %+v", res)
-	}
-	return nil
+	return err
 }
 
 func hangUp(plistRw ios.PlistCodecReadWriter) error {
@@ -274,33 +294,20 @@ func listImages(prw ios.PlistCodecReadWriter, imageType string, v *semver.Versio
 	return result, nil
 }
 
-func sendUploadRequest(plistRw ios.PlistCodecReadWriter, imageType string, signatureBytes []byte, fileSize uint64) error {
+func sendUploadRequest(plistRw ios.PlistCodecReadWriter, udid string, imageType string, signatureBytes []byte, fileSize uint64) error {
 	req := map[string]interface{}{
 		"Command":        "ReceiveBytes",
 		"ImageSignature": signatureBytes,
 		"ImageSize":      fileSize,
 		"ImageType":      imageType,
 	}
-	golog.Debug("sending", "module", logModule, "imageType", imageType, "request", req)
+	golog.Debug("sending", "module", logModule, "udid", udid, "imageType", imageType, "request", req)
 	err := plistRw.Write(req)
 	if err != nil {
 		return fmt.Errorf("sendUploadRequest: failed to write command 'ReceiveBytes': %w", err)
 	}
 
-	var plist map[string]interface{}
-	err = plistRw.Read(&plist)
-	if err != nil {
-		return fmt.Errorf("sendUploadRequest: failed to read response for 'ReceiveBytes': %w", err)
-	}
-	golog.Debug("upload response", "module", logModule, "imageType", imageType, "response", plist)
-	status, ok := plist["Status"]
-	if !ok {
-		return fmt.Errorf("sendUploadRequest: unexpected response: %+v", plist)
-	}
-	if "ReceiveBytesAck" != status {
-		return fmt.Errorf("sendUploadRequest: unexpected status: %+v", plist)
-	}
-	return nil
+	return readImageMounterResponse(plistRw, udid, "ReceiveBytes", "ReceiveBytesAck")
 }
 
 // Check if developer mode is enabled through the mobile_image_mounter service
