@@ -2,8 +2,10 @@ package mcinstall
 
 import (
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"golang.org/x/crypto/pkcs12"
 
@@ -415,16 +417,100 @@ func (mcInstallConn *Connection) GetCloudConfiguration() (map[string]interface{}
 	return mcInstallConn.sendAndReceive(request("GetCloudConfiguration"))
 }
 
-// FetchUnlockToken retrieves the passcode unlock token from an already-escalated
-// MCInstall connection. The device must have no passcode set; it returns an error
-// with DMCKeybagErrorDomain code 37002 if a passcode is active.
-func (mcInstallConn *Connection) FetchUnlockToken() ([]byte, error) {
-	response, err := mcInstallConn.sendAndReceive(request("RequestUnlockToken"))
+// ErrPasscodeSet reports that the device already has a passcode, so the keybag refuses
+// to mint an unlock token. Remove the passcode before running fetch-unlock-token.
+var ErrPasscodeSet = errors.New("device has a passcode set; remove it before fetching an unlock token")
+
+const (
+	keybagErrorDomain    = "DMCKeybagErrorDomain"
+	keybagErrPasscodeSet = 37002
+)
+
+// errorCode extracts an ErrorChain entry's numeric code. plist decoding yields
+// different integer types depending on how the device encoded it.
+func errorCode(entry map[string]interface{}) int64 {
+	switch code := entry["ErrorCode"].(type) {
+	case int64:
+		return code
+	case uint64:
+		return int64(code)
+	case int:
+		return int64(code)
+	case float64:
+		return int64(code)
+	}
+	return 0
+}
+
+// describeFailure renders the actionable part of a rejected MCInstall response: the
+// status plus each ErrorChain entry's domain, code and description.
+//
+// It deliberately never formats the whole response. RequestUnlockToken responses carry
+// the unlock token, and ClearPasscode responses commonly echo the UnlockToken that was
+// sent, so dumping them would write the token to every log sink the error reaches --
+// defeating the 0o600 permissions the token file is otherwise protected with.
+func describeFailure(response map[string]interface{}) string {
+	status, _ := response["Status"].(string)
+	if status == "" {
+		status = "unknown"
+	}
+	parts := []string{"Status=" + status}
+	if chain, ok := response["ErrorChain"].([]interface{}); ok {
+		for _, entry := range chain {
+			errorMap, ok := entry.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			domain, _ := errorMap["ErrorDomain"].(string)
+			description, _ := errorMap["LocalizedDescription"].(string)
+			parts = append(parts, fmt.Sprintf("%s(%d): %s", domain, errorCode(errorMap), description))
+		}
+	}
+	return strings.Join(parts, "; ")
+}
+
+// hasErrorCode reports whether the response's ErrorChain contains the given domain and code.
+func hasErrorCode(response map[string]interface{}, domain string, code int64) bool {
+	chain, ok := response["ErrorChain"].([]interface{})
+	if !ok {
+		return false
+	}
+	for _, entry := range chain {
+		errorMap, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if entryDomain, _ := errorMap["ErrorDomain"].(string); entryDomain == domain && errorCode(errorMap) == code {
+			return true
+		}
+	}
+	return false
+}
+
+// sendChecked sends request and verifies the device acknowledged it. On rejection the
+// returned error carries only the redacted description, never the raw response.
+func (mcInstallConn *Connection) sendChecked(request map[string]interface{}, name string) (map[string]interface{}, error) {
+	response, err := mcInstallConn.sendAndReceive(request)
 	if err != nil {
 		return nil, err
 	}
 	if !checkStatus(response) {
-		return nil, fmt.Errorf("RequestUnlockToken failed: %+v", response)
+		return response, fmt.Errorf("%s failed: %s", name, describeFailure(response))
+	}
+	return response, nil
+}
+
+// FetchUnlockToken retrieves the passcode unlock token from an already-escalated
+// MCInstall connection. The device must have no passcode set: when one is active the
+// keybag rejects the request and this returns an error wrapping ErrPasscodeSet
+// (DMCKeybagErrorDomain code 37002).
+func (mcInstallConn *Connection) FetchUnlockToken() ([]byte, error) {
+	response, err := mcInstallConn.sendChecked(request("RequestUnlockToken"), "RequestUnlockToken")
+	if err != nil {
+		if hasErrorCode(response, keybagErrorDomain, keybagErrPasscodeSet) {
+			return nil, fmt.Errorf("%w: %v", ErrPasscodeSet, err)
+		}
+		return nil, err
 	}
 	token, ok := response["UnlockToken"].([]byte)
 	if !ok {
@@ -436,28 +522,16 @@ func (mcInstallConn *Connection) FetchUnlockToken() ([]byte, error) {
 // ClearPasscode removes the device lock passcode using a previously saved unlock
 // token on an already-escalated MCInstall connection.
 func (mcInstallConn *Connection) ClearPasscode(unlockToken []byte) error {
-	response, err := mcInstallConn.sendAndReceive(map[string]interface{}{
+	_, err := mcInstallConn.sendChecked(map[string]interface{}{
 		"RequestType": "ClearPasscode",
 		"UnlockToken": unlockToken,
-	})
-	if err != nil {
-		return err
-	}
-	if !checkStatus(response) {
-		return fmt.Errorf("ClearPasscode failed: %+v", response)
-	}
-	return nil
+	}, "ClearPasscode")
+	return err
 }
 
 // ClearScreenTimePassword clears the Screen Time restrictions passcode on an
 // already-escalated MCInstall connection. No unlock token is required.
 func (mcInstallConn *Connection) ClearScreenTimePassword() error {
-	response, err := mcInstallConn.sendAndReceive(request("ClearRestrictionsPassword"))
-	if err != nil {
-		return err
-	}
-	if !checkStatus(response) {
-		return fmt.Errorf("ClearRestrictionsPassword failed: %+v", response)
-	}
-	return nil
+	_, err := mcInstallConn.sendChecked(request("ClearRestrictionsPassword"), "ClearRestrictionsPassword")
+	return err
 }
