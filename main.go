@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -1849,6 +1850,11 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	p12, err := os.ReadFile(orgIdentityP12File)
 	exitIfError("Invalid file:"+orgIdentityP12File, err)
 	err = ios.PairSupervised(device, p12, p12Password)
+	if errors.Is(err, ios.ErrDeviceLockedPairingDeferred) {
+		// Do not claim success: no pair record was written. Exit non-zero so automation
+		// can tell this apart from a completed pairing.
+		logFatal(fmt.Sprintf("Pairing incomplete for %s", device.Properties.SerialNumber), "err", err)
+	}
 	exitIfError("Pairing failed", err)
 	slog.Info(fmt.Sprintf("Successfully paired %s", device.Properties.SerialNumber))
 }
