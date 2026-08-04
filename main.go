@@ -398,6 +398,10 @@ The commands work as following:
     ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file
                                                                        to pair without a trust dialog. Specify the password either with the argument or
                                                                        by setting the environment variable 'P12_PASSWORD'
+                                                                       Exits 2 (not 1) when the device accepted the supervisor identity but is
+                                                                       locked, so no pair record could be persisted — that is the one pairing
+                                                                       failure a single unlock fixes, so automation can retry rather than treating
+                                                                       it as fatal. Other failures (device absent, unreadable p12) still exit 1.
 
     ios pasteboard (set [<text>] | get) [options]                     Read or write the device pasteboard (clipboard) over RemoteXPC (iOS 17+). Requires tunnel.
                                                                        set writes <text> (or stdin when omitted) to the pasteboard; get prints its text.
@@ -1861,9 +1865,11 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	exitIfError("Invalid file:"+orgIdentityP12File, err)
 	err = ios.PairSupervised(device, p12, p12Password)
 	if errors.Is(err, ios.ErrDeviceLockedPairingDeferred) {
-		// Do not claim success: no pair record was written. Exit non-zero so automation
-		// can tell this apart from a completed pairing.
-		logFatal(fmt.Sprintf("Pairing incomplete for %s", device.Properties.SerialNumber), "err", err)
+		// Do not claim success: no pair record was written. Exit with a dedicated code so
+		// automation can act on this specific cause — it is the one pairing failure a
+		// human can fix by unlocking the device — without pattern-matching log output.
+		slog.Error(fmt.Sprintf("Pairing incomplete for %s", device.Properties.SerialNumber), "err", err)
+		os.Exit(ExitCodeDeviceLocked)
 	}
 	exitIfError("Pairing failed", err)
 	slog.Info(fmt.Sprintf("Successfully paired %s", device.Properties.SerialNumber))
@@ -1964,6 +1970,17 @@ func convertToJSONString(data interface{}) string {
 	}
 	return string(b)
 }
+
+// Exit codes beyond the generic failure (1), for causes callers act on differently.
+const (
+	// ExitCodeDeviceLocked reports that the command failed only because the device is
+	// locked, so a single unlock resolves it. `ios pair` uses this when the device
+	// accepted the supervisor identity but could not persist a pair record: automation
+	// can retry after an unlock instead of treating it as a hard failure, and does not
+	// have to pattern-match log messages to tell this apart from a missing device or an
+	// unreadable supervision identity.
+	ExitCodeDeviceLocked = 2
+)
 
 func exitIfError(msg string, err error) {
 	if err != nil {
