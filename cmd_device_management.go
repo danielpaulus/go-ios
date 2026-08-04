@@ -264,7 +264,10 @@ func runDevModeCommand(ctx commandContext) {
 // p12PasswordOrEnv returns the supervision identity password from --password, falling
 // back to the P12_PASSWORD environment variable.
 func p12PasswordOrEnv(ctx commandContext) string {
-	p12password := p12PasswordOrEnv(ctx)
+	p12password, _ := ctx.Args.String("--password")
+	if p12password == "" {
+		p12password = os.Getenv("P12_PASSWORD")
+	}
 	return p12password
 }
 
