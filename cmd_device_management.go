@@ -336,6 +336,13 @@ func runMdmCommand(ctx commandContext) {
 		return
 	}
 
+	if securityInfo, _ := ctx.Args.Bool("security-info"); securityInfo {
+		info, err := conn.SecurityInfo()
+		exitIfError("failed to fetch security info", err)
+		fmt.Println(convertToJSONString(info))
+		return
+	}
+
 	if clearScreenTime, _ := ctx.Args.Bool("clear-screen-time-password"); clearScreenTime {
 		err = conn.ClearScreenTimePassword()
 		exitIfError("failed to clear Screen Time password", err)

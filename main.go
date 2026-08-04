@@ -122,6 +122,7 @@ Usage:
   ios mdm fetch-unlock-token --p12file=<p12file> --output=<output> [--password=<p12password>] [options]
   ios mdm clear-passcode --p12file=<p12file> --token=<tokenFile> [--password=<p12password>] [options]
   ios mdm clear-screen-time-password --p12file=<p12file> [--password=<p12password>] [options]
+  ios mdm security-info --p12file=<p12file> [--password=<p12password>] [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pasteboard (set [<text>] | get) [options]
@@ -379,6 +380,15 @@ The commands work as following:
                                                                        Clear the Screen Time restrictions passcode (4-digit PIN protecting Screen Time settings).
                                                                        No unlock token required; supervisor identity alone suffices.
                                                                        Does not affect profile-based restrictions or the device lock passcode.
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
+    ios mdm security-info --p12file=<p12file> [--password=<p12password>]
+                                                                       Print the device's security status as JSON: PasscodePresent, PasscodeCompliant,
+                                                                       PasscodeCompliantWithProfiles, lock grace periods, hardware encryption caps
+                                                                       and management status. Read-only; performs no keybag operation.
+                                                                       PasscodePresent is the reliable "does this device have a passcode?" signal —
+                                                                       lockdown's PasswordProtected reports whether the device is currently locked
+                                                                       instead, and reads false on an unlocked device that has a passcode.
                                                                        Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
 
     ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys.

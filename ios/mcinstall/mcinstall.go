@@ -519,6 +519,42 @@ func (mcInstallConn *Connection) FetchUnlockToken() ([]byte, error) {
 	return token, nil
 }
 
+// SecurityInfo returns the device's security status from an already-escalated MCInstall
+// connection: passcode presence and policy compliance, lock grace periods, hardware
+// encryption capabilities and management status. It is a read-only query and performs no
+// keybag operation.
+func (mcInstallConn *Connection) SecurityInfo() (map[string]interface{}, error) {
+	response, err := mcInstallConn.sendChecked(request("SecurityInfo"), "SecurityInfo")
+	if err != nil {
+		return nil, err
+	}
+	info, ok := response["SecurityInfo"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("SecurityInfo missing or wrong type in response")
+	}
+	return info, nil
+}
+
+// PasscodePresent reports whether a passcode is currently set on the device, using the
+// SecurityInfo query on an already-escalated MCInstall connection.
+//
+// This is the reliable way to answer "does this device have a passcode?". Lockdown's
+// PasswordProtected value answers a different question — whether the device is currently
+// locked and demanding a passcode — and reads false on an unlocked device that has one.
+// Probing with FetchUnlockToken works too (it fails with ErrPasscodeSet) but mints a
+// throwaway token and touches the keybag; this does neither.
+func (mcInstallConn *Connection) PasscodePresent() (bool, error) {
+	info, err := mcInstallConn.SecurityInfo()
+	if err != nil {
+		return false, err
+	}
+	present, ok := info["PasscodePresent"].(bool)
+	if !ok {
+		return false, fmt.Errorf("PasscodePresent missing or wrong type in SecurityInfo response")
+	}
+	return present, nil
+}
+
 // ClearPasscode removes the device lock passcode using a previously saved unlock
 // token on an already-escalated MCInstall connection.
 func (mcInstallConn *Connection) ClearPasscode(unlockToken []byte) error {
