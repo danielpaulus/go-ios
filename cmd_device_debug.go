@@ -15,6 +15,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/ostrace"
 	"github.com/danielpaulus/go-ios/ios/pcap"
+	"github.com/danielpaulus/go-ios/ios/syslog"
 )
 
 func runPCAPCommand(ctx commandContext) {
@@ -35,7 +36,13 @@ func runDproxyCommand(ctx commandContext) {
 
 func runSyslogCommand(ctx commandContext) {
 	parse, _ := ctx.Args.Bool("--parse")
-	runSyslog(ctx.Device, parse)
+	process, _ := ctx.Args.String("--process")
+	pidStr, _ := ctx.Args.String("--pid")
+	if pidStr != "" {
+		_, err := strconv.Atoi(pidStr)
+		exitIfError("invalid --pid value", err)
+	}
+	runSyslog(ctx.Device, parse, syslog.EntryFilter{Process: process, PID: pidStr})
 }
 
 func runOSTraceCommand(ctx commandContext) {

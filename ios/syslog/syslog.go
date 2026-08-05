@@ -122,6 +122,35 @@ func Parser() func(log string) (*LogEntry, error) {
 	}
 }
 
+// EntryFilter is a client-side predicate over parsed log entries.
+// Empty fields match everything, so the zero value matches every entry.
+type EntryFilter struct {
+	// Process matches the parsed process name exactly (e.g. "SpringBoard").
+	Process string
+	// PID matches the parsed process id exactly (e.g. "1234").
+	PID string
+}
+
+// IsEmpty reports whether the filter matches every entry.
+func (f EntryFilter) IsEmpty() bool {
+	return f.Process == "" && f.PID == ""
+}
+
+// Matches reports whether the parsed entry passes the filter.
+// A nil entry never matches.
+func (f EntryFilter) Matches(entry *LogEntry) bool {
+	if entry == nil {
+		return false
+	}
+	if f.Process != "" && entry.Process != f.Process {
+		return false
+	}
+	if f.PID != "" && entry.PID != f.PID {
+		return false
+	}
+	return true
+}
+
 // Close closes the underlying UsbMuxConnection
 func (sysLogConn *Connection) Close() error {
 	return sysLogConn.closer.Close()
