@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path"
@@ -115,17 +116,9 @@ func runFileCommand(ctx commandContext) {
 			exitIfError("file pull", fmt.Errorf("--local=<path> is required"))
 		}
 
-		outputFile, err := os.Create(localPath)
-		exitIfError("file pull: failed to create output file", err)
-		defer outputFile.Close()
-
 		slog.Info(fmt.Sprintf("Downloading %s to %s...", remotePath, localPath))
-		err = conn.PullFile(remotePath, outputFile)
+		fileSize, err := pullToLocalFile(conn.PullFile, remotePath, localPath)
 		exitIfError("file pull: failed to download file", err)
-
-		fileInfo, err := outputFile.Stat()
-		exitIfError("file pull: failed to get file info", err)
-		fileSize := fileInfo.Size()
 
 		if !JSONdisabled {
 			result := map[string]interface{}{
@@ -174,6 +167,35 @@ func runFileCommand(ctx commandContext) {
 			slog.Info(fmt.Sprintf("Uploaded %d bytes to %s", fileSize, remotePath))
 		}
 	}
+}
+
+// pullToLocalFile downloads remotePath into localPath using the passed pull
+// function and returns the downloaded size. If the pull fails, the local file
+// is removed so a failed pull does not leave a zero-byte or partial file
+// behind that pipelines could mistake for a successful download (issue #784).
+func pullToLocalFile(pull func(remotePath string, writer io.Writer) error, remotePath, localPath string) (int64, error) {
+	outputFile, err := os.Create(localPath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create output file: %w", err)
+	}
+
+	if err := pull(remotePath, outputFile); err != nil {
+		outputFile.Close()
+		os.Remove(localPath)
+		return 0, err
+	}
+
+	fileInfo, err := outputFile.Stat()
+	if err != nil {
+		outputFile.Close()
+		return 0, fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	if err := outputFile.Close(); err != nil {
+		return 0, fmt.Errorf("failed to close output file: %w", err)
+	}
+
+	return fileInfo.Size(), nil
 }
 
 func runFsyncCommand(ctx commandContext) {
