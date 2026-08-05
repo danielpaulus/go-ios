@@ -87,18 +87,11 @@ func LimitNumClientsUDID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 		udid := device.Properties.SerialNumber
-		var sema chan struct{}
-		semaIntf, ok := semaMap.Load(udid)
-		if !ok {
-			sema = make(chan struct{}, maxClients)
-			semaMap.Store(udid, sema)
-		} else {
-			sema = semaIntf.(chan struct{})
-		}
+		semaIntf, _ := semaMap.LoadOrStore(udid, make(chan struct{}, maxClients))
+		sema := semaIntf.(chan struct{})
 		sema <- struct{}{}
 		defer func() { <-sema }()
 		c.Next()
-		print("mid done")
 	}
 }
 

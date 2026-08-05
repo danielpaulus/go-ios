@@ -1278,8 +1278,8 @@ func printDeviceDate(device ios.DeviceEntry) {
 }
 
 func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool, filesharing bool) {
-	svc, _ := installationproxy.New(device)
-	var err error
+	svc, err := installationproxy.New(device)
+	exitIfError("failed to connect to installationproxy", err)
 	var response []installationproxy.AppInfo
 	appType := ""
 	if all {

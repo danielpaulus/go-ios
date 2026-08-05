@@ -120,5 +120,5 @@ gvisor.dev/gvisor v0.0.0-20240405191320-0878b34101b5 h1:DOUDfNS+CFMM46k18FRF5k/0
 gvisor.dev/gvisor v0.0.0-20240405191320-0878b34101b5/go.mod h1:NQHVAzMwvZ+Qe3ElSiHmq9RUm1MdNHpUZ52fiEqvn+0=
 howett.net/plist v1.0.1 h1:37GdZ8tP09Q35o9ych3ehygcsL+HqKSwzctveSlarvM=
 howett.net/plist v1.0.1/go.mod h1:lqaXoTrLY4hg8tnEzNru53gicrbv7rrk+2xJA/7hw9g=
-software.sslmate.com/src/go-pkcs12 v0.7.0 h1:Db8W44cB54TWD7stUFFSWxdfpdn6fZVcDl0w3R4RVM0=
-software.sslmate.com/src/go-pkcs12 v0.7.0/go.mod h1:Qiz0EyvDRJjjxGyUQa2cCNZn/wMyzrRJ/qcDXOQazLI=
+software.sslmate.com/src/go-pkcs12 v0.7.2 h1:Rh9FoMaI5k7Oo6EOS+2/BnoZ+JFIS+XHjM0VGkSPXLM=
+software.sslmate.com/src/go-pkcs12 v0.7.2/go.mod h1:Qiz0EyvDRJjjxGyUQa2cCNZn/wMyzrRJ/qcDXOQazLI=

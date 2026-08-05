@@ -215,6 +215,13 @@ func (conn *DeviceConnection) DisableSessionSSL() {
 	}
 	golog.Trace("rcv tls header", "module", logModule, "conn", &conn.c, "header", fmt.Sprintf("%x", header))
 	length := binary.BigEndian.Uint16(header[3:])
+	// A uint16 length is inherently bounded to 64 KiB, but guard against it
+	// exceeding our shared maximum for consistency with the other length-prefixed
+	// readers. Valid TLS record lengths are always well below this bound.
+	if uint32(length) > maxMessageSize {
+		golog.Error("tls teardown payload too large", "module", logModule, "conn", &conn.c, "length", length)
+		return
+	}
 	payload := make([]byte, length)
 
 	_, err = io.ReadFull(conn.c, payload)

@@ -180,8 +180,12 @@ func GetWifiMac(device DeviceEntry) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	result, ok := wifiMac.(string)
+	if !ok {
+		return "", fmt.Errorf("could not convert WiFiAddress response to string: %+v", wifiMac)
+	}
 
-	return wifiMac.(string), err
+	return result, err
 }
 
 // GetProductVersion returns the ProductVersion of the device f.ex. "10.3"

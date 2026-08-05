@@ -148,7 +148,10 @@ func (t *tunnelService) createTunnelListener() (tunnelListener, error) {
 	if err != nil {
 		return tunnelListener{}, err
 	}
-	port := createListener["port"].(float64)
+	port, ok := createListener["port"].(float64)
+	if !ok {
+		return tunnelListener{}, fmt.Errorf("createTunnelListener: no numeric port in createListener response")
+	}
 	devPublicKeyRaw, found := createListener["devicePublicKey"]
 	if !found {
 		return tunnelListener{}, fmt.Errorf("no public key found")
