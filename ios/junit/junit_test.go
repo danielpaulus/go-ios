@@ -105,8 +105,8 @@ func TestStalledExpectedFailureAndMissingStatus(t *testing.T) {
 	}
 	// no suite TestDuration set: falls back to the sum of the case durations
 	expected := `<?xml version="1.0" encoding="UTF-8"?>
-<testsuites tests="3" failures="0" errors="1" skipped="2" time="3.000">
-  <testsuite name="FlakySuite" tests="3" failures="0" errors="1" skipped="2" time="3.000">
+<testsuites tests="3" failures="0" errors="2" skipped="1" time="3.000">
+  <testsuite name="FlakySuite" tests="3" failures="0" errors="2" skipped="1" time="3.000">
     <testcase classname="FlakyTests" name="testStalls" time="2.000">
       <error message="Test case stalled">FlakyTests.swift:7</error>
     </testcase>
@@ -114,7 +114,7 @@ func TestStalledExpectedFailureAndMissingStatus(t *testing.T) {
       <skipped message="expected failure"></skipped>
     </testcase>
     <testcase classname="FlakyTests" name="testNeverFinished" time="0.000">
-      <skipped message="no test result received"></skipped>
+      <error message="no test result received"></error>
     </testcase>
   </testsuite>
 </testsuites>

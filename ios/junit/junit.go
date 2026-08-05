@@ -137,15 +137,19 @@ func convertCase(testCase testmanagerd.TestCase) xmlTestCase {
 			message += ": " + testCase.Err.Message
 		}
 		converted.Skipped = &xmlResult{Message: message}
+	case "":
+		// the test case started but never reported a final status, e.g.
+		// because the app crashed or the connection to the device was lost
+		message := testCase.Err.Message
+		if message == "" {
+			message = "no test result received"
+		}
+		converted.Error = &xmlResult{Message: message}
 	default:
-		// covers XCTSkip-style skipped tests as well as test cases that
-		// never reported a final status
+		// covers XCTSkip-style skipped tests
 		message := testCase.Err.Message
 		if message == "" {
 			message = string(testCase.Status)
-		}
-		if message == "" {
-			message = "no test result received"
 		}
 		converted.Skipped = &xmlResult{Message: message}
 	}
