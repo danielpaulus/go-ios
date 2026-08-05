@@ -112,12 +112,13 @@ func (dtxConn *Connection) Dispatch(msg Message) {
 // Dispatch prints log messages and errors when they are received and also creates local Channels when requested by the device.
 func (g GlobalDispatcher) Dispatch(msg Message) {
 	SendAckIfNeeded(g.dtxConnection, msg)
-	if msg.Payload != nil {
-		if requestChannel == msg.Payload[0] {
+	if len(msg.Payload) > 0 {
+		selector, _ := msg.Payload[0].(string)
+		if requestChannel == selector {
 			g.requestChannelMessages <- msg
 		}
 		// TODO: use the dispatchFunctions map
-		if "outputReceived:fromProcess:atTime:" == msg.Payload[0] {
+		if "outputReceived:fromProcess:atTime:" == selector {
 			args := msg.Auxiliary.GetArguments()
 			if len(args) < 3 {
 				golog.Warn("outputReceived:fromProcess:atTime: expected at least 3 arguments", "module", logModule, "count", len(args))
@@ -137,7 +138,11 @@ func (g GlobalDispatcher) Dispatch(msg Message) {
 	}
 	golog.Trace("Global Dispatcher Received", "module", logModule, "payload", msg.Payload, "auxiliary", msg.Auxiliary)
 	if msg.HasError() {
-		golog.Error("global dispatcher received error", "module", logModule, "error", msg.Payload[0])
+		var errPayload interface{}
+		if len(msg.Payload) > 0 {
+			errPayload = msg.Payload[0]
+		}
+		golog.Error("global dispatcher received error", "module", logModule, "error", errPayload)
 	}
 	if msg.PayloadHeader.MessageType == UnknownTypeOne || msg.PayloadHeader.MessageType == ResponseWithReturnValueInPayload {
 		g.dtxConnection.Dispatch(msg)

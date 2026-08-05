@@ -104,7 +104,11 @@ func (d *Channel) methodCallWithReply(ctx context.Context, selector string, auxi
 		return msg, err
 	}
 	if msg.HasError() {
-		return msg, fmt.Errorf("failed invoking method '%s' with error: %s", selector, msg.Payload[0])
+		var errPayload interface{}
+		if len(msg.Payload) > 0 {
+			errPayload = msg.Payload[0]
+		}
+		return msg, fmt.Errorf("failed invoking method '%s' with error: %v", selector, errPayload)
 	}
 	return msg, nil
 }
@@ -173,8 +177,12 @@ func (d *Channel) Dispatch(msg Message) {
 		d.messageIdentifier = msg.Identifier + 1
 	}
 	if msg.PayloadHeader.MessageType == Methodinvocation {
-		golog.Trace("dispatching", "module", logModule, "channel_id", d.channelName, "selector", msg.Payload[0].(string))
-		if v, ok := d.registeredMethods[msg.Payload[0].(string)]; ok {
+		var selector string
+		if len(msg.Payload) > 0 {
+			selector, _ = msg.Payload[0].(string)
+		}
+		golog.Trace("dispatching", "module", logModule, "channel_id", d.channelName, "selector", selector)
+		if v, ok := d.registeredMethods[selector]; ok {
 			d.mutex.Unlock()
 			v <- msg
 			return
@@ -203,7 +211,7 @@ func (d *Channel) Dispatch(msg Message) {
 					}
 
 					if msg.ConversationIndex > 0 {
-						d.responseWaiters[msg.Identifier] <- msg
+						sendResponse(d.responseWaiters[msg.Identifier], msg)
 					} else {
 						d.messageDispatcher.Dispatch(msg)
 					}
@@ -218,10 +226,24 @@ func (d *Channel) Dispatch(msg Message) {
 			return
 		}
 
-		d.responseWaiters[msg.Identifier] <- msg
+		sendResponse(d.responseWaiters[msg.Identifier], msg)
 		delete(d.responseWaiters, msg.Identifier)
 		delete(d.defragmenters, msg.Identifier)
 		return
 	}
 	d.messageDispatcher.Dispatch(msg)
+}
+
+// sendResponse delivers msg to a response waiter without ever blocking the
+// reader goroutine. A malformed/unexpected Identifier may map to no waiter (a
+// nil channel, which would block forever) or to a waiter that has already given
+// up, so we guard for nil and use a non-blocking send.
+func sendResponse(waiter chan Message, msg Message) {
+	if waiter == nil {
+		return
+	}
+	select {
+	case waiter <- msg:
+	default:
+	}
 }

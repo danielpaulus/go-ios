@@ -32,11 +32,48 @@ type XCTestManager_DaemonConnectionInterface struct {
 	IDEDaemonProxy *dtx.Channel
 }
 
-func (xide XCTestManager_IDEInterface) testBundleReady() (uint64, uint64) {
+func (xide XCTestManager_IDEInterface) testBundleReady() (uint64, uint64, error) {
 	msg := <-xide.testBundleReadyChannel
-	protocolVersion, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
-	minimalVersion, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[1].([]byte))
-	return protocolVersion[0].(uint64), minimalVersion[0].(uint64)
+	args := msg.Auxiliary.GetArguments()
+	if len(args) < 2 {
+		return 0, 0, fmt.Errorf("testBundleReady: expected at least 2 arguments, got %d", len(args))
+	}
+
+	protocolVersionBytes, ok := args[0].([]byte)
+	if !ok {
+		return 0, 0, fmt.Errorf("testBundleReady: protocol version argument is not a byte slice")
+	}
+	minimalVersionBytes, ok := args[1].([]byte)
+	if !ok {
+		return 0, 0, fmt.Errorf("testBundleReady: minimal version argument is not a byte slice")
+	}
+
+	protocolVersion, err := nskeyedarchiver.Unarchive(protocolVersionBytes)
+	if err != nil {
+		return 0, 0, fmt.Errorf("testBundleReady: cannot unarchive protocol version: %w", err)
+	}
+	minimalVersion, err := nskeyedarchiver.Unarchive(minimalVersionBytes)
+	if err != nil {
+		return 0, 0, fmt.Errorf("testBundleReady: cannot unarchive minimal version: %w", err)
+	}
+
+	if len(protocolVersion) == 0 {
+		return 0, 0, fmt.Errorf("testBundleReady: protocol version payload is empty")
+	}
+	if len(minimalVersion) == 0 {
+		return 0, 0, fmt.Errorf("testBundleReady: minimal version payload is empty")
+	}
+
+	protocolVersionValue, ok := protocolVersion[0].(uint64)
+	if !ok {
+		return 0, 0, fmt.Errorf("testBundleReady: protocol version is not a uint64")
+	}
+	minimalVersionValue, ok := minimalVersion[0].(uint64)
+	if !ok {
+		return 0, 0, fmt.Errorf("testBundleReady: minimal version is not a uint64")
+	}
+
+	return protocolVersionValue, minimalVersionValue, nil
 }
 
 func testRunnerReadyWithCapabilitiesConfig(testConfig nskeyedarchiver.XCTestConfiguration) dtx.MethodWithResponse {
@@ -404,7 +441,7 @@ func runXUITestWithBundleIdsXcode15Ctx(
 	}
 	golog.Info("authorized", "module", logModule, "udid", config.Device.Properties.SerialNumber, "pid", testRunnerLaunch.Pid, "authorized", authorized)
 
-	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(proxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface"})
+	ideInterfaceChannel := ideDaemonProxy1.dtxConnection.ForChannelRequest(proxyDispatcher{id: "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface", testListener: noopTestListener()})
 
 	proto := uint64(36)
 	err = ideDaemonProxy1.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, proto)
