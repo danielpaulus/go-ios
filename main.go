@@ -60,18 +60,11 @@ func main() {
 
 const version = "local-build"
 
-// Main Exports main for testing
-func Main() {
-	helpCatalog, err := clihelp.Load()
-	exitIfError("failed loading help definitions", err)
-	if handled, exitCode := helpCatalog.WriteHelp(os.Args[1:], version, os.Stdout, os.Stderr); handled {
-		if exitCode != 0 {
-			os.Exit(exitCode)
-		}
-		return
-	}
-
-	usage := fmt.Sprintf(`go-ios %s
+// cliUsage returns the docopt usage string that drives command dispatch.
+// It is a function (not inlined in Main) so tests can parse real command
+// lines against the exact usage the CLI ships.
+func cliUsage() string {
+	return fmt.Sprintf(`go-ios %s
 
 Usage:
   ios --version | version [options]
@@ -604,7 +597,20 @@ The commands work as following:
                                                                     iOS 11+ only (Use --force to try on older versions).
 
   `, version)
-	arguments, err := docopt.ParseDoc(usage)
+}
+
+// Main Exports main for testing
+func Main() {
+	helpCatalog, err := clihelp.Load()
+	exitIfError("failed loading help definitions", err)
+	if handled, exitCode := helpCatalog.WriteHelp(os.Args[1:], version, os.Stdout, os.Stderr); handled {
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+		return
+	}
+
+	arguments, err := docopt.ParseDoc(cliUsage())
 	exitIfError("failed parsing args", err)
 	configureCLI(arguments)
 	if dispatchCommand(commandContext{Args: arguments}, preProxyCommands) {
