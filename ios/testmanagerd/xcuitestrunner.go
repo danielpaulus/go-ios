@@ -520,6 +520,44 @@ func startTestRunner17(appserviceConn *appservice.Connection, bundleID string, s
 	return appLaunch, nil
 }
 
+// getTestInfo resolves the runner (and optional target) app on the device from
+// the installation proxy. It performs no device-side writes, so callers that
+// build the XCTestConfiguration in memory (createTestConfig) can use it without
+// pushing an .xctestconfiguration file to the device.
+func getTestInfo(device ios.DeviceEntry, bundleID string, testRunnerBundleID string) (testInfo, error) {
+	installationProxy, err := installationproxy.New(device)
+	if err != nil {
+		return testInfo{}, err
+	}
+	defer installationProxy.Close()
+
+	apps, err := installationProxy.BrowseUserApps()
+	if err != nil {
+		return testInfo{}, err
+	}
+
+	testAppInfo, err := getappInfo(testRunnerBundleID, apps)
+	if err != nil {
+		return testInfo{}, err
+	}
+
+	info := testInfo{
+		testApp: testAppInfo,
+	}
+
+	if bundleID != "" {
+		appInfo, err := getappInfo(bundleID, apps)
+		if err != nil {
+			return testInfo{}, err
+		}
+		golog.Debug("app info found", "module", logModule, "udid", device.Properties.SerialNumber, "appInfo", appInfo)
+
+		info.targetApp = appInfo
+	}
+
+	return info, nil
+}
+
 func setupXcuiTest(device ios.DeviceEntry, bundleID string, testRunnerBundleID string, xctestConfigFileName string, testsToRun []string, testsToSkip []string, isXCTest bool, version *semver.Version) (uuid.UUID, string, nskeyedarchiver.XCTestConfiguration, testInfo, error) {
 	testSessionID := uuid.New()
 	installationProxy, err := installationproxy.New(device)

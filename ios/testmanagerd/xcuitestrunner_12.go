@@ -11,6 +11,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/golog"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
+	"github.com/google/uuid"
 )
 
 func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, config TestConfig, version *semver.Version,
@@ -19,12 +20,18 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, config TestConfig, v
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot create a usbmuxd connection to testmanagerd: %w", err)
 	}
-
-	testSessionId, xctestConfigPath, testConfig, testInfo, err := setupXcuiTest(config.Device, config.BundleId, config.TestRunnerBundleId, config.XctestConfigName, config.TestsToRun, config.TestsToSkip, config.XcTest, version)
-	if err != nil {
-		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot setup test config: %w", err)
-	}
 	defer conn.Close()
+
+	// iOS 14-16 accept the XCTestConfiguration over the DTX session, the same way
+	// the iOS 17+ path does, so we build it in memory instead of writing an
+	// .xctestconfiguration file to the device and passing its path. Serializing
+	// that file on-device is what broke test runs on these versions.
+	testSessionId := uuid.New()
+	testInfo, err := getTestInfo(config.Device, config.BundleId, config.TestRunnerBundleId)
+	if err != nil {
+		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot get test info: %w", err)
+	}
+	testConfig := createTestConfig(testInfo, testSessionId, config.XctestConfigName, config.TestsToRun, config.TestsToSkip, config.XcTest, version)
 
 	ideDaemonProxy := newDtxProxyWithConfig(conn, testConfig, config.Listener)
 
@@ -58,7 +65,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, config TestConfig, v
 	}
 	defer pControl.Close()
 
-	pid, err := startTestRunner12(pControl, xctestConfigPath, config.TestRunnerBundleId, testSessionId.String(), testInfo.testApp.path+"/PlugIns/"+config.XctestConfigName, config.Args, config.Env)
+	pid, err := startTestRunner12(pControl, config.TestRunnerBundleId, testSessionId.String(), testInfo.testApp.path+"/PlugIns/"+config.XctestConfigName, config.Args, config.Env)
 	if err != nil {
 		return make([]TestSuite, 0), fmt.Errorf("RunXUITestWithBundleIdsXcode12Ctx: cannot start test runner: %w", err)
 	}
@@ -106,7 +113,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, config TestConfig, v
 	return config.Listener.TestSuites, config.Listener.err
 }
 
-func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath string, bundleID string,
+func startTestRunner12(pControl *instruments.ProcessControl, bundleID string,
 	sessionIdentifier string, testBundlePath string, wdaargs []string, wdaenv map[string]interface{},
 ) (uint64, error) {
 	args := []interface{}{
@@ -125,7 +132,7 @@ func startTestRunner12(pControl *instruments.ProcessControl, xctestConfigPath st
 		"OS_ACTIVITY_DT_MODE":             "YES",
 		"SQLITE_ENABLE_THREAD_ASSERTIONS": "1",
 		"XCTestBundlePath":                testBundlePath,
-		"XCTestConfigurationFilePath":     xctestConfigPath,
+		"XCTestConfigurationFilePath":     "",
 		"XCTestSessionIdentifier":         sessionIdentifier,
 	}
 
