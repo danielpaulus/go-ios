@@ -124,6 +124,64 @@ func TestDownloadImageForVersionOfflineFullNameLayout(t *testing.T) {
 	assert.Equal(t, imagePath, got)
 }
 
+// safeJoin must reject path elements that would escape the base directory.
+func TestSafeJoinRejectsEscapingElements(t *testing.T) {
+	baseDir := t.TempDir()
+
+	joined, err := safeJoin(baseDir, "12.3", imageFile)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(baseDir, "12.3", imageFile), joined)
+
+	for _, malicious := range []string{"../../etc", "..", "12.3/../../etc", "/etc/passwd"} {
+		_, err := safeJoin(baseDir, malicious)
+		assert.Error(t, err, "element %q must be rejected", malicious)
+	}
+}
+
+// A malicious product version string must be rejected instead of being used to
+// build filesystem paths.
+func TestDownloadImageForVersionRejectsMaliciousVersion(t *testing.T) {
+	offlineServer(t)
+	baseDir := t.TempDir()
+
+	_, err := downloadImageForVersion(baseDir, "../../etc", "")
+	assert.Error(t, err)
+	assert.NoDirExists(t, filepath.Join(baseDir, "..", "etc"))
+}
+
+// A present DDI archive with a zip-slip entry must not write outside the
+// basedir; extraction fails and, without a reachable download source, the
+// resolution errors out.
+func TestDownload17PlusRejectsZipSlipArchive(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "offline", http.StatusInternalServerError)
+	}))
+	t.Cleanup(server.Close)
+	origDevicebox := devicebox
+	devicebox = server.URL + "/"
+	t.Cleanup(func() { devicebox = origDevicebox })
+
+	parentDir := t.TempDir()
+	baseDir := filepath.Join(parentDir, "devimages")
+	require.NoError(t, os.MkdirAll(baseDir, 0o755))
+
+	zipFile, err := os.Create(filepath.Join(baseDir, xcode15_4_ddi+".zip"))
+	require.NoError(t, err)
+	zipWriter := zip.NewWriter(zipFile)
+	evil, err := zipWriter.Create("../evil.txt")
+	require.NoError(t, err)
+	_, err = evil.Write([]byte("evil"))
+	require.NoError(t, err)
+	require.NoError(t, zipWriter.Close())
+	require.NoError(t, zipFile.Close())
+
+	_, err = Download17Plus(baseDir, ios.IOS17())
+	assert.Error(t, err)
+	assert.NoFileExists(t, filepath.Join(baseDir, "evil.txt"))
+	assert.NoFileExists(t, filepath.Join(parentDir, "evil.txt"))
+	assert.NoFileExists(t, filepath.Join(baseDir, xcode15_4_ddi, "evil.txt"))
+}
+
 // On a real cache miss the image and its signature are downloaded into the
 // short '<version>' directory, which the offline lookup finds on the next run.
 func TestDownloadImageForVersionDownloadsOnCacheMiss(t *testing.T) {

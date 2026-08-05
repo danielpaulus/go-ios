@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
@@ -67,6 +69,13 @@ func InstallImage(c *gin.Context) {
 		basedir := c.Query("basedir")
 		if basedir == "" {
 			basedir = "./devimages"
+		}
+		// basedir is remote input and gets used to build filesystem paths,
+		// reject anything that traverses upwards.
+		basedir = filepath.Clean(basedir)
+		if strings.Contains(basedir, "..") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "basedir must not contain '..'"})
+			return
 		}
 
 		path, err := imagemounter.DownloadImageFor(device, basedir)

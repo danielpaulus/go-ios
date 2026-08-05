@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -137,18 +136,24 @@ func Download17Plus(baseDir string, version *semver.Version) (string, error) {
 		golog.Info("using personalized developer disk image already present in basedir", "module", logModule, "path", restoreDir)
 		return restoreDir, nil
 	}
-	imageFileName := path.Join(baseDir, xcode15_4_ddi+".zip")
-	extractedPath := path.Join(baseDir, xcode15_4_ddi)
+	imageFileName, err := safeJoin(baseDir, xcode15_4_ddi+".zip")
+	if err != nil {
+		return "", err
+	}
+	extractedPath, err := safeJoin(baseDir, xcode15_4_ddi)
+	if err != nil {
+		return "", err
+	}
 	if _, err := os.Stat(imageFileName); err == nil {
 		golog.Info("using image archive already present in basedir", "module", logModule, "path", imageFileName)
 		if _, _, err := ios.Unzip(imageFileName, extractedPath); err == nil {
-			return path.Join(extractedPath, "Restore"), nil
+			return filepath.Join(extractedPath, "Restore"), nil
 		}
 		golog.Warn("extracting present image archive failed, downloading again", "module", logModule, "path", imageFileName)
 	}
 	downloadUrl := fmt.Sprintf("%s%s%s", devicebox, xcode15_4_ddi, ".zip")
 	golog.Info("downloading image", "module", logModule, "url", downloadUrl, "path", imageFileName)
-	err := downloadFile(imageFileName, downloadUrl)
+	err = downloadFile(imageFileName, downloadUrl)
 	if err != nil {
 		return "", err
 	}
@@ -157,7 +162,26 @@ func Download17Plus(baseDir string, version *semver.Version) (string, error) {
 		return "", fmt.Errorf("Download17Plus: error extracting image %s %w", imageFileName, err)
 	}
 
-	return path.Join(extractedPath, "Restore"), nil
+	return filepath.Join(extractedPath, "Restore"), nil
+}
+
+// safeJoin joins elems onto baseDir and guarantees that the result cannot
+// escape baseDir: every element must be a local path fragment (no absolute
+// path, no '..' traversal) and the cleaned result must still be inside the
+// cleaned base directory. Use it for every filesystem path that is built from
+// values not fully controlled by go-ios itself.
+func safeJoin(baseDir string, elems ...string) (string, error) {
+	for _, elem := range elems {
+		if !filepath.IsLocal(elem) {
+			return "", fmt.Errorf("safeJoin: path element '%s' would escape base directory '%s'", elem, baseDir)
+		}
+	}
+	cleanedBase := filepath.Clean(baseDir)
+	joined := filepath.Join(append([]string{cleanedBase}, elems...)...)
+	if joined != cleanedBase && !strings.HasPrefix(joined, cleanedBase+string(os.PathSeparator)) {
+		return "", fmt.Errorf("safeJoin: path '%s' would escape base directory '%s'", joined, baseDir)
+	}
+	return joined, nil
 }
 
 // findPersonalizedDDI looks for a personalized developer disk image (iOS 17+)
@@ -212,6 +236,11 @@ func downloadImageForVersion(baseDir string, productVersion string, udid string)
 	}
 	version := MatchAvailable(productVersion)
 	golog.Info("getting developer image", "module", logModule, "udid", udid, "version", productVersion, "imageVersion", version)
+	// version comes from the fixed availableVersions catalog, but validate it
+	// before using it as a path component anyway.
+	if version == "" || !filepath.IsLocal(version) {
+		return "", fmt.Errorf("downloadImageForVersion: no usable image version for ios version '%s'", productVersion)
+	}
 	versionDir := strings.Split(version, " (")[0]
 	// Look for a present image before any network access, both in the full
 	// '<version> (<build>)' layout used by manual downloads mirroring the
@@ -232,12 +261,16 @@ func downloadImageForVersion(baseDir string, productVersion string, udid string)
 		}
 	}
 	golog.Info("thank you github.com/mspvirajpatel for making these images available :-)", "module", logModule, "udid", udid)
+	versionPath, err := safeJoin(baseDir, versionDir)
+	if err != nil {
+		return "", err
+	}
 	downloadUrl := versionMap[version] + "/" + imageFile + "?raw=true"
-	imageFileName := path.Join(baseDir, versionDir, imageFile)
+	imageFileName := filepath.Join(versionPath, imageFile)
 
 	signatureDownloadUrl := versionMap[version] + "/" + signatureFile + "?raw=true"
-	signatureFileName := path.Join(baseDir, versionDir, signatureFile)
-	err = os.MkdirAll(path.Join(baseDir, versionDir), 0o755)
+	signatureFileName := filepath.Join(versionPath, signatureFile)
+	err = os.MkdirAll(versionPath, 0o755)
 	if err != nil {
 		return "", err
 	}
