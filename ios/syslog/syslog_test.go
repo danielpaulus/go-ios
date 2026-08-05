@@ -87,6 +87,51 @@ func TestDecodeVis(t *testing.T) {
 			want: "\xff",
 		},
 		{
+			name: "meta boundary payloads",
+			in:   `\M-!\M-~\M^@\M^_`,
+			want: "\xa1\xfe\x80\x9f",
+		},
+		{
+			name: "meta escape with backslash payload",
+			in:   `\M-\`,
+			want: "\xdc",
+		},
+		{
+			name: "octal escape for 0xA0 continuation byte decodes",
+			in:   `voil\M-C\240!`,
+			want: "voilà!",
+		},
+		{
+			name: "octal escape decodes full high-byte sequence",
+			in:   `\346\210\226`,
+			want: "或",
+		},
+		{
+			name: "octal escape for backslash decodes",
+			in:   `path C:\134Users\134M-f`,
+			want: `path C:\Users\M-f`,
+		},
+		{
+			name: "control-valued octal escapes stay encoded",
+			in:   `nul \000 esc \033 del \177`,
+			want: `nul \000 esc \033 del \177`,
+		},
+		{
+			name: "out-of-range octal escape stays",
+			in:   `\777`,
+			want: `\777`,
+		},
+		{
+			name: "truncated octal escape stays",
+			in:   `abc\24`,
+			want: `abc\24`,
+		},
+		{
+			name: "two octal digits then non-octal stays",
+			in:   `abc\24x`,
+			want: `abc\24x`,
+		},
+		{
 			name: "plain ASCII passes through",
 			in:   "hello world [123] <Notice>: nothing to decode",
 			want: "hello world [123] <Notice>: nothing to decode",
@@ -120,6 +165,16 @@ func TestDecodeVis(t *testing.T) {
 			name: "unknown escape stays",
 			in:   `abc\q def\Mx`,
 			want: `abc\q def\Mx`,
+		},
+		{
+			name: "meta escape with non-graphic payload stays",
+			in:   "a\\M- b\\M-\tc\\M-\nd",
+			want: "a\\M- b\\M-\tc\\M-\nd",
+		},
+		{
+			name: "meta-control escape with invalid payload stays",
+			in:   `\M^a \M^0`,
+			want: `\M^a \M^0`,
 		},
 		{
 			name: "control escape is left encoded",
