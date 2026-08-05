@@ -453,6 +453,34 @@ func (f *File) Read(p []byte) (int, error) {
 	return n, nil
 }
 
+// maxTransferSize is the maximum payload carried in a single AFC fileWrite
+// packet. 64KiB matches what other AFC implementations use per packet.
+const maxTransferSize = 64 * 1024
+
+// ReadFrom implements io.ReaderFrom. It copies all data from r into the file,
+// splitting the stream into fileWrite packets of at most maxTransferSize bytes
+// each, so arbitrarily large uploads (e.g. staging an .ipa for installation)
+// never produce oversized AFC packets.
+func (f *File) ReadFrom(r io.Reader) (int64, error) {
+	buf := make([]byte, maxTransferSize)
+	var total int64
+	for {
+		n, readErr := r.Read(buf)
+		if n > 0 {
+			if _, writeErr := f.Write(buf[:n]); writeErr != nil {
+				return total, writeErr
+			}
+			total += int64(n)
+		}
+		if readErr == io.EOF {
+			return total, nil
+		}
+		if readErr != nil {
+			return total, readErr
+		}
+	}
+}
+
 func (f *File) Write(p []byte) (int, error) {
 	headerPayload := make([]byte, 8)
 	binary.LittleEndian.PutUint64(headerPayload, f.handle)

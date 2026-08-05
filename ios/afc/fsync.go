@@ -101,7 +101,7 @@ func (conn *Client) WriteToFile(reader io.Reader, dstPath string) error {
 	}
 	defer fd.Close()
 
-	_, err = io.Copy(fd, reader)
+	_, err = fd.ReadFrom(reader)
 	if err != nil {
 		return err
 	}
