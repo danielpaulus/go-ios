@@ -141,9 +141,9 @@ Usage:
   ios resetax [options]
   ios resetlocation [options]
   ios rsd ls [options]
-  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
+  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--junit-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
-  ios runxctest [--xctestrun-file-path=<xctestrunFilePath>] [--log-output=<file>] [options]
+  ios runxctest [--xctestrun-file-path=<xctestrunFilePath>] [--log-output=<file>] [--junit-output=<file>] [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
   ios sign certificate appstoreconnect --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> [--p12-output=<p12file>] [--p12password=<password>] [--revoke-existing] [options]
   ios sign provision appstoreconnect --bundleid=<bundleid> --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> --profile-output=<mobileprovision> [--p12-output=<p12file>] [--certificate-id=<id>] [--revoke-existing] [--p12password=<password>] [--bundle-name=<name>] [--profile-name=<name>] [--device-name=<name>] [options]
@@ -445,10 +445,11 @@ The commands work as following:
     ios resetlocation [options]       Resets the location of the device to the actual one
     ios rsd ls [options]              List RSD services and their port.
 
-    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
+    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--junit-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
                                                                     Run a XCUITest.
                                                                     If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
                                                                     If you provide '-' as log output, it prints resuts to stdout.
+                                                                    With --junit-output the test results are additionally written to the given file as JUnit XML.
                                                                     To be able to filter for tests to run or skip, use one argument per test selector.
                                                                     Ex.: runtest --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
                                                                     The method name can also be omitted and in this case all tests of the specified class are run
@@ -457,10 +458,11 @@ The commands work as following:
                                                                     Runs WebDriverAgents
                                                                     Specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
 
-    ios runxctest [--xctestrun-file-path=<xctestrunFilePath>]  [--log-output=<file>] [options]
+    ios runxctest [--xctestrun-file-path=<xctestrunFilePath>]  [--log-output=<file>] [--junit-output=<file>] [options]
                                                                     Run a XCTest.
                                                                     The --xctestrun-file-path specifies the path to the .xctestrun file to configure the test execution.
                                                                     If you provide '-' as log output, it prints resuts to stdout.
+                                                                    With --junit-output the test results are additionally written to the given file as JUnit XML.
 
     ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
                                                                     Takes a screenshot and writes it to the current dir or to <outfile>
