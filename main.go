@@ -99,7 +99,7 @@ Usage:
   ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]
   ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options]
   ios file push [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --local=<localPath> --remote=<remotePath> [options]
-  ios forward [options] [<hostPort> <targetPort>] [--port=<mapping>]...
+  ios forward [options] [--list] [<hostPort> <targetPort>] [--port=<mapping>]...
   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
@@ -299,9 +299,11 @@ The commands work as following:
                                                                   Upload file using RemoteXPC (iOS 17+).
                                                                   Requires tunnel. Preserves source file permissions.
 
-    ios forward [options] [<hostPort> <targetPort>] [--port=<mapping>]...
+    ios forward [options] [--list] [<hostPort> <targetPort>] [--port=<mapping>]...
                                                                   Forward TCP connections to device.
                                                                   Use --port for multiple ports: --port=8100:8100 --port=9191:9191
+                                                                  Use --list to print the active forwards started on this host
+                                                                  (like adb forward --list). Needs no device.
 
     ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
                                                                   Pull or Push file from srcPath to dstPath.
@@ -1174,9 +1176,55 @@ func startForwarding(device ios.DeviceEntry, hostPort uint16, targetPort uint16)
 	cl, err := forward.Forward(device, hostPort, targetPort)
 	exitIfError("failed to forward port", err)
 	defer stopForwarding(cl)
+	unregister := registerForward(device, hostPort, targetPort)
+	defer unregister()
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	<-c
+}
+
+// registerForward records this process' forward in the per-user registry so
+// `ios forward --list` can enumerate it, and returns the matching unregister
+// func. Registration is best-effort: a failure must never break the forward
+// itself, and entries of processes that died without unregistering are pruned
+// when the registry is listed.
+func registerForward(device ios.DeviceEntry, hostPort uint16, targetPort uint16) func() {
+	dir, err := forward.DefaultRegistryDir()
+	if err != nil {
+		slog.Warn("could not determine forward registry dir, forward will be missing from 'ios forward --list'", "error", err)
+		return func() {}
+	}
+	registry := forward.NewRegistry(dir)
+	entry := forward.Entry{
+		Udid:       device.Properties.SerialNumber,
+		HostPort:   hostPort,
+		DevicePort: targetPort,
+		Pid:        os.Getpid(),
+	}
+	if err := registry.Register(entry); err != nil {
+		slog.Warn("could not register forward, it will be missing from 'ios forward --list'", "error", err)
+		return func() {}
+	}
+	return func() {
+		if err := registry.Unregister(entry); err != nil {
+			slog.Warn("could not unregister forward", "error", err)
+		}
+	}
+}
+
+func runForwardListCommand(ctx commandContext) {
+	dir, err := forward.DefaultRegistryDir()
+	exitIfError("forward list: could not determine registry dir", err)
+	entries, err := forward.NewRegistry(dir).List()
+	exitIfError("forward list: could not read forward registry", err)
+	if JSONdisabled {
+		// Same shape as `adb forward --list`: <serial> tcp:<local> tcp:<remote>
+		for _, e := range entries {
+			fmt.Printf("%s tcp:%d tcp:%d pid:%d\n", e.Udid, e.HostPort, e.DevicePort, e.Pid)
+		}
+		return
+	}
+	fmt.Println(convertToJSONString(map[string]interface{}{"forwards": entries, "count": len(entries)}))
 }
 
 func stopForwarding(cl *forward.ConnListener) {
@@ -1188,10 +1236,14 @@ func stopForwarding(cl *forward.ConnListener) {
 
 func startMultiForwarding(device ios.DeviceEntry, mappings []string) {
 	var listeners []*forward.ConnListener
+	var unregisters []func()
 
 	closeAllListeners := func() {
 		for _, l := range listeners {
 			l.Close()
+		}
+		for _, unregister := range unregisters {
+			unregister()
 		}
 	}
 
@@ -1218,6 +1270,7 @@ func startMultiForwarding(device ios.DeviceEntry, mappings []string) {
 			exitIfError(fmt.Sprintf("failed to forward %d:%d", hostPort, targetPort), err)
 		}
 		listeners = append(listeners, cl)
+		unregisters = append(unregisters, registerForward(device, uint16(hostPort), uint16(targetPort)))
 		slog.Info(fmt.Sprintf("Forwarding %d -> %d", hostPort, targetPort))
 	}
 
