@@ -9,7 +9,7 @@ require (
 	github.com/aluedeke/go-codesign v0.0.6
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
 	github.com/google/gopacket v1.1.19
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.3.0
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/pierrec/lz4 v2.6.1+incompatible
@@ -30,6 +30,8 @@ require (
 	howett.net/plist v1.0.1
 	software.sslmate.com/src/go-pkcs12 v0.7.2
 )
+
+require github.com/kardianos/service v1.3.0
 
 require (
 	github.com/blacktop/go-dwarf v1.0.14 // indirect

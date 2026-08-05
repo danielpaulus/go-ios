@@ -10,6 +10,7 @@ Welcome 👋
 
 `npm install -g go-ios` can be used to get going. Run `ios --help` after the installation for details.
 For iOS 17+ devices you need to run `sudo ios tunnel start` for go ios to work. This will start a tunnel daemon.
+To keep the tunnel agent running permanently (surviving reboots), register it as a managed OS service with `sudo ios tunnel service install [--userspace]` (systemd on Linux, launchd on macOS, the service manager on Windows) — installing a system service needs sudo/admin. Pass `--user` for a user-level service instead; on Linux enable lingering (`loginctl enable-linger`) so it runs without a login session. Remove it again with `ios tunnel service uninstall`.
 To make this work on Windows, download the latest wintun.dll from here `https://git.zx2c4.com/wintun` and copy it to `C:/Windows/system32`
 
 The goal of this project is to provide a stable and production ready opensource solution to automate iOS device on Linux, Windows and Mac OS X. I am delighted to announce that a few companies including [headspin.io](https://www.headspin.io/) and [Sauce Labs](https://saucelabs.com/) will use or are using go-iOS.
@@ -147,6 +148,7 @@ Commands:
   sysmontap                  Stream CPU and memory metrics.
   timeformat                 Manage time format setting.
   tunnel ls                  List running tunnels.
+  tunnel service             Run the tunnel agent as a managed OS service.
   tunnel start               Start iOS 17+ tunnel and pair if needed.
   tunnel stopagent           Stop tunnel agent.
   uninstall                  Uninstall app by bundle ID.

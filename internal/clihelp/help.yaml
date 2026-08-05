@@ -246,6 +246,9 @@ commands:
   - path: tunnel ls
     usage: ios tunnel ls [options]
     summary: List running tunnels.
+  - path: tunnel service
+    usage: ios tunnel service (install | uninstall | status) [options] [--pair-record-path=<pairrecordpath>] [--userspace] [--user]
+    summary: Run the tunnel agent as a managed OS service.
   - path: tunnel start
     usage: ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
     summary: Start iOS 17+ tunnel and pair if needed.

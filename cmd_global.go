@@ -31,6 +31,15 @@ var globalCommands = []command{
 		run:   runDeviceListCommand,
 	},
 	{
+		// `tunnel service` manages the OS service registration for the tunnel
+		// agent and needs no device or usbmuxd, so it is global. It must also
+		// dispatch before deviceCommands: its install/uninstall literals would
+		// otherwise match the app (un)install commands.
+		name:  "tunnel service",
+		match: isTunnelServiceCommand,
+		run:   runTunnelServiceCommand,
+	},
+	{
 		// `sign certificate appstoreconnect` mints an account-wide certificate and
 		// needs no device, so it is global (dispatched before device resolution).
 		name: "sign certificate",

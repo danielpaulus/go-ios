@@ -93,6 +93,7 @@ Commands:
   sysmontap                       Stream CPU and memory metrics.
   timeformat                      Manage time format setting.
   tunnel ls                       List running tunnels.
+  tunnel service                  Run the tunnel agent as a managed OS service.
   tunnel start                    Start iOS 17+ tunnel and pair if needed.
   tunnel stopagent                Stop tunnel agent.
   ui                              Control UI through WebDriverAgent or DeviceKit.
