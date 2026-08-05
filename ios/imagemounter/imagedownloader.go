@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -91,11 +90,17 @@ var (
 const (
 	imageFile     = "DeveloperDiskImage.dmg"
 	signatureFile = "DeveloperDiskImage.dmg.signature"
-	devicebox     = "https://deviceboxhq.com/"
 	// iOS 17+ universal personalized developer disk image hosted on deviceboxhq.
 	// Bump this when a newer DDI is published there (was ddi-15F31d).
 	xcode15_4_ddi = "ddi-17E5179g"
+	// buildManifestFile identifies the personalized developer disk image
+	// layout (iOS 17+): a 'Restore' directory containing a BuildManifest.plist.
+	buildManifestFile = "BuildManifest.plist"
 )
+
+// devicebox hosts the personalized developer disk image. It is a var so unit
+// tests can point it at a local test server.
+var devicebox = "https://deviceboxhq.com/"
 
 func MatchAvailable(version string) string {
 	golog.Debug("matching available image for device version", "module", logModule, "version", version)
@@ -124,21 +129,26 @@ func MatchAvailable(version string) string {
 }
 
 func Download17Plus(baseDir string, version *semver.Version) (string, error) {
-	downloadUrl := fmt.Sprintf("%s%s%s", devicebox, xcode15_4_ddi, ".zip")
-	golog.Info("getting developer image", "module", logModule, "version", version.String(), "url", downloadUrl)
-
-	imageDownloaded, err := validateBaseDirAndLookForImage(baseDir, xcode15_4_ddi)
-	if err != nil {
+	golog.Info("getting developer image", "module", logModule, "version", version.String())
+	if err := os.MkdirAll(baseDir, 0o755); err != nil {
 		return "", err
 	}
-	if imageDownloaded != "" {
-		golog.Info("using already downloaded image", "module", logModule, "path", imageDownloaded)
-		return path.Join(imageDownloaded, "Restore"), err
+	if restoreDir, ok := findPersonalizedDDI(baseDir); ok {
+		golog.Info("using personalized developer disk image already present in basedir", "module", logModule, "path", restoreDir)
+		return restoreDir, nil
 	}
 	imageFileName := path.Join(baseDir, xcode15_4_ddi+".zip")
 	extractedPath := path.Join(baseDir, xcode15_4_ddi)
+	if _, err := os.Stat(imageFileName); err == nil {
+		golog.Info("using image archive already present in basedir", "module", logModule, "path", imageFileName)
+		if _, _, err := ios.Unzip(imageFileName, extractedPath); err == nil {
+			return path.Join(extractedPath, "Restore"), nil
+		}
+		golog.Warn("extracting present image archive failed, downloading again", "module", logModule, "path", imageFileName)
+	}
+	downloadUrl := fmt.Sprintf("%s%s%s", devicebox, xcode15_4_ddi, ".zip")
 	golog.Info("downloading image", "module", logModule, "url", downloadUrl, "path", imageFileName)
-	err = downloadFile(imageFileName, downloadUrl)
+	err := downloadFile(imageFileName, downloadUrl)
 	if err != nil {
 		return "", err
 	}
@@ -150,49 +160,88 @@ func Download17Plus(baseDir string, version *semver.Version) (string, error) {
 	return path.Join(extractedPath, "Restore"), nil
 }
 
+// findPersonalizedDDI looks for a personalized developer disk image (iOS 17+)
+// that is already present in baseDir and returns its 'Restore' directory. The
+// layout is recognized by structure (a BuildManifest.plist inside a Restore
+// directory) rather than by name, so images downloaded under a different name,
+// by an older go-ios or manually, are found without any network access. When
+// multiple images are present, the one matching the pinned DDI is preferred.
+func findPersonalizedDDI(baseDir string) (string, bool) {
+	var restoreDirs []string
+	err := filepath.Walk(baseDir, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() || info.Name() != buildManifestFile {
+			return nil
+		}
+		if dir := filepath.Dir(p); filepath.Base(dir) == "Restore" {
+			restoreDirs = append(restoreDirs, dir)
+		}
+		return nil
+	})
+	if err != nil || len(restoreDirs) == 0 {
+		return "", false
+	}
+	for _, dir := range restoreDirs {
+		if strings.Contains(dir, xcode15_4_ddi) {
+			return dir, true
+		}
+	}
+	return restoreDirs[0], true
+}
+
 func DownloadImageFor(device ios.DeviceEntry, baseDir string) (string, error) {
 	allValues, err := ios.GetValues(device)
 	if err != nil {
 		return "", err
 	}
-	parsedVersion, err := semver.NewVersion(allValues.Value.ProductVersion)
+	return downloadImageForVersion(baseDir, allValues.Value.ProductVersion, device.Properties.SerialNumber)
+}
+
+// downloadImageForVersion resolves the developer disk image for the given
+// product version, using an image already present in baseDir when possible and
+// downloading only on a cache miss.
+func downloadImageForVersion(baseDir string, productVersion string, udid string) (string, error) {
+	parsedVersion, err := semver.NewVersion(productVersion)
 	if err != nil {
-		return "", fmt.Errorf("DownloadImageFor: failed parsing ios productversion: '%s' with %w", allValues.Value.ProductVersion, err)
+		return "", fmt.Errorf("downloadImageForVersion: failed parsing ios productversion: '%s' with %w", productVersion, err)
 	}
 	if parsedVersion.GreaterThan(ios.IOS17()) || parsedVersion.Equal(ios.IOS17()) {
 		return Download17Plus(baseDir, parsedVersion)
 	}
-	version := MatchAvailable(allValues.Value.ProductVersion)
-	golog.Info("getting developer image", "module", logModule, "udid", device.Properties.SerialNumber, "version", allValues.Value.ProductVersion, "imageVersion", version)
-	var imageToFind string
-	switch runtime.GOOS {
-	case "windows":
-		imageToFind = fmt.Sprintf("%s\\%s", version, imageFile)
-	default:
-		imageToFind = fmt.Sprintf("%s/%s", version, imageFile)
-	}
-	imageDownloaded, err := validateBaseDirAndLookForImage(baseDir, imageToFind)
-	if err != nil {
-		return "", err
-	}
-	if imageDownloaded != "" {
-		golog.Info("image already downloaded from https://github.com/mspvirajpatel/", "module", logModule, "udid", device.Properties.SerialNumber, "path", imageDownloaded)
-		return imageDownloaded, nil
-	}
-	downloadUrl := ""
-	golog.Info("downloading", "module", logModule, "udid", device.Properties.SerialNumber, "url", downloadUrl)
-	golog.Info("thank you github.com/mspvirajpatel for making these images available :-)", "module", logModule, "udid", device.Properties.SerialNumber)
+	version := MatchAvailable(productVersion)
+	golog.Info("getting developer image", "module", logModule, "udid", udid, "version", productVersion, "imageVersion", version)
 	versionDir := strings.Split(version, " (")[0]
-	downloadUrl = versionMap[version] + "/" + imageFile + "?raw=true"
+	// Look for a present image before any network access, both in the full
+	// '<version> (<build>)' layout used by manual downloads mirroring the
+	// upstream repository and in the short '<version>' layout that go-ios
+	// itself uses when downloading.
+	candidateDirs := []string{version}
+	if versionDir != version {
+		candidateDirs = append(candidateDirs, versionDir)
+	}
+	for _, dir := range candidateDirs {
+		imageDownloaded, err := validateBaseDirAndLookForImage(baseDir, filepath.Join(dir, imageFile))
+		if err != nil {
+			return "", err
+		}
+		if imageDownloaded != "" {
+			golog.Info("using image already present in basedir", "module", logModule, "udid", udid, "path", imageDownloaded)
+			return imageDownloaded, nil
+		}
+	}
+	golog.Info("thank you github.com/mspvirajpatel for making these images available :-)", "module", logModule, "udid", udid)
+	downloadUrl := versionMap[version] + "/" + imageFile + "?raw=true"
 	imageFileName := path.Join(baseDir, versionDir, imageFile)
 
 	signatureDownloadUrl := versionMap[version] + "/" + signatureFile + "?raw=true"
 	signatureFileName := path.Join(baseDir, versionDir, signatureFile)
-	err = os.Mkdir(path.Join(baseDir, versionDir), 0o755)
+	err = os.MkdirAll(path.Join(baseDir, versionDir), 0o755)
 	if err != nil {
 		return "", err
 	}
-	golog.Info("downloading image", "module", logModule, "udid", device.Properties.SerialNumber, "url", downloadUrl, "path", imageFileName)
+	golog.Info("downloading image", "module", logModule, "udid", udid, "url", downloadUrl, "path", imageFileName)
 	err = downloadFile(imageFileName, downloadUrl)
 	if err != nil {
 		return "", err
