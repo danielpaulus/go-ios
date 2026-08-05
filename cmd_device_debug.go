@@ -39,8 +39,10 @@ func runSyslogCommand(ctx commandContext) {
 	process, _ := ctx.Args.String("--process")
 	pidStr, _ := ctx.Args.String("--pid")
 	if pidStr != "" {
-		_, err := strconv.Atoi(pidStr)
+		pid, err := strconv.Atoi(pidStr)
 		exitIfError("invalid --pid value", err)
+		// normalize (e.g. "0042" -> "42") so the string compare against parsed pids works
+		pidStr = strconv.Itoa(pid)
 	}
 	runSyslog(ctx.Device, parse, syslog.EntryFilter{Process: process, PID: pidStr})
 }

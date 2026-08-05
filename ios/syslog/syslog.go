@@ -126,6 +126,9 @@ func Parser() func(log string) (*LogEntry, error) {
 // Empty fields match everything, so the zero value matches every entry.
 type EntryFilter struct {
 	// Process matches the parsed process name exactly (e.g. "SpringBoard").
+	// Syslog annotates os_log senders with the emitting library, e.g.
+	// "SpringBoard(FrontBoard)[52]"; such an annotation is ignored, so
+	// "SpringBoard" matches both "SpringBoard" and "SpringBoard(FrontBoard)".
 	Process string
 	// PID matches the parsed process id exactly (e.g. "1234").
 	PID string
@@ -142,13 +145,22 @@ func (f EntryFilter) Matches(entry *LogEntry) bool {
 	if entry == nil {
 		return false
 	}
-	if f.Process != "" && entry.Process != f.Process {
+	if f.Process != "" && entry.Process != f.Process && baseProcessName(entry.Process) != f.Process {
 		return false
 	}
 	if f.PID != "" && entry.PID != f.PID {
 		return false
 	}
 	return true
+}
+
+// baseProcessName strips the "(Library)" annotation syslog appends to os_log
+// senders, e.g. "SpringBoard(FrontBoard)" -> "SpringBoard".
+func baseProcessName(process string) string {
+	if i := strings.IndexByte(process, '('); i > 0 && strings.HasSuffix(process, ")") {
+		return process[:i]
+	}
+	return process
 }
 
 // Close closes the underlying UsbMuxConnection

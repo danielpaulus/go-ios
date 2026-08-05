@@ -146,6 +146,9 @@ func TestEntryFilter(t *testing.T) {
 	require.NoError(t, err)
 	myApp, err := parse("Jan 2 15:04:06 iPhone MyApp[42] <Error>: something failed")
 	require.NoError(t, err)
+	annotated, err := parse("Jan 2 15:04:07 iPhone SpringBoard(FrontBoard)[123] <Notice>: os_log line")
+	require.NoError(t, err)
+	require.Equal(t, "SpringBoard(FrontBoard)", annotated.Process)
 
 	tests := []struct {
 		name   string
@@ -175,6 +178,30 @@ func TestEntryFilter(t *testing.T) {
 			name:   "process name match is exact, not substring",
 			filter: syslog.EntryFilter{Process: "MyApp"},
 			entry:  &syslog.LogEntry{Process: "MyAppExtension", PID: "43"},
+			want:   false,
+		},
+		{
+			name:   "process name matches despite (Library) annotation",
+			filter: syslog.EntryFilter{Process: "SpringBoard"},
+			entry:  annotated,
+			want:   true,
+		},
+		{
+			name:   "annotated process name matches exactly",
+			filter: syslog.EntryFilter{Process: "SpringBoard(FrontBoard)"},
+			entry:  annotated,
+			want:   true,
+		},
+		{
+			name:   "library annotation alone does not match",
+			filter: syslog.EntryFilter{Process: "FrontBoard"},
+			entry:  annotated,
+			want:   false,
+		},
+		{
+			name:   "annotation does not turn exact match into prefix match",
+			filter: syslog.EntryFilter{Process: "MyApp"},
+			entry:  &syslog.LogEntry{Process: "MyAppExtension(Foundation)", PID: "44"},
 			want:   false,
 		},
 		{

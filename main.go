@@ -544,8 +544,11 @@ The commands work as following:
     ios syslog [--parse] [--pid=<processID>] [--process=<processName>]
                                                                     Prints a device's log output, Use --parse to parse the fields from the log
                                                                     Client-side filters (the full stream is still received from the device):
-                                                                      --process=<name>     Only show entries logged by this process name (exact match)
+                                                                      --process=<name>     Only show entries logged by this process name (exact match;
+                                                                                           a "(Library)" annotation as in "SpringBoard(FrontBoard)" is ignored)
                                                                       --pid=<pid>          Only show entries logged by this process ID
+                                                                    Lines that cannot be parsed (and therefore cannot be attributed to a
+                                                                    process) are omitted while a filter is active.
                                                                     Filtering is handy alongside 'ios test'/'ios runtest': run syslog with
                                                                     --process=<appName> in a second terminal to capture the NSLog/os_log
                                                                     output of the app under test while the tests execute.
