@@ -73,86 +73,101 @@ Global options:
   --pretty                   Pretty-print JSON output.
   --udid=<udid>              Target a specific device.
   --tunnel-info-port=<port>  Tunnel info API port (default 28100).
+  --tunnel-info-host=<host>  Tunnel info API host (default 127.0.0.1 or GO_IOS_AGENT_HOST).
   --address=<ipv6addr>       Device tunnel address.
   --rsd-port=<port>          Device tunnel RSD port.
   --proxyurl=<url>           Outbound HTTP proxy URL.
   --userspace-port=<port>    Userspace tunnel port.
 
 Commands:
-  activate                   Activate a device.
-  apps                       List installed applications.
-  assistivetouch             Manage AssistiveTouch state.
-  ax                         Accessibility inspector features.
-  batterycheck               Battery information.
-  batteryregistry            Battery registry metrics.
-  crash cp                   Copy crash reports.
-  crash ls                   List crash reports.
-  crash rm                   Remove crash reports.
-  date                       Print device date.
-  debug                      Start LLDB debug session.
-  devicename                 Print device name.
-  devicestate enable         Enable device condition profile.
-  devicestate list           List device condition profiles.
-  devmode                    Manage developer mode.
-  diagnostics list           List diagnostics.
-  diskspace                  Print disk usage.
-  dproxy                     Start debug proxy.
-  erase                      Erase device.
-  file ls                    List files in app/group/temp/crash container.
-  file pull                  Pull file from device.
-  file push                  Push file to device.
-  forward                    Forward host port to device.
-  fsync                      App container file sync operations.
-  httpproxy                  Install global HTTP proxy profile.
-  httpproxy remove           Remove go-ios HTTP proxy profile.
-  image auto                 Auto-download and mount developer image.
-  image list                 List mounted developer images.
-  image mount                Mount developer image.
-  image unmount              Unmount developer image.
-  info                       Dump device info.
-  install                    Install app bundle or IPA.
-  instruments notifications  Stream app state notifications.
-  ip                         Detect device IP from packet capture.
-  kill                       Kill app by bundle ID, PID, or process.
-  lang                       Read or set device language and locale.
-  launch                     Launch app by bundle ID.
-  list                       List connected devices.
-  listen                     Listen for device connect/disconnect.
-  lockdown get               Query lockdown values.
-  memlimitoff                Disable process memory limit.
-  mobilegestalt              Query mobilegestalt keys.
-  ostrace                    Stream os_trace_relay logs.
-  pair                       Pair host with device.
-  pcap                       Capture network packets.
-  prepare                    Prepare device for automation.
-  prepare cloudconfig        Print cloud configuration.
-  prepare create-cert        Create supervision certificate.
-  prepare printskip          Print prepare skip options.
-  profile add                Install profile on device.
-  profile list               List installed profiles.
-  profile remove             Remove installed profile.
-  ps                         List running processes.
-  readpair                   Dump pair record.
-  reboot                     Reboot device.
-  resetax                    Reset accessibility settings.
-  resetlocation              Reset simulated location.
-  rsd ls                     List RSD services.
-  runtest                    Run XCUITest bundles.
-  runwda                     Run WebDriverAgent.
-  runxctest                  Run XCTest from .xctestrun file.
-  screenshot                 Capture screenshot or stream MJPEG.
-  setlocation                Set simulated location coordinates.
-  setlocationgpx             Set simulated location from GPX.
-  syslog                     Stream device syslog.
-  sysmontap                  Stream CPU and memory metrics.
-  timeformat                 Manage time format setting.
-  tunnel ls                  List running tunnels.
-  tunnel start               Start iOS 17+ tunnel and pair if needed.
-  tunnel stopagent           Stop tunnel agent.
-  uninstall                  Uninstall app by bundle ID.
-  version                    Print version.
-  voiceover                  Manage VoiceOver state.
-  zoom                       Manage Zoom state.
+  activate                        Activate a device.
+  apps                            List installed applications.
+  assistivetouch                  Manage AssistiveTouch state.
+  ax                              Accessibility inspector features.
+  ax audit                        Run accessibility audit.
+  batterycheck                    Battery information.
+  batteryregistry                 Battery registry metrics.
+  crash cp                        Copy crash reports.
+  crash ls                        List crash reports.
+  crash rm                        Remove crash reports.
+  date                            Print device date.
+  debug                           Start LLDB debug session.
+  devicename                      Print device name.
+  devicestate enable              Enable device condition profile.
+  devicestate list                List device condition profiles.
+  devmode                         Manage developer mode.
+  diagnostics list                List diagnostics.
+  diskspace                       Print disk usage.
+  dproxy                          Start debug proxy.
+  erase                           Erase device.
+  file ls                         List files in app/group/temp/crash container.
+  file pull                       Pull file from device.
+  file push                       Push file to device.
+  forward                         Forward host port to device.
+  fsync                           App container file sync operations.
+  httpproxy                       Install global HTTP proxy profile.
+  httpproxy remove                Remove go-ios HTTP proxy profile.
+  image auto                      Auto-download and mount developer image.
+  image list                      List mounted developer images.
+  image mount                     Mount developer image.
+  image unmount                   Unmount developer image.
+  info                            Dump device info.
+  install                         Install app bundle or IPA.
+  instruments fps                 Stream frames-per-second samples.
+  instruments network             Stream network activity samples.
+  instruments notifications       Stream app state notifications.
+  ip                              Detect device IP from packet capture.
+  kill                            Kill app by bundle ID, PID, or process.
+  lang                            Read or set device language and locale.
+  launch                          Launch app by bundle ID.
+  list                            List connected devices.
+  listen                          Listen for device connect/disconnect.
+  lockdown get                    Query lockdown values.
+  memlimitoff                     Disable process memory limit.
+  mobilegestalt                   Query mobilegestalt keys.
+  ostrace                         Stream os_trace_relay logs.
+  pair                            Pair host with device.
+  pcap                            Capture network packets.
+  prepare                         Prepare device for automation.
+  prepare cloudconfig             Print cloud configuration.
+  prepare create-cert             Create supervision certificate.
+  prepare printskip               Print prepare skip options.
+  profile add                     Install profile on device.
+  profile list                    List installed profiles.
+  profile remove                  Remove installed profile.
+  ps                              List running processes.
+  readpair                        Dump pair record.
+  reboot                          Reboot device.
+  resetax                         Reset accessibility settings.
+  resetlocation                   Reset simulated location.
+  rsd ls                          List RSD services.
+  runtest                         Run XCUITest bundles.
+  runwda                          Run WebDriverAgent.
+  runxctest                       Run XCTest from .xctestrun file.
+  screenshot                      Capture screenshot or stream MJPEG.
+  setlocation                     Set simulated location coordinates.
+  setlocationgpx                  Set simulated location from GPX.
+  sign app                        Sign an app with a P12 and profile; run ui download first for WDA or DeviceKit artifacts.
+  sign provision appstoreconnect  Create signing assets through App Store Connect.
+  syslog                          Stream device syslog.
+  sysmontap                       Stream CPU and memory metrics.
+  timeformat                      Manage time format setting.
+  tunnel ls                       List running tunnels.
+  tunnel start                    Start iOS 17+ tunnel and pair if needed.
+  tunnel stopagent                Stop tunnel agent.
+  ui                              Control UI through WebDriverAgent or DeviceKit.
+  ui download                     Download WDA and/or DeviceKit artifacts and print paths as JSON.
+  ui install                      Download defaults, or use --path, then sign and install WDA or DeviceKit.
+  uninstall                       Uninstall app by bundle ID.
+  version                         Print version.
+  voiceover                       Manage VoiceOver state.
+  webinspector cdp                Start a Chrome DevTools Protocol bridge.
+  webinspector eval               Evaluate JavaScript in an inspectable page.
+  webinspector js-shell           Start an interactive JavaScript shell for an inspectable page.
+  webinspector launch             Launch and navigate Safari or another app by Remote Automation.
+  webinspector list               List inspectable Safari and WebView pages.
+  wifi                            Install or remove a Wi-Fi auto-connect profile (supervised + setup = silent, else confirm on device).
+  zoom                            Manage Zoom state.
 
 Run 'ios help <command>' or 'ios <command> --help' for command details.
 ```

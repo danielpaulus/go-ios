@@ -110,6 +110,8 @@ Usage:
   ios image unmount [options]
   ios info [display | lockdown] [options]
   ios install --path=<ipaOrAppFolder> [options]
+  ios instruments fps [--duration=<seconds>] [options]
+  ios instruments network [--duration=<seconds>] [options]
   ios instruments notifications [options]
   ios ip [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
@@ -331,6 +333,14 @@ The commands work as following:
     ios image unmount [options]                     Unmount developer disk image
     ios info [display | lockdown] [options]         Prints a dump of device information from the given source.
     ios install --path=<ipaOrAppFolder> [options]   Specify a .app folder or an installable ipa file that will be installed.
+    ios instruments fps [--duration=<seconds>] [options]
+                                                    Stream frames-per-second samples from the instruments graphics service.
+                                                    One line is printed per sample. Stops after --duration seconds, or on CTRL+C.
+
+    ios instruments network [--duration=<seconds>] [options]
+                                                    Stream network samples from the instruments network monitoring service.
+                                                    One line is printed per sample. Stops after --duration seconds, or on CTRL+C.
+
     ios instruments notifications [options]         Listen to application state notifications
 
     ios ip [options]                                Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.

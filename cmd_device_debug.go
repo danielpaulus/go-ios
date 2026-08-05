@@ -6,15 +6,20 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sort"
 	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
+	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/crashreport"
 	"github.com/danielpaulus/go-ios/ios/debugserver"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/ostrace"
 	"github.com/danielpaulus/go-ios/ios/pcap"
+	"github.com/docopt/docopt-go"
 )
 
 func runPCAPCommand(ctx commandContext) {
@@ -90,7 +95,127 @@ func runCrashCommand(ctx commandContext) {
 }
 
 func runInstrumentsCommand(ctx commandContext) {
-	listenerFunc, closeFunc, err := instruments.ListenAppStateNotifications(ctx.Device)
+	duration, err := instrumentsSampleDuration(ctx.Args)
+	exitIfError("failed parsing --duration", err)
+
+	switch instrumentsSubcommand(ctx.Args) {
+	case "fps":
+		streamInstrumentsFPS(ctx.Device, duration)
+	case "network":
+		streamInstrumentsNetwork(ctx.Device, duration)
+	default:
+		listenAppStateNotifications(ctx.Device)
+	}
+}
+
+// instrumentsSubcommand returns which `ios instruments <subcommand>` was
+// requested, or "" if none matched.
+func instrumentsSubcommand(args docopt.Opts) string {
+	for _, name := range []string{"fps", "network", "notifications"} {
+		if boolArg(args, name) {
+			return name
+		}
+	}
+	return ""
+}
+
+// instrumentsSampleDuration parses the optional --duration=<seconds> flag.
+// A zero duration means "stream until interrupted".
+func instrumentsSampleDuration(args docopt.Opts) (time.Duration, error) {
+	value, err := args.String("--duration")
+	if err != nil || value == "" {
+		return 0, nil
+	}
+	seconds, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid --duration %q: %w", value, err)
+	}
+	if seconds < 0 {
+		return 0, fmt.Errorf("--duration must not be negative, got %q", value)
+	}
+	return time.Duration(seconds * float64(time.Second)), nil
+}
+
+func streamInstrumentsFPS(device ios.DeviceEntry, duration time.Duration) {
+	service, err := instruments.NewGraphicsOpenGLService(device)
+	exitIfError("failed starting graphics service", err)
+	defer service.Close()
+
+	streamInstrumentsSamples(service.ReceiveFramesPerSecondSamples(), duration, formatFPSSample)
+}
+
+func streamInstrumentsNetwork(device ios.DeviceEntry, duration time.Duration) {
+	service, err := instruments.NewNetworkService(device)
+	exitIfError("failed starting network monitoring service", err)
+	defer service.Close()
+
+	streamInstrumentsSamples(service.ReceiveNetworkSamples(), duration, formatNetworkSample)
+}
+
+// streamInstrumentsSamples prints one formatted line per sample until the
+// channel closes, the optional duration elapses, or the process is interrupted.
+func streamInstrumentsSamples[T any](samples chan T, duration time.Duration, format func(T) string) {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(stop)
+
+	var timeout <-chan time.Time
+	if duration > 0 {
+		timer := time.NewTimer(duration)
+		defer timer.Stop()
+		timeout = timer.C
+	}
+
+	for {
+		select {
+		case sample, ok := <-samples:
+			if !ok {
+				return
+			}
+			fmt.Println(format(sample))
+		case <-timeout:
+			return
+		case <-stop:
+			return
+		}
+	}
+}
+
+type fpsSampleOutput struct {
+	FPS float64 `json:"fps"`
+}
+
+func formatFPSSample(sample instruments.FramesPerSecondSample) string {
+	if JSONdisabled {
+		return fmt.Sprintf("fps=%.2f", sample.CoreAnimationFramesPerSecond)
+	}
+	return convertToJSONString(fpsSampleOutput{FPS: sample.CoreAnimationFramesPerSecond})
+}
+
+type networkSampleOutput struct {
+	Type uint64                 `json:"type"`
+	Data map[string]interface{} `json:"data"`
+}
+
+func formatNetworkSample(sample instruments.NetworkSample) string {
+	if JSONdisabled {
+		keys := make([]string, 0, len(sample.Data))
+		for key := range sample.Data {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		var builder strings.Builder
+		fmt.Fprintf(&builder, "type=%d", sample.Type)
+		for _, key := range keys {
+			fmt.Fprintf(&builder, " %s=%v", key, sample.Data[key])
+		}
+		return builder.String()
+	}
+	return convertToJSONString(networkSampleOutput{Type: sample.Type, Data: sample.Data})
+}
+
+func listenAppStateNotifications(device ios.DeviceEntry) {
+	listenerFunc, closeFunc, err := instruments.ListenAppStateNotifications(device)
 	if err != nil {
 		logFatal("failed listening to app state notifications", "error", err)
 	}

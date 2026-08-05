@@ -55,6 +55,8 @@ Commands:
   image unmount                   Unmount developer image.
   info                            Dump device info.
   install                         Install app bundle or IPA.
+  instruments fps                 Stream frames-per-second samples.
+  instruments network             Stream network activity samples.
   instruments notifications       Stream app state notifications.
   ip                              Detect device IP from packet capture.
   kill                            Kill app by bundle ID, PID, or process.
