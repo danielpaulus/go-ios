@@ -87,7 +87,7 @@ Usage:
   ios crash ls [<pattern>] [options]
   ios crash rm <cwd> <pattern> [options]
   ios date [options]
-  ios debug [options] [--stop-at-entry] <app_path>
+  ios debug [options] [--stop-at-entry] (<app_path> | --pid=<processID>)
   ios devicename [options]
   ios devicestate enable <profileTypeId> <profileId> [options]
   ios devicestate list [options]
@@ -261,7 +261,9 @@ The commands work as following:
 
     ios crash rm <cwd> <pattern> [options]        Remove file pattern from dir. Ex.: 'ios crash rm "." "*"' to delete everything
     ios date [options]                            Prints the device date
-    ios debug [--stop-at-entry] <app_path>        Start debug with lldb
+    ios debug [--stop-at-entry] (<app_path> | --pid=<processID>)
+                                                  Start an lldb session, either launching the app at app_path
+                                                  or attaching to an already running process by its pid
     ios devicename [options]                      Prints the devicename
 
     ios devicestate enable <profileTypeId> <profileId> [options]  Enables a profile with ids (use the list command to see options).

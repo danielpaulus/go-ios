@@ -158,10 +158,17 @@ func runImageCommand(ctx commandContext) {
 }
 
 func runDebugCommand(ctx commandContext) {
+	stopAtEntry, _ := ctx.Args.Bool("--stop-at-entry")
+	if pid, _ := ctx.Args.Int("--pid"); pid > 0 {
+		if stopAtEntry {
+			logFatal("--stop-at-entry only applies when launching, attaching always stops the process")
+		}
+		exitIfError("debug server failed", debugserver.AttachByPid(ctx.Device, pid))
+		return
+	}
 	appPath, _ := ctx.Args.String("<app_path>")
 	if appPath == "" {
-		logFatal("parameter bundleid and app_path must be specified")
+		logFatal("parameter app_path or --pid must be specified")
 	}
-	stopAtEntry, _ := ctx.Args.Bool("--stop-at-entry")
 	exitIfError("debug server failed", debugserver.Start(ctx.Device, appPath, stopAtEntry))
 }
