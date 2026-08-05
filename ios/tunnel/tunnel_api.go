@@ -27,6 +27,11 @@ var netClient = &http.Client{
 
 var ErrTunnelNotFound = errors.New("tunnel not found")
 
+// ErrUnsupportedVersion is returned when a device's iOS version can never use
+// go-ios managed tunnels (tunnels only exist for iOS 17+). The TunnelManager
+// treats it as permanent and stops retrying such devices.
+var ErrUnsupportedVersion = errors.New("unsupported iOS version")
+
 func CloseAgent() error {
 	_, err := netClient.Get(fmt.Sprintf("http://%s:%d/shutdown", ios.HttpApiHost(), ios.HttpApiPort()))
 	if err != nil {
@@ -322,17 +327,29 @@ type failedDevice struct {
 type TunnelManager struct {
 	ts      tunnelStarter
 	dl      deviceLister
+	pr      tunnelProber
 	pm      PairRecordManager
 	mux     sync.Mutex
 	tunnels map[string]Tunnel
 	// failedDevices tracks devices whose tunnel start failed (keyed by udid) so
 	// UpdateTunnels can back off before retrying them.
-	failedDevices        map[string]failedDevice
+	failedDevices map[string]failedDevice
+	// unsupportedDevices tracks devices whose iOS version can never tunnel
+	// (ErrUnsupportedVersion). They are skipped for the rest of the process so
+	// the same warning is not logged every update cycle.
+	unsupportedDevices map[string]bool
+	// lastProbe tracks when each tunnel was last liveness-probed so probes run
+	// at most once per probeInterval.
+	lastProbe            map[string]time.Time
+	probeInterval        time.Duration
 	startTunnelTimeout   time.Duration
 	firstUpdateCompleted bool
 	userspaceTUN         bool
 	closeOnce            sync.Once
 	portOffset           int
+	// productVersion resolves a device's iOS version; a seam so tests can run
+	// without a device. Defaults to ios.GetProductVersion.
+	productVersion func(ios.DeviceEntry) (*semver.Version, error)
 	// udidFilter, when non-empty, restricts the manager to a single device so
 	// you can run one isolated tunnel agent per device.
 	udidFilter string
@@ -364,14 +381,19 @@ func newTunnelManager(pm PairRecordManager, userspaceTUN bool, udidFilter string
 	return &TunnelManager{
 		ts:                 manualPairingTunnelStart{},
 		dl:                 deviceList{},
+		pr:                 rsdProber{},
 		pm:                 pm,
 		tunnels:            map[string]Tunnel{},
 		failedDevices:      map[string]failedDevice{},
+		unsupportedDevices: map[string]bool{},
+		lastProbe:          map[string]time.Time{},
+		probeInterval:      defaultProbeInterval,
 		startTunnelTimeout: 10 * time.Second,
 		userspaceTUN:       userspaceTUN,
 		udidFilter:         udidFilter,
 		basePort:           basePort,
 		portOffset:         1,
+		productVersion:     ios.GetProductVersion,
 	}
 }
 
@@ -410,6 +432,8 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 	maps.Copy(localTunnels, m.tunnels)
 	localFailed := map[string]failedDevice{}
 	maps.Copy(localFailed, m.failedDevices)
+	localUnsupported := map[string]bool{}
+	maps.Copy(localUnsupported, m.unsupportedDevices)
 	m.mux.Unlock()
 
 	devices, err := m.dl.ListDevices()
@@ -433,9 +457,30 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 		currentUDIDs[d.Properties.SerialNumber] = true
 	}
 
+	// Liveness-probe existing tunnel records of still-connected devices: a
+	// tunnel can die without a usbmux disconnect (quick reboot, transport
+	// death), leaving a stale record that would otherwise be served forever. A
+	// failed probe tears the record down here so the create loop below rebuilds
+	// it in the same cycle. Records of vanished devices are handled by the
+	// disconnect teardown at the end.
+	now := time.Now()
+	for udid, tun := range localTunnels {
+		if !currentUDIDs[udid] || !m.shouldProbe(udid, now) {
+			continue
+		}
+		if err := m.pr.Probe(tun); err != nil {
+			golog.Warn("tunnel failed liveness probe, restarting it", "module", logModule, "udid", udid, "error", err)
+			_ = m.stopTunnel(tun)
+			delete(localTunnels, udid)
+		}
+	}
+
 	for _, d := range devices.DeviceList {
 		udid := d.Properties.SerialNumber
 		if m.udidFilter != "" && udid != m.udidFilter {
+			continue
+		}
+		if localUnsupported[udid] {
 			continue
 		}
 		if _, exists := localTunnels[udid]; exists {
@@ -456,6 +501,16 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 		}
 		t, err := m.startTunnel(ctx, d)
 		if err != nil {
+			if errors.Is(err, ErrUnsupportedVersion) {
+				// The device can never tunnel on its current iOS version, so
+				// retrying would only repeat the same warning every cycle. Log
+				// once at info and skip the device for the rest of the process.
+				golog.Info("device iOS version does not support tunnels, skipping it from now on", "module", logModule, "udid", udid, "error", err)
+				m.mux.Lock()
+				m.unsupportedDevices[udid] = true
+				m.mux.Unlock()
+				continue
+			}
 			golog.Warn("failed to start tunnel", "module", logModule, "udid", udid, "error", err)
 			m.mux.Lock()
 			m.failedDevices[udid] = failedDevice{lastAttempt: time.Now(), failCount: m.failedDevices[udid].failCount + 1}
@@ -464,6 +519,10 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 		}
 		m.mux.Lock()
 		delete(m.failedDevices, udid)
+		if m.lastProbe != nil {
+			// A fresh tunnel is known-alive; defer its first probe by a full interval.
+			m.lastProbe[udid] = time.Now()
+		}
 		localTunnels[udid] = t
 		m.tunnels[udid] = t
 		m.mux.Unlock()
@@ -500,6 +559,21 @@ func shouldSkipDevice(d ios.DeviceEntry, failed map[string]failedDevice, now tim
 	return false
 }
 
+// shouldProbe reports whether the tunnel for udid is due for a liveness probe
+// and, if so, records the attempt so probes run at most once per probeInterval.
+func (m *TunnelManager) shouldProbe(udid string, now time.Time) bool {
+	if m.pr == nil || m.probeInterval <= 0 {
+		return false
+	}
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	if last, ok := m.lastProbe[udid]; ok && now.Sub(last) < m.probeInterval {
+		return false
+	}
+	m.lastProbe[udid] = now
+	return true
+}
+
 // failedDeviceBackoff returns how long to wait before retrying a device after
 // failCount consecutive failures: 30s, 60s, 120s, 240s, capped at 5 minutes.
 func failedDeviceBackoff(failCount int) time.Duration {
@@ -523,6 +597,7 @@ func (m *TunnelManager) RemoveTunnel(ctx context.Context, serialNumber string) e
 	if exists {
 		delete(m.tunnels, serialNumber)
 	}
+	delete(m.lastProbe, serialNumber)
 	m.mux.Unlock()
 
 	if !exists {
@@ -536,6 +611,7 @@ func (m *TunnelManager) stopTunnel(t Tunnel) error {
 	m.mux.Lock()
 	golog.Info("stopping tunnel", "module", logModule, "udid", t.Udid)
 	delete(m.tunnels, t.Udid)
+	delete(m.lastProbe, t.Udid)
 	m.mux.Unlock()
 
 	return t.Close()
@@ -545,7 +621,11 @@ func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry)
 	golog.Info("start tunnel", "module", logModule, "udid", device.Properties.SerialNumber)
 	startTunnelCtx, cancel := context.WithTimeout(ctx, m.startTunnelTimeout)
 	defer cancel()
-	version, err := ios.GetProductVersion(device)
+	versionOf := m.productVersion
+	if versionOf == nil {
+		versionOf = ios.GetProductVersion
+	}
+	version, err := versionOf(device)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("startTunnel: failed to get device version: %w", err)
 	}
@@ -586,6 +666,40 @@ type deviceLister interface {
 	ListDevices() (ios.DeviceList, error)
 }
 
+// tunnelProber checks whether an existing tunnel record still reaches the
+// device, so the TunnelManager can tear down and rebuild dead tunnels.
+type tunnelProber interface {
+	Probe(t Tunnel) error
+}
+
+// defaultProbeInterval is how often the TunnelManager liveness-probes each
+// tunnel record. Combined with the probe's short dial timeout, a dead tunnel
+// is detected and rebuilt well within a minute instead of never.
+const defaultProbeInterval = 30 * time.Second
+
+// probeDialTimeout bounds the liveness probe's TCP connect. A healthy tunnel
+// answers in milliseconds; a dead-but-still-routed one swallows the SYN, so a
+// short timeout is enough to tell them apart without stalling UpdateTunnels.
+const probeDialTimeout = 5 * time.Second
+
+// rsdProber is the default tunnelProber: a short-timeout TCP dial of the
+// tunnel's RSD endpoint over the kernel TUN route.
+type rsdProber struct {
+}
+
+func (rsdProber) Probe(t Tunnel) error {
+	if t.UserspaceTUN {
+		// The userspace forwarder listens on localhost and accepts connects no
+		// matter what state the device is in, so a dial proves nothing here.
+		return nil
+	}
+	conn, err := ios.DialTunnelTCPWithTimeout(fmt.Sprintf("[%s]:%d", t.Address, t.RsdPort), probeDialTimeout)
+	if err != nil {
+		return err
+	}
+	return conn.Close()
+}
+
 type manualPairingTunnelStart struct {
 }
 
@@ -602,11 +716,11 @@ func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.De
 	}
 	if version.Major() >= 17 {
 		if userspaceTUN {
-			return Tunnel{}, errors.New("manualPairingTunnelStart: userspaceTUN not supported for iOS >=17 and < 17.4")
+			return Tunnel{}, fmt.Errorf("manualPairingTunnelStart: userspaceTUN not supported for iOS >=17 and < 17.4: %w %s", ErrUnsupportedVersion, version.String())
 		}
 		return ManualPairAndConnectToTunnel(ctx, device, p)
 	}
-	return Tunnel{}, fmt.Errorf("manualPairingTunnelStart: unsupported iOS version %s", version.String())
+	return Tunnel{}, fmt.Errorf("manualPairingTunnelStart: %w %s", ErrUnsupportedVersion, version.String())
 }
 
 type deviceList struct {
