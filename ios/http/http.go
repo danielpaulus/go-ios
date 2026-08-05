@@ -20,6 +20,19 @@ const (
 	ServerClient = StreamId(3)
 )
 
+// fileStreamWindowUpdateThreshold is how many received bytes are batched before the
+// flow-control windows (connection and file stream) are replenished. It must stay well
+// below the advertised initial window size (1 MiB) so large transfers never stall.
+const fileStreamWindowUpdateThreshold = 256 * 1024
+
+// fileStream buffers the raw content the device sends on an additional HTTP2 stream
+// during an XPC file transfer. ended is set once the device half-closes the stream.
+type fileStream struct {
+	buf    bytes.Buffer
+	ended  bool
+	isOpen atomic.Bool
+}
+
 // HttpConnection is a wrapper around a http2.Framer that provides a simple interface to read and write http2 streams for iOS17+.
 type HttpConnection struct {
 	framer             *http2.Framer
@@ -28,6 +41,8 @@ type HttpConnection struct {
 	closer             io.Closer
 	csIsOpen           *atomic.Bool
 	scIsOpen           *atomic.Bool
+	fileStreams        map[uint32]*fileStream
+	pendingWindow      map[uint32]uint32
 }
 
 func (r *HttpConnection) Close() error {
@@ -80,6 +95,8 @@ func NewHttpConnection(rw io.ReadWriteCloser) (*HttpConnection, error) {
 		closer:             rw,
 		csIsOpen:           &atomic.Bool{},
 		scIsOpen:           &atomic.Bool{},
+		fileStreams:        map[uint32]*fileStream{},
+		pendingWindow:      map[uint32]uint32{},
 	}, nil
 }
 
@@ -137,7 +154,17 @@ func (r *HttpConnection) readDataFrame() error {
 			case 3:
 				r.serverClientStream.Write(d.Data())
 			default:
-				return fmt.Errorf("readDataFrame: unknown stream id %d", d.StreamID)
+				s, ok := r.fileStreams[d.StreamID]
+				if !ok {
+					return fmt.Errorf("readDataFrame: unknown stream id %d", d.StreamID)
+				}
+				s.buf.Write(d.Data())
+				if d.StreamEnded() {
+					s.ended = true
+				}
+				if err := r.replenishReceiveWindow(d.StreamID, uint32(len(d.Data())), s.ended); err != nil {
+					return fmt.Errorf("readDataFrame: %w", err)
+				}
 			}
 			return nil
 		case http2.FrameGoAway:
@@ -199,4 +226,89 @@ func (h HttpStreamReadWriter) Write(p []byte) (n int, err error) {
 		return h.h.WriteServerClientStream(p)
 	}
 	return 0, fmt.Errorf("Write: unknown stream id %d", h.streamId)
+}
+
+// replenishReceiveWindow grants received bytes back to the device's flow-control windows
+// (connection and file stream) so transfers larger than the initial window size keep
+// flowing. Increments are batched until fileStreamWindowUpdateThreshold to limit frame
+// overhead; flush forces out any remainder (used when a stream ends).
+func (r *HttpConnection) replenishReceiveWindow(streamId uint32, received uint32, flush bool) error {
+	pending := r.pendingWindow[streamId] + received
+	if pending < fileStreamWindowUpdateThreshold && !flush {
+		r.pendingWindow[streamId] = pending
+		return nil
+	}
+	delete(r.pendingWindow, streamId)
+	if pending == 0 {
+		return nil
+	}
+	if err := r.framer.WriteWindowUpdate(uint32(InitStream), pending); err != nil {
+		return fmt.Errorf("replenishReceiveWindow: could not update connection window: %w", err)
+	}
+	if err := r.framer.WriteWindowUpdate(streamId, pending); err != nil {
+		return fmt.Errorf("replenishReceiveWindow: could not update window of stream %d: %w", streamId, err)
+	}
+	return nil
+}
+
+// registerFileStream reserves an additional stream id for an XPC file transfer so that
+// incoming DATA frames on it are buffered instead of rejected.
+func (r *HttpConnection) registerFileStream(streamId uint32) (*fileStream, error) {
+	switch StreamId(streamId) {
+	case InitStream, ClientServer, ServerClient:
+		return nil, fmt.Errorf("registerFileStream: stream id %d is reserved", streamId)
+	}
+	if _, ok := r.fileStreams[streamId]; ok {
+		return nil, fmt.Errorf("registerFileStream: stream id %d is already registered", streamId)
+	}
+	s := &fileStream{}
+	r.fileStreams[streamId] = s
+	return s, nil
+}
+
+// readFileStream reads buffered file content of the given stream, pumping frames off the
+// connection as needed. It returns io.EOF once the device half-closed the stream and all
+// buffered content was consumed.
+func (r *HttpConnection) readFileStream(streamId uint32, p []byte) (int, error) {
+	s, ok := r.fileStreams[streamId]
+	if !ok {
+		return 0, fmt.Errorf("readFileStream: stream id %d is not registered", streamId)
+	}
+	for s.buf.Len() == 0 {
+		if s.ended {
+			return 0, io.EOF
+		}
+		if err := r.readDataFrame(); err != nil {
+			return 0, fmt.Errorf("readFileStream: %w", err)
+		}
+	}
+	return s.buf.Read(p)
+}
+
+// FileStreamReadWriter reads and writes an additional HTTP2 stream used by RemoteXPC file
+// transfers (e.g. com.apple.dt.remoteFetchSymbols): the client opens the stream and the
+// device streams the raw file content back on it. Read returns io.EOF once the device
+// half-closes the stream. Like HttpConnection it is not safe for concurrent use.
+type FileStreamReadWriter struct {
+	h        *HttpConnection
+	streamId uint32
+	stream   *fileStream
+}
+
+// NewFileStreamReadWriter registers the given stream id (must not be one of the reserved
+// XPC streams 0, 1 and 3) on the connection and returns a ReadWriter for it.
+func NewFileStreamReadWriter(h *HttpConnection, streamId uint32) (FileStreamReadWriter, error) {
+	s, err := h.registerFileStream(streamId)
+	if err != nil {
+		return FileStreamReadWriter{}, fmt.Errorf("NewFileStreamReadWriter: %w", err)
+	}
+	return FileStreamReadWriter{h: h, streamId: streamId, stream: s}, nil
+}
+
+func (f FileStreamReadWriter) Read(p []byte) (int, error) {
+	return f.h.readFileStream(f.streamId, p)
+}
+
+func (f FileStreamReadWriter) Write(p []byte) (int, error) {
+	return f.h.write(p, f.streamId, &f.stream.isOpen)
 }

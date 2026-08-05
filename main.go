@@ -96,6 +96,7 @@ Usage:
   ios diskspace [options]
   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios erase [--force] [options]
+  ios fetchsymbols [--path=<dir>] [options]
   ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]
   ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options]
   ios file push [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --local=<localPath> --remote=<remotePath> [options]
@@ -286,6 +287,12 @@ The commands work as following:
                                                                   The --binary flag will dump everything in raw binary without any decoding.
 
     ios erase [--force] [options]                                 Erase the device. It will prompt you to input y+Enter unless --force is specified.
+
+    ios fetchsymbols [--path=<dir>] [options]                     Download the dyld shared cache from the device for local symbolication
+                                                                  using RemoteXPC (iOS 17+). Requires tunnel.
+                                                                  Beware: this is a multi-gigabyte download. Files are cached per
+                                                                  iOS version and build under <dir> (default ./ios-symbols);
+                                                                  already cached files are skipped.
 
     ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]
                                                                   List files using RemoteXPC (iOS 17+). Requires tunnel.

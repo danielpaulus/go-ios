@@ -83,6 +83,7 @@ var deviceCommands = []command{
 	commandByBool("resetax", runResetAXCommand),
 	commandByBool("debug", runDebugCommand),
 	commandByBool("file", runFileCommand),
+	commandByBool("fetchsymbols", runFetchSymbolsCommand),
 	commandByBool("pasteboard", runPasteboardCommand),
 	commandByBool("fsync", runFsyncCommand),
 	commandByBool("devmode", runDevModeCommand),
