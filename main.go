@@ -260,7 +260,7 @@ The commands work as following:
                                                   or use a pattern like 'ios crash ls "*ips*"' to filter
 
     ios crash rm <cwd> <pattern> [options]        Remove file pattern from dir. Ex.: 'ios crash rm "." "*"' to delete everything
-    ios date [options]                            Prints the device date and timezone
+    ios date [options]                            Prints the device date in the device's own timezone
     ios debug [--stop-at-entry] <app_path>        Start debug with lldb
     ios devicename [options]                      Prints the devicename
 
@@ -1270,15 +1270,23 @@ func printDeviceDate(device ios.DeviceEntry) {
 	allValues, err := ios.GetValues(device)
 	exitIfError("failed getting values", err)
 
+	tz := allValues.Value.TimeZone
+	deviceTime := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0)
+	// Devices normally report a valid IANA name here, but don't fail a read-only
+	// command over it - fall back to the host timezone.
+	if loc, err := time.LoadLocation(tz); err == nil {
+		deviceTime = deviceTime.In(loc)
+	} else {
+		slog.Warn("failed loading device timezone, printing date in host timezone", "timezone", tz, "error", err)
+	}
+
 	if JSONdisabled {
-		tz := allValues.Value.TimeZone
-		loc, err := time.LoadLocation(tz)
-		exitIfError("failed loading device timezone", err)
-		fmt.Println(time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).In(loc).Format(time.RFC3339))
+		fmt.Println(deviceTime.Format(time.RFC3339))
 	} else {
 		fmt.Println(convertToJSONString(map[string]interface{}{
 			"TimeIntervalSince1970": allValues.Value.TimeIntervalSince1970,
-			"TimeZone":              allValues.Value.TimeZone,
+			"TimeZone":              tz,
+			"formatedDate":          deviceTime.Format(time.RFC850),
 		}))
 	}
 }

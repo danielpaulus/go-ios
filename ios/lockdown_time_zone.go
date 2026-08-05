@@ -22,5 +22,5 @@ func SetTime(device DeviceEntry, timezone string, unixTimestamp int64) error {
 
 // SetSystemTime syncs the device clock and timezone to the host system values.
 func SetSystemTime(device DeviceEntry) error {
-	return SetTime(device, time.Local.String(), time.Now().Unix())
+	return SetTime(device, SystemTimezone(), time.Now().Unix())
 }

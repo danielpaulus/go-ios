@@ -108,19 +108,17 @@ func GetAllSetupSkipOptions() []string {
 // If certBytes is nil then the device won't be supervised.
 // ios.CreateDERFormattedSupervisionCert() provides an example how to generate these certificates. Orgname can be any string, it will show up as the
 // supervision name on the device. Locale and lang can be set. If they are empty strings, then the default will be en_US and en.
-// An optional IANA timezone name (e.g. "America/Chicago") may be passed as the
-// last argument. When omitted the host system timezone is used. The timezone
-// write is only honoured by iOS during the setup-assistant phase.
-func Prepare(device ios.DeviceEntry, skip []string, certBytes []byte, orgname string, locale string, lang string, timezone ...string) error {
+// Timezone is an IANA timezone name (e.g. "America/Chicago"). If it is an empty string, the host system timezone is used.
+// The timezone write is only honoured by iOS during the setup-assistant phase.
+func Prepare(device ios.DeviceEntry, skip []string, certBytes []byte, orgname string, locale string, lang string, timezone string) error {
 	if locale == "" {
 		locale = "en_US"
 	}
 	if lang == "" {
 		lang = "en"
 	}
-	tz := time.Local.String()
-	if len(timezone) > 0 && timezone[0] != "" {
-		tz = timezone[0]
+	if timezone == "" {
+		timezone = ios.SystemTimezone()
 	}
 
 	supervise := certBytes != nil
@@ -218,10 +216,7 @@ func Prepare(device ios.DeviceEntry, skip []string, certBytes []byte, orgname st
 		return err
 	}
 
-	if err != nil {
-		return err
-	}
-	err = ios.SetTime(device, tz, time.Now().Unix())
+	err = ios.SetTime(device, timezone, time.Now().Unix())
 	if err != nil {
 		return err
 	}
