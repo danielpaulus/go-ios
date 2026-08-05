@@ -88,6 +88,14 @@ func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer, attachmentsD
 	}
 }
 
+// noopTestListener returns a fully initialized TestListener that discards all
+// output. It is attached to secondary dispatchers (the XCTestDriverInterface
+// channels) so that a malformed or early device callback on those channels is
+// recorded/dropped safely instead of nil-dereferencing p.testListener.
+func noopTestListener() *TestListener {
+	return NewTestListener(nil, nil, "")
+}
+
 func (t *TestListener) didFinishExecutingTestPlan() {
 	t.executionFinished()
 }
@@ -122,6 +130,10 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 		// That's unfortunately the default behavior defined by Apple.
 		// This if block is a safe guard to auto correct the test case information
 		ts = t.runningTestSuite
+		if ts == nil {
+			golog.Debug("testCaseFinished without a running test suite", "module", logModule, "testClass", testClass, "testMethod", testMethod)
+			return
+		}
 		if len(ts.TestCases) == 0 {
 			golog.Debug("Received testCaseFinished without initialization", "module", logModule, "testClass", testClass, "testMethod", testMethod)
 			return

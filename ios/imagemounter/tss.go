@@ -2,7 +2,6 @@ package imagemounter
 
 import (
 	"bytes"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -100,20 +99,13 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 		return nil, fmt.Errorf("getSignature: failed to encode request body: %w", err)
 	}
 
-	h := http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-			Proxy: t.h.Transport.(*http.Transport).Proxy,
-		},
-		Timeout: 1 * time.Minute,
-	}
 	req, err := http.NewRequest("POST", "https://gs.apple.com/TSS/controller?action=2", buf)
 	if err != nil {
 		return nil, err
 	}
-	res, err := h.Do(req)
+	// Reuse the properly-verifying client built in newTssClient. gs.apple.com
+	// serves a valid public certificate, so TLS verification stays enabled.
+	res, err := t.h.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("getSignature: failed to send request: %w", err)
 	}

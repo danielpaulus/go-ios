@@ -62,7 +62,7 @@ func runXCUIWithBundleIdsXcode11Ctx(
 		return make([]TestSuite, 0), fmt.Errorf("RunXCUIWithBundleIdsXcode11Ctx: cannot initiate a control session with capabilities: %w", err)
 	}
 	golog.Debug("control session initiated", "module", logModule, "udid", config.Device.Properties.SerialNumber, "pid", pid)
-	ideInterfaceChannel := ideDaemonProxy.dtxConnection.ForChannelRequest(proxyDispatcher{id: "emty"})
+	ideInterfaceChannel := ideDaemonProxy.dtxConnection.ForChannelRequest(proxyDispatcher{id: "emty", testListener: noopTestListener()})
 
 	golog.Debug("start executing testplan", "module", logModule, "udid", config.Device.Properties.SerialNumber)
 	err = ideDaemonProxy2.daemonConnection.startExecutingTestPlanWithProtocolVersion(ideInterfaceChannel, 25)
