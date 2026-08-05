@@ -58,12 +58,13 @@ func NewWithShimConnection(device ios.DeviceEntry) (*Connection, error) {
 
 // ReadLogMessage this is a blocking function that will return individual log messages received from syslog.
 // Call it in an endless for loop in a separate go routine.
+// Messages are vis-decoded (see DecodeVis) so non-ASCII text renders as UTF-8.
 func (sysLogConn *Connection) ReadLogMessage() (string, error) {
 	logmsg, err := sysLogConn.bufferedReader.ReadString(0)
 	if err != nil {
 		return "", err
 	}
-	return logmsg, nil
+	return DecodeVis(logmsg), nil
 }
 
 // LogEntry represents a parsed log entry
