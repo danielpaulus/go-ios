@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -486,6 +487,12 @@ func PairDevice(c *gin.Context) {
 	}
 
 	err = ios.PairSupervised(device, p12fileBuf.Bytes(), supervision_password)
+	if errors.Is(err, ios.ErrDeviceLockedPairingDeferred) {
+		// The device accepted the identity but persisted no pair record, so this is not
+		// a successful pairing. 423 tells the caller the device must be unlocked first.
+		c.JSON(http.StatusLocked, GenericResponse{Error: err.Error()})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 		return

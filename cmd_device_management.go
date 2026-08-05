@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -128,10 +130,7 @@ func runPrepareCommand(ctx commandContext) {
 func runSetWallpaperCommand(ctx commandContext) {
 	imagePath, _ := ctx.Args.String("<imagePath>")
 	p12file, _ := ctx.Args.String("--p12file")
-	p12password, _ := ctx.Args.String("--password")
-	if p12password == "" {
-		p12password = os.Getenv("P12_PASSWORD")
-	}
+	p12password := p12PasswordOrEnv(ctx)
 	screen, _ := ctx.Args.String("--screen")
 	if screen == "" {
 		screen = "home"
@@ -172,10 +171,7 @@ func runHTTPProxyCommand(ctx commandContext) {
 		pass = os.Getenv("PROXY_PASSWORD")
 	}
 	p12file, _ := ctx.Args.String("--p12file")
-	p12password, _ := ctx.Args.String("--password")
-	if p12password == "" {
-		p12password = os.Getenv("P12_PASSWORD")
-	}
+	p12password := p12PasswordOrEnv(ctx)
 	p12bytes, err := os.ReadFile(p12file)
 	exitIfError("could not read p12-file", err)
 
@@ -191,10 +187,7 @@ func runProfileCommand(ctx commandContext) {
 	if add, _ := ctx.Args.Bool("add"); add {
 		name, _ := ctx.Args.String("<profileFile>")
 		p12file, _ := ctx.Args.String("--p12file")
-		p12password, _ := ctx.Args.String("--password")
-		if p12password == "" {
-			p12password = os.Getenv("P12_PASSWORD")
-		}
+		p12password := p12PasswordOrEnv(ctx)
 		if p12file != "" {
 			handleProfileAddSupervised(ctx.Device, name, p12file, p12password)
 			return
@@ -213,10 +206,7 @@ func runDeviceNameCommand(ctx commandContext) {
 
 func runPairCommand(ctx commandContext) {
 	org, _ := ctx.Args.String("--p12file")
-	pwd, _ := ctx.Args.String("--password")
-	if pwd == "" {
-		pwd = os.Getenv("P12_PASSWORD")
-	}
+	pwd := p12PasswordOrEnv(ctx)
 	pairDevice(ctx.Device, org, pwd)
 }
 
@@ -268,5 +258,95 @@ func runDevModeCommand(ctx commandContext) {
 		err = conn.RevealDevMode()
 		exitIfError("Failed revealing developer mode menu", err)
 		slog.Info("Developer Mode menu has been revealed on the device. Go to Settings → Privacy & Security → Developer Mode to enable it.")
+	}
+}
+
+// p12PasswordOrEnv returns the supervision identity password from --password, falling
+// back to the P12_PASSWORD environment variable.
+func p12PasswordOrEnv(ctx commandContext) string {
+	p12password, _ := ctx.Args.String("--password")
+	if p12password == "" {
+		p12password = os.Getenv("P12_PASSWORD")
+	}
+	return p12password
+}
+
+// decodeBase64Flexible decodes a base64 token that may arrive from a secrets manager
+// with surrounding whitespace, hard line wrapping, no padding, or in the URL-safe
+// alphabet. Any of those silently truncated or rejected the token previously.
+func decodeBase64Flexible(encoded string) ([]byte, error) {
+	compact := strings.Join(strings.Fields(encoded), "")
+	if compact == "" {
+		return nil, fmt.Errorf("no token data received")
+	}
+	for _, encoding := range []*base64.Encoding{
+		base64.StdEncoding, base64.RawStdEncoding,
+		base64.URLEncoding, base64.RawURLEncoding,
+	} {
+		if decoded, err := encoding.DecodeString(compact); err == nil {
+			return decoded, nil
+		}
+	}
+	return nil, fmt.Errorf("not valid base64 (tried standard and URL-safe, padded and raw)")
+}
+
+func runMdmCommand(ctx commandContext) {
+	p12file, _ := ctx.Args.String("--p12file")
+	p12password := p12PasswordOrEnv(ctx)
+
+	p12bytes, err := os.ReadFile(p12file)
+	exitIfError("could not read p12file", err)
+
+	conn, err := mcinstall.New(ctx.Device)
+	exitIfError("failed to connect to MCInstall service", err)
+	defer conn.Close()
+
+	err = conn.Escalate(p12bytes, p12password)
+	exitIfError("failed to escalate MCInstall session", err)
+
+	if fetchToken, _ := ctx.Args.Bool("fetch-unlock-token"); fetchToken {
+		output, _ := ctx.Args.String("--output")
+		token, err := conn.FetchUnlockToken()
+		exitIfError("failed to fetch unlock token", err)
+		if output == "-" {
+			fmt.Println(base64.StdEncoding.EncodeToString(token))
+		} else {
+			err = os.WriteFile(output, token, 0o600)
+			exitIfError("failed to write token file", err)
+			fmt.Println(convertToJSONString(map[string]any{"path": output, "bytes": len(token)}))
+		}
+		return
+	}
+
+	if clearPasscode, _ := ctx.Args.Bool("clear-passcode"); clearPasscode {
+		tokenFile, _ := ctx.Args.String("--token")
+		var tokenBytes []byte
+		if tokenFile == "-" {
+			raw, err := io.ReadAll(os.Stdin)
+			exitIfError("could not read token from stdin", err)
+			tokenBytes, err = decodeBase64Flexible(string(raw))
+			exitIfError("could not base64-decode token", err)
+		} else {
+			tokenBytes, err = os.ReadFile(tokenFile)
+			exitIfError("could not read token file", err)
+		}
+		err = conn.ClearPasscode(tokenBytes)
+		exitIfError("failed to clear passcode", err)
+		fmt.Println(convertToJSONString(map[string]any{"status": "ok"}))
+		return
+	}
+
+	if securityInfo, _ := ctx.Args.Bool("security-info"); securityInfo {
+		info, err := conn.SecurityInfo()
+		exitIfError("failed to fetch security info", err)
+		fmt.Println(convertToJSONString(info))
+		return
+	}
+
+	if clearScreenTime, _ := ctx.Args.Bool("clear-screen-time-password"); clearScreenTime {
+		err = conn.ClearScreenTimePassword()
+		exitIfError("failed to clear Screen Time password", err)
+		fmt.Println(convertToJSONString(map[string]any{"status": "ok"}))
+		return
 	}
 }

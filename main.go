@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -118,8 +119,13 @@ Usage:
   ios listen [options]
   ios lockdown get [<key>] [--domain=<domain>] [options]
   ios memlimitoff (--process=<processName>) [options]
+  ios mdm fetch-unlock-token --p12file=<p12file> --output=<output> [--password=<p12password>] [options]
+  ios mdm clear-passcode --p12file=<p12file> --token=<tokenFile> [--password=<p12password>] [options]
+  ios mdm clear-screen-time-password --p12file=<p12file> [--password=<p12password>] [options]
+  ios mdm security-info --p12file=<p12file> [--password=<p12password>] [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
+  ios pasteboard (set [<text>] | get) [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale=<locale>] [--lang=<lang>] [options]
   ios prepare cloudconfig [options]
@@ -354,6 +360,37 @@ The commands work as following:
 
     ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
 
+    ios mdm fetch-unlock-token --p12file=<p12file> --output=<output> [--password=<p12password>]
+                                                                       Save the device passcode unlock token. The device must have no passcode
+                                                                       set; run once during provisioning. The token can be passed to
+                                                                       "mdm clear-passcode" at any time later.
+                                                                       Use --output=<file> to write raw bytes to a file, or --output=- to
+                                                                       print base64-encoded token to stdout (for piping into a secrets manager).
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
+    ios mdm clear-passcode --p12file=<p12file> --token=<tokenFile> [--password=<p12password>]
+                                                                       Remove the device lock passcode using a previously saved unlock token.
+                                                                       The token must have been saved before the passcode was set.
+                                                                       Works regardless of current lock state; does not require knowing the passcode.
+                                                                       Use --token=<file> for a raw token file, or --token=- to read a
+                                                                       base64-encoded token from stdin.
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
+    ios mdm clear-screen-time-password --p12file=<p12file> [--password=<p12password>]
+                                                                       Clear the Screen Time restrictions passcode (4-digit PIN protecting Screen Time settings).
+                                                                       No unlock token required; supervisor identity alone suffices.
+                                                                       Does not affect profile-based restrictions or the device lock passcode.
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
+    ios mdm security-info --p12file=<p12file> [--password=<p12password>]
+                                                                       Print the device's security status as JSON: PasscodePresent, PasscodeCompliant,
+                                                                       PasscodeCompliantWithProfiles, lock grace periods, hardware encryption caps
+                                                                       and management status. Read-only; performs no keybag operation.
+                                                                       PasscodePresent is the reliable "does this device have a passcode?" signal —
+                                                                       lockdown's PasswordProtected reports whether the device is currently locked
+                                                                       instead, and reads false on an unlocked device that has a passcode.
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
     ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys.
                                                                        Standard output is json but if desired you can get it in plist format by adding the --plist param.
                                                                        Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
@@ -361,6 +398,9 @@ The commands work as following:
     ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file
                                                                        to pair without a trust dialog. Specify the password either with the argument or
                                                                        by setting the environment variable 'P12_PASSWORD'
+
+    ios pasteboard (set [<text>] | get) [options]                     Read or write the device pasteboard (clipboard) over RemoteXPC (iOS 17+). Requires tunnel.
+                                                                       set writes <text> (or stdin when omitted) to the pasteboard; get prints its text.
 
     ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
 
@@ -1822,6 +1862,11 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	p12, err := os.ReadFile(orgIdentityP12File)
 	exitIfError("Invalid file:"+orgIdentityP12File, err)
 	err = ios.PairSupervised(device, p12, p12Password)
+	if errors.Is(err, ios.ErrDeviceLockedPairingDeferred) {
+		// Do not claim success: no pair record was written. Exit non-zero so automation
+		// can tell this apart from a completed pairing.
+		logFatal(fmt.Sprintf("Pairing incomplete for %s", device.Properties.SerialNumber), "err", err)
+	}
 	exitIfError("Pairing failed", err)
 	slog.Info(fmt.Sprintf("Successfully paired %s", device.Properties.SerialNumber))
 }
@@ -1881,7 +1926,9 @@ func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, 
 	exitIfError(fmt.Sprintf("could not connect to RSD, host %s, port %d", address, rsdPort), err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
-	exitIfError("rsd handshake failed", err)
+	// An unchecked handshake error would leave an empty RSD service list, and every
+	// service lookup would then misreport as 'service not available in RSD'.
+	exitIfError(fmt.Sprintf("RSD handshake failed, host %s, port %d", address, rsdPort), err)
 	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	device1.UserspaceTUN = device.UserspaceTUN
 	device1.UserspaceTUNHost = device.UserspaceTUNHost
