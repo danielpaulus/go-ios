@@ -78,8 +78,27 @@ func TestBothVendsFailingReturnsHelpfulError(t *testing.T) {
 	assert.True(t, documentsConn.closed)
 }
 
+func TestTransportErrorDoesNotFallBack(t *testing.T) {
+	conn := newFakeHouseArrestConn(t, nil) // connection drops before a response arrives
+	dials := 0
+	dial := func() (ios.DeviceConnectionInterface, error) {
+		dials++
+		return conn, nil
+	}
+
+	client, err := connect(dial, "com.example.app", "udid-1")
+	require.Error(t, err)
+	assert.Nil(t, client)
+
+	assert.ErrorIs(t, err, io.EOF)
+	assert.NotContains(t, err.Error(), "UIFileSharingEnabled", "transport errors must not be explained as vend denials")
+	assert.Equal(t, 1, dials, "a transport error must not trigger the VendDocuments fallback")
+	assert.True(t, conn.closed)
+}
+
 // fakeHouseArrestConn is a mocked DeviceConnectionInterface that records the
 // plist requests sent to it and replays a single canned house_arrest response.
+// A nil response simulates a transport failure: reads hit EOF.
 type fakeHouseArrestConn struct {
 	t        *testing.T
 	requests []map[string]interface{}
@@ -88,6 +107,9 @@ type fakeHouseArrestConn struct {
 }
 
 func newFakeHouseArrestConn(t *testing.T, response map[string]interface{}) *fakeHouseArrestConn {
+	if response == nil {
+		return &fakeHouseArrestConn{t: t, readBuf: &bytes.Buffer{}}
+	}
 	framed, err := ios.NewPlistCodec().Encode(response)
 	require.NoError(t, err)
 	return &fakeHouseArrestConn{t: t, readBuf: bytes.NewBuffer(framed)}
