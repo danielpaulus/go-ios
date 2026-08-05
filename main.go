@@ -350,6 +350,8 @@ The commands work as following:
                                                                        --wait keeps the connection open if you want logs.
 
     ios list [options] [--details]                                     Prints a list of all connected device's udids.
+                                                                       Devices known to a running go-ios tunnel agent are included even if usbmuxd
+                                                                       does not see them; those are marked with connectionType tunnel/userspaceTunnel.
                                                                        If --details is specified, it includes version, name and model of each device.
 
     ios listen [options]                                               Keeps a persistent connection open and notifies about newly connected or disconnected devices.
@@ -1416,10 +1418,22 @@ func processList(device ios.DeviceEntry, applicationsOnly bool) {
 	}
 }
 
-func printDeviceList(details bool) {
-	deviceList, err := ios.ListDevices()
-	if err != nil {
-		exitIfError("failed getting device list", err)
+func printDeviceList(details bool, tunnelInfo tunnelInfoConfig) {
+	deviceList, usbmuxErr := ios.ListDevices()
+	if usbmuxErr != nil {
+		deviceList = ios.DeviceList{}
+	}
+	tunnelDevices, tunnelErr := tunnelBackedDevices(tunnelInfo)
+	if tunnelErr == nil {
+		deviceList = mergeTunnelDevices(deviceList, tunnelDevices)
+	}
+	if usbmuxErr != nil {
+		// usbmuxd may legitimately be absent on hosts that only reach devices
+		// through a tunnel agent; only fail if tunnel discovery is down too.
+		if tunnelErr != nil {
+			exitIfError("failed getting device list", usbmuxErr)
+		}
+		slog.Warn("usbmuxd is not reachable, listing tunnel-backed devices only", "error", usbmuxErr)
 	}
 
 	if details {
@@ -1445,19 +1459,29 @@ type detailsEntry struct {
 	ConnectionType string
 }
 
+// detailsEntryForDevice collects the detailed list values for one device.
+// Tunnel-only devices are not reachable through usbmuxd/lockdown on this host,
+// so they are listed with their identity and transport only.
+func detailsEntryForDevice(device ios.DeviceEntry) detailsEntry {
+	entry := detailsEntry{
+		Udid:           device.Properties.SerialNumber,
+		ConnectionType: device.ConnectionTypeLabel(),
+	}
+	if isTunnelOnlyDevice(device) {
+		return entry
+	}
+	allValues, err := ios.GetValues(device)
+	exitIfError("failed getting values", err)
+	entry.ProductName = allValues.Value.ProductName
+	entry.ProductType = allValues.Value.ProductType
+	entry.ProductVersion = allValues.Value.ProductVersion
+	return entry
+}
+
 func outputDetailedList(deviceList ios.DeviceList) {
 	result := make([]detailsEntry, len(deviceList.DeviceList))
 	for i, device := range deviceList.DeviceList {
-		udid := device.Properties.SerialNumber
-		allValues, err := ios.GetValues(device)
-		exitIfError("failed getting values", err)
-		result[i] = detailsEntry{
-			Udid:           udid,
-			ProductName:    allValues.Value.ProductName,
-			ProductType:    allValues.Value.ProductType,
-			ProductVersion: allValues.Value.ProductVersion,
-			ConnectionType: device.ConnectionTypeLabel(),
-		}
+		result[i] = detailsEntryForDevice(device)
 	}
 	fmt.Println(convertToJSONString(map[string][]detailsEntry{
 		"deviceList": result,
@@ -1466,10 +1490,8 @@ func outputDetailedList(deviceList ios.DeviceList) {
 
 func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 	for _, device := range deviceList.DeviceList {
-		udid := device.Properties.SerialNumber
-		allValues, err := ios.GetValues(device)
-		exitIfError("failed getting values", err)
-		fmt.Printf("%s  %s  %s  %s  %s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion, device.ConnectionTypeLabel())
+		entry := detailsEntryForDevice(device)
+		fmt.Printf("%s  %s  %s  %s  %s\n", entry.Udid, entry.ProductName, entry.ProductType, entry.ProductVersion, entry.ConnectionType)
 	}
 }
 
@@ -1930,10 +1952,21 @@ func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, 
 	// service lookup would then misreport as 'service not available in RSD'.
 	exitIfError(fmt.Sprintf("RSD handshake failed, host %s, port %d", address, rsdPort), err)
 	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
+	if err != nil {
+		// usbmuxd does not know this device (e.g. it is only reachable through
+		// a tunnel from another host). The RSD handshake succeeded, so keep the
+		// direct-target entry instead of failing and take the identity from the
+		// handshake when no --udid was given.
+		if device.Properties.SerialNumber == "" {
+			device.Properties.SerialNumber = rsdProvider.Udid
+		}
+		device.Address = address
+		device.Rsd = rsdProvider
+		return device
+	}
 	device1.UserspaceTUN = device.UserspaceTUN
 	device1.UserspaceTUNHost = device.UserspaceTUNHost
 	device1.UserspaceTUNPort = device.UserspaceTUNPort
-	exitIfError("error getting devicelist", err)
 
 	return device1
 }
