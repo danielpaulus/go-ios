@@ -449,8 +449,10 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 			continue
 		}
 		if m.userspaceTUN && d.UserspaceTUNPort == 0 {
+			m.mux.Lock()
 			d.UserspaceTUNPort = m.basePort + m.portOffset
 			m.portOffset++
+			m.mux.Unlock()
 		}
 		t, err := m.startTunnel(ctx, d)
 		if err != nil {
@@ -467,10 +469,10 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 		m.mux.Unlock()
 	}
 	for udid, tun := range localTunnels {
-		idx := slices.ContainsFunc(devices.DeviceList, func(entry ios.DeviceEntry) bool {
+		stillConnected := slices.ContainsFunc(devices.DeviceList, func(entry ios.DeviceEntry) bool {
 			return entry.Properties.SerialNumber == udid
 		})
-		if !idx {
+		if !stillConnected {
 			_ = m.stopTunnel(tun)
 		}
 	}

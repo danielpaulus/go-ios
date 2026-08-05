@@ -45,6 +45,7 @@ func NewSysmontapService(device ios.DeviceEntry, samplingInterval int) (*sysmont
 	msgDispatcher := newSysmontapMsgDispatcher()
 	dtxConn, err := connectInstrumentsWithMsgDispatcher(device, msgDispatcher)
 	if err != nil {
+		deviceInfoService.Close()
 		return nil, err
 	}
 
@@ -52,11 +53,15 @@ func NewSysmontapService(device ios.DeviceEntry, samplingInterval int) (*sysmont
 
 	sysAttrs, err := deviceInfoService.systemAttributes()
 	if err != nil {
+		deviceInfoService.Close()
+		dtxConn.Close()
 		return nil, err
 	}
 
 	procAttrs, err := deviceInfoService.processAttributes()
 	if err != nil {
+		deviceInfoService.Close()
+		dtxConn.Close()
 		return nil, err
 	}
 
@@ -71,11 +76,15 @@ func NewSysmontapService(device ios.DeviceEntry, samplingInterval int) (*sysmont
 	}
 	_, err = processControlChannel.MethodCall("setConfig:", config)
 	if err != nil {
+		deviceInfoService.Close()
+		dtxConn.Close()
 		return nil, err
 	}
 
 	err = processControlChannel.MethodCallAsync("start")
 	if err != nil {
+		deviceInfoService.Close()
+		dtxConn.Close()
 		return nil, err
 	}
 

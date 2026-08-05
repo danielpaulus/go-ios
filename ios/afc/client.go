@@ -433,12 +433,11 @@ func (f *File) Read(p []byte) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error reading data: %w", err)
 	}
-	copy(p, resp.Payload)
-	l := len(resp.Payload)
-	if l == 0 {
+	if len(resp.Payload) == 0 {
 		return 0, io.EOF
 	}
-	return l, nil
+	n := copy(p, resp.Payload)
+	return n, nil
 }
 
 func (f *File) Write(p []byte) (int, error) {

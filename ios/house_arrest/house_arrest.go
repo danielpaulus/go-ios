@@ -20,6 +20,7 @@ func New(device ios.DeviceEntry, bundleID string) (*afc.Client, error) {
 	}
 	err = vendContainer(deviceConn, bundleID)
 	if err != nil {
+		deviceConn.Close()
 		return nil, err
 	}
 	return afc.NewFromConn(deviceConn), nil

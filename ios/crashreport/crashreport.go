@@ -32,6 +32,7 @@ func DownloadReports(device ios.DeviceEntry, pattern string, targetdir string) e
 	if err != nil {
 		return err
 	}
+	defer deviceConn.Close()
 	afcConn := afc.NewFromConn(deviceConn)
 	err = afcConn.WalkDir(".", func(p string, info afc.FileInfo, err error) error {
 		if info.Type == afc.S_IFDIR {
@@ -58,6 +59,7 @@ func RemoveReports(device ios.DeviceEntry, cwd string, pattern string) error {
 	if err != nil {
 		return err
 	}
+	defer deviceConn.Close()
 	afcClient := afc.NewFromConn(deviceConn)
 	return afcClient.WalkDir(cwd, func(path string, info afc.FileInfo, err error) error {
 		if info.Type == afc.S_IFDIR {
@@ -79,6 +81,7 @@ func ListReports(device ios.DeviceEntry, pattern string) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
+	defer deviceConn.Close()
 	afcClient := afc.NewFromConn(deviceConn)
 
 	var files []string
@@ -104,6 +107,7 @@ func moveReports(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
+	defer conn.deviceConn.Close()
 	golog.Debug("connected to mover, awaiting ping", "module", logModule, "udid", device.Properties.SerialNumber)
 	ping := make([]byte, 4)
 	_, err = conn.deviceConn.Reader().Read(ping)

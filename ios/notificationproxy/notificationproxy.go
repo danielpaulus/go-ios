@@ -80,7 +80,11 @@ func read(c *Connection) error {
 		if command, ok := message["Command"].(string); ok {
 			switch command {
 			case "RelayNotification":
-				c.notificationChannel <- message["Name"].(string)
+				if name, ok := message["Name"].(string); ok {
+					c.notificationChannel <- name
+				} else {
+					golog.Debug("RelayNotification without string Name, skipping", "module", logModule, "service", serviceName, "message", message)
+				}
 			case "ProxyDeath":
 				var signal interface{}
 				c.proxyDeathChannel <- signal

@@ -682,10 +682,12 @@ func toEnvs(envsIn []string) map[string]interface{} {
 	env := map[string]interface{}{}
 
 	for _, entrystring := range envsIn {
-		entry := strings.Split(entrystring, "=")
-		key := entry[0]
-		value := entry[1]
-		env[key] = value
+		entry := strings.SplitN(entrystring, "=", 2)
+		if len(entry) != 2 {
+			slog.Warn("skipping malformed env entry, expected key=value", "entry", entrystring)
+			continue
+		}
+		env[entry[0]] = entry[1]
 	}
 
 	return env
@@ -898,7 +900,7 @@ func zoomTouch(device ios.DeviceEntry, operation string, force bool) {
 		if force && (operation == "enable" || operation == "disable") {
 			slog.Warn("Failed getting current ZoomTouch status. Continuing anyway.", "error", err)
 		} else {
-			exitIfError("failed getting current VoiceOver status", err)
+			exitIfError("failed getting current ZoomTouch status", err)
 		}
 	}
 
@@ -914,7 +916,7 @@ func zoomTouch(device ios.DeviceEntry, operation string, force bool) {
 	}
 	if operation != "get" && (force || wasEnabled != enable) {
 		err = ios.SetZoomTouch(device, enable)
-		exitIfError("failed setting VoiceOver", err)
+		exitIfError("failed setting ZoomTouch", err)
 	}
 	if operation == "get" {
 		if JSONdisabled {
@@ -1342,7 +1344,7 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 		exitIfError("getting filepath failed", err)
 	}
 
-	err = os.WriteFile(outputPath, imageBytes, 0o777)
+	err = os.WriteFile(outputPath, imageBytes, 0o644)
 	exitIfError("write file failed", err)
 
 	if JSONdisabled {
@@ -1392,10 +1394,10 @@ func resetLocation(device ios.DeviceEntry) {
 
 func processList(device ios.DeviceEntry, applicationsOnly bool) {
 	service, err := instruments.NewDeviceInfoService(device)
-	defer service.Close()
 	if err != nil {
 		exitIfError("failed opening deviceInfoService for getting process list", err)
 	}
+	defer service.Close()
 	processList, err := service.ProcessList()
 	if applicationsOnly {
 		var applicationProcessList []instruments.ProcessInfo
@@ -1515,12 +1517,12 @@ func startListening() {
 	go func() {
 		for {
 			deviceConn, err := ios.NewDeviceConnection(ios.GetUsbmuxdSocket())
-			defer deviceConn.Close()
 			if err != nil {
 				slog.Error("could not connect, will retry in 3 seconds...", "socket", ios.GetUsbmuxdSocket(), "error", err)
 				time.Sleep(time.Second * 3)
 				continue
 			}
+			defer deviceConn.Close()
 			muxConnection := ios.NewUsbMuxConnection(deviceConn)
 
 			attachedReceiver, err := muxConnection.Listen()
@@ -1980,10 +1982,12 @@ func logFatal(msg string, args ...any) {
 func splitKeyValuePairs(envArgs []string, sep string) map[string]interface{} {
 	env := make(map[string]interface{})
 	for _, entrystring := range envArgs {
-		entry := strings.Split(entrystring, sep)
-		key := entry[0]
-		value := entry[1]
-		env[key] = value
+		entry := strings.SplitN(entrystring, sep, 2)
+		if len(entry) != 2 {
+			slog.Warn("skipping malformed key/value entry, expected key"+sep+"value", "entry", entrystring)
+			continue
+		}
+		env[entry[0]] = entry[1]
 	}
 	return env
 }

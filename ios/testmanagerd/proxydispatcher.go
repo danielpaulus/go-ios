@@ -45,7 +45,8 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 			golog.Debug("received testRunnerReadyWithCapabilities", "module", logModule, "id", p.id)
 			resp, _ := p.testRunnerReadyWithCapabilities(m)
 			payload, _ := nskeyedarchiver.ArchiveBin(resp)
-			messageBytes, decoderErr := dtx.Encode(m.Identifier, 1, m.ChannelCode, false, dtx.ResponseWithReturnValueInPayload, payload, dtx.NewPrimitiveDictionary())
+			var messageBytes []byte
+			messageBytes, decoderErr = dtx.Encode(m.Identifier, 1, m.ChannelCode, false, dtx.ResponseWithReturnValueInPayload, payload, dtx.NewPrimitiveDictionary())
 			if decoderErr != nil { // Actually an encoder error but we can utilize the same logic for decoder errors and quit early
 				break
 			}
@@ -65,7 +66,8 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			err, decoderErr := extractNSErrorArg(m, 0)
+			var err nskeyedarchiver.NSError
+			err, decoderErr = extractNSErrorArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
@@ -78,7 +80,8 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			err, decoderErr := extractNSErrorArg(m, 0)
+			var err nskeyedarchiver.NSError
+			err, decoderErr = extractNSErrorArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
@@ -102,7 +105,8 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 			}
 
 			mbytes := m.Auxiliary.GetArguments()[0].([]byte)
-			data, decoderErr := nskeyedarchiver.Unarchive(mbytes)
+			var data []interface{}
+			data, decoderErr = nskeyedarchiver.Unarchive(mbytes)
 			if decoderErr != nil {
 				break
 			}
@@ -119,15 +123,17 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testCase, decoderErr := extractStringArg(m, 0)
+			var testCase, testMethod string
+			var activityRecord nskeyedarchiver.XCActivityRecord
+			testCase, decoderErr = extractStringArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			testMethod, decoderErr := extractStringArg(m, 1)
+			testMethod, decoderErr = extractStringArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
-			activityRecord, decoderErr := extractActivityRecordArg(m, 2)
+			activityRecord, decoderErr = extractActivityRecordArg(m, 2)
 			if decoderErr != nil {
 				break
 			}
@@ -140,11 +146,13 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testIdentifier, decoderErr := extractTestIdentifierArg(m, 0)
+			var testIdentifier nskeyedarchiver.XCTTestIdentifier
+			var activityRecord nskeyedarchiver.XCActivityRecord
+			testIdentifier, decoderErr = extractTestIdentifierArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			activityRecord, decoderErr := extractActivityRecordArg(m, 1)
+			activityRecord, decoderErr = extractActivityRecordArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
@@ -157,19 +165,21 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testCase, decoderErr := extractStringArg(m, 0)
+			var testCase, testMethod, file string
+			var line uint64
+			testCase, decoderErr = extractStringArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			testMethod, decoderErr := extractStringArg(m, 1)
+			testMethod, decoderErr = extractStringArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
-			file, decoderErr := extractStringArg(m, 2)
+			file, decoderErr = extractStringArg(m, 2)
 			if decoderErr != nil {
 				break
 			}
-			line, decoderErr := extractUint64Arg(m, 3)
+			line, decoderErr = extractUint64Arg(m, 3)
 			if decoderErr != nil {
 				break
 			}
@@ -186,23 +196,25 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testCase, decoderErr := extractStringArg(m, 0)
+			var testCase, testMethod, message, file string
+			var line uint64
+			testCase, decoderErr = extractStringArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			testMethod, decoderErr := extractStringArg(m, 1)
+			testMethod, decoderErr = extractStringArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
-			message, decoderErr := extractStringArg(m, 2)
+			message, decoderErr = extractStringArg(m, 2)
 			if decoderErr != nil {
 				break
 			}
-			file, decoderErr := extractStringArg(m, 3)
+			file, decoderErr = extractStringArg(m, 3)
 			if decoderErr != nil {
 				break
 			}
-			line, decoderErr := extractUint64Arg(m, 4)
+			line, decoderErr = extractUint64Arg(m, 4)
 			if decoderErr != nil {
 				break
 			}
@@ -215,11 +227,13 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testIdentifier, decoderErr := extractTestIdentifierArg(m, 0)
+			var testIdentifier nskeyedarchiver.XCTTestIdentifier
+			var issue nskeyedarchiver.XCTIssue
+			testIdentifier, decoderErr = extractTestIdentifierArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			issue, decoderErr := extractIssueArg(m, 1)
+			issue, decoderErr = extractIssueArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
@@ -232,19 +246,21 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testCase, decoderErr := extractStringArg(m, 0)
+			var testCase, testMethod, status string
+			var duration float64
+			testCase, decoderErr = extractStringArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			testMethod, decoderErr := extractStringArg(m, 1)
+			testMethod, decoderErr = extractStringArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
-			status, decoderErr := extractStringArg(m, 2)
+			status, decoderErr = extractStringArg(m, 2)
 			if decoderErr != nil {
 				break
 			}
-			duration, decoderErr := extractFloat64Arg(m, 3)
+			duration, decoderErr = extractFloat64Arg(m, 3)
 			if decoderErr != nil {
 				break
 			}
@@ -257,15 +273,18 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testIdentifier, decoderErr := extractTestIdentifierArg(m, 0)
+			var testIdentifier nskeyedarchiver.XCTTestIdentifier
+			var status string
+			var duration float64
+			testIdentifier, decoderErr = extractTestIdentifierArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			status, decoderErr := extractStringArg(m, 1)
+			status, decoderErr = extractStringArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
-			duration, decoderErr := extractFloat64Arg(m, 2)
+			duration, decoderErr = extractFloat64Arg(m, 2)
 			if decoderErr != nil {
 				break
 			}
@@ -278,11 +297,12 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testClass, decoderErr := extractStringArg(m, 0)
+			var testClass, testMethod string
+			testClass, decoderErr = extractStringArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			testMethod, decoderErr := extractStringArg(m, 1)
+			testMethod, decoderErr = extractStringArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
@@ -295,7 +315,8 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testIdentifier, decoderErr := extractTestIdentifierArg(m, 0)
+			var testIdentifier nskeyedarchiver.XCTTestIdentifier
+			testIdentifier, decoderErr = extractTestIdentifierArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
@@ -308,7 +329,8 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testIdentifier, decoderErr := extractTestIdentifierArg(m, 0)
+			var testIdentifier nskeyedarchiver.XCTTestIdentifier
+			testIdentifier, decoderErr = extractTestIdentifierArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
@@ -321,7 +343,8 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testIdentifier, decoderErr := extractTestIdentifierArg(m, 0)
+			var testIdentifier nskeyedarchiver.XCTTestIdentifier
+			testIdentifier, decoderErr = extractTestIdentifierArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
@@ -336,31 +359,34 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testSuite, decoderErr := extractStringArg(m, 0)
+			var testSuite, finishAt string
+			var runCount, failures, unexpectedFailureCount uint64
+			var testDuration, totalDuration float64
+			testSuite, decoderErr = extractStringArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			finishAt, decoderErr := extractStringArg(m, 1)
+			finishAt, decoderErr = extractStringArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
-			runCount, decoderErr := extractUint64Arg(m, 2)
+			runCount, decoderErr = extractUint64Arg(m, 2)
 			if decoderErr != nil {
 				break
 			}
-			failures, decoderErr := extractUint64Arg(m, 3)
+			failures, decoderErr = extractUint64Arg(m, 3)
 			if decoderErr != nil {
 				break
 			}
-			unexpectedFailureCount, decoderErr := extractUint64Arg(m, 4)
+			unexpectedFailureCount, decoderErr = extractUint64Arg(m, 4)
 			if decoderErr != nil {
 				break
 			}
-			testDuration, decoderErr := extractFloat64Arg(m, 5)
+			testDuration, decoderErr = extractFloat64Arg(m, 5)
 			if decoderErr != nil {
 				break
 			}
-			totalDuration, decoderErr := extractFloat64Arg(m, 6)
+			totalDuration, decoderErr = extractFloat64Arg(m, 6)
 			if decoderErr != nil {
 				break
 			}
@@ -384,39 +410,43 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testIdentifier, decoderErr := extractTestIdentifierArg(m, 0)
+			var testIdentifier nskeyedarchiver.XCTTestIdentifier
+			var finishAt string
+			var runCount, skipCount, failureCount, expectedFailureCount, uncaughtExceptionCount uint64
+			var testDuration, totalDuration float64
+			testIdentifier, decoderErr = extractTestIdentifierArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			finishAt, decoderErr := extractStringArg(m, 1)
+			finishAt, decoderErr = extractStringArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
-			runCount, decoderErr := extractUint64Arg(m, 2)
+			runCount, decoderErr = extractUint64Arg(m, 2)
 			if decoderErr != nil {
 				break
 			}
-			skipCount, decoderErr := extractUint64Arg(m, 3)
+			skipCount, decoderErr = extractUint64Arg(m, 3)
 			if decoderErr != nil {
 				break
 			}
-			failureCount, decoderErr := extractUint64Arg(m, 4)
+			failureCount, decoderErr = extractUint64Arg(m, 4)
 			if decoderErr != nil {
 				break
 			}
-			expectedFailureCount, decoderErr := extractUint64Arg(m, 5)
+			expectedFailureCount, decoderErr = extractUint64Arg(m, 5)
 			if decoderErr != nil {
 				break
 			}
-			uncaughtExceptionCount, decoderErr := extractUint64Arg(m, 6)
+			uncaughtExceptionCount, decoderErr = extractUint64Arg(m, 6)
 			if decoderErr != nil {
 				break
 			}
-			testDuration, decoderErr := extractFloat64Arg(m, 7)
+			testDuration, decoderErr = extractFloat64Arg(m, 7)
 			if decoderErr != nil {
 				break
 			}
-			totalDuration, decoderErr := extractFloat64Arg(m, 8)
+			totalDuration, decoderErr = extractFloat64Arg(m, 8)
 			if decoderErr != nil {
 				break
 			}
@@ -442,11 +472,12 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testSuite, decoderErr := extractStringArg(m, 0)
+			var testSuite, date string
+			testSuite, decoderErr = extractStringArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
-			date, decoderErr := extractStringArg(m, 1)
+			date, decoderErr = extractStringArg(m, 1)
 			if decoderErr != nil {
 				break
 			}
@@ -459,13 +490,15 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 				break
 			}
 
-			testIdentifier, decoderErr := extractTestIdentifierArg(m, 0)
+			var testIdentifier nskeyedarchiver.XCTTestIdentifier
+			testIdentifier, decoderErr = extractTestIdentifierArg(m, 0)
 			if decoderErr != nil {
 				break
 			}
 
 			if len(testIdentifier.C) > 0 && testIdentifier.C[0] != "All tests" {
-				date, decoderErr := extractStringArg(m, 1)
+				var date string
+				date, decoderErr = extractStringArg(m, 1)
 				if decoderErr != nil {
 					break
 				}
