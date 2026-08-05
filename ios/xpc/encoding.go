@@ -182,21 +182,41 @@ func decodeBody(r io.Reader, h wrapperHeader) (map[string]interface{}, error) {
 	if bodyHeader.Version != bodyVersion {
 		return nil, fmt.Errorf("decodeBody: expected version 0x%x but got 0x%x", bodyVersion, bodyHeader.Version)
 	}
-	bodyPayloadLength := h.BodyLen - 8
-	body := make([]byte, bodyPayloadLength)
-	n, err := r.Read(body)
-	if err != nil {
-		return nil, fmt.Errorf("decodeBody:: failed to read body data: %w", err)
+	if h.BodyLen < 8 {
+		return nil, fmt.Errorf("decodeBody: body length %d is too small, must be at least 8", h.BodyLen)
 	}
-	if uint64(n) != bodyPayloadLength {
-		return nil, fmt.Errorf("decodeBody: could not read full body. only %d instead of %d were read", n, bodyPayloadLength)
+	bodyPayloadLength := h.BodyLen - 8
+	// Bound the payload against the bytes actually available in the reader so a
+	// device-controlled BodyLen cannot drive an unbounded make([]byte, ...).
+	body, err := io.ReadAll(io.LimitReader(r, int64(bodyPayloadLength)))
+	if err != nil {
+		return nil, fmt.Errorf("decodeBody: failed to read body data: %w", err)
+	}
+	if uint64(len(body)) != bodyPayloadLength {
+		return nil, fmt.Errorf("decodeBody: could not read full body. only %d instead of %d were read", len(body), bodyPayloadLength)
 	}
 	bodyBuf := bytes.NewReader(body)
 	res, err := decodeObject(bodyBuf)
 	if err != nil {
 		return nil, fmt.Errorf("decodeBody: failed to decode body: %w", err)
 	}
-	return res.(map[string]interface{}), nil
+	m, ok := res.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("decodeBody: top-level object is %T, expected dictionary", res)
+	}
+	return m, nil
+}
+
+// bytesRemaining reports how many bytes are still available in r when that is
+// knowable (the body decoders all read from a *bytes.Reader). It is used to
+// bound wire-declared lengths/counts before allocating: a length larger than
+// the bytes left in the body is by definition malformed. When the remaining
+// size is unknown, it returns -1 and callers skip the bound.
+func bytesRemaining(r io.Reader) int {
+	if br, ok := r.(*bytes.Reader); ok {
+		return br.Len()
+	}
+	return -1
 }
 
 func decodeObject(r io.Reader) (interface{}, error) {
@@ -285,6 +305,11 @@ func decodeDictionary(r io.Reader) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decodeDictionary: failed to read number of entries: %w", err)
 	}
+	// Each entry needs at least a key terminator plus a 4-byte object type, so a
+	// count larger than the bytes left in the body is malformed.
+	if rem := bytesRemaining(r); rem >= 0 && int64(numEntries) > int64(rem) {
+		return nil, fmt.Errorf("decodeDictionary: entry count %d exceeds %d bytes remaining", numEntries, rem)
+	}
 	dict := make(map[string]interface{})
 	for i := uint32(0); i < numEntries; i++ {
 		key, err := readDictionaryKey(r)
@@ -330,6 +355,11 @@ func decodeArray(r io.Reader) ([]interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decodeArray: failed to read number of entries: %w", err)
 	}
+	// Every entry occupies at least its 4-byte type tag, so a count larger than
+	// the bytes left in the body cannot be satisfied and is malformed.
+	if rem := bytesRemaining(r); rem >= 0 && int64(numEntries) > int64(rem) {
+		return nil, fmt.Errorf("decodeArray: entry count %d exceeds %d bytes remaining", numEntries, rem)
+	}
 	arr := make([]interface{}, numEntries)
 	for i := uint32(0); i < numEntries; i++ {
 		arr[i], err = decodeObject(r)
@@ -345,6 +375,9 @@ func decodeString(r io.Reader) (string, error) {
 	err := binary.Read(r, binary.LittleEndian, &l)
 	if err != nil {
 		return "", fmt.Errorf("decodeString: failed to read string length: %w", err)
+	}
+	if rem := bytesRemaining(r); rem >= 0 && int64(l) > int64(rem) {
+		return "", fmt.Errorf("decodeString: string length %d exceeds %d bytes remaining", l, rem)
 	}
 	s := make([]byte, l)
 	_, err = r.Read(s)
@@ -365,6 +398,9 @@ func decodeData(r io.Reader) ([]byte, error) {
 	err := binary.Read(r, binary.LittleEndian, &l)
 	if err != nil {
 		return nil, fmt.Errorf("decodeData: failed to read payload length: %w", err)
+	}
+	if rem := bytesRemaining(r); rem >= 0 && int64(l) > int64(rem) {
+		return nil, fmt.Errorf("decodeData: payload length %d exceeds %d bytes remaining", l, rem)
 	}
 	b := make([]byte, l)
 	_, err = r.Read(b)

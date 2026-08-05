@@ -55,7 +55,15 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 	if err != nil {
 		return err
 	}
-	rootCert, hostCert, deviceCert, rootPrivateKey, hostPrivateKey, err := createRootCertificate(publicKey.([]byte))
+	publicKeyBytes, ok := publicKey.([]byte)
+	if !ok {
+		return fmt.Errorf("could not convert DevicePublicKey response to byte array: %+v", publicKey)
+	}
+	wifiMacString, ok := wifiMac.(string)
+	if !ok {
+		return fmt.Errorf("could not convert WiFiAddress response to string: %+v", wifiMac)
+	}
+	rootCert, hostCert, deviceCert, rootPrivateKey, hostPrivateKey, err := createRootCertificate(publicKeyBytes)
 	if err != nil {
 		return fmt.Errorf("Failed creating pair record with error: %v", err)
 	}
@@ -119,7 +127,7 @@ func PairSupervised(device DeviceEntry, p12bytes []byte, p12Password string) err
 		return err
 	}
 
-	success, err := usbmuxConn.savePair(device.Properties.SerialNumber, deviceCert, hostPrivateKey, hostCert, rootPrivateKey, rootCert, escrow, wifiMac.(string), pairRecordData.HostID, buid)
+	success, err := usbmuxConn.savePair(device.Properties.SerialNumber, deviceCert, hostPrivateKey, hostCert, rootPrivateKey, rootCert, escrow, wifiMacString, pairRecordData.HostID, buid)
 	if err != nil {
 		return err
 	}
@@ -194,7 +202,15 @@ func Pair(device DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	rootCert, hostCert, deviceCert, rootPrivateKey, hostPrivateKey, err := createRootCertificate(publicKey.([]byte))
+	publicKeyBytes, ok := publicKey.([]byte)
+	if !ok {
+		return fmt.Errorf("could not convert DevicePublicKey response to byte array: %+v", publicKey)
+	}
+	wifiMacString, ok := wifiMac.(string)
+	if !ok {
+		return fmt.Errorf("could not convert WiFiAddress response to string: %+v", wifiMac)
+	}
+	rootCert, hostCert, deviceCert, rootPrivateKey, hostPrivateKey, err := createRootCertificate(publicKeyBytes)
 	if err != nil {
 		return fmt.Errorf("Failed creating pair record with error: %v", err)
 	}
@@ -222,7 +238,7 @@ func Pair(device DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	success, err := usbmuxConn.savePair(device.Properties.SerialNumber, deviceCert, hostPrivateKey, hostCert, rootPrivateKey, rootCert, response.EscrowBag, wifiMac.(string), pairRecordData.HostID, buid)
+	success, err := usbmuxConn.savePair(device.Properties.SerialNumber, deviceCert, hostPrivateKey, hostCert, rootPrivateKey, rootCert, response.EscrowBag, wifiMacString, pairRecordData.HostID, buid)
 	if !success || err != nil {
 		return errors.New("Saving the PairRecord to usbmux failed")
 	}

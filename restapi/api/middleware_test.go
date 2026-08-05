@@ -62,7 +62,10 @@ func testMiddlewareRequest(t *testing.T, r *gin.Engine, expectedHTTPCode int) {
 	})
 }
 
-var values = map[string]bool{}
+var (
+	values   = map[string]bool{}
+	valuesMu sync.Mutex
+)
 
 // Helper function to process a request and test its response
 func testHTTPResponse(t *testing.T, r *gin.Engine, req *http.Request, f func(w *httptest.ResponseRecorder) float64) {
@@ -76,6 +79,8 @@ func testHTTPResponse(t *testing.T, r *gin.Engine, req *http.Request, f func(w *
 	// a few times. With the limit enabled, i won't be the same value twice.
 	i := f(w)
 	key := fmt.Sprintf("%f", i)
+	valuesMu.Lock()
+	defer valuesMu.Unlock()
 	_, ok := values[key]
 	if ok {
 		t.Fail()

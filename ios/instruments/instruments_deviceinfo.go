@@ -27,7 +27,14 @@ func (d DeviceInfoService) processAttributes() ([]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return resp.Payload[0].([]interface{}), nil
+	if len(resp.Payload) == 0 {
+		return nil, fmt.Errorf("sysmonProcessAttributes: empty payload")
+	}
+	attrs, ok := resp.Payload[0].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("sysmonProcessAttributes: expected []interface{} payload, got %T", resp.Payload[0])
+	}
+	return attrs, nil
 }
 
 // systemAttributes returns the attributes list which can be used for monitoring
@@ -36,7 +43,14 @@ func (d DeviceInfoService) systemAttributes() ([]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return resp.Payload[0].([]interface{}), nil
+	if len(resp.Payload) == 0 {
+		return nil, fmt.Errorf("sysmonSystemAttributes: empty payload")
+	}
+	attrs, ok := resp.Payload[0].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("sysmonSystemAttributes: expected []interface{} payload, got %T", resp.Payload[0])
+	}
+	return attrs, nil
 }
 
 // ProcessList returns a []ProcessInfo, one for each process running on the iOS device
@@ -50,8 +64,11 @@ func (d DeviceInfoService) ProcessList() ([]ProcessInfo, error) {
 		return []ProcessInfo{}, nil
 	}
 
-	result := mapToProcInfo(resp.Payload[0].([]interface{}))
-	return result, err
+	procList, ok := resp.Payload[0].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("runningProcesses: expected []interface{} payload, got %T", resp.Payload[0])
+	}
+	return mapToProcInfo(procList)
 }
 
 // ProcessByName looks up a running process by name or real app name and
@@ -96,22 +113,45 @@ func (d DeviceInfoService) NetworkInformation() (map[string]interface{}, error) 
 	return extractMapPayload(response)
 }
 
-func mapToProcInfo(procList []interface{}) []ProcessInfo {
+func mapToProcInfo(procList []interface{}) ([]ProcessInfo, error) {
 	result := make([]ProcessInfo, len(procList))
 	for i, procMapInt := range procList {
-		procMap := procMapInt.(map[string]interface{})
+		procMap, ok := procMapInt.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("process entry %d: expected map[string]interface{}, got %T", i, procMapInt)
+		}
 		procInf := ProcessInfo{}
-		procInf.IsApplication = procMap["isApplication"].(bool)
-		procInf.Name = procMap["name"].(string)
-		procInf.Pid = procMap["pid"].(uint64)
-		procInf.RealAppName = procMap["realAppName"].(string)
+		isApp, ok := procMap["isApplication"].(bool)
+		if !ok {
+			return nil, fmt.Errorf("process entry %d: expected bool isApplication, got %T: %+v", i, procMap["isApplication"], procMap["isApplication"])
+		}
+		procInf.IsApplication = isApp
+		name, ok := procMap["name"].(string)
+		if !ok {
+			return nil, fmt.Errorf("process entry %d: expected string name, got %T: %+v", i, procMap["name"], procMap["name"])
+		}
+		procInf.Name = name
+		pid, ok := toUint64(procMap["pid"])
+		if !ok {
+			return nil, fmt.Errorf("process entry %d: expected numeric pid, got %T: %+v", i, procMap["pid"], procMap["pid"])
+		}
+		procInf.Pid = pid
+		realAppName, ok := procMap["realAppName"].(string)
+		if !ok {
+			return nil, fmt.Errorf("process entry %d: expected string realAppName, got %T: %+v", i, procMap["realAppName"], procMap["realAppName"])
+		}
+		procInf.RealAppName = realAppName
 		if date, ok := procMap["startDate"]; ok {
-			procInf.StartDate = date.(nskeyedarchiver.NSDate).Timestamp
+			nsDate, ok := date.(nskeyedarchiver.NSDate)
+			if !ok {
+				return nil, fmt.Errorf("process entry %d: expected NSDate startDate, got %T: %+v", i, date, date)
+			}
+			procInf.StartDate = nsDate.Timestamp
 		}
 		result[i] = procInf
 
 	}
-	return result
+	return result, nil
 }
 
 // DeviceInfoService gives us access to retrieving process lists and resolving names for PIDs
