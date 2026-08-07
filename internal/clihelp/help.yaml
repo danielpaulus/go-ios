@@ -64,8 +64,8 @@ commands:
     usage: ios date [options]
     summary: Print device date.
   - path: debug
-    usage: ios debug [options] [--stop-at-entry] <app_path>
-    summary: Start LLDB debug session.
+    usage: ios debug [options] [--stop-at-entry] (<app_path> | --pid=<processID>)
+    summary: Start an LLDB session, launching the app at app_path or attaching to a running process by pid.
   - path: devicename
     usage: ios devicename [options]
     summary: Print device name.
