@@ -1429,8 +1429,11 @@ func printDeviceList(details bool, tunnelInfo tunnelInfoConfig) {
 	}
 	if usbmuxErr != nil {
 		// usbmuxd may legitimately be absent on hosts that only reach devices
-		// through a tunnel agent; only fail if tunnel discovery is down too.
-		if tunnelErr != nil {
+		// through a tunnel agent. Only suppress the usbmuxd failure if tunnel
+		// discovery actually turned up devices; otherwise there is nothing to
+		// list and the original hard failure (and its non-zero exit code, which
+		// scripts rely on) must stand.
+		if len(deviceList.DeviceList) == 0 {
 			exitIfError("failed getting device list", usbmuxErr)
 		}
 		slog.Warn("usbmuxd is not reachable, listing tunnel-backed devices only", "error", usbmuxErr)

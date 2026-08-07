@@ -151,9 +151,14 @@ func mergeTunnelDevices(deviceList ios.DeviceList, tunnelDevices []ios.DeviceEnt
 		known[d.Properties.SerialNumber] = true
 	}
 	for _, d := range tunnelDevices {
-		if !known[d.Properties.SerialNumber] {
-			deviceList.DeviceList = append(deviceList.DeviceList, d)
+		udid := d.Properties.SerialNumber
+		// A tunnel entry without a udid cannot be addressed or deduplicated by
+		// identity, so skip it rather than let it collapse with other unknowns.
+		if udid == "" || known[udid] {
+			continue
 		}
+		known[udid] = true
+		deviceList.DeviceList = append(deviceList.DeviceList, d)
 	}
 	return deviceList
 }

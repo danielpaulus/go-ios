@@ -107,6 +107,37 @@ func TestMergeTunnelDevicesPrefersUsbmuxEntries(t *testing.T) {
 	}
 }
 
+// TestMergeTunnelDevicesDeduplicatesTunnelEntries ensures the merge does not
+// list the same tunnel-backed udid twice and drops entries without a udid,
+// which cannot be addressed or deduplicated by identity.
+func TestMergeTunnelDevicesDeduplicatesTunnelEntries(t *testing.T) {
+	tunnelDevices := []ios.DeviceEntry{
+		{Properties: ios.DeviceProperties{SerialNumber: "dup-udid", ConnectionType: connectionTypeTunnel}},
+		{Properties: ios.DeviceProperties{SerialNumber: "dup-udid", ConnectionType: connectionTypeUserspaceTunnel}},
+		{Properties: ios.DeviceProperties{SerialNumber: "", ConnectionType: connectionTypeTunnel}},
+		{Properties: ios.DeviceProperties{SerialNumber: "", ConnectionType: connectionTypeUserspaceTunnel}},
+		{Properties: ios.DeviceProperties{SerialNumber: "unique-udid", ConnectionType: connectionTypeTunnel}},
+	}
+
+	merged := mergeTunnelDevices(ios.DeviceList{}, tunnelDevices)
+	if len(merged.DeviceList) != 2 {
+		t.Fatalf("expected 2 deduplicated devices, got %d: %+v", len(merged.DeviceList), merged.DeviceList)
+	}
+	seen := map[string]int{}
+	for _, d := range merged.DeviceList {
+		seen[d.Properties.SerialNumber]++
+	}
+	if seen["dup-udid"] != 1 {
+		t.Errorf("duplicate tunnel udid must appear once, got %d", seen["dup-udid"])
+	}
+	if seen[""] != 0 {
+		t.Errorf("tunnel entries without a udid must be dropped, got %d", seen[""])
+	}
+	if seen["unique-udid"] != 1 {
+		t.Errorf("unique tunnel device missing from merge")
+	}
+}
+
 // TestDirectTargetDeviceBypassesUsbmuxd covers the --address/--rsd-port path:
 // resolution must produce a usable entry with the udid as identity metadata
 // even when usbmuxd does not know the device.
