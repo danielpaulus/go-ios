@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"sync"
 	"testing"
 )
 
@@ -121,5 +123,96 @@ func TestRegistryListMissingDirAndGarbage(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "notes.txt")); err != nil {
 		t.Fatalf("non-json file must be left alone: %v", err)
+	}
+}
+
+// TestRegistryPrivatePerms verifies the state dir and entry files are created
+// with owner-only permissions so a device udid, forwarded ports and pid are not
+// exposed to other local users. Permission bits are a POSIX concept.
+func TestRegistryPrivatePerms(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("unix permission bits not meaningful on windows")
+	}
+	dir := t.TempDir()
+	inner := filepath.Join(dir, "reg")
+	r := NewRegistry(inner)
+	e := Entry{Udid: "udid-a", HostPort: 8100, DevicePort: 9100, Pid: os.Getpid()}
+	if err := r.Register(e); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	di, err := os.Stat(inner)
+	if err != nil {
+		t.Fatalf("stat dir: %v", err)
+	}
+	if perm := di.Mode().Perm(); perm != 0o700 {
+		t.Fatalf("registry dir perm: got %o want 700", perm)
+	}
+	fi, err := os.Stat(r.entryPath(e))
+	if err != nil {
+		t.Fatalf("stat entry: %v", err)
+	}
+	if perm := fi.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("registry entry perm: got %o want 600", perm)
+	}
+}
+
+// TestRegistryConcurrentRegisterList hammers Register and List against the same
+// dir concurrently. Because Register publishes entries atomically (temp file +
+// rename), List never sees a truncated file, so it must never prune (delete) an
+// entry whose process is alive. After the storm every registered entry must
+// still be present.
+func TestRegistryConcurrentRegisterList(t *testing.T) {
+	r := NewRegistry(t.TempDir())
+	const n = 40
+	entries := make([]Entry, n)
+	for i := range entries {
+		entries[i] = Entry{Udid: "udid", HostPort: uint16(9000 + i), DevicePort: 1, Pid: os.Getpid()}
+	}
+
+	var wg sync.WaitGroup
+	// One writer per entry, each re-registering repeatedly (which truncates and
+	// rewrites its own file) to widen the race window with the listers.
+	for _, e := range entries {
+		wg.Add(1)
+		go func(e Entry) {
+			defer wg.Done()
+			for j := 0; j < 20; j++ {
+				if err := r.Register(e); err != nil {
+					t.Errorf("register: %v", err)
+					return
+				}
+			}
+		}(e)
+	}
+	// Concurrent listers that also prune as a side effect.
+	stop := make(chan struct{})
+	var listWG sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		listWG.Add(1)
+		go func() {
+			defer listWG.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+					if _, err := r.List(); err != nil {
+						t.Errorf("list: %v", err)
+						return
+					}
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(stop)
+	listWG.Wait()
+
+	got, err := r.List()
+	if err != nil {
+		t.Fatalf("final list: %v", err)
+	}
+	if len(got) != n {
+		t.Fatalf("final list: got %d entries want %d — a live entry was pruned during a concurrent write", len(got), n)
 	}
 }

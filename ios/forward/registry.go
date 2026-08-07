@@ -52,14 +52,38 @@ func (r *Registry) entryPath(e Entry) string {
 
 // Register persists e in the registry dir so other processes can list it.
 func (r *Registry) Register(e Entry) error {
-	if err := os.MkdirAll(r.dir, 0o755); err != nil {
+	if err := os.MkdirAll(r.dir, 0o700); err != nil {
 		return fmt.Errorf("forward: could not create registry dir: %w", err)
 	}
 	data, err := json.Marshal(e)
 	if err != nil {
 		return fmt.Errorf("forward: could not marshal registry entry: %w", err)
 	}
-	if err := os.WriteFile(r.entryPath(e), data, 0o644); err != nil {
+	// Write to a temp file and rename into place so a concurrent List never
+	// observes a half-written (truncated) file — List prunes anything it can't
+	// parse, which would otherwise delete an entry mid-write. The temp file
+	// lacks the .json suffix, so List ignores it while it's being written.
+	tmp, err := os.CreateTemp(r.dir, fmt.Sprintf("%d-%d-*.tmp", e.Pid, e.HostPort))
+	if err != nil {
+		return fmt.Errorf("forward: could not create registry temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("forward: could not chmod registry temp file: %w", err)
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("forward: could not write registry entry: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("forward: could not close registry temp file: %w", err)
+	}
+	if err := os.Rename(tmpPath, r.entryPath(e)); err != nil {
+		os.Remove(tmpPath)
 		return fmt.Errorf("forward: could not write registry entry: %w", err)
 	}
 	return nil
