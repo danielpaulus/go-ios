@@ -33,7 +33,7 @@ Commands:
   crash ls                        List crash reports.
   crash rm                        Remove crash reports.
   date                            Print device date.
-  debug                           Start LLDB debug session.
+  debug                           Start an LLDB session, launching the app at app_path or attaching to a running process by pid.
   devicename                      Print device name.
   devicestate enable              Enable device condition profile.
   devicestate list                List device condition profiles.
