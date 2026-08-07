@@ -170,29 +170,40 @@ func runFileCommand(ctx commandContext) {
 }
 
 // pullToLocalFile downloads remotePath into localPath using the passed pull
-// function and returns the downloaded size. If the pull fails, the local file
-// is removed so a failed pull does not leave a zero-byte or partial file
-// behind that pipelines could mistake for a successful download (issue #784).
-func pullToLocalFile(pull func(remotePath string, writer io.Writer) error, remotePath, localPath string) (int64, error) {
+// function and returns the downloaded size. On any failure the local file is
+// removed so a failed pull never leaves a zero-byte or partial file behind that
+// pipelines could mistake for a successful download (issue #784). This includes
+// failures surfaced by Close, which is where buffered write errors such as a
+// full disk are reported.
+func pullToLocalFile(pull func(remotePath string, writer io.Writer) error, remotePath, localPath string) (size int64, err error) {
 	outputFile, err := os.Create(localPath)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create output file: %w", err)
 	}
+	// Remove the file on any error path below. os.Create truncated any prior
+	// contents, so there is nothing worth keeping if the pull does not complete.
+	defer func() {
+		if err != nil {
+			os.Remove(localPath)
+		}
+	}()
 
-	if err := pull(remotePath, outputFile); err != nil {
+	if pullErr := pull(remotePath, outputFile); pullErr != nil {
 		outputFile.Close()
-		os.Remove(localPath)
+		err = pullErr
 		return 0, err
 	}
 
-	fileInfo, err := outputFile.Stat()
-	if err != nil {
+	fileInfo, statErr := outputFile.Stat()
+	if statErr != nil {
 		outputFile.Close()
-		return 0, fmt.Errorf("failed to get file info: %w", err)
+		err = fmt.Errorf("failed to get file info: %w", statErr)
+		return 0, err
 	}
 
-	if err := outputFile.Close(); err != nil {
-		return 0, fmt.Errorf("failed to close output file: %w", err)
+	if closeErr := outputFile.Close(); closeErr != nil {
+		err = fmt.Errorf("failed to close output file: %w", closeErr)
+		return 0, err
 	}
 
 	return fileInfo.Size(), nil

@@ -40,6 +40,29 @@ func TestPullToLocalFileRemovesPartialFileOnError(t *testing.T) {
 	assert.True(t, os.IsNotExist(statErr), "failed pull must not leave a partial file behind, stat err: %v", statErr)
 }
 
+// TestPullToLocalFileRemovesFileWhenFinalizeFails proves the cleanup covers
+// failures that surface after the pull itself succeeds (Stat/Close), where a
+// full-disk write error would otherwise be reported. The pull callback closes
+// the file, so the subsequent Stat fails and the wrapper must still remove the
+// (potentially partial) file and return the error.
+func TestPullToLocalFileRemovesFileWhenFinalizeFails(t *testing.T) {
+	localPath := filepath.Join(t.TempDir(), "finalize.bin")
+
+	size, err := pullToLocalFile(func(remotePath string, writer io.Writer) error {
+		f, ok := writer.(*os.File)
+		require.True(t, ok, "expected the wrapper to pass an *os.File")
+		_, _ = f.Write([]byte("data that must not survive a finalize failure"))
+		return f.Close() // pull "succeeds" but leaves the descriptor closed
+	}, "big.bin", localPath)
+
+	// The pull reported success, but finalizing (Stat on the now-closed
+	// descriptor) fails, so the wrapper must surface the error and clean up.
+	require.Error(t, err)
+	assert.Zero(t, size)
+	_, statErr := os.Stat(localPath)
+	assert.True(t, os.IsNotExist(statErr), "a post-pull finalize failure must not leave a file behind, stat err: %v", statErr)
+}
+
 func TestPullToLocalFileWritesFileOnSuccess(t *testing.T) {
 	localPath := filepath.Join(t.TempDir(), "manifest.json")
 	content := []byte(`{"hello":"world"}`)
