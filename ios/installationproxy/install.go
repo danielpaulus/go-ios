@@ -50,6 +50,14 @@ func InstallIpa(device ios.DeviceEntry, ipaPath string) error {
 	if err != nil {
 		return fmt.Errorf("installproxy: failed uploading %s to %s: %w", ipaPath, remotePath, err)
 	}
+	// The staged .ipa (potentially hundreds of MB) is only needed until
+	// installation_proxy has consumed it. Remove it afterwards, whether the
+	// install succeeds or fails, so repeated installs don't leak device storage.
+	defer func() {
+		if rmErr := afcClient.Remove(remotePath); rmErr != nil {
+			golog.Warn("failed removing staged package from device", "module", logModule, "udid", device.Properties.SerialNumber, "remotePath", remotePath, "error", rmErr)
+		}
+	}()
 	golog.Info("upload complete, starting installation", "module", logModule, "udid", device.Properties.SerialNumber, "remotePath", remotePath)
 
 	conn, err := New(device)
