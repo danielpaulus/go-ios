@@ -37,15 +37,13 @@ func startFakeUsbmuxd(t *testing.T, goodDeviceID int) string {
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
 	sockPath := filepath.Join(dir, "usbmuxd")
 	l, err := net.Listen("unix", sockPath)
 	if err != nil {
 		t.Fatalf("listen on fake usbmuxd socket: %v", err)
 	}
-	t.Cleanup(func() {
-		l.Close()
-		os.RemoveAll(dir)
-	})
+	t.Cleanup(func() { l.Close() })
 	go func() {
 		for {
 			conn, err := l.Accept()
