@@ -20,6 +20,8 @@ var (
 	errMissingCrashArgs     = errors.New("both 'cwd' and 'pattern' query params are required")
 	errMissingProfile       = errors.New("missing profile payload (raw body or multipart 'profile' field)")
 	errMissingSSID          = errors.New("missing required 'ssid'")
+	errMissingP12           = errors.New("missing required multipart 'p12' supervisor identity")
+	errMissingToken         = errors.New("missing required 'token' (base64 unlock token)")
 )
 
 // RespondError writes a consistent JSON error envelope ({"error": "..."}) and
