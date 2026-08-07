@@ -143,6 +143,52 @@ func TestFileStreamChunkReassembly(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond, "expected window updates for %d bytes, got %d", len(payload), s.fileStreamWindow.Load())
 }
 
+// TestFileStreamPaddedFramesCreditFullLength verifies flow-control accounting credits the
+// whole DATA frame payload, including padding, back to the window (RFC 7540 §6.9.1).
+// Crediting only the unpadded data would leak window on every padded frame and stall.
+func TestFileStreamPaddedFramesCreditFullLength(t *testing.T) {
+	const streamId = uint32(2)
+	h, s := startFakeXpcServer(t, streamId)
+	s.framer.AllowIllegalWrites = true // send exactly-sized padded frames without the framer rejecting them
+
+	stream, err := NewFileStreamReadWriter(h, streamId)
+	require.NoError(t, err)
+
+	// One data byte plus 1 pad-length byte plus padding per frame. Send enough frames that
+	// the full-frame accounting crosses the 256 KiB threshold while the unpadded data
+	// (1 byte/frame) never would.
+	const dataPerFrame = 1
+	const padPerFrame = 250
+	frameWireLen := dataPerFrame + 1 + padPerFrame // data + pad-length byte + padding
+	frames := (fileStreamWindowUpdateThreshold / frameWireLen) + 2
+	payload := bytes.Repeat([]byte("x"), dataPerFrame*frames)
+
+	serverErr := make(chan error, 1)
+	go func() {
+		pad := make([]byte, padPerFrame)
+		for i := 0; i < frames; i++ {
+			if err := s.framer.WriteDataPadded(streamId, false, []byte("x"), pad); err != nil {
+				serverErr <- err
+				return
+			}
+		}
+		serverErr <- s.framer.WriteData(streamId, true, nil)
+	}()
+
+	received, err := io.ReadAll(stream)
+	require.NoError(t, err)
+	require.NoError(t, <-serverErr)
+	assert.Equal(t, payload, received)
+
+	// The window must be credited by the full frame payload length (data + pad byte +
+	// padding), not just the 1 data byte per frame.
+	wantWindow := int64(frameWireLen * frames)
+	require.Eventually(t, func() bool {
+		return s.fileStreamWindow.Load() == wantWindow
+	}, 5*time.Second, 10*time.Millisecond,
+		"expected window credit of %d (full padded frame length), got %d", wantWindow, s.fileStreamWindow.Load())
+}
+
 func TestFileStreamUnknownStreamStillErrors(t *testing.T) {
 	const streamId = uint32(2)
 	h, s := startFakeXpcServer(t, streamId)

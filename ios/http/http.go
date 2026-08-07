@@ -162,7 +162,11 @@ func (r *HttpConnection) readDataFrame() error {
 				if d.StreamEnded() {
 					s.ended = true
 				}
-				if err := r.replenishReceiveWindow(d.StreamID, uint32(len(d.Data())), s.ended); err != nil {
+				// Flow control accounts for the whole DATA frame payload, including the
+				// Pad Length byte and padding (RFC 7540 §6.9.1), so replenish by the frame
+				// header Length, not just the unpadded data d.Data() exposes. Crediting only
+				// the unpadded length would leak window on padded frames and eventually stall.
+				if err := r.replenishReceiveWindow(d.StreamID, d.Length, s.ended); err != nil {
 					return fmt.Errorf("readDataFrame: %w", err)
 				}
 			}
