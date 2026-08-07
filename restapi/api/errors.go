@@ -18,6 +18,7 @@ var (
 	errMissingRemote        = errors.New("missing required query param: remote")
 	errUnknownContentLength = errors.New("a Content-Length header is required for upload")
 	errMissingCrashArgs     = errors.New("both 'cwd' and 'pattern' query params are required")
+	errMissingProfile       = errors.New("missing profile payload (raw body or multipart 'profile' field)")
 )
 
 // RespondError writes a consistent JSON error envelope ({"error": "..."}) and

@@ -16,6 +16,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	registerDeviceMgmtRoutes(device)
 	registerFilesRoutes(device)
 	registerMediaRoutes(device)
+	registerConfigRoutes(device)
 	appRoutes(device)
 }
 
