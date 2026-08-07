@@ -6,9 +6,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// errMissingKey is returned when a handler requires a query parameter that the
-// caller did not supply.
-var errMissingKey = errors.New("missing required query param: key")
+// Sentinel errors for common request-validation failures.
+var (
+	errMissingKey        = errors.New("missing required query param: key")
+	errEraseNotConfirmed = errors.New("erase is destructive; pass ?confirm=true to proceed")
+	errUnknownAction     = errors.New("unknown action")
+	errMissingProcess    = errors.New("missing required 'process' (query param or JSON body)")
+)
 
 // RespondError writes a consistent JSON error envelope ({"error": "..."}) and
 // aborts the request with the given status. Handlers should use this instead of

@@ -13,6 +13,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	device.Use(DeviceMiddleware())
 	simpleDeviceRoutes(device)
 	registerDeviceInfoRoutes(device)
+	registerDeviceMgmtRoutes(device)
 	appRoutes(device)
 }
 
