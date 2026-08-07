@@ -340,7 +340,12 @@ type TunnelManager struct {
 	unsupportedDevices map[string]bool
 	// lastProbe tracks when each tunnel was last liveness-probed so probes run
 	// at most once per probeInterval.
-	lastProbe            map[string]time.Time
+	lastProbe map[string]time.Time
+	// probeFailures counts consecutive failed liveness probes per udid. A tunnel
+	// is only torn down after probeFailureThreshold consecutive failures so a
+	// single transient probe error (a momentary route hiccup or load spike)
+	// doesn't destroy an otherwise healthy tunnel. A successful probe resets it.
+	probeFailures        map[string]int
 	probeInterval        time.Duration
 	startTunnelTimeout   time.Duration
 	firstUpdateCompleted bool
@@ -387,6 +392,7 @@ func newTunnelManager(pm PairRecordManager, userspaceTUN bool, udidFilter string
 		failedDevices:      map[string]failedDevice{},
 		unsupportedDevices: map[string]bool{},
 		lastProbe:          map[string]time.Time{},
+		probeFailures:      map[string]int{},
 		probeInterval:      defaultProbeInterval,
 		startTunnelTimeout: 10 * time.Second,
 		userspaceTUN:       userspaceTUN,
@@ -460,19 +466,18 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 	// Liveness-probe existing tunnel records of still-connected devices: a
 	// tunnel can die without a usbmux disconnect (quick reboot, transport
 	// death), leaving a stale record that would otherwise be served forever. A
-	// failed probe tears the record down here so the create loop below rebuilds
-	// it in the same cycle. Records of vanished devices are handled by the
-	// disconnect teardown at the end.
+	// tunnel that fails probeFailureThreshold consecutive probes is torn down
+	// here so the create loop below rebuilds it in the same cycle. Records of
+	// vanished devices are handled by the disconnect teardown at the end.
+	//
+	// Probes run concurrently (bounded) because a dead-but-still-routed tunnel
+	// blackholes the SYN and burns the full probeDialTimeout; probing serially
+	// would let N dead tunnels delay tunnel creation for newly connected devices
+	// by up to probeDialTimeout*N.
 	now := time.Now()
-	for udid, tun := range localTunnels {
-		if !currentUDIDs[udid] || !m.shouldProbe(udid, now) {
-			continue
-		}
-		if err := m.pr.Probe(tun); err != nil {
-			golog.Warn("tunnel failed liveness probe, restarting it", "module", logModule, "udid", udid, "error", err)
-			_ = m.stopTunnel(tun)
-			delete(localTunnels, udid)
-		}
+	for udid := range m.probeTunnels(localTunnels, currentUDIDs, now) {
+		_ = m.stopTunnel(localTunnels[udid])
+		delete(localTunnels, udid)
 	}
 
 	for _, d := range devices.DeviceList {
@@ -541,6 +546,21 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 			delete(m.failedDevices, udid)
 		}
 	}
+	// Prune per-device bookkeeping for devices that are no longer connected so
+	// these maps stay bounded by the current device count instead of growing
+	// with every udid ever seen. Pruning unsupportedDevices on disconnect also
+	// lets a device that was unsupported, then upgraded to a tunnel-capable iOS
+	// and reconnected, be retried instead of skipped for the rest of the process.
+	for udid := range m.unsupportedDevices {
+		if !currentUDIDs[udid] {
+			delete(m.unsupportedDevices, udid)
+		}
+	}
+	for udid := range m.probeFailures {
+		if !currentUDIDs[udid] {
+			delete(m.probeFailures, udid)
+		}
+	}
 	m.firstUpdateCompleted = true
 	m.mux.Unlock()
 	return nil
@@ -574,6 +594,61 @@ func (m *TunnelManager) shouldProbe(udid string, now time.Time) bool {
 	return true
 }
 
+// probeTunnels liveness-probes every due tunnel of a still-connected device and
+// returns the set of udids that should be torn down. Probes run concurrently
+// with at most maxConcurrentProbes in flight so a batch of dead-but-routed
+// tunnels (each of which blackholes the SYN for the full probeDialTimeout)
+// can't serialize into a multi-second stall of the update loop. A tunnel is only
+// reported dead after probeFailureThreshold consecutive failures; a success
+// resets its counter, so a single transient probe error is absorbed.
+func (m *TunnelManager) probeTunnels(localTunnels map[string]Tunnel, currentUDIDs map[string]bool, now time.Time) map[string]bool {
+	type probeResult struct {
+		udid string
+		err  error
+	}
+	results := make(chan probeResult)
+	sem := make(chan struct{}, maxConcurrentProbes)
+	var wg sync.WaitGroup
+	for udid, tun := range localTunnels {
+		if !currentUDIDs[udid] || !m.shouldProbe(udid, now) {
+			continue
+		}
+		wg.Add(1)
+		go func(udid string, tun Tunnel) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			results <- probeResult{udid: udid, err: m.pr.Probe(tun)}
+		}(udid, tun)
+	}
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	dead := map[string]bool{}
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	for r := range results {
+		if r.err == nil {
+			delete(m.probeFailures, r.udid)
+			continue
+		}
+		m.probeFailures[r.udid]++
+		fails := m.probeFailures[r.udid]
+		if fails < probeFailureThreshold {
+			golog.Warn("tunnel failed liveness probe, will retry before restarting it",
+				"module", logModule, "udid", r.udid, "consecutiveFailures", fails, "threshold", probeFailureThreshold, "error", r.err)
+			continue
+		}
+		golog.Warn("tunnel failed liveness probe repeatedly, restarting it",
+			"module", logModule, "udid", r.udid, "consecutiveFailures", fails, "error", r.err)
+		delete(m.probeFailures, r.udid)
+		dead[r.udid] = true
+	}
+	return dead
+}
+
 // failedDeviceBackoff returns how long to wait before retrying a device after
 // failCount consecutive failures: 30s, 60s, 120s, 240s, capped at 5 minutes.
 func failedDeviceBackoff(failCount int) time.Duration {
@@ -598,6 +673,7 @@ func (m *TunnelManager) RemoveTunnel(ctx context.Context, serialNumber string) e
 		delete(m.tunnels, serialNumber)
 	}
 	delete(m.lastProbe, serialNumber)
+	delete(m.probeFailures, serialNumber)
 	m.mux.Unlock()
 
 	if !exists {
@@ -612,6 +688,7 @@ func (m *TunnelManager) stopTunnel(t Tunnel) error {
 	golog.Info("stopping tunnel", "module", logModule, "udid", t.Udid)
 	delete(m.tunnels, t.Udid)
 	delete(m.lastProbe, t.Udid)
+	delete(m.probeFailures, t.Udid)
 	m.mux.Unlock()
 
 	return t.Close()
@@ -673,14 +750,28 @@ type tunnelProber interface {
 }
 
 // defaultProbeInterval is how often the TunnelManager liveness-probes each
-// tunnel record. Combined with the probe's short dial timeout, a dead tunnel
-// is detected and rebuilt well within a minute instead of never.
+// tunnel record. Combined with the probe's short dial timeout and the
+// probeFailureThreshold consecutive-failure requirement, a persistently dead
+// tunnel is detected and rebuilt within roughly a minute instead of never,
+// while a single transient probe error never tears down a healthy tunnel.
 const defaultProbeInterval = 30 * time.Second
 
 // probeDialTimeout bounds the liveness probe's TCP connect. A healthy tunnel
 // answers in milliseconds; a dead-but-still-routed one swallows the SYN, so a
 // short timeout is enough to tell them apart without stalling UpdateTunnels.
 const probeDialTimeout = 5 * time.Second
+
+// maxConcurrentProbes caps how many liveness probes run at once. Probes are
+// concurrent so a batch of dead-but-routed tunnels can't serialize into a
+// probeDialTimeout*N stall, but bounded so a large fleet can't open an
+// unbounded number of dial sockets in one cycle.
+const maxConcurrentProbes = 8
+
+// probeFailureThreshold is the number of consecutive failed liveness probes
+// required before a tunnel is torn down and rebuilt. Requiring two failures
+// keeps a single transient probe error (a momentary route hiccup) from
+// destroying a healthy tunnel.
+const probeFailureThreshold = 2
 
 // rsdProber is the default tunnelProber: a short-timeout TCP dial of the
 // tunnel's RSD endpoint over the kernel TUN route.

@@ -51,13 +51,22 @@ func (f *fakeStarter) callsFor(udid string) int {
 }
 
 type fakeProber struct {
+	mu     sync.Mutex
 	err    error
 	probed []string
 }
 
 func (f *fakeProber) Probe(t Tunnel) error {
+	f.mu.Lock()
 	f.probed = append(f.probed, t.Udid)
+	f.mu.Unlock()
 	return f.err
+}
+
+func (f *fakeProber) probedUDIDs() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.probed...)
 }
 
 // robustnessManager builds a fully faked TunnelManager that probes on every
@@ -71,6 +80,7 @@ func robustnessManager(ts tunnelStarter, pr tunnelProber, entries ...ios.DeviceE
 		failedDevices:      map[string]failedDevice{},
 		unsupportedDevices: map[string]bool{},
 		lastProbe:          map[string]time.Time{},
+		probeFailures:      map[string]int{},
 		probeInterval:      time.Nanosecond,
 		startTunnelTimeout: time.Second,
 		productVersion: func(ios.DeviceEntry) (*semver.Version, error) {
@@ -79,9 +89,10 @@ func robustnessManager(ts tunnelStarter, pr tunnelProber, entries ...ios.DeviceE
 	}
 }
 
-// A tunnel record whose device is still connected but whose probe fails must be
-// torn down and rebuilt in the same update cycle — the agent-side self-heal
-// from issue #765.
+// A tunnel record whose device is still connected but whose probe keeps failing
+// must be torn down and rebuilt — the agent-side self-heal from issue #765.
+// Teardown requires probeFailureThreshold consecutive failures, so it happens on
+// the second failing cycle, not the first.
 func TestUpdateTunnelsRebuildsDeadTunnel(t *testing.T) {
 	starter := &fakeStarter{rsdPort: 4321}
 	prober := &fakeProber{err: errors.New("connection timed out")}
@@ -89,10 +100,21 @@ func TestUpdateTunnelsRebuildsDeadTunnel(t *testing.T) {
 	var closed int
 	tm.tunnels["dead-1"] = Tunnel{Udid: "dead-1", Address: "fd00::1", RsdPort: 1234, closer: func() error { closed++; return nil }}
 
+	// First failing probe: below the threshold, so the tunnel survives.
 	if err := tm.UpdateTunnels(context.Background()); err != nil {
-		t.Fatalf("UpdateTunnels: %v", err)
+		t.Fatalf("UpdateTunnels cycle 1: %v", err)
+	}
+	if closed != 0 {
+		t.Fatalf("after one failed probe closer called %d times, want 0 (needs %d consecutive)", closed, probeFailureThreshold)
+	}
+	if got := starter.callsFor("dead-1"); got != 0 {
+		t.Fatalf("after one failed probe tunnel restarted %d times, want 0", got)
 	}
 
+	// Second consecutive failing probe: threshold reached, tear down and rebuild.
+	if err := tm.UpdateTunnels(context.Background()); err != nil {
+		t.Fatalf("UpdateTunnels cycle 2: %v", err)
+	}
 	if closed != 1 {
 		t.Fatalf("dead tunnel closer called %d times, want 1", closed)
 	}
@@ -102,6 +124,38 @@ func TestUpdateTunnelsRebuildsDeadTunnel(t *testing.T) {
 	rebuilt, ok := tm.tunnels["dead-1"]
 	if !ok || rebuilt.RsdPort != 4321 {
 		t.Fatalf("expected rebuilt tunnel with RsdPort 4321, got ok=%v tunnel=%+v", ok, rebuilt)
+	}
+}
+
+// A single transient probe failure followed by a success must NOT tear down the
+// tunnel: the consecutive-failure counter resets on success (issue #765 —
+// avoiding false-positive teardown of healthy tunnels under momentary load).
+func TestUpdateTunnelsAbsorbsTransientProbeFailure(t *testing.T) {
+	starter := &fakeStarter{rsdPort: 4321}
+	prober := &fakeProber{err: errors.New("temporary hiccup")}
+	tm := robustnessManager(starter, prober, devEntry("flap-1", "USB"))
+	var closed int
+	tm.tunnels["flap-1"] = Tunnel{Udid: "flap-1", Address: "fd00::1", RsdPort: 1234, closer: func() error { closed++; return nil }}
+
+	// One failing cycle (count=1), then the probe recovers.
+	if err := tm.UpdateTunnels(context.Background()); err != nil {
+		t.Fatalf("UpdateTunnels cycle 1: %v", err)
+	}
+	prober.mu.Lock()
+	prober.err = nil
+	prober.mu.Unlock()
+	if err := tm.UpdateTunnels(context.Background()); err != nil {
+		t.Fatalf("UpdateTunnels cycle 2: %v", err)
+	}
+
+	if closed != 0 {
+		t.Fatalf("tunnel torn down after a single transient failure, closer called %d times", closed)
+	}
+	if got := starter.callsFor("flap-1"); got != 0 {
+		t.Fatalf("tunnel restarted %d times after transient failure, want 0", got)
+	}
+	if n := tm.probeFailures["flap-1"]; n != 0 {
+		t.Fatalf("probeFailures[flap-1] = %d after a success, want 0 (counter must reset)", n)
 	}
 }
 
@@ -118,8 +172,8 @@ func TestUpdateTunnelsKeepsHealthyTunnel(t *testing.T) {
 		t.Fatalf("UpdateTunnels: %v", err)
 	}
 
-	if len(prober.probed) != 1 || prober.probed[0] != "ok-1" {
-		t.Fatalf("probed = %v, want [ok-1]", prober.probed)
+	if probed := prober.probedUDIDs(); len(probed) != 1 || probed[0] != "ok-1" {
+		t.Fatalf("probed = %v, want [ok-1]", probed)
 	}
 	if closed != 0 {
 		t.Fatalf("healthy tunnel closer called %d times, want 0", closed)
@@ -144,8 +198,8 @@ func TestUpdateTunnelsDoesNotProbeDisconnectedDevice(t *testing.T) {
 		t.Fatalf("UpdateTunnels: %v", err)
 	}
 
-	if len(prober.probed) != 0 {
-		t.Fatalf("probed = %v, want none for a disconnected device", prober.probed)
+	if probed := prober.probedUDIDs(); len(probed) != 0 {
+		t.Fatalf("probed = %v, want none for a disconnected device", probed)
 	}
 	if _, ok := tm.tunnels["gone-1"]; ok {
 		t.Fatal("disconnected device's tunnel should have been torn down")
@@ -272,5 +326,66 @@ func TestUpdateTunnelsUdidFilter(t *testing.T) {
 	}
 	if len(tmAll.tunnels) != 2 {
 		t.Fatalf("expected tunnels for both devices, got %v", tmAll.tunnels)
+	}
+}
+
+// mutableLister lets a test change the connected-device list between cycles.
+type mutableLister struct {
+	mu      sync.Mutex
+	entries []ios.DeviceEntry
+}
+
+func (l *mutableLister) ListDevices() (ios.DeviceList, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return ios.DeviceList{DeviceList: append([]ios.DeviceEntry(nil), l.entries...)}, nil
+}
+
+func (l *mutableLister) set(entries ...ios.DeviceEntry) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.entries = entries
+}
+
+// An unsupported classification must not survive a disconnect: once the device
+// leaves usbmux the entry is pruned, so reconnecting (e.g. after an iOS upgrade
+// to a tunnel-capable version) is retried instead of skipped forever. This also
+// bounds the unsupportedDevices map by the current device count rather than by
+// every udid ever seen (issue #523 growth follow-up).
+func TestUpdateTunnelsPrunesUnsupportedOnDisconnect(t *testing.T) {
+	lister := &mutableLister{}
+	lister.set(devEntry("up-1", "USB"))
+	starter := &fakeStarter{err: fmt.Errorf("manualPairingTunnelStart: %w 16.6.0", ErrUnsupportedVersion)}
+	tm := robustnessManager(starter, &fakeProber{})
+	tm.dl = lister
+
+	// Cycle 1: device is unsupported, gets marked and skipped.
+	if err := tm.UpdateTunnels(context.Background()); err != nil {
+		t.Fatalf("UpdateTunnels cycle 1: %v", err)
+	}
+	if !tm.unsupportedDevices["up-1"] {
+		t.Fatal("device should be marked unsupported after cycle 1")
+	}
+
+	// Cycle 2: device disconnects; the unsupported entry must be pruned.
+	lister.set()
+	if err := tm.UpdateTunnels(context.Background()); err != nil {
+		t.Fatalf("UpdateTunnels cycle 2: %v", err)
+	}
+	if tm.unsupportedDevices["up-1"] {
+		t.Fatal("unsupported entry must be pruned once the device disconnects")
+	}
+
+	// Cycle 3: device reconnects on a supported version; it must be retried.
+	lister.set(devEntry("up-1", "USB"))
+	starter.mu.Lock()
+	starter.err = nil
+	starter.rsdPort = 9999
+	starter.mu.Unlock()
+	if err := tm.UpdateTunnels(context.Background()); err != nil {
+		t.Fatalf("UpdateTunnels cycle 3: %v", err)
+	}
+	if _, ok := tm.tunnels["up-1"]; !ok {
+		t.Fatal("reconnected (now-supported) device should get a tunnel, not stay skipped")
 	}
 }
