@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -188,8 +189,14 @@ func safeJoin(baseDir string, elems ...string) (string, error) {
 // that is already present in baseDir and returns its 'Restore' directory. The
 // layout is recognized by structure (a BuildManifest.plist inside a Restore
 // directory) rather than by name, so images downloaded under a different name,
-// by an older go-ios or manually, are found without any network access. When
-// multiple images are present, the one matching the pinned DDI is preferred.
+// by an older go-ios or manually, are found without any network access.
+//
+// Selection is deterministic: an image whose containing directory (the parent
+// of 'Restore') is exactly the pinned DDI name wins, then one whose containing
+// directory name contains the pinned name (e.g. a manual rename), and only then
+// the lexicographically first structurally-valid image. The preference matches
+// on the directory name alone, not the whole path, so an unrelated ancestor
+// that happens to contain the pinned string cannot hijack the choice.
 func findPersonalizedDDI(baseDir string) (string, bool) {
 	var restoreDirs []string
 	err := filepath.Walk(baseDir, func(p string, info os.FileInfo, err error) error {
@@ -207,8 +214,19 @@ func findPersonalizedDDI(baseDir string) (string, bool) {
 	if err != nil || len(restoreDirs) == 0 {
 		return "", false
 	}
+	sort.Strings(restoreDirs)
+	// ddiName returns the name of the directory that holds the 'Restore'
+	// directory, which is what go-ios names after the DDI.
+	ddiName := func(restoreDir string) string {
+		return filepath.Base(filepath.Dir(restoreDir))
+	}
 	for _, dir := range restoreDirs {
-		if strings.Contains(dir, xcode15_4_ddi) {
+		if ddiName(dir) == xcode15_4_ddi {
+			return dir, true
+		}
+	}
+	for _, dir := range restoreDirs {
+		if strings.Contains(ddiName(dir), xcode15_4_ddi) {
 			return dir, true
 		}
 	}

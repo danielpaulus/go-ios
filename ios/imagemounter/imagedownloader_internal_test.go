@@ -78,6 +78,45 @@ func TestDownload17PlusPrefersPinnedDDI(t *testing.T) {
 	assert.Equal(t, pinnedRestore, got)
 }
 
+// The pinned-DDI preference must resolve to the directory named exactly like
+// the pinned DDI, even when a decoy directory whose name merely *contains* the
+// pinned string sorts before it. A substring match on the whole path (or a
+// plain lexical first-wins) would incorrectly pick the decoy.
+func TestDownload17PlusPrefersExactPinnedDDIName(t *testing.T) {
+	offlineServer(t)
+	baseDir := t.TempDir()
+	// Decoy: structurally valid, name contains the pinned string, sorts first.
+	writeDDI(t, baseDir, "aaaa-"+xcode15_4_ddi+"-copy")
+	// The real pinned image (exact name, sorts after the decoy).
+	pinnedRestore := writeDDI(t, baseDir, xcode15_4_ddi)
+
+	got, err := Download17Plus(baseDir, ios.IOS17())
+	require.NoError(t, err)
+	assert.Equal(t, pinnedRestore, got)
+}
+
+// The pinned-DDI preference must key off the directory that holds 'Restore',
+// not the whole path: an unrelated ancestor whose name contains the pinned
+// string must not make a differently-named image win over an exact match.
+func TestDownload17PlusIgnoresPinnedStringInAncestor(t *testing.T) {
+	offlineServer(t)
+	baseDir := t.TempDir()
+	// A valid image under an ancestor path that contains the pinned string but
+	// whose own directory is not the pinned DDI.
+	decoy := writeDDI(t, filepath.Join(baseDir, xcode15_4_ddi+"-backup"), "someimage")
+	got, err := Download17Plus(baseDir, ios.IOS17())
+	require.NoError(t, err)
+	// With only the decoy present it is still used (structural detection), but
+	// the ancestor's pinned substring must not be treated as an exact/pinned
+	// match that would outrank a real pinned image.
+	assert.Equal(t, decoy, got)
+	// Now add the real pinned image; it must win over the ancestor decoy.
+	pinnedRestore := writeDDI(t, baseDir, xcode15_4_ddi)
+	got, err = Download17Plus(baseDir, ios.IOS17())
+	require.NoError(t, err)
+	assert.Equal(t, pinnedRestore, got)
+}
+
 // A pre-downloaded DDI zip archive in the basedir must be extracted and used
 // without any network access.
 func TestDownload17PlusOfflineWithPresentArchive(t *testing.T) {
