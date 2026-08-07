@@ -91,9 +91,11 @@ func TestTunnelServiceConfigCapture(t *testing.T) {
 				"--pair-record-path": "records",
 			},
 			env: map[string]string{
-				"ORCHESTRATOR_URL":  "https://orchestrator.example.com",
-				"GO_IOS_AGENT_HOST": "0.0.0.0",
-				"UNRELATED_VAR":     "must-not-be-captured",
+				"ORCHESTRATOR_URL":       "https://orchestrator.example.com",
+				"GO_IOS_AGENT_HOST":      "0.0.0.0",
+				"GO_IOS_AGENT_PORT":      "60106",
+				"USBMUXD_SOCKET_ADDRESS": "UNIX:///var/run/usbmuxd",
+				"UNRELATED_VAR":          "must-not-be-captured",
 			},
 			golden: "cloud_userspace_user.golden",
 		},
@@ -221,8 +223,8 @@ func TestInstallTunnelServiceNoSystemd(t *testing.T) {
 	}
 }
 
-func TestInstallTunnelServiceOtherPlatformsAllowed(t *testing.T) {
-	for goos, platform := range map[string]string{"darwin": "darwin-launchd", "windows": "windows-service", "linux": "linux-systemd"} {
+func TestInstallTunnelServiceSupportedPlatformsAllowed(t *testing.T) {
+	for goos, platform := range map[string]string{"darwin": "darwin-launchd", "linux": "linux-systemd"} {
 		fake := &fakeServiceController{platform: platform}
 		if err := installTunnelService(fake, goos, false); err != nil {
 			t.Fatalf("%s/%s: unexpected error: %v", goos, platform, err)
@@ -230,6 +232,24 @@ func TestInstallTunnelServiceOtherPlatformsAllowed(t *testing.T) {
 		if !fake.installed || !fake.running {
 			t.Fatalf("%s/%s: service should be installed and started", goos, platform)
 		}
+	}
+}
+
+// installTunnelService must refuse to register a Windows service: the tunnel
+// agent does not implement the Windows service-control dispatcher, so the SCM
+// would kill it with error 1053 on start. Rejecting it up front (leaving
+// nothing installed) beats registering a service that can never run.
+func TestInstallTunnelServiceWindowsRejected(t *testing.T) {
+	fake := &fakeServiceController{platform: "windows-service"}
+	err := installTunnelService(fake, "windows", false)
+	if err == nil {
+		t.Fatal("expected Windows to be rejected, got no error")
+	}
+	if !strings.Contains(err.Error(), "not supported on Windows") {
+		t.Fatalf("error should explain Windows is unsupported, got: %v", err)
+	}
+	if len(fake.actions) != 0 {
+		t.Fatalf("nothing must be installed on Windows, got actions %v", fake.actions)
 	}
 }
 

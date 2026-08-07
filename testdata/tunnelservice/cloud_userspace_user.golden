@@ -8,4 +8,6 @@ Option.Restart: always
 Option.RunAtLoad: true
 Option.UserService: true
 Env.GO_IOS_AGENT_HOST: 0.0.0.0
+Env.GO_IOS_AGENT_PORT: 60106
 Env.ORCHESTRATOR_URL: https://orchestrator.example.com
+Env.USBMUXD_SOCKET_ADDRESS: UNIX:///var/run/usbmuxd

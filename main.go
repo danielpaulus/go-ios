@@ -570,11 +570,12 @@ The commands work as following:
     ios tunnel refresh --udid=<udid>                                Stop the tunnel for one device and wait until the agent recreates it.
 
     ios tunnel service (install | uninstall | status) [options] [--pair-record-path=<pairrecordpath>] [--userspace] [--user]
-                                                                    Manage the tunnel agent as an OS service (systemd, launchd, or the Windows
-                                                                    service manager), like 'cloudflared service install'.
+                                                                    Manage the tunnel agent as an OS service (systemd on Linux, launchd on
+                                                                    macOS), like 'cloudflared service install'. Windows is not supported yet.
                                                                     'install' registers a service running 'ios tunnel start' with the current
-                                                                    flags (plus ORCHESTRATOR_URL and GO_IOS_AGENT_HOST from the environment,
-                                                                    if set), enables it at boot with a restart policy, and starts it.
+                                                                    flags (plus ORCHESTRATOR_URL, GO_IOS_AGENT_HOST, GO_IOS_AGENT_PORT and
+                                                                    USBMUXD_SOCKET_ADDRESS from the environment, if set), enables it at boot
+                                                                    with a restart policy, and starts it.
                                                                     Re-running install replaces the existing definition.
                                                                     Installing a system service needs sudo/admin privileges. Pass --user for
                                                                     a user-level service (systemd --user unit / launchd LaunchAgent) instead;

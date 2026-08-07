@@ -28,7 +28,16 @@ const tunnelServiceName = "go-ios-tunnel"
 // EnvironmentVariables).
 var capturedServiceEnv = []string{
 	"ORCHESTRATOR_URL",
+	// GO_IOS_AGENT_HOST and GO_IOS_AGENT_PORT together select the host:port the
+	// tunnel agent's HTTP API binds to (ios.HttpApiHost / ios.HttpApiPort).
+	// Capturing only the host would silently rebind the default port under the
+	// service.
 	"GO_IOS_AGENT_HOST",
+	"GO_IOS_AGENT_PORT",
+	// USBMUXD_SOCKET_ADDRESS overrides how go-ios reaches usbmuxd; without it a
+	// non-standard socket setup would fall back to the default and the agent
+	// would see no devices.
+	"USBMUXD_SOCKET_ADDRESS",
 }
 
 // tunnelServiceConfig captures the current invocation's flags and relevant
@@ -103,13 +112,27 @@ type serviceController interface {
 	Platform() string
 }
 
-// checkServiceSystem rejects init systems we would write a broken or untested
-// definition for. Linux is systemd-first: kardianos/service would happily
-// generate upstart/openrc/sysv scripts, but those paths are untested here.
+// checkServiceSystem rejects service managers we would register a broken or
+// untested definition for.
+//
+//   - Linux is systemd-first: kardianos/service would happily generate
+//     upstart/openrc/sysv scripts, but those paths are untested here.
+//   - Windows is rejected outright: the installed service runs `ios tunnel start`
+//     directly, but a Windows service must connect back to the service-control
+//     dispatcher (svc.Run) on startup. `ios tunnel start` never does, so the SCM
+//     would kill it with error 1053 ("did not respond in a timely fashion").
+//     Registering it anyway just yields a service that can never start, so fail
+//     with a clear message and let the operator run `ios tunnel start` under a
+//     supervisor of their choice instead.
 func checkServiceSystem(goos string, platform string) error {
 	if goos == "linux" && platform != "linux-systemd" {
 		return fmt.Errorf("no systemd detected (found %q): 'ios tunnel service' currently supports systemd on Linux; "+
 			"on other init systems create the init script manually and use 'ios tunnel start' as the service command", platform)
+	}
+	if goos == "windows" {
+		return fmt.Errorf("'ios tunnel service' is not supported on Windows yet: the tunnel agent does not implement the "+
+			"Windows service-control dispatcher, so a registered service would fail to start (error 1053); "+
+			"run 'ios tunnel start' under a supervisor (e.g. nssm or a scheduled task) instead (platform %q)", platform)
 	}
 	return nil
 }
