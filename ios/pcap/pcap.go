@@ -97,20 +97,38 @@ type captureConn interface {
 // pending read and capture returns nil, leaving w a valid pcap stream.
 func capture(ctx context.Context, conn captureConn, w io.Writer) error {
 	done := make(chan struct{})
-	defer close(done)
+	// closedByWatchdog is set (before watchdogDone is closed) only when the
+	// watchdog closed conn because ctx was canceled, so a read error caused by
+	// that close is classified as a clean shutdown rather than a failure.
+	var closedByWatchdog bool
+	watchdogDone := make(chan struct{})
 	go func() {
+		defer close(watchdogDone)
 		select {
 		case <-ctx.Done():
+			closedByWatchdog = true
 			conn.Close()
 		case <-done:
 		}
+	}()
+	// Wait for the watchdog to finish before returning so its conn.Close() never
+	// races the caller's own deferred close of the same connection.
+	defer func() {
+		close(done)
+		<-watchdogDone
 	}()
 	plistCodec := ios.NewPlistCodec()
 	for {
 		b, err := plistCodec.Decode(conn.Reader())
 		if err != nil {
+			// A read error after the watchdog closed conn is the expected way a
+			// canceled capture unblocks; report it as a clean stop. Block on
+			// watchdogDone first so closedByWatchdog is observed race-free.
 			if ctx.Err() != nil {
-				return nil
+				<-watchdogDone
+				if closedByWatchdog {
+					return nil
+				}
 			}
 			return err
 		}

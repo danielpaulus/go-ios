@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -246,6 +247,74 @@ func TestCaptureReturnsReadErrorWhenNotCanceled(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("capture did not stop on connection error")
 	}
+}
+
+// closeTrackingConn records how often Close is called and blocks in Close
+// until released, so a test can prove capture waits for the watchdog's
+// conn.Close() to finish before returning (no concurrent double-close).
+type closeTrackingConn struct {
+	r        *io.PipeReader
+	release  chan struct{}
+	closes   int32
+	inClose  chan struct{}
+	closedCh chan struct{}
+}
+
+func (c *closeTrackingConn) Reader() io.Reader { return c.r }
+
+func (c *closeTrackingConn) Close() error {
+	if atomic.AddInt32(&c.closes, 1) == 1 {
+		close(c.inClose)
+		<-c.release
+		err := c.r.Close()
+		close(c.closedCh)
+		return err
+	}
+	return c.r.Close()
+}
+
+func TestCaptureWaitsForWatchdogCloseBeforeReturning(t *testing.T) {
+	resetFilters(t)
+	pr, _ := io.Pipe()
+	conn := &closeTrackingConn{
+		r:        pr,
+		release:  make(chan struct{}),
+		inClose:  make(chan struct{}),
+		closedCh: make(chan struct{}),
+	}
+	var out bytes.Buffer
+	require.NoError(t, writePcapHeader(&out))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	captureDone := make(chan error, 1)
+	go func() { captureDone <- capture(ctx, conn, &out) }()
+
+	cancel()
+	// The watchdog is now inside Close, blocked before it finishes.
+	select {
+	case <-conn.inClose:
+	case <-time.After(5 * time.Second):
+		t.Fatal("watchdog did not call Close after cancellation")
+	}
+
+	// capture must not have returned yet: it owns the connection and must wait
+	// for the watchdog's Close to complete so it never races the caller's own
+	// deferred Close.
+	select {
+	case <-captureDone:
+		t.Fatal("capture returned before the watchdog's Close finished")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(conn.release)
+	select {
+	case err := <-captureDone:
+		require.NoError(t, err, "capture must return nil on cancellation")
+	case <-time.After(5 * time.Second):
+		t.Fatal("capture did not return after Close finished")
+	}
+	<-conn.closedCh
+	assert.Equal(t, int32(1), atomic.LoadInt32(&conn.closes), "connection must be closed exactly once by capture")
 }
 
 func trimNull(s string) string {
