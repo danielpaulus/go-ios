@@ -18,6 +18,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	registerMediaRoutes(device)
 	registerConfigRoutes(device)
 	registerSettingsRoutes(device)
+	registerMonitoringRoutes(device)
 	appRoutes(device)
 }
 
