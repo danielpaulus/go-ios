@@ -12,6 +12,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	device := router.Group("/device/:udid")
 	device.Use(DeviceMiddleware())
 	simpleDeviceRoutes(device)
+	registerDeviceInfoRoutes(device)
 	appRoutes(device)
 }
 

@@ -1,8 +1,14 @@
 package api
 
 import (
+	"errors"
+
 	"github.com/gin-gonic/gin"
 )
+
+// errMissingKey is returned when a handler requires a query parameter that the
+// caller did not supply.
+var errMissingKey = errors.New("missing required query param: key")
 
 // RespondError writes a consistent JSON error envelope ({"error": "..."}) and
 // aborts the request with the given status. Handlers should use this instead of
