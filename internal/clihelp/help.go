@@ -232,7 +232,7 @@ func (c *Catalog) renderGlobal(version string) string {
 		}
 		writeAlignedPair(&b, command.Path, summary, maxWidth)
 	}
-	b.WriteString("Run 'ios help <command>' or 'ios <command> --help' for command details.\n")
+	b.WriteString("\nRun 'ios help <command>' or 'ios <command> --help' for command details.\n")
 	return b.String()
 }
 
@@ -271,7 +271,7 @@ func (c *Catalog) resolvePathFromArgs(tokens []string) (string, bool, bool) {
 		candidateTokens = append(candidateTokens, token)
 	}
 	if len(candidateTokens) == 0 {
-		return "", true, false
+		return "", false, true
 	}
 	for _, path := range c.commandPathList {
 		commandTokens := strings.Fields(path)
