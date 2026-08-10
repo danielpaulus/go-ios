@@ -20,6 +20,7 @@ func registerRoutes(router *gin.RouterGroup) {
 	registerSettingsRoutes(device)
 	registerMonitoringRoutes(device)
 	registerMdmRoutes(device)
+	registerJobRoutes(device)
 	appRoutes(device)
 }
 
