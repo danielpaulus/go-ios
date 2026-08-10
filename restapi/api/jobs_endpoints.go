@@ -210,13 +210,16 @@ func StreamJobLogs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	for _, line := range j.log.snapshot() {
+	// Take the backlog and the live subscription atomically so a line written
+	// between "replay history" and "start streaming" is neither lost nor
+	// duplicated.
+	backlog, ch, unsubscribe := j.log.snapshotAndSubscribe()
+	defer unsubscribe()
+	for _, line := range backlog {
 		c.Writer.WriteString(line)
 	}
 	c.Writer.Flush()
 
-	ch, unsubscribe := j.log.subscribe()
-	defer unsubscribe()
 	c.Stream(func(w io.Writer) bool {
 		line, ok := <-ch
 		if !ok {
@@ -227,8 +230,9 @@ func StreamJobLogs(c *gin.Context) {
 	})
 }
 
-// StopJob stops a running job (CLI: Ctrl-C on the equivalent command).
-// @Summary Stop a job
+// StopJob stops a running job, or purges an already-terminal one from the
+// registry to reclaim its buffered logs (CLI: Ctrl-C on the equivalent command).
+// @Summary Stop or delete a job
 // @Produce json
 // @Param udid path string true "Device UDID"
 // @Param id path string true "job id"
@@ -236,7 +240,15 @@ func StreamJobLogs(c *gin.Context) {
 // @Failure 404 {object} map[string]string
 // @Router /device/{udid}/jobs/{id} [delete]
 func StopJob(c *gin.Context) {
-	if _, ok := jobForRequest(c); !ok {
+	j, ok := jobForRequest(c)
+	if !ok {
+		return
+	}
+	// A terminal job has nothing to stop; DELETE removes it so finished jobs
+	// don't accumulate in the process-wide registry forever.
+	if j.view().Status != jobRunning {
+		jobs.remove(c.Param("id"))
+		c.JSON(http.StatusOK, gin.H{"message": "job removed"})
 		return
 	}
 	if _, err := jobs.stop(c.Param("id")); err != nil {

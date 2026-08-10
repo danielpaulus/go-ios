@@ -172,7 +172,7 @@ func GetPasteboard(c *gin.Context) {
 // @Router /device/{udid}/pasteboard [put]
 func SetPasteboard(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	body, err := io.ReadAll(c.Request.Body)
+	body, err := readAllLimited(c.Request.Body)
 	if err != nil {
 		RespondError(c, http.StatusBadRequest, err)
 		return
@@ -190,12 +190,32 @@ func SetPasteboard(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "pasteboard set"})
 }
 
-// readFormFile reads an entire multipart form file field into memory.
+// maxUploadBytes bounds how much a single in-memory upload (multipart file field
+// or raw request body) may consume, so an authenticated client cannot exhaust
+// server memory with an oversized payload. 256 MiB comfortably covers profiles,
+// p12 identities and wallpaper images while still capping abuse.
+const maxUploadBytes = 256 << 20
+
+// readFormFile reads an entire multipart form file field into memory, bounded by
+// maxUploadBytes so an oversized field cannot exhaust server memory.
 func readFormFile(c *gin.Context, field string) ([]byte, error) {
 	f, _, err := c.Request.FormFile(field)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return io.ReadAll(f)
+	return readAllLimited(f)
+}
+
+// readAllLimited reads r fully but fails if it would exceed maxUploadBytes,
+// instead of buffering an unbounded amount into memory.
+func readAllLimited(r io.Reader) ([]byte, error) {
+	b, err := io.ReadAll(io.LimitReader(r, maxUploadBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > maxUploadBytes {
+		return nil, errUploadTooLarge
+	}
+	return b, nil
 }

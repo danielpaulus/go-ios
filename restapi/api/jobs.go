@@ -159,6 +159,26 @@ func (m *jobManager) stop(id string) (bool, error) {
 	return true, err
 }
 
+// remove drops a job from the registry, freeing its buffered logs. It only
+// removes terminal jobs so an in-flight job is never silently forgotten; callers
+// stop a running job first. Returns whether a job was removed.
+func (m *jobManager) remove(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	j, ok := m.jobs[id]
+	if !ok {
+		return false
+	}
+	j.mu.Lock()
+	terminal := j.Status != jobRunning
+	j.mu.Unlock()
+	if !terminal {
+		return false
+	}
+	delete(m.jobs, id)
+	return true
+}
+
 // jobLog is a per-job, streamable log sink. It stores a bounded history and
 // fans out new lines to any live subscribers (the /jobs/:id/logs stream).
 type jobLog struct {
@@ -205,9 +225,27 @@ func (l *jobLog) snapshot() []string {
 // subscribe returns a channel of future log lines and an unsubscribe func. If
 // the log is already closed the channel is closed immediately.
 func (l *jobLog) subscribe() (chan string, func()) {
-	ch := make(chan string, 256)
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	return l.subscribeLocked()
+}
+
+// snapshotAndSubscribe atomically returns the buffered history and a live
+// subscription in one critical section, so no line written between "read the
+// backlog" and "start streaming" is lost or duplicated (which a separate
+// snapshot()+subscribe() pair would race on).
+func (l *jobLog) snapshotAndSubscribe() ([]string, chan string, func()) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := make([]string, len(l.lines))
+	copy(out, l.lines)
+	ch, unsub := l.subscribeLocked()
+	return out, ch, unsub
+}
+
+// subscribeLocked implements subscribe; the caller must hold l.mu.
+func (l *jobLog) subscribeLocked() (chan string, func()) {
+	ch := make(chan string, 256)
 	if l.closed {
 		close(ch)
 		return ch, func() {}

@@ -26,6 +26,7 @@ var (
 	errMissingPorts         = errors.New("both 'hostPort' and 'targetPort' are required and must be non-zero")
 	errJobNotFound          = errors.New("job not found for this device")
 	errMissingProxyHostPort = errors.New("both 'host' and 'port' form fields are required")
+	errUploadTooLarge       = errors.New("upload exceeds the maximum allowed size")
 )
 
 // RespondError writes a consistent JSON error envelope ({"error": "..."}) and

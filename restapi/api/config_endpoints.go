@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/hex"
-	"io"
 	"net/http"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -42,7 +41,7 @@ func AddProfile(c *gin.Context) {
 		}
 		password = c.PostForm("password")
 	} else {
-		body, err := io.ReadAll(c.Request.Body)
+		body, err := readAllLimited(c.Request.Body)
 		if err != nil {
 			RespondError(c, http.StatusBadRequest, err)
 			return
