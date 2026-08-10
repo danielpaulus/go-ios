@@ -8,6 +8,7 @@ var streamingMiddleWare = StreamingHeaderMiddleware()
 
 func registerRoutes(router *gin.RouterGroup) {
 	router.GET("/list", List)
+	registerTunnelRoutes(router)
 
 	device := router.Group("/device/:udid")
 	device.Use(DeviceMiddleware())
