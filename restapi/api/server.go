@@ -22,6 +22,8 @@ type serverConfig struct {
 	disableAuth bool
 	tlsCert     string
 	tlsKey      string
+	rateLimit   float64
+	rateBurst   int
 }
 
 // parseServerConfig parses the server flags from args. It uses a dedicated flag
@@ -34,9 +36,14 @@ func parseServerConfig(args []string) serverConfig {
 	disableAuth := fs.Bool("disable-auth", false, "run the REST API without authentication")
 	tlsCert := fs.String("tls-cert", "", "path to a TLS certificate; enables HTTPS together with --tls-key")
 	tlsKey := fs.String("tls-key", "", "path to the TLS private key for --tls-cert")
+	rateLimit := fs.Float64("rate-limit", 20, "max sustained requests per second per device (0 disables)")
+	rateBurst := fs.Int("rate-burst", 40, "burst size for the per-device rate limit")
 	// Ignore parse errors (e.g. unknown flags) so extra args don't crash startup.
 	_ = fs.Parse(args)
-	return serverConfig{addr: *addr, disableAuth: *disableAuth, tlsCert: *tlsCert, tlsKey: *tlsKey}
+	return serverConfig{
+		addr: *addr, disableAuth: *disableAuth, tlsCert: *tlsCert, tlsKey: *tlsKey,
+		rateLimit: *rateLimit, rateBurst: *rateBurst,
+	}
 }
 
 func Main() {
@@ -68,7 +75,7 @@ func Main() {
 			"or pass --disable-auth to run without authentication")
 	}
 
-	registerRoutes(v1)
+	registerRoutes(v1, cfg.rateLimit, cfg.rateBurst)
 
 	// Serve the swagger UI. When auth is enabled, gate it behind the token too
 	// (under /api/v1) so the API schema isn't exposed unauthenticated; otherwise

@@ -6,12 +6,13 @@ import (
 
 var streamingMiddleWare = StreamingHeaderMiddleware()
 
-func registerRoutes(router *gin.RouterGroup) {
+func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	router.GET("/list", List)
 	registerTunnelRoutes(router)
 
 	device := router.Group("/device/:udid")
 	device.Use(DeviceMiddleware())
+	device.Use(RateLimitUDID(rateLimit, rateBurst))
 	simpleDeviceRoutes(device)
 	registerDeviceInfoRoutes(device)
 	registerDeviceMgmtRoutes(device)

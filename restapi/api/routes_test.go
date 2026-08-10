@@ -18,5 +18,5 @@ func TestRegisterRoutesNoConflict(t *testing.T) {
 	}()
 	router := gin.New()
 	v1 := router.Group("/api/v1")
-	registerRoutes(v1)
+	registerRoutes(v1, 0, 0)
 }
