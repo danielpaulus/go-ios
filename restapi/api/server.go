@@ -2,14 +2,17 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/danielpaulus/go-ios/ios/golog"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	swaggerFiles "github.com/swaggo/files"
@@ -32,7 +35,7 @@ type serverConfig struct {
 func parseServerConfig(args []string) serverConfig {
 	fs := flag.NewFlagSet("go-ios-restapi", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	addr := fs.String("addr", ":8080", "address to listen on (host:port)")
+	addr := fs.String("addr", "127.0.0.1:0", "address to listen on (host:port); the default binds an ephemeral loopback port and publishes it to the discovery file. Pin/expose with e.g. :8080 or 0.0.0.0:9000")
 	disableAuth := fs.Bool("disable-auth", false, "run the REST API without authentication")
 	tlsCert := fs.String("tls-cert", "", "path to a TLS certificate; enables HTTPS together with --tls-key")
 	tlsKey := fs.String("tls-key", "", "path to the TLS private key for --tls-cert")
@@ -87,7 +90,9 @@ func Main() {
 	}
 
 	srv := &http.Server{
-		Addr:              cfg.addr,
+		// No Addr: we bind the listener ourselves (below) via net.Listen so the
+		// real OS-assigned port is knowable, then srv.Serve(ln). Addr is unused by
+		// Serve and would misleadingly read 127.0.0.1:0 for ephemeral binds.
 		Handler:           router,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
@@ -98,31 +103,69 @@ func Main() {
 		// still bound slow-header and idle-keepalive abuse.
 	}
 
-	// Graceful shutdown on SIGINT/SIGTERM so in-flight requests can drain.
+	useTLS := cfg.tlsCert != "" && cfg.tlsKey != ""
+
+	// Bind explicitly so the OS-assigned port (when --addr uses :0) is knowable
+	// before we start serving: we need the real host:port to log it and to
+	// publish the discovery file for SDK auto-discovery.
+	ln, err := net.Listen("tcp", cfg.addr)
+	if err != nil {
+		golog.Error("failed to bind go-ios REST API", "module", logModule, "addr", cfg.addr, "error", err.Error())
+		return
+	}
+	if useTLS {
+		cert, certErr := tls.LoadX509KeyPair(cfg.tlsCert, cfg.tlsKey)
+		if certErr != nil {
+			golog.Error("failed to load TLS key pair", "module", logModule, "cert", cfg.tlsCert, "error", certErr.Error())
+			_ = ln.Close()
+			return
+		}
+		ln = tls.NewListener(ln, &tls.Config{Certificates: []tls.Certificate{cert}})
+	}
+
+	// The bound TCP address carries the real, possibly OS-assigned port (even for
+	// the TLS listener, which wraps the TCP listener above).
+	tcpAddr := ln.Addr().(*net.TCPAddr)
+	host := tcpAddr.IP.String()
+	port := tcpAddr.Port
+
+	// Publish the discovery file so SDKs can auto-find this daemon regardless of
+	// which (ephemeral or pinned) port it landed on.
+	info := newDiscoveryInfo(host, port, useTLS)
+	discoveryPath, derr := writeDiscoveryFile(info)
+	if derr != nil {
+		// Non-fatal: the daemon still serves; SDKs just can't auto-discover it.
+		golog.Warn("failed to write REST API discovery file", "module", logModule, "error", derr.Error())
+	} else {
+		golog.Info("wrote REST API discovery file", "module", logModule, "path", discoveryPath, "baseUrl", info.BaseUrl)
+	}
+
+	golog.Info("go-ios REST API listening", "module", logModule, "baseUrl", info.BaseUrl, "host", host, "port", port, "tls", useTLS, "pid", os.Getpid())
+
+	// Graceful shutdown on SIGINT/SIGTERM so in-flight requests can drain, and
+	// remove the discovery file so stale entries don't linger after exit.
 	shutdownDone := make(chan struct{})
 	go func() {
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 		<-sigs
-		log.Info("shutting down go-ios REST API")
+		golog.Info("shutting down go-ios REST API", "module", logModule)
+		if rmErr := removeDiscoveryFile(); rmErr != nil {
+			golog.Warn("failed to remove REST API discovery file", "module", logModule, "error", rmErr.Error())
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {
-			log.Errorf("graceful shutdown failed: %v", err)
+			golog.Error("graceful shutdown failed", "module", logModule, "error", err.Error())
 		}
 		close(shutdownDone)
 	}()
 
-	var err error
-	if cfg.tlsCert != "" && cfg.tlsKey != "" {
-		log.Infof("go-ios REST API listening on %s (TLS)", cfg.addr)
-		err = srv.ListenAndServeTLS(cfg.tlsCert, cfg.tlsKey)
-	} else {
-		log.Infof("go-ios REST API listening on %s", cfg.addr)
-		err = srv.ListenAndServe()
-	}
-	if err != nil && err != http.ErrServerClosed {
-		log.Error(err)
+	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+		golog.Error("go-ios REST API serve error", "module", logModule, "error", err.Error())
+		// Best-effort cleanup: on a serve failure the shutdown goroutine may never
+		// fire, so drop the discovery file here too.
+		_ = removeDiscoveryFile()
 		return
 	}
 	<-shutdownDone

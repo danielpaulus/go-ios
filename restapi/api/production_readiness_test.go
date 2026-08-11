@@ -60,7 +60,7 @@ func TestRespondError(t *testing.T) {
 
 func TestParseServerConfig(t *testing.T) {
 	def := parseServerConfig(nil)
-	if def.addr != ":8080" || def.disableAuth || def.tlsCert != "" || def.tlsKey != "" {
+	if def.addr != "127.0.0.1:0" || def.disableAuth || def.tlsCert != "" || def.tlsKey != "" {
 		t.Fatalf("unexpected defaults: %+v", def)
 	}
 	got := parseServerConfig([]string{"--disable-auth", "--addr=127.0.0.1:9000", "--tls-cert=c.pem", "--tls-key=k.pem"})
