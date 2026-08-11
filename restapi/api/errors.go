@@ -29,6 +29,8 @@ var (
 	errUploadTooLarge       = errors.New("upload exceeds the maximum allowed size")
 	errInvalidPID           = errors.New("invalid pid parameter")
 	errRsdUnavailable       = errors.New("RSD is not available for this device: a running tunnel (iOS 17+) is required")
+	errMissingGPX           = errors.New("missing required multipart 'gpx' file")
+	errInvalidTimeout       = errors.New("invalid 'timeout' query param; expected a positive integer number of seconds")
 )
 
 // RespondError writes a consistent JSON error envelope ({"error": "..."}) and
