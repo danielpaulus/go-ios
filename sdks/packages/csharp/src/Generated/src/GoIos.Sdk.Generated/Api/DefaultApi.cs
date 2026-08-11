@@ -28,6 +28,165 @@ namespace GoIos.Sdk.Generated.Api
     {
         #region Synchronous Operations
         /// <summary>
+        /// Get accessibility element snapshot
+        /// </summary>
+        /// <remarks>
+        /// Get a snapshot of the currently focused accessibility element (CLI: &#x60;ios ax&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>Object</returns>
+        Object AccessibilityGetAxSnapshot(string udid);
+
+        /// <summary>
+        /// Get accessibility element snapshot
+        /// </summary>
+        /// <remarks>
+        /// Get a snapshot of the currently focused accessibility element (CLI: &#x60;ios ax&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> AccessibilityGetAxSnapshotWithHttpInfo(string udid);
+        /// <summary>
+        /// Get VoiceOver state
+        /// </summary>
+        /// <remarks>
+        /// Get VoiceOver enabled state (CLI: &#x60;ios voiceover get&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>VoiceOverState</returns>
+        VoiceOverState AccessibilityGetVoiceOver(string udid);
+
+        /// <summary>
+        /// Get VoiceOver state
+        /// </summary>
+        /// <remarks>
+        /// Get VoiceOver enabled state (CLI: &#x60;ios voiceover get&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of VoiceOverState</returns>
+        ApiResponse<VoiceOverState> AccessibilityGetVoiceOverWithHttpInfo(string udid);
+        /// <summary>
+        /// Get ZoomTouch state
+        /// </summary>
+        /// <remarks>
+        /// Get ZoomTouch enabled state (CLI: &#x60;ios zoomtouch get&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ZoomTouchState</returns>
+        ZoomTouchState AccessibilityGetZoomTouch(string udid);
+
+        /// <summary>
+        /// Get ZoomTouch state
+        /// </summary>
+        /// <remarks>
+        /// Get ZoomTouch enabled state (CLI: &#x60;ios zoomtouch get&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of ZoomTouchState</returns>
+        ApiResponse<ZoomTouchState> AccessibilityGetZoomTouchWithHttpInfo(string udid);
+        /// <summary>
+        /// Run accessibility audit
+        /// </summary>
+        /// <remarks>
+        /// Run the accessibility audit against the focused app and return the issues found (CLI: &#x60;ios ax audit&#x60;). Bounded by &#x60;timeout&#x60; (seconds, default 60).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Audit timeout in seconds (default 60). (optional)</param>
+        /// <returns>List&lt;Object&gt;</returns>
+        List<Object> AccessibilityRunAxAudit(string udid, int? timeout = default);
+
+        /// <summary>
+        /// Run accessibility audit
+        /// </summary>
+        /// <remarks>
+        /// Run the accessibility audit against the focused app and return the issues found (CLI: &#x60;ios ax audit&#x60;). Bounded by &#x60;timeout&#x60; (seconds, default 60).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Audit timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of List&lt;Object&gt;</returns>
+        ApiResponse<List<Object>> AccessibilityRunAxAuditWithHttpInfo(string udid, int? timeout = default);
+        /// <summary>
+        /// Simulate location from a GPX file
+        /// </summary>
+        /// <remarks>
+        /// Simulate live location tracking from an uploaded GPX file (CLI: &#x60;ios setlocationgpx&#x60;). Send multipart/form-data with a &#x60;gpx&#x60; file.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="gpx"></param>
+        /// <returns>GenericResponse</returns>
+        GenericResponse AccessibilitySetLocationGpx(string udid, Object gpx);
+
+        /// <summary>
+        /// Simulate location from a GPX file
+        /// </summary>
+        /// <remarks>
+        /// Simulate live location tracking from an uploaded GPX file (CLI: &#x60;ios setlocationgpx&#x60;). Send multipart/form-data with a &#x60;gpx&#x60; file.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="gpx"></param>
+        /// <returns>ApiResponse of GenericResponse</returns>
+        ApiResponse<GenericResponse> AccessibilitySetLocationGpxWithHttpInfo(string udid, Object gpx);
+        /// <summary>
+        /// Set VoiceOver state
+        /// </summary>
+        /// <remarks>
+        /// Enable/disable VoiceOver (CLI: &#x60;ios voiceover enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <returns>VoiceOverState</returns>
+        VoiceOverState AccessibilitySetVoiceOver(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default);
+
+        /// <summary>
+        /// Set VoiceOver state
+        /// </summary>
+        /// <remarks>
+        /// Enable/disable VoiceOver (CLI: &#x60;ios voiceover enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <returns>ApiResponse of VoiceOverState</returns>
+        ApiResponse<VoiceOverState> AccessibilitySetVoiceOverWithHttpInfo(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default);
+        /// <summary>
+        /// Set ZoomTouch state
+        /// </summary>
+        /// <remarks>
+        /// Enable/disable ZoomTouch (CLI: &#x60;ios zoomtouch enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <returns>ZoomTouchState</returns>
+        ZoomTouchState AccessibilitySetZoomTouch(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default);
+
+        /// <summary>
+        /// Set ZoomTouch state
+        /// </summary>
+        /// <remarks>
+        /// Enable/disable ZoomTouch (CLI: &#x60;ios zoomtouch enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <returns>ApiResponse of ZoomTouchState</returns>
+        ApiResponse<ZoomTouchState> AccessibilitySetZoomTouchWithHttpInfo(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default);
+        /// <summary>
         /// Activate device
         /// </summary>
         /// <remarks>
@@ -406,23 +565,25 @@ namespace GoIos.Sdk.Generated.Api
         /// Get lockdown values
         /// </summary>
         /// <remarks>
-        /// Get all lockdown values (CLI: &#x60;ios lockdown get&#x60;).
+        /// Get lockdown values (CLI: &#x60;ios lockdown get&#x60;). Without &#x60;domain&#x60; the full set is returned; with &#x60;domain&#x60; the values are scoped to that lockdown domain.
         /// </remarks>
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
         /// <param name="udid"></param>
+        /// <param name="domain">Optional lockdown domain to scope the returned values. (optional)</param>
         /// <returns>Object</returns>
-        Object DevicesGetLockdownValues(string udid);
+        Object DevicesGetLockdownValues(string udid, string? domain = default);
 
         /// <summary>
         /// Get lockdown values
         /// </summary>
         /// <remarks>
-        /// Get all lockdown values (CLI: &#x60;ios lockdown get&#x60;).
+        /// Get lockdown values (CLI: &#x60;ios lockdown get&#x60;). Without &#x60;domain&#x60; the full set is returned; with &#x60;domain&#x60; the values are scoped to that lockdown domain.
         /// </remarks>
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
         /// <param name="udid"></param>
+        /// <param name="domain">Optional lockdown domain to scope the returned values. (optional)</param>
         /// <returns>ApiResponse of Object</returns>
-        ApiResponse<Object> DevicesGetLockdownValuesWithHttpInfo(string udid);
+        ApiResponse<Object> DevicesGetLockdownValuesWithHttpInfo(string udid, string? domain = default);
         /// <summary>
         /// Query MobileGestalt
         /// </summary>
@@ -1757,6 +1918,284 @@ namespace GoIos.Sdk.Generated.Api
         /// <returns>ApiResponse of GenericResponse</returns>
         ApiResponse<GenericResponse> DevicesUnmountImageWithHttpInfo(string udid);
         /// <summary>
+        /// Get battery IORegistry
+        /// </summary>
+        /// <remarks>
+        /// Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: &#x60;ios diagnostics ioregistry&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>BatteryRegistry</returns>
+        BatteryRegistry DiagnosticsNetGetBatteryRegistry(string udid);
+
+        /// <summary>
+        /// Get battery IORegistry
+        /// </summary>
+        /// <remarks>
+        /// Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: &#x60;ios diagnostics ioregistry&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of BatteryRegistry</returns>
+        ApiResponse<BatteryRegistry> DiagnosticsNetGetBatteryRegistryWithHttpInfo(string udid);
+        /// <summary>
+        /// Get device IP / network info
+        /// </summary>
+        /// <remarks>
+        /// Resolve the device&#39;s network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: &#x60;ios ip&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>NetworkInfo</returns>
+        NetworkInfo DiagnosticsNetGetDeviceIp(string udid);
+
+        /// <summary>
+        /// Get device IP / network info
+        /// </summary>
+        /// <remarks>
+        /// Resolve the device&#39;s network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: &#x60;ios ip&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of NetworkInfo</returns>
+        ApiResponse<NetworkInfo> DiagnosticsNetGetDeviceIpWithHttpInfo(string udid);
+        /// <summary>
+        /// Get disk space info
+        /// </summary>
+        /// <remarks>
+        /// Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: &#x60;ios diskspace&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>DiskSpaceInfo</returns>
+        DiskSpaceInfo DiagnosticsNetGetDiskSpace(string udid);
+
+        /// <summary>
+        /// Get disk space info
+        /// </summary>
+        /// <remarks>
+        /// Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: &#x60;ios diskspace&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of DiskSpaceInfo</returns>
+        ApiResponse<DiskSpaceInfo> DiagnosticsNetGetDiskSpaceWithHttpInfo(string udid);
+        /// <summary>
+        /// Get RSD service list
+        /// </summary>
+        /// <remarks>
+        /// Get the device&#39;s RSD (Remote Service Discovery) service list (CLI: &#x60;ios rsd ls&#x60;). Requires a running tunnel (iOS 17+); devices without RSD return &#x60;400&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>Object</returns>
+        Object DiagnosticsNetGetRsdServices(string udid);
+
+        /// <summary>
+        /// Get RSD service list
+        /// </summary>
+        /// <remarks>
+        /// Get the device&#39;s RSD (Remote Service Discovery) service list (CLI: &#x60;ios rsd ls&#x60;). Requires a running tunnel (iOS 17+); devices without RSD return &#x60;400&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> DiagnosticsNetGetRsdServicesWithHttpInfo(string udid);
+        /// <summary>
+        /// List a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// List a device directory over AFC (CLI: &#x60;ios fsync ls&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <returns>FsyncListing</returns>
+        FsyncListing FsyncFsyncLs(string udid, string? bundleID = default, string? path = default);
+
+        /// <summary>
+        /// List a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// List a device directory over AFC (CLI: &#x60;ios fsync ls&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <returns>ApiResponse of FsyncListing</returns>
+        ApiResponse<FsyncListing> FsyncFsyncLsWithHttpInfo(string udid, string? bundleID = default, string? path = default);
+        /// <summary>
+        /// Create a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Create a directory over AFC (CLI: &#x60;ios fsync mkdir&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Directory path to create (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>FsyncMessage</returns>
+        FsyncMessage FsyncFsyncMkdir(string udid, string path, string? bundleID = default);
+
+        /// <summary>
+        /// Create a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Create a directory over AFC (CLI: &#x60;ios fsync mkdir&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Directory path to create (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>ApiResponse of FsyncMessage</returns>
+        ApiResponse<FsyncMessage> FsyncFsyncMkdirWithHttpInfo(string udid, string path, string? bundleID = default);
+        /// <summary>
+        /// Download a file over AFC
+        /// </summary>
+        /// <remarks>
+        /// Download a file from the device over AFC (CLI: &#x60;ios fsync pull&#x60;). Returns the raw file bytes. &#x60;path&#x60; is required.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Remote file path on the device (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>Object</returns>
+        Object FsyncFsyncPull(string udid, string path, string? bundleID = default);
+
+        /// <summary>
+        /// Download a file over AFC
+        /// </summary>
+        /// <remarks>
+        /// Download a file from the device over AFC (CLI: &#x60;ios fsync pull&#x60;). Returns the raw file bytes. &#x60;path&#x60; is required.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Remote file path on the device (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> FsyncFsyncPullWithHttpInfo(string udid, string path, string? bundleID = default);
+        /// <summary>
+        /// Upload a file over AFC
+        /// </summary>
+        /// <remarks>
+        /// Upload a file to the device over AFC (CLI: &#x60;ios fsync push&#x60;). Accepts either raw bytes (application/octet-stream) or a multipart form with a &#x60;file&#x60; field. &#x60;path&#x60; is required. Bounded server-side; oversized uploads get &#x60;413&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Destination path on the device (required).</param>
+        /// <param name="body">Raw file bytes to upload (application/octet-stream).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>FsyncPushResult</returns>
+        FsyncPushResult FsyncFsyncPush(string udid, string path, Object body, string? bundleID = default);
+
+        /// <summary>
+        /// Upload a file over AFC
+        /// </summary>
+        /// <remarks>
+        /// Upload a file to the device over AFC (CLI: &#x60;ios fsync push&#x60;). Accepts either raw bytes (application/octet-stream) or a multipart form with a &#x60;file&#x60; field. &#x60;path&#x60; is required. Bounded server-side; oversized uploads get &#x60;413&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Destination path on the device (required).</param>
+        /// <param name="body">Raw file bytes to upload (application/octet-stream).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>ApiResponse of FsyncPushResult</returns>
+        ApiResponse<FsyncPushResult> FsyncFsyncPushWithHttpInfo(string udid, string path, Object body, string? bundleID = default);
+        /// <summary>
+        /// Remove a file or directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Remove a file or directory over AFC (CLI: &#x60;ios fsync rm&#x60;). Pass &#x60;recursive&#x3D;true&#x60; to delete a non-empty directory.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Path to remove (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="recursive">Remove directory contents recursively. (optional)</param>
+        /// <returns>FsyncMessage</returns>
+        FsyncMessage FsyncFsyncRm(string udid, string path, string? bundleID = default, bool? recursive = default);
+
+        /// <summary>
+        /// Remove a file or directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Remove a file or directory over AFC (CLI: &#x60;ios fsync rm&#x60;). Pass &#x60;recursive&#x3D;true&#x60; to delete a non-empty directory.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Path to remove (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="recursive">Remove directory contents recursively. (optional)</param>
+        /// <returns>ApiResponse of FsyncMessage</returns>
+        ApiResponse<FsyncMessage> FsyncFsyncRmWithHttpInfo(string udid, string path, string? bundleID = default, bool? recursive = default);
+        /// <summary>
+        /// Recursively list a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Recursively list a device directory over AFC (CLI: &#x60;ios fsync tree&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <returns>FsyncTreeListing</returns>
+        FsyncTreeListing FsyncFsyncTree(string udid, string? bundleID = default, string? path = default);
+
+        /// <summary>
+        /// Recursively list a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Recursively list a device directory over AFC (CLI: &#x60;ios fsync tree&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <returns>ApiResponse of FsyncTreeListing</returns>
+        ApiResponse<FsyncTreeListing> FsyncFsyncTreeWithHttpInfo(string udid, string? bundleID = default, string? path = default);
+        /// <summary>
+        /// Get device cloud configuration
+        /// </summary>
+        /// <remarks>
+        /// Get the device cloud configuration (supervision status, skip-setup options, organization info).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>Object</returns>
+        Object FsyncGetCloudConfig(string udid);
+
+        /// <summary>
+        /// Get device cloud configuration
+        /// </summary>
+        /// <remarks>
+        /// Get the device cloud configuration (supervision status, skip-setup options, organization info).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> FsyncGetCloudConfigWithHttpInfo(string udid);
+        /// <summary>
+        /// List setup skip options
+        /// </summary>
+        /// <remarks>
+        /// List all setup-pane skip options usable when preparing a device (CLI: &#x60;ios prepare printskip&#x60;). Static, device-free list.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <returns>PrepareSkipOptions</returns>
+        PrepareSkipOptions GetPrepareSkipOptions();
+
+        /// <summary>
+        /// List setup skip options
+        /// </summary>
+        /// <remarks>
+        /// List all setup-pane skip options usable when preparing a device (CLI: &#x60;ios prepare printskip&#x60;). Static, device-free list.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <returns>ApiResponse of PrepareSkipOptions</returns>
+        ApiResponse<PrepareSkipOptions> GetPrepareSkipOptionsWithHttpInfo();
+        /// <summary>
         /// List devices
         /// </summary>
         /// <remarks>
@@ -1794,6 +2233,58 @@ namespace GoIos.Sdk.Generated.Api
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
         /// <returns>ApiResponse of List&lt;Tunnel&gt;</returns>
         ApiResponse<List<Tunnel>> ListTunnelsWithHttpInfo();
+        /// <summary>
+        /// Generate a supervision certificate
+        /// </summary>
+        /// <remarks>
+        /// Generate a self-signed supervision identity (CLI: &#x60;ios prepare create-cert&#x60;) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <returns>SupervisionCert</returns>
+        SupervisionCert PrepareCreateCert();
+
+        /// <summary>
+        /// Generate a supervision certificate
+        /// </summary>
+        /// <remarks>
+        /// Generate a self-signed supervision identity (CLI: &#x60;ios prepare create-cert&#x60;) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <returns>ApiResponse of SupervisionCert</returns>
+        ApiResponse<SupervisionCert> PrepareCreateCertWithHttpInfo();
+        /// <summary>
+        /// Prepare (and optionally supervise) a device
+        /// </summary>
+        /// <remarks>
+        /// Run the device preparation/provisioning flow (CLI: &#x60;ios prepare&#x60;). Send multipart/form-data. To supervise the device include a &#x60;cert&#x60; file (DER/PEM/P12 supervision identity) and optional &#x60;p12password&#x60;; without a cert the device is prepared without supervision.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cert"> (optional)</param>
+        /// <param name="p12password">P12 password (when &#x60;cert&#x60; is a P12). (optional)</param>
+        /// <param name="skip">Setup panes to skip (see /prepare/skip-options). Repeatable. (optional)</param>
+        /// <param name="orgname">Supervision organization name. (optional)</param>
+        /// <param name="locale">Device locale (default en_US). (optional)</param>
+        /// <param name="lang">Device language (default en). (optional)</param>
+        /// <returns>PrepareResult</returns>
+        PrepareResult PreparePrepareDevice(string udid, Object? cert = default, string? p12password = default, List<string>? skip = default, string? orgname = default, string? locale = default, string? lang = default);
+
+        /// <summary>
+        /// Prepare (and optionally supervise) a device
+        /// </summary>
+        /// <remarks>
+        /// Run the device preparation/provisioning flow (CLI: &#x60;ios prepare&#x60;). Send multipart/form-data. To supervise the device include a &#x60;cert&#x60; file (DER/PEM/P12 supervision identity) and optional &#x60;p12password&#x60;; without a cert the device is prepared without supervision.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cert"> (optional)</param>
+        /// <param name="p12password">P12 password (when &#x60;cert&#x60; is a P12). (optional)</param>
+        /// <param name="skip">Setup panes to skip (see /prepare/skip-options). Repeatable. (optional)</param>
+        /// <param name="orgname">Supervision organization name. (optional)</param>
+        /// <param name="locale">Device locale (default en_US). (optional)</param>
+        /// <param name="lang">Device language (default en). (optional)</param>
+        /// <returns>ApiResponse of PrepareResult</returns>
+        ApiResponse<PrepareResult> PreparePrepareDeviceWithHttpInfo(string udid, Object? cert = default, string? p12password = default, List<string>? skip = default, string? orgname = default, string? locale = default, string? lang = default);
         /// <summary>
         /// Refresh tunnel
         /// </summary>
@@ -1835,6 +2326,105 @@ namespace GoIos.Sdk.Generated.Api
         /// <returns>ApiResponse of AgentShutdown</returns>
         ApiResponse<AgentShutdown> ShutdownTunnelAgentWithHttpInfo();
         /// <summary>
+        /// Resign an app/IPA
+        /// </summary>
+        /// <remarks>
+        /// Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ipa"></param>
+        /// <param name="p12file"></param>
+        /// <param name="profile"></param>
+        /// <param name="p12password">P12 password. (optional)</param>
+        /// <param name="bundleid">Override bundle id. (optional)</param>
+        /// <returns>Object</returns>
+        Object SignApp(Object ipa, Object p12file, Object profile, string? p12password = default, string? bundleid = default);
+
+        /// <summary>
+        /// Resign an app/IPA
+        /// </summary>
+        /// <remarks>
+        /// Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ipa"></param>
+        /// <param name="p12file"></param>
+        /// <param name="profile"></param>
+        /// <param name="p12password">P12 password. (optional)</param>
+        /// <param name="bundleid">Override bundle id. (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> SignAppWithHttpInfo(Object ipa, Object p12file, Object profile, string? p12password = default, string? bundleid = default);
+        /// <summary>
+        /// Create a signing certificate
+        /// </summary>
+        /// <remarks>
+        /// Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable &#x60;application/x-pkcs12&#x60; file. The P12 password is echoed in the &#x60;X-P12-Password&#x60; response header and the certificate resource id in &#x60;X-Certificate-Id&#x60;. Host-scoped (device-free).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="revokeExisting">Revoke existing iOS Development certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <returns>Object</returns>
+        Object SignCertificate(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string? revokeExisting = default, string? p12password = default);
+
+        /// <summary>
+        /// Create a signing certificate
+        /// </summary>
+        /// <remarks>
+        /// Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable &#x60;application/x-pkcs12&#x60; file. The P12 password is echoed in the &#x60;X-P12-Password&#x60; response header and the certificate resource id in &#x60;X-Certificate-Id&#x60;. Host-scoped (device-free).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="revokeExisting">Revoke existing iOS Development certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> SignCertificateWithHttpInfo(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string? revokeExisting = default, string? p12password = default);
+        /// <summary>
+        /// Create a provisioning profile + P12
+        /// </summary>
+        /// <remarks>
+        /// Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="bundleid">App bundle identifier.</param>
+        /// <param name="udid">Target device udid to register against the profile.</param>
+        /// <param name="bundlename">Bundle display name. (optional)</param>
+        /// <param name="profilename">Provisioning profile name. (optional)</param>
+        /// <param name="devicename">Device display name. (optional)</param>
+        /// <param name="certificateId">Reuse an existing certificate (no new P12 is generated). (optional)</param>
+        /// <param name="revokeExisting">Revoke existing certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <returns>ProvisioningResult</returns>
+        ProvisioningResult SignProvision(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string bundleid, string udid, string? bundlename = default, string? profilename = default, string? devicename = default, string? certificateId = default, string? revokeExisting = default, string? p12password = default);
+
+        /// <summary>
+        /// Create a provisioning profile + P12
+        /// </summary>
+        /// <remarks>
+        /// Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="bundleid">App bundle identifier.</param>
+        /// <param name="udid">Target device udid to register against the profile.</param>
+        /// <param name="bundlename">Bundle display name. (optional)</param>
+        /// <param name="profilename">Provisioning profile name. (optional)</param>
+        /// <param name="devicename">Device display name. (optional)</param>
+        /// <param name="certificateId">Reuse an existing certificate (no new P12 is generated). (optional)</param>
+        /// <param name="revokeExisting">Revoke existing certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <returns>ApiResponse of ProvisioningResult</returns>
+        ApiResponse<ProvisioningResult> SignProvisionWithHttpInfo(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string bundleid, string udid, string? bundlename = default, string? profilename = default, string? devicename = default, string? certificateId = default, string? revokeExisting = default, string? p12password = default);
+        /// <summary>
         /// Stop tunnel
         /// </summary>
         /// <remarks>
@@ -1855,6 +2445,581 @@ namespace GoIos.Sdk.Generated.Api
         /// <param name="udid"></param>
         /// <returns>ApiResponse of TunnelStopped</returns>
         ApiResponse<TunnelStopped> StopTunnelWithHttpInfo(string udid);
+        /// <summary>
+        /// Stream a live pcap capture (binary)
+        /// </summary>
+        /// <remarks>
+        /// Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until &#x60;timeout&#x60; (seconds) elapses, the default timeout is reached, or the client disconnects.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Capture duration in seconds (default 60, max 3600). (optional)</param>
+        /// <returns>Object</returns>
+        Object StreamsPcap(string udid, int? timeout = default);
+
+        /// <summary>
+        /// Stream a live pcap capture (binary)
+        /// </summary>
+        /// <remarks>
+        /// Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until &#x60;timeout&#x60; (seconds) elapses, the default timeout is reached, or the client disconnects.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Capture duration in seconds (default 60, max 3600). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> StreamsPcapWithHttpInfo(string udid, int? timeout = default);
+        /// <summary>
+        /// Stream screenshots as MJPEG (binary)
+        /// </summary>
+        /// <remarks>
+        /// Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="quality">Optional JPEG quality (1–100, default 80). (optional)</param>
+        /// <returns>Object</returns>
+        Object StreamsScreenshotStream(string udid, int? quality = default);
+
+        /// <summary>
+        /// Stream screenshots as MJPEG (binary)
+        /// </summary>
+        /// <remarks>
+        /// Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="quality">Optional JPEG quality (1–100, default 80). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> StreamsScreenshotStreamWithHttpInfo(string udid, int? quality = default);
+        /// <summary>
+        /// Stream UI video (binary)
+        /// </summary>
+        /// <remarks>
+        /// Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); &#x60;codec&#x3D;h264&#x60; returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="codec">Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). (optional)</param>
+        /// <param name="fps">Target frames per second (backend-dependent). (optional)</param>
+        /// <param name="quality">JPEG quality for the mjpeg codec. (optional)</param>
+        /// <param name="scale">Scale factor (backend-dependent). (optional)</param>
+        /// <param name="bitrate">Target bitrate for the h264 codec. (optional)</param>
+        /// <returns>Object</returns>
+        Object StreamsUiStream(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, string? codec = default, string? fps = default, string? quality = default, string? scale = default, string? bitrate = default);
+
+        /// <summary>
+        /// Stream UI video (binary)
+        /// </summary>
+        /// <remarks>
+        /// Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); &#x60;codec&#x3D;h264&#x60; returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="codec">Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). (optional)</param>
+        /// <param name="fps">Target frames per second (backend-dependent). (optional)</param>
+        /// <param name="quality">JPEG quality for the mjpeg codec. (optional)</param>
+        /// <param name="scale">Scale factor (backend-dependent). (optional)</param>
+        /// <param name="bitrate">Target bitrate for the h264 codec. (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> StreamsUiStreamWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, string? codec = default, string? fps = default, string? quality = default, string? scale = default, string? bitrate = default);
+        /// <summary>
+        /// Raw backend passthrough
+        /// </summary>
+        /// <remarks>
+        /// Raw passthrough to the backend. For WDA supply &#x60;method&#x60;/&#x60;path&#x60;/&#x60;body&#x60;; for DeviceKit supply &#x60;rpcMethod&#x60;/&#x60;rpcParams&#x60;. The backend response is forwarded verbatim.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAPIRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiApi(string udid, UIAPIRequest uIAPIRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Raw backend passthrough
+        /// </summary>
+        /// <remarks>
+        /// Raw passthrough to the backend. For WDA supply &#x60;method&#x60;/&#x60;path&#x60;/&#x60;body&#x60;; for DeviceKit supply &#x60;rpcMethod&#x60;/&#x60;rpcParams&#x60;. The backend response is forwarded verbatim.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAPIRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiApiWithHttpInfo(string udid, UIAPIRequest uIAPIRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Foreground app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns &#x60;501&#x60;. The request body is ignored.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiAppForeground(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Foreground app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns &#x60;501&#x60;. The request body is ignored.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiAppForegroundWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Launch app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Launch the app identified by &#x60;bundleId&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiAppLaunch(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Launch app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Launch the app identified by &#x60;bundleId&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiAppLaunchWithHttpInfo(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Terminate app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Terminate the app identified by &#x60;bundleId&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiAppTerminate(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Terminate app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Terminate the app identified by &#x60;bundleId&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiAppTerminateWithHttpInfo(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Press hardware button
+        /// </summary>
+        /// <remarks>
+        /// Press a hardware button by name (WDA supports only &#x60;home&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIButtonRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiButton(string udid, UIButtonRequest uIButtonRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Press hardware button
+        /// </summary>
+        /// <remarks>
+        /// Press a hardware button by name (WDA supports only &#x60;home&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIButtonRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiButtonWithHttpInfo(string udid, UIButtonRequest uIButtonRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Get orientation
+        /// </summary>
+        /// <remarks>
+        /// Get the current device orientation payload.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiGetOrientation(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Get orientation
+        /// </summary>
+        /// <remarks>
+        /// Get the current device orientation payload.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiGetOrientationWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Long press
+        /// </summary>
+        /// <remarks>
+        /// Press and hold at (x,y).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uILongPressRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiLongPress(string udid, UILongPressRequest uILongPressRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Long press
+        /// </summary>
+        /// <remarks>
+        /// Press and hold at (x,y).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uILongPressRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiLongPressWithHttpInfo(string udid, UILongPressRequest uILongPressRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// UI screenshot (PNG)
+        /// </summary>
+        /// <remarks>
+        /// Capture the screen and return raw PNG bytes.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiScreenshot(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// UI screenshot (PNG)
+        /// </summary>
+        /// <remarks>
+        /// Capture the screen and return raw PNG bytes.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiScreenshotWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Set orientation
+        /// </summary>
+        /// <remarks>
+        /// Set the device orientation.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIOrientationRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiSetOrientation(string udid, UIOrientationRequest uIOrientationRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Set orientation
+        /// </summary>
+        /// <remarks>
+        /// Set the device orientation.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIOrientationRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiSetOrientationWithHttpInfo(string udid, UIOrientationRequest uIOrientationRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// UI source hierarchy
+        /// </summary>
+        /// <remarks>
+        /// Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiSource(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// UI source hierarchy
+        /// </summary>
+        /// <remarks>
+        /// Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiSourceWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// UI backend status
+        /// </summary>
+        /// <remarks>
+        /// Return the backend status/health payload (WDA /status or DeviceKit /health).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiStatus(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// UI backend status
+        /// </summary>
+        /// <remarks>
+        /// Return the backend status/health payload (WDA /status or DeviceKit /health).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiStatusWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Swipe
+        /// </summary>
+        /// <remarks>
+        /// Drag from (x1,y1) to (x2,y2).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uISwipeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiSwipe(string udid, UISwipeRequest uISwipeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Swipe
+        /// </summary>
+        /// <remarks>
+        /// Drag from (x1,y1) to (x2,y2).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uISwipeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiSwipeWithHttpInfo(string udid, UISwipeRequest uISwipeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Tap
+        /// </summary>
+        /// <remarks>
+        /// Tap at absolute coordinates.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITapRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiTap(string udid, UITapRequest uITapRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Tap
+        /// </summary>
+        /// <remarks>
+        /// Tap at absolute coordinates.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITapRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiTapWithHttpInfo(string udid, UITapRequest uITapRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Type text
+        /// </summary>
+        /// <remarks>
+        /// Send text as keyboard input.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITypeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiType(string udid, UITypeRequest uITypeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// Type text
+        /// </summary>
+        /// <remarks>
+        /// Send text as keyboard input.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITypeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiTypeWithHttpInfo(string udid, UITypeRequest uITypeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// UI window size
+        /// </summary>
+        /// <remarks>
+        /// Return the device window/screen size payload (typically {width,height}).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        Object UIUiWindowSize(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+
+        /// <summary>
+        /// UI window size
+        /// </summary>
+        /// <remarks>
+        /// Return the device window/screen size payload (typically {width,height}).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        ApiResponse<Object> UIUiWindowSizeWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default);
+        /// <summary>
+        /// Evaluate JavaScript in a page
+        /// </summary>
+        /// <remarks>
+        /// Evaluate JavaScript in an inspectable page and return the result (CLI: &#x60;ios webinspector eval&#x60;). &#x60;404&#x60; when no matching page exists.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="webInspectorEvalRequest"></param>
+        /// <returns>WebInspectorEvalResult</returns>
+        WebInspectorEvalResult WebInspectorWebInspectorEval(string udid, WebInspectorEvalRequest webInspectorEvalRequest);
+
+        /// <summary>
+        /// Evaluate JavaScript in a page
+        /// </summary>
+        /// <remarks>
+        /// Evaluate JavaScript in an inspectable page and return the result (CLI: &#x60;ios webinspector eval&#x60;). &#x60;404&#x60; when no matching page exists.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="webInspectorEvalRequest"></param>
+        /// <returns>ApiResponse of WebInspectorEvalResult</returns>
+        ApiResponse<WebInspectorEvalResult> WebInspectorWebInspectorEvalWithHttpInfo(string udid, WebInspectorEvalRequest webInspectorEvalRequest);
+        /// <summary>
+        /// Open a URL in a new inspectable page
+        /// </summary>
+        /// <remarks>
+        /// Open a URL in a new inspectable page via a remote automation session (CLI: &#x60;ios webinspector launch &lt;url&gt;&#x60;). &#x60;url&#x60; may be a query param or in the body; &#x60;bundleId&#x60; defaults to Safari.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="url">URL to open (alternative to the request body). (optional)</param>
+        /// <param name="webInspectorLaunchRequest"> (optional)</param>
+        /// <returns>WebInspectorLaunchResult</returns>
+        WebInspectorLaunchResult WebInspectorWebInspectorLaunch(string udid, string? url = default, WebInspectorLaunchRequest? webInspectorLaunchRequest = default);
+
+        /// <summary>
+        /// Open a URL in a new inspectable page
+        /// </summary>
+        /// <remarks>
+        /// Open a URL in a new inspectable page via a remote automation session (CLI: &#x60;ios webinspector launch &lt;url&gt;&#x60;). &#x60;url&#x60; may be a query param or in the body; &#x60;bundleId&#x60; defaults to Safari.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="url">URL to open (alternative to the request body). (optional)</param>
+        /// <param name="webInspectorLaunchRequest"> (optional)</param>
+        /// <returns>ApiResponse of WebInspectorLaunchResult</returns>
+        ApiResponse<WebInspectorLaunchResult> WebInspectorWebInspectorLaunchWithHttpInfo(string udid, string? url = default, WebInspectorLaunchRequest? webInspectorLaunchRequest = default);
+        /// <summary>
+        /// List inspectable pages
+        /// </summary>
+        /// <remarks>
+        /// List inspectable pages reported by the device (CLI: &#x60;ios webinspector list&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>List&lt;Object&gt;</returns>
+        List<Object> WebInspectorWebInspectorPages(string udid);
+
+        /// <summary>
+        /// List inspectable pages
+        /// </summary>
+        /// <remarks>
+        /// List inspectable pages reported by the device (CLI: &#x60;ios webinspector list&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of List&lt;Object&gt;</returns>
+        ApiResponse<List<Object>> WebInspectorWebInspectorPagesWithHttpInfo(string udid);
         #endregion Synchronous Operations
     }
 
@@ -1864,6 +3029,179 @@ namespace GoIos.Sdk.Generated.Api
     public interface IDefaultApiAsync : IApiAccessor
     {
         #region Asynchronous Operations
+        /// <summary>
+        /// Get accessibility element snapshot
+        /// </summary>
+        /// <remarks>
+        /// Get a snapshot of the currently focused accessibility element (CLI: &#x60;ios ax&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> AccessibilityGetAxSnapshotAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get accessibility element snapshot
+        /// </summary>
+        /// <remarks>
+        /// Get a snapshot of the currently focused accessibility element (CLI: &#x60;ios ax&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> AccessibilityGetAxSnapshotWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Get VoiceOver state
+        /// </summary>
+        /// <remarks>
+        /// Get VoiceOver enabled state (CLI: &#x60;ios voiceover get&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of VoiceOverState</returns>
+        System.Threading.Tasks.Task<VoiceOverState> AccessibilityGetVoiceOverAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get VoiceOver state
+        /// </summary>
+        /// <remarks>
+        /// Get VoiceOver enabled state (CLI: &#x60;ios voiceover get&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (VoiceOverState)</returns>
+        System.Threading.Tasks.Task<ApiResponse<VoiceOverState>> AccessibilityGetVoiceOverWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Get ZoomTouch state
+        /// </summary>
+        /// <remarks>
+        /// Get ZoomTouch enabled state (CLI: &#x60;ios zoomtouch get&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ZoomTouchState</returns>
+        System.Threading.Tasks.Task<ZoomTouchState> AccessibilityGetZoomTouchAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get ZoomTouch state
+        /// </summary>
+        /// <remarks>
+        /// Get ZoomTouch enabled state (CLI: &#x60;ios zoomtouch get&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (ZoomTouchState)</returns>
+        System.Threading.Tasks.Task<ApiResponse<ZoomTouchState>> AccessibilityGetZoomTouchWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Run accessibility audit
+        /// </summary>
+        /// <remarks>
+        /// Run the accessibility audit against the focused app and return the issues found (CLI: &#x60;ios ax audit&#x60;). Bounded by &#x60;timeout&#x60; (seconds, default 60).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Audit timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of List&lt;Object&gt;</returns>
+        System.Threading.Tasks.Task<List<Object>> AccessibilityRunAxAuditAsync(string udid, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Run accessibility audit
+        /// </summary>
+        /// <remarks>
+        /// Run the accessibility audit against the focused app and return the issues found (CLI: &#x60;ios ax audit&#x60;). Bounded by &#x60;timeout&#x60; (seconds, default 60).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Audit timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (List&lt;Object&gt;)</returns>
+        System.Threading.Tasks.Task<ApiResponse<List<Object>>> AccessibilityRunAxAuditWithHttpInfoAsync(string udid, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Simulate location from a GPX file
+        /// </summary>
+        /// <remarks>
+        /// Simulate live location tracking from an uploaded GPX file (CLI: &#x60;ios setlocationgpx&#x60;). Send multipart/form-data with a &#x60;gpx&#x60; file.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="gpx"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of GenericResponse</returns>
+        System.Threading.Tasks.Task<GenericResponse> AccessibilitySetLocationGpxAsync(string udid, Object gpx, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Simulate location from a GPX file
+        /// </summary>
+        /// <remarks>
+        /// Simulate live location tracking from an uploaded GPX file (CLI: &#x60;ios setlocationgpx&#x60;). Send multipart/form-data with a &#x60;gpx&#x60; file.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="gpx"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (GenericResponse)</returns>
+        System.Threading.Tasks.Task<ApiResponse<GenericResponse>> AccessibilitySetLocationGpxWithHttpInfoAsync(string udid, Object gpx, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Set VoiceOver state
+        /// </summary>
+        /// <remarks>
+        /// Enable/disable VoiceOver (CLI: &#x60;ios voiceover enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of VoiceOverState</returns>
+        System.Threading.Tasks.Task<VoiceOverState> AccessibilitySetVoiceOverAsync(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Set VoiceOver state
+        /// </summary>
+        /// <remarks>
+        /// Enable/disable VoiceOver (CLI: &#x60;ios voiceover enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (VoiceOverState)</returns>
+        System.Threading.Tasks.Task<ApiResponse<VoiceOverState>> AccessibilitySetVoiceOverWithHttpInfoAsync(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Set ZoomTouch state
+        /// </summary>
+        /// <remarks>
+        /// Enable/disable ZoomTouch (CLI: &#x60;ios zoomtouch enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ZoomTouchState</returns>
+        System.Threading.Tasks.Task<ZoomTouchState> AccessibilitySetZoomTouchAsync(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Set ZoomTouch state
+        /// </summary>
+        /// <remarks>
+        /// Enable/disable ZoomTouch (CLI: &#x60;ios zoomtouch enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (ZoomTouchState)</returns>
+        System.Threading.Tasks.Task<ApiResponse<ZoomTouchState>> AccessibilitySetZoomTouchWithHttpInfoAsync(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default, System.Threading.CancellationToken cancellationToken = default);
         /// <summary>
         /// Activate device
         /// </summary>
@@ -2277,25 +3615,27 @@ namespace GoIos.Sdk.Generated.Api
         /// Get lockdown values
         /// </summary>
         /// <remarks>
-        /// Get all lockdown values (CLI: &#x60;ios lockdown get&#x60;).
+        /// Get lockdown values (CLI: &#x60;ios lockdown get&#x60;). Without &#x60;domain&#x60; the full set is returned; with &#x60;domain&#x60; the values are scoped to that lockdown domain.
         /// </remarks>
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
         /// <param name="udid"></param>
+        /// <param name="domain">Optional lockdown domain to scope the returned values. (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns>Task of Object</returns>
-        System.Threading.Tasks.Task<Object> DevicesGetLockdownValuesAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.Task<Object> DevicesGetLockdownValuesAsync(string udid, string? domain = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get lockdown values
         /// </summary>
         /// <remarks>
-        /// Get all lockdown values (CLI: &#x60;ios lockdown get&#x60;).
+        /// Get lockdown values (CLI: &#x60;ios lockdown get&#x60;). Without &#x60;domain&#x60; the full set is returned; with &#x60;domain&#x60; the values are scoped to that lockdown domain.
         /// </remarks>
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
         /// <param name="udid"></param>
+        /// <param name="domain">Optional lockdown domain to scope the returned values. (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns>Task of ApiResponse (Object)</returns>
-        System.Threading.Tasks.Task<ApiResponse<Object>> DevicesGetLockdownValuesWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.Task<ApiResponse<Object>> DevicesGetLockdownValuesWithHttpInfoAsync(string udid, string? domain = default, System.Threading.CancellationToken cancellationToken = default);
         /// <summary>
         /// Query MobileGestalt
         /// </summary>
@@ -3744,6 +5084,308 @@ namespace GoIos.Sdk.Generated.Api
         /// <returns>Task of ApiResponse (GenericResponse)</returns>
         System.Threading.Tasks.Task<ApiResponse<GenericResponse>> DevicesUnmountImageWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
         /// <summary>
+        /// Get battery IORegistry
+        /// </summary>
+        /// <remarks>
+        /// Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: &#x60;ios diagnostics ioregistry&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of BatteryRegistry</returns>
+        System.Threading.Tasks.Task<BatteryRegistry> DiagnosticsNetGetBatteryRegistryAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get battery IORegistry
+        /// </summary>
+        /// <remarks>
+        /// Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: &#x60;ios diagnostics ioregistry&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (BatteryRegistry)</returns>
+        System.Threading.Tasks.Task<ApiResponse<BatteryRegistry>> DiagnosticsNetGetBatteryRegistryWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Get device IP / network info
+        /// </summary>
+        /// <remarks>
+        /// Resolve the device&#39;s network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: &#x60;ios ip&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of NetworkInfo</returns>
+        System.Threading.Tasks.Task<NetworkInfo> DiagnosticsNetGetDeviceIpAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get device IP / network info
+        /// </summary>
+        /// <remarks>
+        /// Resolve the device&#39;s network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: &#x60;ios ip&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (NetworkInfo)</returns>
+        System.Threading.Tasks.Task<ApiResponse<NetworkInfo>> DiagnosticsNetGetDeviceIpWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Get disk space info
+        /// </summary>
+        /// <remarks>
+        /// Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: &#x60;ios diskspace&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of DiskSpaceInfo</returns>
+        System.Threading.Tasks.Task<DiskSpaceInfo> DiagnosticsNetGetDiskSpaceAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get disk space info
+        /// </summary>
+        /// <remarks>
+        /// Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: &#x60;ios diskspace&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (DiskSpaceInfo)</returns>
+        System.Threading.Tasks.Task<ApiResponse<DiskSpaceInfo>> DiagnosticsNetGetDiskSpaceWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Get RSD service list
+        /// </summary>
+        /// <remarks>
+        /// Get the device&#39;s RSD (Remote Service Discovery) service list (CLI: &#x60;ios rsd ls&#x60;). Requires a running tunnel (iOS 17+); devices without RSD return &#x60;400&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> DiagnosticsNetGetRsdServicesAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get RSD service list
+        /// </summary>
+        /// <remarks>
+        /// Get the device&#39;s RSD (Remote Service Discovery) service list (CLI: &#x60;ios rsd ls&#x60;). Requires a running tunnel (iOS 17+); devices without RSD return &#x60;400&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> DiagnosticsNetGetRsdServicesWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// List a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// List a device directory over AFC (CLI: &#x60;ios fsync ls&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of FsyncListing</returns>
+        System.Threading.Tasks.Task<FsyncListing> FsyncFsyncLsAsync(string udid, string? bundleID = default, string? path = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// List a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// List a device directory over AFC (CLI: &#x60;ios fsync ls&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (FsyncListing)</returns>
+        System.Threading.Tasks.Task<ApiResponse<FsyncListing>> FsyncFsyncLsWithHttpInfoAsync(string udid, string? bundleID = default, string? path = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Create a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Create a directory over AFC (CLI: &#x60;ios fsync mkdir&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Directory path to create (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of FsyncMessage</returns>
+        System.Threading.Tasks.Task<FsyncMessage> FsyncFsyncMkdirAsync(string udid, string path, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Create a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Create a directory over AFC (CLI: &#x60;ios fsync mkdir&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Directory path to create (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (FsyncMessage)</returns>
+        System.Threading.Tasks.Task<ApiResponse<FsyncMessage>> FsyncFsyncMkdirWithHttpInfoAsync(string udid, string path, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Download a file over AFC
+        /// </summary>
+        /// <remarks>
+        /// Download a file from the device over AFC (CLI: &#x60;ios fsync pull&#x60;). Returns the raw file bytes. &#x60;path&#x60; is required.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Remote file path on the device (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> FsyncFsyncPullAsync(string udid, string path, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Download a file over AFC
+        /// </summary>
+        /// <remarks>
+        /// Download a file from the device over AFC (CLI: &#x60;ios fsync pull&#x60;). Returns the raw file bytes. &#x60;path&#x60; is required.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Remote file path on the device (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> FsyncFsyncPullWithHttpInfoAsync(string udid, string path, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Upload a file over AFC
+        /// </summary>
+        /// <remarks>
+        /// Upload a file to the device over AFC (CLI: &#x60;ios fsync push&#x60;). Accepts either raw bytes (application/octet-stream) or a multipart form with a &#x60;file&#x60; field. &#x60;path&#x60; is required. Bounded server-side; oversized uploads get &#x60;413&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Destination path on the device (required).</param>
+        /// <param name="body">Raw file bytes to upload (application/octet-stream).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of FsyncPushResult</returns>
+        System.Threading.Tasks.Task<FsyncPushResult> FsyncFsyncPushAsync(string udid, string path, Object body, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Upload a file over AFC
+        /// </summary>
+        /// <remarks>
+        /// Upload a file to the device over AFC (CLI: &#x60;ios fsync push&#x60;). Accepts either raw bytes (application/octet-stream) or a multipart form with a &#x60;file&#x60; field. &#x60;path&#x60; is required. Bounded server-side; oversized uploads get &#x60;413&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Destination path on the device (required).</param>
+        /// <param name="body">Raw file bytes to upload (application/octet-stream).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (FsyncPushResult)</returns>
+        System.Threading.Tasks.Task<ApiResponse<FsyncPushResult>> FsyncFsyncPushWithHttpInfoAsync(string udid, string path, Object body, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Remove a file or directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Remove a file or directory over AFC (CLI: &#x60;ios fsync rm&#x60;). Pass &#x60;recursive&#x3D;true&#x60; to delete a non-empty directory.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Path to remove (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="recursive">Remove directory contents recursively. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of FsyncMessage</returns>
+        System.Threading.Tasks.Task<FsyncMessage> FsyncFsyncRmAsync(string udid, string path, string? bundleID = default, bool? recursive = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Remove a file or directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Remove a file or directory over AFC (CLI: &#x60;ios fsync rm&#x60;). Pass &#x60;recursive&#x3D;true&#x60; to delete a non-empty directory.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Path to remove (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="recursive">Remove directory contents recursively. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (FsyncMessage)</returns>
+        System.Threading.Tasks.Task<ApiResponse<FsyncMessage>> FsyncFsyncRmWithHttpInfoAsync(string udid, string path, string? bundleID = default, bool? recursive = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Recursively list a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Recursively list a device directory over AFC (CLI: &#x60;ios fsync tree&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of FsyncTreeListing</returns>
+        System.Threading.Tasks.Task<FsyncTreeListing> FsyncFsyncTreeAsync(string udid, string? bundleID = default, string? path = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Recursively list a directory over AFC
+        /// </summary>
+        /// <remarks>
+        /// Recursively list a device directory over AFC (CLI: &#x60;ios fsync tree&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (FsyncTreeListing)</returns>
+        System.Threading.Tasks.Task<ApiResponse<FsyncTreeListing>> FsyncFsyncTreeWithHttpInfoAsync(string udid, string? bundleID = default, string? path = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Get device cloud configuration
+        /// </summary>
+        /// <remarks>
+        /// Get the device cloud configuration (supervision status, skip-setup options, organization info).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> FsyncGetCloudConfigAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get device cloud configuration
+        /// </summary>
+        /// <remarks>
+        /// Get the device cloud configuration (supervision status, skip-setup options, organization info).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> FsyncGetCloudConfigWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// List setup skip options
+        /// </summary>
+        /// <remarks>
+        /// List all setup-pane skip options usable when preparing a device (CLI: &#x60;ios prepare printskip&#x60;). Static, device-free list.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of PrepareSkipOptions</returns>
+        System.Threading.Tasks.Task<PrepareSkipOptions> GetPrepareSkipOptionsAsync(System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// List setup skip options
+        /// </summary>
+        /// <remarks>
+        /// List all setup-pane skip options usable when preparing a device (CLI: &#x60;ios prepare printskip&#x60;). Static, device-free list.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (PrepareSkipOptions)</returns>
+        System.Threading.Tasks.Task<ApiResponse<PrepareSkipOptions>> GetPrepareSkipOptionsWithHttpInfoAsync(System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
         /// List devices
         /// </summary>
         /// <remarks>
@@ -3785,6 +5427,62 @@ namespace GoIos.Sdk.Generated.Api
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns>Task of ApiResponse (List&lt;Tunnel&gt;)</returns>
         System.Threading.Tasks.Task<ApiResponse<List<Tunnel>>> ListTunnelsWithHttpInfoAsync(System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Generate a supervision certificate
+        /// </summary>
+        /// <remarks>
+        /// Generate a self-signed supervision identity (CLI: &#x60;ios prepare create-cert&#x60;) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of SupervisionCert</returns>
+        System.Threading.Tasks.Task<SupervisionCert> PrepareCreateCertAsync(System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Generate a supervision certificate
+        /// </summary>
+        /// <remarks>
+        /// Generate a self-signed supervision identity (CLI: &#x60;ios prepare create-cert&#x60;) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (SupervisionCert)</returns>
+        System.Threading.Tasks.Task<ApiResponse<SupervisionCert>> PrepareCreateCertWithHttpInfoAsync(System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Prepare (and optionally supervise) a device
+        /// </summary>
+        /// <remarks>
+        /// Run the device preparation/provisioning flow (CLI: &#x60;ios prepare&#x60;). Send multipart/form-data. To supervise the device include a &#x60;cert&#x60; file (DER/PEM/P12 supervision identity) and optional &#x60;p12password&#x60;; without a cert the device is prepared without supervision.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cert"> (optional)</param>
+        /// <param name="p12password">P12 password (when &#x60;cert&#x60; is a P12). (optional)</param>
+        /// <param name="skip">Setup panes to skip (see /prepare/skip-options). Repeatable. (optional)</param>
+        /// <param name="orgname">Supervision organization name. (optional)</param>
+        /// <param name="locale">Device locale (default en_US). (optional)</param>
+        /// <param name="lang">Device language (default en). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of PrepareResult</returns>
+        System.Threading.Tasks.Task<PrepareResult> PreparePrepareDeviceAsync(string udid, Object? cert = default, string? p12password = default, List<string>? skip = default, string? orgname = default, string? locale = default, string? lang = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Prepare (and optionally supervise) a device
+        /// </summary>
+        /// <remarks>
+        /// Run the device preparation/provisioning flow (CLI: &#x60;ios prepare&#x60;). Send multipart/form-data. To supervise the device include a &#x60;cert&#x60; file (DER/PEM/P12 supervision identity) and optional &#x60;p12password&#x60;; without a cert the device is prepared without supervision.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cert"> (optional)</param>
+        /// <param name="p12password">P12 password (when &#x60;cert&#x60; is a P12). (optional)</param>
+        /// <param name="skip">Setup panes to skip (see /prepare/skip-options). Repeatable. (optional)</param>
+        /// <param name="orgname">Supervision organization name. (optional)</param>
+        /// <param name="locale">Device locale (default en_US). (optional)</param>
+        /// <param name="lang">Device language (default en). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (PrepareResult)</returns>
+        System.Threading.Tasks.Task<ApiResponse<PrepareResult>> PreparePrepareDeviceWithHttpInfoAsync(string udid, Object? cert = default, string? p12password = default, List<string>? skip = default, string? orgname = default, string? locale = default, string? lang = default, System.Threading.CancellationToken cancellationToken = default);
         /// <summary>
         /// Refresh tunnel
         /// </summary>
@@ -3830,6 +5528,111 @@ namespace GoIos.Sdk.Generated.Api
         /// <returns>Task of ApiResponse (AgentShutdown)</returns>
         System.Threading.Tasks.Task<ApiResponse<AgentShutdown>> ShutdownTunnelAgentWithHttpInfoAsync(System.Threading.CancellationToken cancellationToken = default);
         /// <summary>
+        /// Resign an app/IPA
+        /// </summary>
+        /// <remarks>
+        /// Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ipa"></param>
+        /// <param name="p12file"></param>
+        /// <param name="profile"></param>
+        /// <param name="p12password">P12 password. (optional)</param>
+        /// <param name="bundleid">Override bundle id. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> SignAppAsync(Object ipa, Object p12file, Object profile, string? p12password = default, string? bundleid = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resign an app/IPA
+        /// </summary>
+        /// <remarks>
+        /// Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ipa"></param>
+        /// <param name="p12file"></param>
+        /// <param name="profile"></param>
+        /// <param name="p12password">P12 password. (optional)</param>
+        /// <param name="bundleid">Override bundle id. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> SignAppWithHttpInfoAsync(Object ipa, Object p12file, Object profile, string? p12password = default, string? bundleid = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Create a signing certificate
+        /// </summary>
+        /// <remarks>
+        /// Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable &#x60;application/x-pkcs12&#x60; file. The P12 password is echoed in the &#x60;X-P12-Password&#x60; response header and the certificate resource id in &#x60;X-Certificate-Id&#x60;. Host-scoped (device-free).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="revokeExisting">Revoke existing iOS Development certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> SignCertificateAsync(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string? revokeExisting = default, string? p12password = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Create a signing certificate
+        /// </summary>
+        /// <remarks>
+        /// Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable &#x60;application/x-pkcs12&#x60; file. The P12 password is echoed in the &#x60;X-P12-Password&#x60; response header and the certificate resource id in &#x60;X-Certificate-Id&#x60;. Host-scoped (device-free).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="revokeExisting">Revoke existing iOS Development certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> SignCertificateWithHttpInfoAsync(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string? revokeExisting = default, string? p12password = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Create a provisioning profile + P12
+        /// </summary>
+        /// <remarks>
+        /// Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="bundleid">App bundle identifier.</param>
+        /// <param name="udid">Target device udid to register against the profile.</param>
+        /// <param name="bundlename">Bundle display name. (optional)</param>
+        /// <param name="profilename">Provisioning profile name. (optional)</param>
+        /// <param name="devicename">Device display name. (optional)</param>
+        /// <param name="certificateId">Reuse an existing certificate (no new P12 is generated). (optional)</param>
+        /// <param name="revokeExisting">Revoke existing certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ProvisioningResult</returns>
+        System.Threading.Tasks.Task<ProvisioningResult> SignProvisionAsync(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string bundleid, string udid, string? bundlename = default, string? profilename = default, string? devicename = default, string? certificateId = default, string? revokeExisting = default, string? p12password = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Create a provisioning profile + P12
+        /// </summary>
+        /// <remarks>
+        /// Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="bundleid">App bundle identifier.</param>
+        /// <param name="udid">Target device udid to register against the profile.</param>
+        /// <param name="bundlename">Bundle display name. (optional)</param>
+        /// <param name="profilename">Provisioning profile name. (optional)</param>
+        /// <param name="devicename">Device display name. (optional)</param>
+        /// <param name="certificateId">Reuse an existing certificate (no new P12 is generated). (optional)</param>
+        /// <param name="revokeExisting">Revoke existing certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (ProvisioningResult)</returns>
+        System.Threading.Tasks.Task<ApiResponse<ProvisioningResult>> SignProvisionWithHttpInfoAsync(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string bundleid, string udid, string? bundlename = default, string? profilename = default, string? devicename = default, string? certificateId = default, string? revokeExisting = default, string? p12password = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
         /// Stop tunnel
         /// </summary>
         /// <remarks>
@@ -3852,6 +5655,623 @@ namespace GoIos.Sdk.Generated.Api
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns>Task of ApiResponse (TunnelStopped)</returns>
         System.Threading.Tasks.Task<ApiResponse<TunnelStopped>> StopTunnelWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Stream a live pcap capture (binary)
+        /// </summary>
+        /// <remarks>
+        /// Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until &#x60;timeout&#x60; (seconds) elapses, the default timeout is reached, or the client disconnects.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Capture duration in seconds (default 60, max 3600). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> StreamsPcapAsync(string udid, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Stream a live pcap capture (binary)
+        /// </summary>
+        /// <remarks>
+        /// Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until &#x60;timeout&#x60; (seconds) elapses, the default timeout is reached, or the client disconnects.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Capture duration in seconds (default 60, max 3600). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> StreamsPcapWithHttpInfoAsync(string udid, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Stream screenshots as MJPEG (binary)
+        /// </summary>
+        /// <remarks>
+        /// Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="quality">Optional JPEG quality (1–100, default 80). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> StreamsScreenshotStreamAsync(string udid, int? quality = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Stream screenshots as MJPEG (binary)
+        /// </summary>
+        /// <remarks>
+        /// Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="quality">Optional JPEG quality (1–100, default 80). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> StreamsScreenshotStreamWithHttpInfoAsync(string udid, int? quality = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Stream UI video (binary)
+        /// </summary>
+        /// <remarks>
+        /// Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); &#x60;codec&#x3D;h264&#x60; returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="codec">Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). (optional)</param>
+        /// <param name="fps">Target frames per second (backend-dependent). (optional)</param>
+        /// <param name="quality">JPEG quality for the mjpeg codec. (optional)</param>
+        /// <param name="scale">Scale factor (backend-dependent). (optional)</param>
+        /// <param name="bitrate">Target bitrate for the h264 codec. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> StreamsUiStreamAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, string? codec = default, string? fps = default, string? quality = default, string? scale = default, string? bitrate = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Stream UI video (binary)
+        /// </summary>
+        /// <remarks>
+        /// Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); &#x60;codec&#x3D;h264&#x60; returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="codec">Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). (optional)</param>
+        /// <param name="fps">Target frames per second (backend-dependent). (optional)</param>
+        /// <param name="quality">JPEG quality for the mjpeg codec. (optional)</param>
+        /// <param name="scale">Scale factor (backend-dependent). (optional)</param>
+        /// <param name="bitrate">Target bitrate for the h264 codec. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> StreamsUiStreamWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, string? codec = default, string? fps = default, string? quality = default, string? scale = default, string? bitrate = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Raw backend passthrough
+        /// </summary>
+        /// <remarks>
+        /// Raw passthrough to the backend. For WDA supply &#x60;method&#x60;/&#x60;path&#x60;/&#x60;body&#x60;; for DeviceKit supply &#x60;rpcMethod&#x60;/&#x60;rpcParams&#x60;. The backend response is forwarded verbatim.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAPIRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiApiAsync(string udid, UIAPIRequest uIAPIRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Raw backend passthrough
+        /// </summary>
+        /// <remarks>
+        /// Raw passthrough to the backend. For WDA supply &#x60;method&#x60;/&#x60;path&#x60;/&#x60;body&#x60;; for DeviceKit supply &#x60;rpcMethod&#x60;/&#x60;rpcParams&#x60;. The backend response is forwarded verbatim.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAPIRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiApiWithHttpInfoAsync(string udid, UIAPIRequest uIAPIRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Foreground app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns &#x60;501&#x60;. The request body is ignored.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiAppForegroundAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Foreground app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns &#x60;501&#x60;. The request body is ignored.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiAppForegroundWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Launch app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Launch the app identified by &#x60;bundleId&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiAppLaunchAsync(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Launch app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Launch the app identified by &#x60;bundleId&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiAppLaunchWithHttpInfoAsync(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Terminate app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Terminate the app identified by &#x60;bundleId&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiAppTerminateAsync(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Terminate app (UI backend)
+        /// </summary>
+        /// <remarks>
+        /// Terminate the app identified by &#x60;bundleId&#x60;.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiAppTerminateWithHttpInfoAsync(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Press hardware button
+        /// </summary>
+        /// <remarks>
+        /// Press a hardware button by name (WDA supports only &#x60;home&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIButtonRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiButtonAsync(string udid, UIButtonRequest uIButtonRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Press hardware button
+        /// </summary>
+        /// <remarks>
+        /// Press a hardware button by name (WDA supports only &#x60;home&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIButtonRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiButtonWithHttpInfoAsync(string udid, UIButtonRequest uIButtonRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Get orientation
+        /// </summary>
+        /// <remarks>
+        /// Get the current device orientation payload.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiGetOrientationAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get orientation
+        /// </summary>
+        /// <remarks>
+        /// Get the current device orientation payload.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiGetOrientationWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Long press
+        /// </summary>
+        /// <remarks>
+        /// Press and hold at (x,y).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uILongPressRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiLongPressAsync(string udid, UILongPressRequest uILongPressRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Long press
+        /// </summary>
+        /// <remarks>
+        /// Press and hold at (x,y).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uILongPressRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiLongPressWithHttpInfoAsync(string udid, UILongPressRequest uILongPressRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// UI screenshot (PNG)
+        /// </summary>
+        /// <remarks>
+        /// Capture the screen and return raw PNG bytes.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiScreenshotAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// UI screenshot (PNG)
+        /// </summary>
+        /// <remarks>
+        /// Capture the screen and return raw PNG bytes.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiScreenshotWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Set orientation
+        /// </summary>
+        /// <remarks>
+        /// Set the device orientation.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIOrientationRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiSetOrientationAsync(string udid, UIOrientationRequest uIOrientationRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Set orientation
+        /// </summary>
+        /// <remarks>
+        /// Set the device orientation.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIOrientationRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiSetOrientationWithHttpInfoAsync(string udid, UIOrientationRequest uIOrientationRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// UI source hierarchy
+        /// </summary>
+        /// <remarks>
+        /// Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiSourceAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// UI source hierarchy
+        /// </summary>
+        /// <remarks>
+        /// Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiSourceWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// UI backend status
+        /// </summary>
+        /// <remarks>
+        /// Return the backend status/health payload (WDA /status or DeviceKit /health).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiStatusAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// UI backend status
+        /// </summary>
+        /// <remarks>
+        /// Return the backend status/health payload (WDA /status or DeviceKit /health).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiStatusWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Swipe
+        /// </summary>
+        /// <remarks>
+        /// Drag from (x1,y1) to (x2,y2).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uISwipeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiSwipeAsync(string udid, UISwipeRequest uISwipeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Swipe
+        /// </summary>
+        /// <remarks>
+        /// Drag from (x1,y1) to (x2,y2).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uISwipeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiSwipeWithHttpInfoAsync(string udid, UISwipeRequest uISwipeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Tap
+        /// </summary>
+        /// <remarks>
+        /// Tap at absolute coordinates.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITapRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiTapAsync(string udid, UITapRequest uITapRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Tap
+        /// </summary>
+        /// <remarks>
+        /// Tap at absolute coordinates.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITapRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiTapWithHttpInfoAsync(string udid, UITapRequest uITapRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Type text
+        /// </summary>
+        /// <remarks>
+        /// Send text as keyboard input.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITypeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiTypeAsync(string udid, UITypeRequest uITypeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Type text
+        /// </summary>
+        /// <remarks>
+        /// Send text as keyboard input.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITypeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiTypeWithHttpInfoAsync(string udid, UITypeRequest uITypeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// UI window size
+        /// </summary>
+        /// <remarks>
+        /// Return the device window/screen size payload (typically {width,height}).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        System.Threading.Tasks.Task<Object> UIUiWindowSizeAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// UI window size
+        /// </summary>
+        /// <remarks>
+        /// Return the device window/screen size payload (typically {width,height}).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        System.Threading.Tasks.Task<ApiResponse<Object>> UIUiWindowSizeWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Evaluate JavaScript in a page
+        /// </summary>
+        /// <remarks>
+        /// Evaluate JavaScript in an inspectable page and return the result (CLI: &#x60;ios webinspector eval&#x60;). &#x60;404&#x60; when no matching page exists.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="webInspectorEvalRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of WebInspectorEvalResult</returns>
+        System.Threading.Tasks.Task<WebInspectorEvalResult> WebInspectorWebInspectorEvalAsync(string udid, WebInspectorEvalRequest webInspectorEvalRequest, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Evaluate JavaScript in a page
+        /// </summary>
+        /// <remarks>
+        /// Evaluate JavaScript in an inspectable page and return the result (CLI: &#x60;ios webinspector eval&#x60;). &#x60;404&#x60; when no matching page exists.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="webInspectorEvalRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (WebInspectorEvalResult)</returns>
+        System.Threading.Tasks.Task<ApiResponse<WebInspectorEvalResult>> WebInspectorWebInspectorEvalWithHttpInfoAsync(string udid, WebInspectorEvalRequest webInspectorEvalRequest, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Open a URL in a new inspectable page
+        /// </summary>
+        /// <remarks>
+        /// Open a URL in a new inspectable page via a remote automation session (CLI: &#x60;ios webinspector launch &lt;url&gt;&#x60;). &#x60;url&#x60; may be a query param or in the body; &#x60;bundleId&#x60; defaults to Safari.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="url">URL to open (alternative to the request body). (optional)</param>
+        /// <param name="webInspectorLaunchRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of WebInspectorLaunchResult</returns>
+        System.Threading.Tasks.Task<WebInspectorLaunchResult> WebInspectorWebInspectorLaunchAsync(string udid, string? url = default, WebInspectorLaunchRequest? webInspectorLaunchRequest = default, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Open a URL in a new inspectable page
+        /// </summary>
+        /// <remarks>
+        /// Open a URL in a new inspectable page via a remote automation session (CLI: &#x60;ios webinspector launch &lt;url&gt;&#x60;). &#x60;url&#x60; may be a query param or in the body; &#x60;bundleId&#x60; defaults to Safari.
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="url">URL to open (alternative to the request body). (optional)</param>
+        /// <param name="webInspectorLaunchRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (WebInspectorLaunchResult)</returns>
+        System.Threading.Tasks.Task<ApiResponse<WebInspectorLaunchResult>> WebInspectorWebInspectorLaunchWithHttpInfoAsync(string udid, string? url = default, WebInspectorLaunchRequest? webInspectorLaunchRequest = default, System.Threading.CancellationToken cancellationToken = default);
+        /// <summary>
+        /// List inspectable pages
+        /// </summary>
+        /// <remarks>
+        /// List inspectable pages reported by the device (CLI: &#x60;ios webinspector list&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of List&lt;Object&gt;</returns>
+        System.Threading.Tasks.Task<List<Object>> WebInspectorWebInspectorPagesAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// List inspectable pages
+        /// </summary>
+        /// <remarks>
+        /// List inspectable pages reported by the device (CLI: &#x60;ios webinspector list&#x60;).
+        /// </remarks>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (List&lt;Object&gt;)</returns>
+        System.Threading.Tasks.Task<ApiResponse<List<Object>>> WebInspectorWebInspectorPagesWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default);
         #endregion Asynchronous Operations
     }
 
@@ -4063,6 +6483,963 @@ namespace GoIos.Sdk.Generated.Api
                 return _exceptionFactory;
             }
             set { _exceptionFactory = value; }
+        }
+
+        /// <summary>
+        /// Get accessibility element snapshot Get a snapshot of the currently focused accessibility element (CLI: &#x60;ios ax&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>Object</returns>
+        public Object AccessibilityGetAxSnapshot(string udid)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = AccessibilityGetAxSnapshotWithHttpInfo(udid);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get accessibility element snapshot Get a snapshot of the currently focused accessibility element (CLI: &#x60;ios ax&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> AccessibilityGetAxSnapshotWithHttpInfo(string udid)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilityGetAxSnapshot");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/ax", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilityGetAxSnapshot", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get accessibility element snapshot Get a snapshot of the currently focused accessibility element (CLI: &#x60;ios ax&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> AccessibilityGetAxSnapshotAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await AccessibilityGetAxSnapshotWithHttpInfoAsync(udid, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get accessibility element snapshot Get a snapshot of the currently focused accessibility element (CLI: &#x60;ios ax&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> AccessibilityGetAxSnapshotWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilityGetAxSnapshot");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/ax", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilityGetAxSnapshot", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get VoiceOver state Get VoiceOver enabled state (CLI: &#x60;ios voiceover get&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>VoiceOverState</returns>
+        public VoiceOverState AccessibilityGetVoiceOver(string udid)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<VoiceOverState> localVarResponse = AccessibilityGetVoiceOverWithHttpInfo(udid);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get VoiceOver state Get VoiceOver enabled state (CLI: &#x60;ios voiceover get&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of VoiceOverState</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<VoiceOverState> AccessibilityGetVoiceOverWithHttpInfo(string udid)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilityGetVoiceOver");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<VoiceOverState>("/api/v1/device/{udid}/voiceover", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilityGetVoiceOver", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get VoiceOver state Get VoiceOver enabled state (CLI: &#x60;ios voiceover get&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of VoiceOverState</returns>
+        public async System.Threading.Tasks.Task<VoiceOverState> AccessibilityGetVoiceOverAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<VoiceOverState> localVarResponse = await AccessibilityGetVoiceOverWithHttpInfoAsync(udid, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get VoiceOver state Get VoiceOver enabled state (CLI: &#x60;ios voiceover get&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (VoiceOverState)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<VoiceOverState>> AccessibilityGetVoiceOverWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilityGetVoiceOver");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<VoiceOverState>("/api/v1/device/{udid}/voiceover", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilityGetVoiceOver", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get ZoomTouch state Get ZoomTouch enabled state (CLI: &#x60;ios zoomtouch get&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ZoomTouchState</returns>
+        public ZoomTouchState AccessibilityGetZoomTouch(string udid)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<ZoomTouchState> localVarResponse = AccessibilityGetZoomTouchWithHttpInfo(udid);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get ZoomTouch state Get ZoomTouch enabled state (CLI: &#x60;ios zoomtouch get&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of ZoomTouchState</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<ZoomTouchState> AccessibilityGetZoomTouchWithHttpInfo(string udid)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilityGetZoomTouch");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<ZoomTouchState>("/api/v1/device/{udid}/zoom", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilityGetZoomTouch", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get ZoomTouch state Get ZoomTouch enabled state (CLI: &#x60;ios zoomtouch get&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ZoomTouchState</returns>
+        public async System.Threading.Tasks.Task<ZoomTouchState> AccessibilityGetZoomTouchAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<ZoomTouchState> localVarResponse = await AccessibilityGetZoomTouchWithHttpInfoAsync(udid, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get ZoomTouch state Get ZoomTouch enabled state (CLI: &#x60;ios zoomtouch get&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (ZoomTouchState)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<ZoomTouchState>> AccessibilityGetZoomTouchWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilityGetZoomTouch");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<ZoomTouchState>("/api/v1/device/{udid}/zoom", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilityGetZoomTouch", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Run accessibility audit Run the accessibility audit against the focused app and return the issues found (CLI: &#x60;ios ax audit&#x60;). Bounded by &#x60;timeout&#x60; (seconds, default 60).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Audit timeout in seconds (default 60). (optional)</param>
+        /// <returns>List&lt;Object&gt;</returns>
+        public List<Object> AccessibilityRunAxAudit(string udid, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<List<Object>> localVarResponse = AccessibilityRunAxAuditWithHttpInfo(udid, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Run accessibility audit Run the accessibility audit against the focused app and return the issues found (CLI: &#x60;ios ax audit&#x60;). Bounded by &#x60;timeout&#x60; (seconds, default 60).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Audit timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of List&lt;Object&gt;</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<List<Object>> AccessibilityRunAxAuditWithHttpInfo(string udid, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilityRunAxAudit");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<List<Object>>("/api/v1/device/{udid}/ax/audit", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilityRunAxAudit", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Run accessibility audit Run the accessibility audit against the focused app and return the issues found (CLI: &#x60;ios ax audit&#x60;). Bounded by &#x60;timeout&#x60; (seconds, default 60).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Audit timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of List&lt;Object&gt;</returns>
+        public async System.Threading.Tasks.Task<List<Object>> AccessibilityRunAxAuditAsync(string udid, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<List<Object>> localVarResponse = await AccessibilityRunAxAuditWithHttpInfoAsync(udid, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Run accessibility audit Run the accessibility audit against the focused app and return the issues found (CLI: &#x60;ios ax audit&#x60;). Bounded by &#x60;timeout&#x60; (seconds, default 60).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Audit timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (List&lt;Object&gt;)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<List<Object>>> AccessibilityRunAxAuditWithHttpInfoAsync(string udid, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilityRunAxAudit");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<List<Object>>("/api/v1/device/{udid}/ax/audit", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilityRunAxAudit", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Simulate location from a GPX file Simulate live location tracking from an uploaded GPX file (CLI: &#x60;ios setlocationgpx&#x60;). Send multipart/form-data with a &#x60;gpx&#x60; file.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="gpx"></param>
+        /// <returns>GenericResponse</returns>
+        public GenericResponse AccessibilitySetLocationGpx(string udid, Object gpx)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<GenericResponse> localVarResponse = AccessibilitySetLocationGpxWithHttpInfo(udid, gpx);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Simulate location from a GPX file Simulate live location tracking from an uploaded GPX file (CLI: &#x60;ios setlocationgpx&#x60;). Send multipart/form-data with a &#x60;gpx&#x60; file.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="gpx"></param>
+        /// <returns>ApiResponse of GenericResponse</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<GenericResponse> AccessibilitySetLocationGpxWithHttpInfo(string udid, Object gpx)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilitySetLocationGpx");
+
+            // verify the required parameter 'gpx' is set
+            if (gpx == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'gpx' when calling DefaultApi->AccessibilitySetLocationGpx");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "multipart/form-data"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            localVarRequestOptions.FormParameters.Add("gpx", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(gpx)); // form parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Put<GenericResponse>("/api/v1/device/{udid}/setlocation/gpx", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilitySetLocationGpx", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Simulate location from a GPX file Simulate live location tracking from an uploaded GPX file (CLI: &#x60;ios setlocationgpx&#x60;). Send multipart/form-data with a &#x60;gpx&#x60; file.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="gpx"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of GenericResponse</returns>
+        public async System.Threading.Tasks.Task<GenericResponse> AccessibilitySetLocationGpxAsync(string udid, Object gpx, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<GenericResponse> localVarResponse = await AccessibilitySetLocationGpxWithHttpInfoAsync(udid, gpx, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Simulate location from a GPX file Simulate live location tracking from an uploaded GPX file (CLI: &#x60;ios setlocationgpx&#x60;). Send multipart/form-data with a &#x60;gpx&#x60; file.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="gpx"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (GenericResponse)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<GenericResponse>> AccessibilitySetLocationGpxWithHttpInfoAsync(string udid, Object gpx, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilitySetLocationGpx");
+
+            // verify the required parameter 'gpx' is set
+            if (gpx == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'gpx' when calling DefaultApi->AccessibilitySetLocationGpx");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "multipart/form-data"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            localVarRequestOptions.FormParameters.Add("gpx", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(gpx)); // form parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PutAsync<GenericResponse>("/api/v1/device/{udid}/setlocation/gpx", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilitySetLocationGpx", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Set VoiceOver state Enable/disable VoiceOver (CLI: &#x60;ios voiceover enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <returns>VoiceOverState</returns>
+        public VoiceOverState AccessibilitySetVoiceOver(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<VoiceOverState> localVarResponse = AccessibilitySetVoiceOverWithHttpInfo(udid, enabled, aXEnabledRequest);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Set VoiceOver state Enable/disable VoiceOver (CLI: &#x60;ios voiceover enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <returns>ApiResponse of VoiceOverState</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<VoiceOverState> AccessibilitySetVoiceOverWithHttpInfo(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilitySetVoiceOver");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (enabled != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "enabled", enabled));
+            }
+            localVarRequestOptions.Data = aXEnabledRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Put<VoiceOverState>("/api/v1/device/{udid}/voiceover", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilitySetVoiceOver", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Set VoiceOver state Enable/disable VoiceOver (CLI: &#x60;ios voiceover enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of VoiceOverState</returns>
+        public async System.Threading.Tasks.Task<VoiceOverState> AccessibilitySetVoiceOverAsync(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<VoiceOverState> localVarResponse = await AccessibilitySetVoiceOverWithHttpInfoAsync(udid, enabled, aXEnabledRequest, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Set VoiceOver state Enable/disable VoiceOver (CLI: &#x60;ios voiceover enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (VoiceOverState)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<VoiceOverState>> AccessibilitySetVoiceOverWithHttpInfoAsync(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilitySetVoiceOver");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (enabled != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "enabled", enabled));
+            }
+            localVarRequestOptions.Data = aXEnabledRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PutAsync<VoiceOverState>("/api/v1/device/{udid}/voiceover", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilitySetVoiceOver", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Set ZoomTouch state Enable/disable ZoomTouch (CLI: &#x60;ios zoomtouch enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <returns>ZoomTouchState</returns>
+        public ZoomTouchState AccessibilitySetZoomTouch(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<ZoomTouchState> localVarResponse = AccessibilitySetZoomTouchWithHttpInfo(udid, enabled, aXEnabledRequest);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Set ZoomTouch state Enable/disable ZoomTouch (CLI: &#x60;ios zoomtouch enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <returns>ApiResponse of ZoomTouchState</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<ZoomTouchState> AccessibilitySetZoomTouchWithHttpInfo(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilitySetZoomTouch");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (enabled != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "enabled", enabled));
+            }
+            localVarRequestOptions.Data = aXEnabledRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Put<ZoomTouchState>("/api/v1/device/{udid}/zoom", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilitySetZoomTouch", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Set ZoomTouch state Enable/disable ZoomTouch (CLI: &#x60;ios zoomtouch enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ZoomTouchState</returns>
+        public async System.Threading.Tasks.Task<ZoomTouchState> AccessibilitySetZoomTouchAsync(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<ZoomTouchState> localVarResponse = await AccessibilitySetZoomTouchWithHttpInfoAsync(udid, enabled, aXEnabledRequest, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Set ZoomTouch state Enable/disable ZoomTouch (CLI: &#x60;ios zoomtouch enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="enabled">Desired state (alternative to the request body). (optional)</param>
+        /// <param name="aXEnabledRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (ZoomTouchState)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<ZoomTouchState>> AccessibilitySetZoomTouchWithHttpInfoAsync(string udid, bool? enabled = default, AXEnabledRequest? aXEnabledRequest = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->AccessibilitySetZoomTouch");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (enabled != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "enabled", enabled));
+            }
+            localVarRequestOptions.Data = aXEnabledRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PutAsync<ZoomTouchState>("/api/v1/device/{udid}/zoom", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("AccessibilitySetZoomTouch", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
         }
 
         /// <summary>
@@ -6343,24 +9720,26 @@ namespace GoIos.Sdk.Generated.Api
         }
 
         /// <summary>
-        /// Get lockdown values Get all lockdown values (CLI: &#x60;ios lockdown get&#x60;).
+        /// Get lockdown values Get lockdown values (CLI: &#x60;ios lockdown get&#x60;). Without &#x60;domain&#x60; the full set is returned; with &#x60;domain&#x60; the values are scoped to that lockdown domain.
         /// </summary>
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
         /// <param name="udid"></param>
+        /// <param name="domain">Optional lockdown domain to scope the returned values. (optional)</param>
         /// <returns>Object</returns>
-        public Object DevicesGetLockdownValues(string udid)
+        public Object DevicesGetLockdownValues(string udid, string? domain = default)
         {
-            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = DevicesGetLockdownValuesWithHttpInfo(udid);
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = DevicesGetLockdownValuesWithHttpInfo(udid, domain);
             return localVarResponse.Data;
         }
 
         /// <summary>
-        /// Get lockdown values Get all lockdown values (CLI: &#x60;ios lockdown get&#x60;).
+        /// Get lockdown values Get lockdown values (CLI: &#x60;ios lockdown get&#x60;). Without &#x60;domain&#x60; the full set is returned; with &#x60;domain&#x60; the values are scoped to that lockdown domain.
         /// </summary>
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
         /// <param name="udid"></param>
+        /// <param name="domain">Optional lockdown domain to scope the returned values. (optional)</param>
         /// <returns>ApiResponse of Object</returns>
-        public GoIos.Sdk.Generated.Client.ApiResponse<Object> DevicesGetLockdownValuesWithHttpInfo(string udid)
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> DevicesGetLockdownValuesWithHttpInfo(string udid, string? domain = default)
         {
             // verify the required parameter 'udid' is set
             if (udid == null)
@@ -6383,6 +9762,10 @@ namespace GoIos.Sdk.Generated.Api
             if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
 
             localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (domain != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "domain", domain));
+            }
 
             // authentication (BearerAuth) required
             // bearer authentication required
@@ -6404,26 +9787,28 @@ namespace GoIos.Sdk.Generated.Api
         }
 
         /// <summary>
-        /// Get lockdown values Get all lockdown values (CLI: &#x60;ios lockdown get&#x60;).
+        /// Get lockdown values Get lockdown values (CLI: &#x60;ios lockdown get&#x60;). Without &#x60;domain&#x60; the full set is returned; with &#x60;domain&#x60; the values are scoped to that lockdown domain.
         /// </summary>
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
         /// <param name="udid"></param>
+        /// <param name="domain">Optional lockdown domain to scope the returned values. (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns>Task of Object</returns>
-        public async System.Threading.Tasks.Task<Object> DevicesGetLockdownValuesAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        public async System.Threading.Tasks.Task<Object> DevicesGetLockdownValuesAsync(string udid, string? domain = default, System.Threading.CancellationToken cancellationToken = default)
         {
-            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await DevicesGetLockdownValuesWithHttpInfoAsync(udid, cancellationToken).ConfigureAwait(false);
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await DevicesGetLockdownValuesWithHttpInfoAsync(udid, domain, cancellationToken).ConfigureAwait(false);
             return localVarResponse.Data;
         }
 
         /// <summary>
-        /// Get lockdown values Get all lockdown values (CLI: &#x60;ios lockdown get&#x60;).
+        /// Get lockdown values Get lockdown values (CLI: &#x60;ios lockdown get&#x60;). Without &#x60;domain&#x60; the full set is returned; with &#x60;domain&#x60; the values are scoped to that lockdown domain.
         /// </summary>
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
         /// <param name="udid"></param>
+        /// <param name="domain">Optional lockdown domain to scope the returned values. (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns>Task of ApiResponse (Object)</returns>
-        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> DevicesGetLockdownValuesWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> DevicesGetLockdownValuesWithHttpInfoAsync(string udid, string? domain = default, System.Threading.CancellationToken cancellationToken = default)
         {
             // verify the required parameter 'udid' is set
             if (udid == null)
@@ -6448,6 +9833,10 @@ namespace GoIos.Sdk.Generated.Api
             if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
 
             localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (domain != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "domain", domain));
+            }
 
             // authentication (BearerAuth) required
             // bearer authentication required
@@ -14641,6 +18030,1698 @@ namespace GoIos.Sdk.Generated.Api
         }
 
         /// <summary>
+        /// Get battery IORegistry Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: &#x60;ios diagnostics ioregistry&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>BatteryRegistry</returns>
+        public BatteryRegistry DiagnosticsNetGetBatteryRegistry(string udid)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<BatteryRegistry> localVarResponse = DiagnosticsNetGetBatteryRegistryWithHttpInfo(udid);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get battery IORegistry Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: &#x60;ios diagnostics ioregistry&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of BatteryRegistry</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<BatteryRegistry> DiagnosticsNetGetBatteryRegistryWithHttpInfo(string udid)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->DiagnosticsNetGetBatteryRegistry");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<BatteryRegistry>("/api/v1/device/{udid}/battery/registry", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("DiagnosticsNetGetBatteryRegistry", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get battery IORegistry Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: &#x60;ios diagnostics ioregistry&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of BatteryRegistry</returns>
+        public async System.Threading.Tasks.Task<BatteryRegistry> DiagnosticsNetGetBatteryRegistryAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<BatteryRegistry> localVarResponse = await DiagnosticsNetGetBatteryRegistryWithHttpInfoAsync(udid, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get battery IORegistry Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: &#x60;ios diagnostics ioregistry&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (BatteryRegistry)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<BatteryRegistry>> DiagnosticsNetGetBatteryRegistryWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->DiagnosticsNetGetBatteryRegistry");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<BatteryRegistry>("/api/v1/device/{udid}/battery/registry", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("DiagnosticsNetGetBatteryRegistry", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get device IP / network info Resolve the device&#39;s network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: &#x60;ios ip&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>NetworkInfo</returns>
+        public NetworkInfo DiagnosticsNetGetDeviceIp(string udid)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<NetworkInfo> localVarResponse = DiagnosticsNetGetDeviceIpWithHttpInfo(udid);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get device IP / network info Resolve the device&#39;s network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: &#x60;ios ip&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of NetworkInfo</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<NetworkInfo> DiagnosticsNetGetDeviceIpWithHttpInfo(string udid)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->DiagnosticsNetGetDeviceIp");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<NetworkInfo>("/api/v1/device/{udid}/ip", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("DiagnosticsNetGetDeviceIp", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get device IP / network info Resolve the device&#39;s network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: &#x60;ios ip&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of NetworkInfo</returns>
+        public async System.Threading.Tasks.Task<NetworkInfo> DiagnosticsNetGetDeviceIpAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<NetworkInfo> localVarResponse = await DiagnosticsNetGetDeviceIpWithHttpInfoAsync(udid, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get device IP / network info Resolve the device&#39;s network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: &#x60;ios ip&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (NetworkInfo)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<NetworkInfo>> DiagnosticsNetGetDeviceIpWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->DiagnosticsNetGetDeviceIp");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<NetworkInfo>("/api/v1/device/{udid}/ip", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("DiagnosticsNetGetDeviceIp", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get disk space info Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: &#x60;ios diskspace&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>DiskSpaceInfo</returns>
+        public DiskSpaceInfo DiagnosticsNetGetDiskSpace(string udid)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<DiskSpaceInfo> localVarResponse = DiagnosticsNetGetDiskSpaceWithHttpInfo(udid);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get disk space info Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: &#x60;ios diskspace&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of DiskSpaceInfo</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<DiskSpaceInfo> DiagnosticsNetGetDiskSpaceWithHttpInfo(string udid)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->DiagnosticsNetGetDiskSpace");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<DiskSpaceInfo>("/api/v1/device/{udid}/diskspace", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("DiagnosticsNetGetDiskSpace", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get disk space info Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: &#x60;ios diskspace&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of DiskSpaceInfo</returns>
+        public async System.Threading.Tasks.Task<DiskSpaceInfo> DiagnosticsNetGetDiskSpaceAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<DiskSpaceInfo> localVarResponse = await DiagnosticsNetGetDiskSpaceWithHttpInfoAsync(udid, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get disk space info Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: &#x60;ios diskspace&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (DiskSpaceInfo)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<DiskSpaceInfo>> DiagnosticsNetGetDiskSpaceWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->DiagnosticsNetGetDiskSpace");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<DiskSpaceInfo>("/api/v1/device/{udid}/diskspace", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("DiagnosticsNetGetDiskSpace", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get RSD service list Get the device&#39;s RSD (Remote Service Discovery) service list (CLI: &#x60;ios rsd ls&#x60;). Requires a running tunnel (iOS 17+); devices without RSD return &#x60;400&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>Object</returns>
+        public Object DiagnosticsNetGetRsdServices(string udid)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = DiagnosticsNetGetRsdServicesWithHttpInfo(udid);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get RSD service list Get the device&#39;s RSD (Remote Service Discovery) service list (CLI: &#x60;ios rsd ls&#x60;). Requires a running tunnel (iOS 17+); devices without RSD return &#x60;400&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> DiagnosticsNetGetRsdServicesWithHttpInfo(string udid)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->DiagnosticsNetGetRsdServices");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/rsd", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("DiagnosticsNetGetRsdServices", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get RSD service list Get the device&#39;s RSD (Remote Service Discovery) service list (CLI: &#x60;ios rsd ls&#x60;). Requires a running tunnel (iOS 17+); devices without RSD return &#x60;400&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> DiagnosticsNetGetRsdServicesAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await DiagnosticsNetGetRsdServicesWithHttpInfoAsync(udid, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get RSD service list Get the device&#39;s RSD (Remote Service Discovery) service list (CLI: &#x60;ios rsd ls&#x60;). Requires a running tunnel (iOS 17+); devices without RSD return &#x60;400&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> DiagnosticsNetGetRsdServicesWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->DiagnosticsNetGetRsdServices");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/rsd", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("DiagnosticsNetGetRsdServices", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// List a directory over AFC List a device directory over AFC (CLI: &#x60;ios fsync ls&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <returns>FsyncListing</returns>
+        public FsyncListing FsyncFsyncLs(string udid, string? bundleID = default, string? path = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<FsyncListing> localVarResponse = FsyncFsyncLsWithHttpInfo(udid, bundleID, path);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// List a directory over AFC List a device directory over AFC (CLI: &#x60;ios fsync ls&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <returns>ApiResponse of FsyncListing</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<FsyncListing> FsyncFsyncLsWithHttpInfo(string udid, string? bundleID = default, string? path = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncLs");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            if (path != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<FsyncListing>("/api/v1/device/{udid}/fsync/ls", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncLs", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// List a directory over AFC List a device directory over AFC (CLI: &#x60;ios fsync ls&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of FsyncListing</returns>
+        public async System.Threading.Tasks.Task<FsyncListing> FsyncFsyncLsAsync(string udid, string? bundleID = default, string? path = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<FsyncListing> localVarResponse = await FsyncFsyncLsWithHttpInfoAsync(udid, bundleID, path, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// List a directory over AFC List a device directory over AFC (CLI: &#x60;ios fsync ls&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (FsyncListing)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<FsyncListing>> FsyncFsyncLsWithHttpInfoAsync(string udid, string? bundleID = default, string? path = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncLs");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            if (path != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<FsyncListing>("/api/v1/device/{udid}/fsync/ls", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncLs", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Create a directory over AFC Create a directory over AFC (CLI: &#x60;ios fsync mkdir&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Directory path to create (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>FsyncMessage</returns>
+        public FsyncMessage FsyncFsyncMkdir(string udid, string path, string? bundleID = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<FsyncMessage> localVarResponse = FsyncFsyncMkdirWithHttpInfo(udid, path, bundleID);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Create a directory over AFC Create a directory over AFC (CLI: &#x60;ios fsync mkdir&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Directory path to create (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>ApiResponse of FsyncMessage</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<FsyncMessage> FsyncFsyncMkdirWithHttpInfo(string udid, string path, string? bundleID = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncMkdir");
+
+            // verify the required parameter 'path' is set
+            if (path == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'path' when calling DefaultApi->FsyncFsyncMkdir");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<FsyncMessage>("/api/v1/device/{udid}/fsync/mkdir", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncMkdir", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Create a directory over AFC Create a directory over AFC (CLI: &#x60;ios fsync mkdir&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Directory path to create (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of FsyncMessage</returns>
+        public async System.Threading.Tasks.Task<FsyncMessage> FsyncFsyncMkdirAsync(string udid, string path, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<FsyncMessage> localVarResponse = await FsyncFsyncMkdirWithHttpInfoAsync(udid, path, bundleID, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Create a directory over AFC Create a directory over AFC (CLI: &#x60;ios fsync mkdir&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Directory path to create (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (FsyncMessage)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<FsyncMessage>> FsyncFsyncMkdirWithHttpInfoAsync(string udid, string path, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncMkdir");
+
+            // verify the required parameter 'path' is set
+            if (path == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'path' when calling DefaultApi->FsyncFsyncMkdir");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<FsyncMessage>("/api/v1/device/{udid}/fsync/mkdir", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncMkdir", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Download a file over AFC Download a file from the device over AFC (CLI: &#x60;ios fsync pull&#x60;). Returns the raw file bytes. &#x60;path&#x60; is required.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Remote file path on the device (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>Object</returns>
+        public Object FsyncFsyncPull(string udid, string path, string? bundleID = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = FsyncFsyncPullWithHttpInfo(udid, path, bundleID);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Download a file over AFC Download a file from the device over AFC (CLI: &#x60;ios fsync pull&#x60;). Returns the raw file bytes. &#x60;path&#x60; is required.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Remote file path on the device (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> FsyncFsyncPullWithHttpInfo(string udid, string path, string? bundleID = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncPull");
+
+            // verify the required parameter 'path' is set
+            if (path == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'path' when calling DefaultApi->FsyncFsyncPull");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/octet-stream",
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/fsync/pull", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncPull", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Download a file over AFC Download a file from the device over AFC (CLI: &#x60;ios fsync pull&#x60;). Returns the raw file bytes. &#x60;path&#x60; is required.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Remote file path on the device (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> FsyncFsyncPullAsync(string udid, string path, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await FsyncFsyncPullWithHttpInfoAsync(udid, path, bundleID, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Download a file over AFC Download a file from the device over AFC (CLI: &#x60;ios fsync pull&#x60;). Returns the raw file bytes. &#x60;path&#x60; is required.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Remote file path on the device (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> FsyncFsyncPullWithHttpInfoAsync(string udid, string path, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncPull");
+
+            // verify the required parameter 'path' is set
+            if (path == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'path' when calling DefaultApi->FsyncFsyncPull");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/octet-stream",
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/fsync/pull", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncPull", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Upload a file over AFC Upload a file to the device over AFC (CLI: &#x60;ios fsync push&#x60;). Accepts either raw bytes (application/octet-stream) or a multipart form with a &#x60;file&#x60; field. &#x60;path&#x60; is required. Bounded server-side; oversized uploads get &#x60;413&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Destination path on the device (required).</param>
+        /// <param name="body">Raw file bytes to upload (application/octet-stream).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>FsyncPushResult</returns>
+        public FsyncPushResult FsyncFsyncPush(string udid, string path, Object body, string? bundleID = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<FsyncPushResult> localVarResponse = FsyncFsyncPushWithHttpInfo(udid, path, body, bundleID);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Upload a file over AFC Upload a file to the device over AFC (CLI: &#x60;ios fsync push&#x60;). Accepts either raw bytes (application/octet-stream) or a multipart form with a &#x60;file&#x60; field. &#x60;path&#x60; is required. Bounded server-side; oversized uploads get &#x60;413&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Destination path on the device (required).</param>
+        /// <param name="body">Raw file bytes to upload (application/octet-stream).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <returns>ApiResponse of FsyncPushResult</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<FsyncPushResult> FsyncFsyncPushWithHttpInfo(string udid, string path, Object body, string? bundleID = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncPush");
+
+            // verify the required parameter 'path' is set
+            if (path == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'path' when calling DefaultApi->FsyncFsyncPush");
+
+            // verify the required parameter 'body' is set
+            if (body == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'body' when calling DefaultApi->FsyncFsyncPush");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/octet-stream"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+            localVarRequestOptions.Data = body;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<FsyncPushResult>("/api/v1/device/{udid}/fsync/push", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncPush", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Upload a file over AFC Upload a file to the device over AFC (CLI: &#x60;ios fsync push&#x60;). Accepts either raw bytes (application/octet-stream) or a multipart form with a &#x60;file&#x60; field. &#x60;path&#x60; is required. Bounded server-side; oversized uploads get &#x60;413&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Destination path on the device (required).</param>
+        /// <param name="body">Raw file bytes to upload (application/octet-stream).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of FsyncPushResult</returns>
+        public async System.Threading.Tasks.Task<FsyncPushResult> FsyncFsyncPushAsync(string udid, string path, Object body, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<FsyncPushResult> localVarResponse = await FsyncFsyncPushWithHttpInfoAsync(udid, path, body, bundleID, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Upload a file over AFC Upload a file to the device over AFC (CLI: &#x60;ios fsync push&#x60;). Accepts either raw bytes (application/octet-stream) or a multipart form with a &#x60;file&#x60; field. &#x60;path&#x60; is required. Bounded server-side; oversized uploads get &#x60;413&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Destination path on the device (required).</param>
+        /// <param name="body">Raw file bytes to upload (application/octet-stream).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (FsyncPushResult)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<FsyncPushResult>> FsyncFsyncPushWithHttpInfoAsync(string udid, string path, Object body, string? bundleID = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncPush");
+
+            // verify the required parameter 'path' is set
+            if (path == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'path' when calling DefaultApi->FsyncFsyncPush");
+
+            // verify the required parameter 'body' is set
+            if (body == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'body' when calling DefaultApi->FsyncFsyncPush");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/octet-stream"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+            localVarRequestOptions.Data = body;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<FsyncPushResult>("/api/v1/device/{udid}/fsync/push", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncPush", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Remove a file or directory over AFC Remove a file or directory over AFC (CLI: &#x60;ios fsync rm&#x60;). Pass &#x60;recursive&#x3D;true&#x60; to delete a non-empty directory.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Path to remove (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="recursive">Remove directory contents recursively. (optional)</param>
+        /// <returns>FsyncMessage</returns>
+        public FsyncMessage FsyncFsyncRm(string udid, string path, string? bundleID = default, bool? recursive = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<FsyncMessage> localVarResponse = FsyncFsyncRmWithHttpInfo(udid, path, bundleID, recursive);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Remove a file or directory over AFC Remove a file or directory over AFC (CLI: &#x60;ios fsync rm&#x60;). Pass &#x60;recursive&#x3D;true&#x60; to delete a non-empty directory.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Path to remove (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="recursive">Remove directory contents recursively. (optional)</param>
+        /// <returns>ApiResponse of FsyncMessage</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<FsyncMessage> FsyncFsyncRmWithHttpInfo(string udid, string path, string? bundleID = default, bool? recursive = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncRm");
+
+            // verify the required parameter 'path' is set
+            if (path == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'path' when calling DefaultApi->FsyncFsyncRm");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+            if (recursive != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "recursive", recursive));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Delete<FsyncMessage>("/api/v1/device/{udid}/fsync/rm", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncRm", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Remove a file or directory over AFC Remove a file or directory over AFC (CLI: &#x60;ios fsync rm&#x60;). Pass &#x60;recursive&#x3D;true&#x60; to delete a non-empty directory.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Path to remove (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="recursive">Remove directory contents recursively. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of FsyncMessage</returns>
+        public async System.Threading.Tasks.Task<FsyncMessage> FsyncFsyncRmAsync(string udid, string path, string? bundleID = default, bool? recursive = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<FsyncMessage> localVarResponse = await FsyncFsyncRmWithHttpInfoAsync(udid, path, bundleID, recursive, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Remove a file or directory over AFC Remove a file or directory over AFC (CLI: &#x60;ios fsync rm&#x60;). Pass &#x60;recursive&#x3D;true&#x60; to delete a non-empty directory.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="path">Path to remove (required).</param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="recursive">Remove directory contents recursively. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (FsyncMessage)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<FsyncMessage>> FsyncFsyncRmWithHttpInfoAsync(string udid, string path, string? bundleID = default, bool? recursive = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncRm");
+
+            // verify the required parameter 'path' is set
+            if (path == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'path' when calling DefaultApi->FsyncFsyncRm");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+            if (recursive != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "recursive", recursive));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.DeleteAsync<FsyncMessage>("/api/v1/device/{udid}/fsync/rm", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncRm", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Recursively list a directory over AFC Recursively list a device directory over AFC (CLI: &#x60;ios fsync tree&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <returns>FsyncTreeListing</returns>
+        public FsyncTreeListing FsyncFsyncTree(string udid, string? bundleID = default, string? path = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<FsyncTreeListing> localVarResponse = FsyncFsyncTreeWithHttpInfo(udid, bundleID, path);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Recursively list a directory over AFC Recursively list a device directory over AFC (CLI: &#x60;ios fsync tree&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <returns>ApiResponse of FsyncTreeListing</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<FsyncTreeListing> FsyncFsyncTreeWithHttpInfo(string udid, string? bundleID = default, string? path = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncTree");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            if (path != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<FsyncTreeListing>("/api/v1/device/{udid}/fsync/tree", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncTree", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Recursively list a directory over AFC Recursively list a device directory over AFC (CLI: &#x60;ios fsync tree&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of FsyncTreeListing</returns>
+        public async System.Threading.Tasks.Task<FsyncTreeListing> FsyncFsyncTreeAsync(string udid, string? bundleID = default, string? path = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<FsyncTreeListing> localVarResponse = await FsyncFsyncTreeWithHttpInfoAsync(udid, bundleID, path, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Recursively list a directory over AFC Recursively list a device directory over AFC (CLI: &#x60;ios fsync tree&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="bundleID">App bundle id to scope to its container (else the media dir). (optional)</param>
+        /// <param name="path">Device-side path (rejects &#x60;..&#x60; elements). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (FsyncTreeListing)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<FsyncTreeListing>> FsyncFsyncTreeWithHttpInfoAsync(string udid, string? bundleID = default, string? path = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncFsyncTree");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (bundleID != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bundleID", bundleID));
+            }
+            if (path != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "path", path));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<FsyncTreeListing>("/api/v1/device/{udid}/fsync/tree", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncFsyncTree", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get device cloud configuration Get the device cloud configuration (supervision status, skip-setup options, organization info).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>Object</returns>
+        public Object FsyncGetCloudConfig(string udid)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = FsyncGetCloudConfigWithHttpInfo(udid);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get device cloud configuration Get the device cloud configuration (supervision status, skip-setup options, organization info).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> FsyncGetCloudConfigWithHttpInfo(string udid)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncGetCloudConfig");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/cloudconfig", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncGetCloudConfig", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get device cloud configuration Get the device cloud configuration (supervision status, skip-setup options, organization info).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> FsyncGetCloudConfigAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await FsyncGetCloudConfigWithHttpInfoAsync(udid, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get device cloud configuration Get the device cloud configuration (supervision status, skip-setup options, organization info).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> FsyncGetCloudConfigWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->FsyncGetCloudConfig");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/cloudconfig", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("FsyncGetCloudConfig", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// List setup skip options List all setup-pane skip options usable when preparing a device (CLI: &#x60;ios prepare printskip&#x60;). Static, device-free list.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <returns>PrepareSkipOptions</returns>
+        public PrepareSkipOptions GetPrepareSkipOptions()
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<PrepareSkipOptions> localVarResponse = GetPrepareSkipOptionsWithHttpInfo();
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// List setup skip options List all setup-pane skip options usable when preparing a device (CLI: &#x60;ios prepare printskip&#x60;). Static, device-free list.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <returns>ApiResponse of PrepareSkipOptions</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<PrepareSkipOptions> GetPrepareSkipOptionsWithHttpInfo()
+        {
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<PrepareSkipOptions>("/api/v1/prepare/skip-options", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("GetPrepareSkipOptions", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// List setup skip options List all setup-pane skip options usable when preparing a device (CLI: &#x60;ios prepare printskip&#x60;). Static, device-free list.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of PrepareSkipOptions</returns>
+        public async System.Threading.Tasks.Task<PrepareSkipOptions> GetPrepareSkipOptionsAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<PrepareSkipOptions> localVarResponse = await GetPrepareSkipOptionsWithHttpInfoAsync(cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// List setup skip options List all setup-pane skip options usable when preparing a device (CLI: &#x60;ios prepare printskip&#x60;). Static, device-free list.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (PrepareSkipOptions)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<PrepareSkipOptions>> GetPrepareSkipOptionsWithHttpInfoAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<PrepareSkipOptions>("/api/v1/prepare/skip-options", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("GetPrepareSkipOptions", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
         /// List devices List all attached / reachable devices.
         /// </summary>
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
@@ -14860,6 +19941,320 @@ namespace GoIos.Sdk.Generated.Api
             if (this.ExceptionFactory != null)
             {
                 Exception _exception = this.ExceptionFactory("ListTunnels", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Generate a supervision certificate Generate a self-signed supervision identity (CLI: &#x60;ios prepare create-cert&#x60;) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <returns>SupervisionCert</returns>
+        public SupervisionCert PrepareCreateCert()
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<SupervisionCert> localVarResponse = PrepareCreateCertWithHttpInfo();
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Generate a supervision certificate Generate a self-signed supervision identity (CLI: &#x60;ios prepare create-cert&#x60;) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <returns>ApiResponse of SupervisionCert</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<SupervisionCert> PrepareCreateCertWithHttpInfo()
+        {
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<SupervisionCert>("/api/v1/prepare/create-cert", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("PrepareCreateCert", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Generate a supervision certificate Generate a self-signed supervision identity (CLI: &#x60;ios prepare create-cert&#x60;) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of SupervisionCert</returns>
+        public async System.Threading.Tasks.Task<SupervisionCert> PrepareCreateCertAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<SupervisionCert> localVarResponse = await PrepareCreateCertWithHttpInfoAsync(cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Generate a supervision certificate Generate a self-signed supervision identity (CLI: &#x60;ios prepare create-cert&#x60;) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (SupervisionCert)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<SupervisionCert>> PrepareCreateCertWithHttpInfoAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<SupervisionCert>("/api/v1/prepare/create-cert", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("PrepareCreateCert", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Prepare (and optionally supervise) a device Run the device preparation/provisioning flow (CLI: &#x60;ios prepare&#x60;). Send multipart/form-data. To supervise the device include a &#x60;cert&#x60; file (DER/PEM/P12 supervision identity) and optional &#x60;p12password&#x60;; without a cert the device is prepared without supervision.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cert"> (optional)</param>
+        /// <param name="p12password">P12 password (when &#x60;cert&#x60; is a P12). (optional)</param>
+        /// <param name="skip">Setup panes to skip (see /prepare/skip-options). Repeatable. (optional)</param>
+        /// <param name="orgname">Supervision organization name. (optional)</param>
+        /// <param name="locale">Device locale (default en_US). (optional)</param>
+        /// <param name="lang">Device language (default en). (optional)</param>
+        /// <returns>PrepareResult</returns>
+        public PrepareResult PreparePrepareDevice(string udid, Object? cert = default, string? p12password = default, List<string>? skip = default, string? orgname = default, string? locale = default, string? lang = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<PrepareResult> localVarResponse = PreparePrepareDeviceWithHttpInfo(udid, cert, p12password, skip, orgname, locale, lang);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Prepare (and optionally supervise) a device Run the device preparation/provisioning flow (CLI: &#x60;ios prepare&#x60;). Send multipart/form-data. To supervise the device include a &#x60;cert&#x60; file (DER/PEM/P12 supervision identity) and optional &#x60;p12password&#x60;; without a cert the device is prepared without supervision.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cert"> (optional)</param>
+        /// <param name="p12password">P12 password (when &#x60;cert&#x60; is a P12). (optional)</param>
+        /// <param name="skip">Setup panes to skip (see /prepare/skip-options). Repeatable. (optional)</param>
+        /// <param name="orgname">Supervision organization name. (optional)</param>
+        /// <param name="locale">Device locale (default en_US). (optional)</param>
+        /// <param name="lang">Device language (default en). (optional)</param>
+        /// <returns>ApiResponse of PrepareResult</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<PrepareResult> PreparePrepareDeviceWithHttpInfo(string udid, Object? cert = default, string? p12password = default, List<string>? skip = default, string? orgname = default, string? locale = default, string? lang = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->PreparePrepareDevice");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "multipart/form-data"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (cert != null)
+            {
+                localVarRequestOptions.FormParameters.Add("cert", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(cert)); // form parameter
+            }
+            if (p12password != null)
+            {
+                localVarRequestOptions.FormParameters.Add("p12password", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(p12password)); // form parameter
+            }
+            if (skip != null)
+            {
+                localVarRequestOptions.FormParameters.Add("skip", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(skip)); // form parameter
+            }
+            if (orgname != null)
+            {
+                localVarRequestOptions.FormParameters.Add("orgname", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(orgname)); // form parameter
+            }
+            if (locale != null)
+            {
+                localVarRequestOptions.FormParameters.Add("locale", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(locale)); // form parameter
+            }
+            if (lang != null)
+            {
+                localVarRequestOptions.FormParameters.Add("lang", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(lang)); // form parameter
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<PrepareResult>("/api/v1/device/{udid}/prepare", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("PreparePrepareDevice", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Prepare (and optionally supervise) a device Run the device preparation/provisioning flow (CLI: &#x60;ios prepare&#x60;). Send multipart/form-data. To supervise the device include a &#x60;cert&#x60; file (DER/PEM/P12 supervision identity) and optional &#x60;p12password&#x60;; without a cert the device is prepared without supervision.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cert"> (optional)</param>
+        /// <param name="p12password">P12 password (when &#x60;cert&#x60; is a P12). (optional)</param>
+        /// <param name="skip">Setup panes to skip (see /prepare/skip-options). Repeatable. (optional)</param>
+        /// <param name="orgname">Supervision organization name. (optional)</param>
+        /// <param name="locale">Device locale (default en_US). (optional)</param>
+        /// <param name="lang">Device language (default en). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of PrepareResult</returns>
+        public async System.Threading.Tasks.Task<PrepareResult> PreparePrepareDeviceAsync(string udid, Object? cert = default, string? p12password = default, List<string>? skip = default, string? orgname = default, string? locale = default, string? lang = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<PrepareResult> localVarResponse = await PreparePrepareDeviceWithHttpInfoAsync(udid, cert, p12password, skip, orgname, locale, lang, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Prepare (and optionally supervise) a device Run the device preparation/provisioning flow (CLI: &#x60;ios prepare&#x60;). Send multipart/form-data. To supervise the device include a &#x60;cert&#x60; file (DER/PEM/P12 supervision identity) and optional &#x60;p12password&#x60;; without a cert the device is prepared without supervision.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cert"> (optional)</param>
+        /// <param name="p12password">P12 password (when &#x60;cert&#x60; is a P12). (optional)</param>
+        /// <param name="skip">Setup panes to skip (see /prepare/skip-options). Repeatable. (optional)</param>
+        /// <param name="orgname">Supervision organization name. (optional)</param>
+        /// <param name="locale">Device locale (default en_US). (optional)</param>
+        /// <param name="lang">Device language (default en). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (PrepareResult)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<PrepareResult>> PreparePrepareDeviceWithHttpInfoAsync(string udid, Object? cert = default, string? p12password = default, List<string>? skip = default, string? orgname = default, string? locale = default, string? lang = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->PreparePrepareDevice");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "multipart/form-data"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (cert != null)
+            {
+                localVarRequestOptions.FormParameters.Add("cert", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(cert)); // form parameter
+            }
+            if (p12password != null)
+            {
+                localVarRequestOptions.FormParameters.Add("p12password", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(p12password)); // form parameter
+            }
+            if (skip != null)
+            {
+                localVarRequestOptions.FormParameters.Add("skip", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(skip)); // form parameter
+            }
+            if (orgname != null)
+            {
+                localVarRequestOptions.FormParameters.Add("orgname", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(orgname)); // form parameter
+            }
+            if (locale != null)
+            {
+                localVarRequestOptions.FormParameters.Add("locale", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(locale)); // form parameter
+            }
+            if (lang != null)
+            {
+                localVarRequestOptions.FormParameters.Add("lang", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(lang)); // form parameter
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<PrepareResult>("/api/v1/device/{udid}/prepare", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("PreparePrepareDevice", localVarResponse);
                 if (_exception != null) throw _exception;
             }
 
@@ -15107,6 +20502,629 @@ namespace GoIos.Sdk.Generated.Api
         }
 
         /// <summary>
+        /// Resign an app/IPA Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ipa"></param>
+        /// <param name="p12file"></param>
+        /// <param name="profile"></param>
+        /// <param name="p12password">P12 password. (optional)</param>
+        /// <param name="bundleid">Override bundle id. (optional)</param>
+        /// <returns>Object</returns>
+        public Object SignApp(Object ipa, Object p12file, Object profile, string? p12password = default, string? bundleid = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = SignAppWithHttpInfo(ipa, p12file, profile, p12password, bundleid);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Resign an app/IPA Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ipa"></param>
+        /// <param name="p12file"></param>
+        /// <param name="profile"></param>
+        /// <param name="p12password">P12 password. (optional)</param>
+        /// <param name="bundleid">Override bundle id. (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> SignAppWithHttpInfo(Object ipa, Object p12file, Object profile, string? p12password = default, string? bundleid = default)
+        {
+            // verify the required parameter 'ipa' is set
+            if (ipa == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ipa' when calling DefaultApi->SignApp");
+
+            // verify the required parameter 'p12file' is set
+            if (p12file == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'p12file' when calling DefaultApi->SignApp");
+
+            // verify the required parameter 'profile' is set
+            if (profile == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'profile' when calling DefaultApi->SignApp");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "multipart/form-data"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/octet-stream",
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.FormParameters.Add("ipa", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ipa)); // form parameter
+            localVarRequestOptions.FormParameters.Add("p12file", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(p12file)); // form parameter
+            localVarRequestOptions.FormParameters.Add("profile", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(profile)); // form parameter
+            if (p12password != null)
+            {
+                localVarRequestOptions.FormParameters.Add("p12password", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(p12password)); // form parameter
+            }
+            if (bundleid != null)
+            {
+                localVarRequestOptions.FormParameters.Add("bundleid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(bundleid)); // form parameter
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/sign/app", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("SignApp", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Resign an app/IPA Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ipa"></param>
+        /// <param name="p12file"></param>
+        /// <param name="profile"></param>
+        /// <param name="p12password">P12 password. (optional)</param>
+        /// <param name="bundleid">Override bundle id. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> SignAppAsync(Object ipa, Object p12file, Object profile, string? p12password = default, string? bundleid = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await SignAppWithHttpInfoAsync(ipa, p12file, profile, p12password, bundleid, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Resign an app/IPA Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ipa"></param>
+        /// <param name="p12file"></param>
+        /// <param name="profile"></param>
+        /// <param name="p12password">P12 password. (optional)</param>
+        /// <param name="bundleid">Override bundle id. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> SignAppWithHttpInfoAsync(Object ipa, Object p12file, Object profile, string? p12password = default, string? bundleid = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'ipa' is set
+            if (ipa == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ipa' when calling DefaultApi->SignApp");
+
+            // verify the required parameter 'p12file' is set
+            if (p12file == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'p12file' when calling DefaultApi->SignApp");
+
+            // verify the required parameter 'profile' is set
+            if (profile == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'profile' when calling DefaultApi->SignApp");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "multipart/form-data"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/octet-stream",
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.FormParameters.Add("ipa", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ipa)); // form parameter
+            localVarRequestOptions.FormParameters.Add("p12file", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(p12file)); // form parameter
+            localVarRequestOptions.FormParameters.Add("profile", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(profile)); // form parameter
+            if (p12password != null)
+            {
+                localVarRequestOptions.FormParameters.Add("p12password", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(p12password)); // form parameter
+            }
+            if (bundleid != null)
+            {
+                localVarRequestOptions.FormParameters.Add("bundleid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(bundleid)); // form parameter
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/sign/app", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("SignApp", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Create a signing certificate Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable &#x60;application/x-pkcs12&#x60; file. The P12 password is echoed in the &#x60;X-P12-Password&#x60; response header and the certificate resource id in &#x60;X-Certificate-Id&#x60;. Host-scoped (device-free).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="revokeExisting">Revoke existing iOS Development certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <returns>Object</returns>
+        public Object SignCertificate(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string? revokeExisting = default, string? p12password = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = SignCertificateWithHttpInfo(ascPrivateKey, ascKeyId, ascIssuerId, revokeExisting, p12password);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Create a signing certificate Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable &#x60;application/x-pkcs12&#x60; file. The P12 password is echoed in the &#x60;X-P12-Password&#x60; response header and the certificate resource id in &#x60;X-Certificate-Id&#x60;. Host-scoped (device-free).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="revokeExisting">Revoke existing iOS Development certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> SignCertificateWithHttpInfo(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string? revokeExisting = default, string? p12password = default)
+        {
+            // verify the required parameter 'ascPrivateKey' is set
+            if (ascPrivateKey == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascPrivateKey' when calling DefaultApi->SignCertificate");
+
+            // verify the required parameter 'ascKeyId' is set
+            if (ascKeyId == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascKeyId' when calling DefaultApi->SignCertificate");
+
+            // verify the required parameter 'ascIssuerId' is set
+            if (ascIssuerId == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascIssuerId' when calling DefaultApi->SignCertificate");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "multipart/form-data"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/x-pkcs12",
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.FormParameters.Add("asc-private-key", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascPrivateKey)); // form parameter
+            localVarRequestOptions.FormParameters.Add("asc-key-id", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascKeyId)); // form parameter
+            localVarRequestOptions.FormParameters.Add("asc-issuer-id", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascIssuerId)); // form parameter
+            if (revokeExisting != null)
+            {
+                localVarRequestOptions.FormParameters.Add("revoke-existing", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(revokeExisting)); // form parameter
+            }
+            if (p12password != null)
+            {
+                localVarRequestOptions.FormParameters.Add("p12password", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(p12password)); // form parameter
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/sign/certificate", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("SignCertificate", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Create a signing certificate Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable &#x60;application/x-pkcs12&#x60; file. The P12 password is echoed in the &#x60;X-P12-Password&#x60; response header and the certificate resource id in &#x60;X-Certificate-Id&#x60;. Host-scoped (device-free).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="revokeExisting">Revoke existing iOS Development certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> SignCertificateAsync(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string? revokeExisting = default, string? p12password = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await SignCertificateWithHttpInfoAsync(ascPrivateKey, ascKeyId, ascIssuerId, revokeExisting, p12password, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Create a signing certificate Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable &#x60;application/x-pkcs12&#x60; file. The P12 password is echoed in the &#x60;X-P12-Password&#x60; response header and the certificate resource id in &#x60;X-Certificate-Id&#x60;. Host-scoped (device-free).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="revokeExisting">Revoke existing iOS Development certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> SignCertificateWithHttpInfoAsync(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string? revokeExisting = default, string? p12password = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'ascPrivateKey' is set
+            if (ascPrivateKey == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascPrivateKey' when calling DefaultApi->SignCertificate");
+
+            // verify the required parameter 'ascKeyId' is set
+            if (ascKeyId == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascKeyId' when calling DefaultApi->SignCertificate");
+
+            // verify the required parameter 'ascIssuerId' is set
+            if (ascIssuerId == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascIssuerId' when calling DefaultApi->SignCertificate");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "multipart/form-data"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/x-pkcs12",
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.FormParameters.Add("asc-private-key", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascPrivateKey)); // form parameter
+            localVarRequestOptions.FormParameters.Add("asc-key-id", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascKeyId)); // form parameter
+            localVarRequestOptions.FormParameters.Add("asc-issuer-id", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascIssuerId)); // form parameter
+            if (revokeExisting != null)
+            {
+                localVarRequestOptions.FormParameters.Add("revoke-existing", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(revokeExisting)); // form parameter
+            }
+            if (p12password != null)
+            {
+                localVarRequestOptions.FormParameters.Add("p12password", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(p12password)); // form parameter
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/sign/certificate", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("SignCertificate", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Create a provisioning profile + P12 Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="bundleid">App bundle identifier.</param>
+        /// <param name="udid">Target device udid to register against the profile.</param>
+        /// <param name="bundlename">Bundle display name. (optional)</param>
+        /// <param name="profilename">Provisioning profile name. (optional)</param>
+        /// <param name="devicename">Device display name. (optional)</param>
+        /// <param name="certificateId">Reuse an existing certificate (no new P12 is generated). (optional)</param>
+        /// <param name="revokeExisting">Revoke existing certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <returns>ProvisioningResult</returns>
+        public ProvisioningResult SignProvision(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string bundleid, string udid, string? bundlename = default, string? profilename = default, string? devicename = default, string? certificateId = default, string? revokeExisting = default, string? p12password = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<ProvisioningResult> localVarResponse = SignProvisionWithHttpInfo(ascPrivateKey, ascKeyId, ascIssuerId, bundleid, udid, bundlename, profilename, devicename, certificateId, revokeExisting, p12password);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Create a provisioning profile + P12 Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="bundleid">App bundle identifier.</param>
+        /// <param name="udid">Target device udid to register against the profile.</param>
+        /// <param name="bundlename">Bundle display name. (optional)</param>
+        /// <param name="profilename">Provisioning profile name. (optional)</param>
+        /// <param name="devicename">Device display name. (optional)</param>
+        /// <param name="certificateId">Reuse an existing certificate (no new P12 is generated). (optional)</param>
+        /// <param name="revokeExisting">Revoke existing certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <returns>ApiResponse of ProvisioningResult</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<ProvisioningResult> SignProvisionWithHttpInfo(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string bundleid, string udid, string? bundlename = default, string? profilename = default, string? devicename = default, string? certificateId = default, string? revokeExisting = default, string? p12password = default)
+        {
+            // verify the required parameter 'ascPrivateKey' is set
+            if (ascPrivateKey == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascPrivateKey' when calling DefaultApi->SignProvision");
+
+            // verify the required parameter 'ascKeyId' is set
+            if (ascKeyId == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascKeyId' when calling DefaultApi->SignProvision");
+
+            // verify the required parameter 'ascIssuerId' is set
+            if (ascIssuerId == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascIssuerId' when calling DefaultApi->SignProvision");
+
+            // verify the required parameter 'bundleid' is set
+            if (bundleid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'bundleid' when calling DefaultApi->SignProvision");
+
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->SignProvision");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "multipart/form-data"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.FormParameters.Add("asc-private-key", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascPrivateKey)); // form parameter
+            localVarRequestOptions.FormParameters.Add("asc-key-id", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascKeyId)); // form parameter
+            localVarRequestOptions.FormParameters.Add("asc-issuer-id", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascIssuerId)); // form parameter
+            localVarRequestOptions.FormParameters.Add("bundleid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(bundleid)); // form parameter
+            localVarRequestOptions.FormParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // form parameter
+            if (bundlename != null)
+            {
+                localVarRequestOptions.FormParameters.Add("bundlename", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(bundlename)); // form parameter
+            }
+            if (profilename != null)
+            {
+                localVarRequestOptions.FormParameters.Add("profilename", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(profilename)); // form parameter
+            }
+            if (devicename != null)
+            {
+                localVarRequestOptions.FormParameters.Add("devicename", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(devicename)); // form parameter
+            }
+            if (certificateId != null)
+            {
+                localVarRequestOptions.FormParameters.Add("certificate-id", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(certificateId)); // form parameter
+            }
+            if (revokeExisting != null)
+            {
+                localVarRequestOptions.FormParameters.Add("revoke-existing", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(revokeExisting)); // form parameter
+            }
+            if (p12password != null)
+            {
+                localVarRequestOptions.FormParameters.Add("p12password", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(p12password)); // form parameter
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<ProvisioningResult>("/api/v1/sign/provision", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("SignProvision", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Create a provisioning profile + P12 Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="bundleid">App bundle identifier.</param>
+        /// <param name="udid">Target device udid to register against the profile.</param>
+        /// <param name="bundlename">Bundle display name. (optional)</param>
+        /// <param name="profilename">Provisioning profile name. (optional)</param>
+        /// <param name="devicename">Device display name. (optional)</param>
+        /// <param name="certificateId">Reuse an existing certificate (no new P12 is generated). (optional)</param>
+        /// <param name="revokeExisting">Revoke existing certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ProvisioningResult</returns>
+        public async System.Threading.Tasks.Task<ProvisioningResult> SignProvisionAsync(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string bundleid, string udid, string? bundlename = default, string? profilename = default, string? devicename = default, string? certificateId = default, string? revokeExisting = default, string? p12password = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<ProvisioningResult> localVarResponse = await SignProvisionWithHttpInfoAsync(ascPrivateKey, ascKeyId, ascIssuerId, bundleid, udid, bundlename, profilename, devicename, certificateId, revokeExisting, p12password, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Create a provisioning profile + P12 Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="ascPrivateKey"></param>
+        /// <param name="ascKeyId">App Store Connect key id.</param>
+        /// <param name="ascIssuerId">App Store Connect issuer id.</param>
+        /// <param name="bundleid">App bundle identifier.</param>
+        /// <param name="udid">Target device udid to register against the profile.</param>
+        /// <param name="bundlename">Bundle display name. (optional)</param>
+        /// <param name="profilename">Provisioning profile name. (optional)</param>
+        /// <param name="devicename">Device display name. (optional)</param>
+        /// <param name="certificateId">Reuse an existing certificate (no new P12 is generated). (optional)</param>
+        /// <param name="revokeExisting">Revoke existing certificates first. (optional)</param>
+        /// <param name="p12password">Password to protect the generated P12. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (ProvisioningResult)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<ProvisioningResult>> SignProvisionWithHttpInfoAsync(Object ascPrivateKey, string ascKeyId, string ascIssuerId, string bundleid, string udid, string? bundlename = default, string? profilename = default, string? devicename = default, string? certificateId = default, string? revokeExisting = default, string? p12password = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'ascPrivateKey' is set
+            if (ascPrivateKey == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascPrivateKey' when calling DefaultApi->SignProvision");
+
+            // verify the required parameter 'ascKeyId' is set
+            if (ascKeyId == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascKeyId' when calling DefaultApi->SignProvision");
+
+            // verify the required parameter 'ascIssuerId' is set
+            if (ascIssuerId == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'ascIssuerId' when calling DefaultApi->SignProvision");
+
+            // verify the required parameter 'bundleid' is set
+            if (bundleid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'bundleid' when calling DefaultApi->SignProvision");
+
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->SignProvision");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "multipart/form-data"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.FormParameters.Add("asc-private-key", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascPrivateKey)); // form parameter
+            localVarRequestOptions.FormParameters.Add("asc-key-id", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascKeyId)); // form parameter
+            localVarRequestOptions.FormParameters.Add("asc-issuer-id", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(ascIssuerId)); // form parameter
+            localVarRequestOptions.FormParameters.Add("bundleid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(bundleid)); // form parameter
+            localVarRequestOptions.FormParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // form parameter
+            if (bundlename != null)
+            {
+                localVarRequestOptions.FormParameters.Add("bundlename", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(bundlename)); // form parameter
+            }
+            if (profilename != null)
+            {
+                localVarRequestOptions.FormParameters.Add("profilename", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(profilename)); // form parameter
+            }
+            if (devicename != null)
+            {
+                localVarRequestOptions.FormParameters.Add("devicename", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(devicename)); // form parameter
+            }
+            if (certificateId != null)
+            {
+                localVarRequestOptions.FormParameters.Add("certificate-id", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(certificateId)); // form parameter
+            }
+            if (revokeExisting != null)
+            {
+                localVarRequestOptions.FormParameters.Add("revoke-existing", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(revokeExisting)); // form parameter
+            }
+            if (p12password != null)
+            {
+                localVarRequestOptions.FormParameters.Add("p12password", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(p12password)); // form parameter
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<ProvisioningResult>("/api/v1/sign/provision", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("SignProvision", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
         /// Stop tunnel Stop the tunnel for a device (CLI: &#x60;ios tunnel stop - -udid&#x60;).
         /// </summary>
         /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
@@ -15227,6 +21245,3523 @@ namespace GoIos.Sdk.Generated.Api
             if (this.ExceptionFactory != null)
             {
                 Exception _exception = this.ExceptionFactory("StopTunnel", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Stream a live pcap capture (binary) Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until &#x60;timeout&#x60; (seconds) elapses, the default timeout is reached, or the client disconnects.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Capture duration in seconds (default 60, max 3600). (optional)</param>
+        /// <returns>Object</returns>
+        public Object StreamsPcap(string udid, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = StreamsPcapWithHttpInfo(udid, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Stream a live pcap capture (binary) Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until &#x60;timeout&#x60; (seconds) elapses, the default timeout is reached, or the client disconnects.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Capture duration in seconds (default 60, max 3600). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> StreamsPcapWithHttpInfo(string udid, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->StreamsPcap");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/vnd.tcpdump.pcap",
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/pcap", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("StreamsPcap", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Stream a live pcap capture (binary) Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until &#x60;timeout&#x60; (seconds) elapses, the default timeout is reached, or the client disconnects.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Capture duration in seconds (default 60, max 3600). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> StreamsPcapAsync(string udid, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await StreamsPcapWithHttpInfoAsync(udid, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Stream a live pcap capture (binary) Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until &#x60;timeout&#x60; (seconds) elapses, the default timeout is reached, or the client disconnects.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="timeout">Capture duration in seconds (default 60, max 3600). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> StreamsPcapWithHttpInfoAsync(string udid, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->StreamsPcap");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/vnd.tcpdump.pcap",
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/pcap", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("StreamsPcap", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Stream screenshots as MJPEG (binary) Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="quality">Optional JPEG quality (1–100, default 80). (optional)</param>
+        /// <returns>Object</returns>
+        public Object StreamsScreenshotStream(string udid, int? quality = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = StreamsScreenshotStreamWithHttpInfo(udid, quality);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Stream screenshots as MJPEG (binary) Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="quality">Optional JPEG quality (1–100, default 80). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> StreamsScreenshotStreamWithHttpInfo(string udid, int? quality = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->StreamsScreenshotStream");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "image/jpeg",
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (quality != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "quality", quality));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/screenshot/stream", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("StreamsScreenshotStream", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Stream screenshots as MJPEG (binary) Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="quality">Optional JPEG quality (1–100, default 80). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> StreamsScreenshotStreamAsync(string udid, int? quality = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await StreamsScreenshotStreamWithHttpInfoAsync(udid, quality, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Stream screenshots as MJPEG (binary) Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="quality">Optional JPEG quality (1–100, default 80). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> StreamsScreenshotStreamWithHttpInfoAsync(string udid, int? quality = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->StreamsScreenshotStream");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "image/jpeg",
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (quality != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "quality", quality));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/screenshot/stream", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("StreamsScreenshotStream", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Stream UI video (binary) Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); &#x60;codec&#x3D;h264&#x60; returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="codec">Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). (optional)</param>
+        /// <param name="fps">Target frames per second (backend-dependent). (optional)</param>
+        /// <param name="quality">JPEG quality for the mjpeg codec. (optional)</param>
+        /// <param name="scale">Scale factor (backend-dependent). (optional)</param>
+        /// <param name="bitrate">Target bitrate for the h264 codec. (optional)</param>
+        /// <returns>Object</returns>
+        public Object StreamsUiStream(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, string? codec = default, string? fps = default, string? quality = default, string? scale = default, string? bitrate = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = StreamsUiStreamWithHttpInfo(udid, backend, wdaUrl, timeout, codec, fps, quality, scale, bitrate);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Stream UI video (binary) Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); &#x60;codec&#x3D;h264&#x60; returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="codec">Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). (optional)</param>
+        /// <param name="fps">Target frames per second (backend-dependent). (optional)</param>
+        /// <param name="quality">JPEG quality for the mjpeg codec. (optional)</param>
+        /// <param name="scale">Scale factor (backend-dependent). (optional)</param>
+        /// <param name="bitrate">Target bitrate for the h264 codec. (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> StreamsUiStreamWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, string? codec = default, string? fps = default, string? quality = default, string? scale = default, string? bitrate = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->StreamsUiStream");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/octet-stream",
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            if (codec != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "codec", codec));
+            }
+            if (fps != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "fps", fps));
+            }
+            if (quality != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "quality", quality));
+            }
+            if (scale != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "scale", scale));
+            }
+            if (bitrate != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bitrate", bitrate));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/ui/stream", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("StreamsUiStream", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Stream UI video (binary) Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); &#x60;codec&#x3D;h264&#x60; returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="codec">Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). (optional)</param>
+        /// <param name="fps">Target frames per second (backend-dependent). (optional)</param>
+        /// <param name="quality">JPEG quality for the mjpeg codec. (optional)</param>
+        /// <param name="scale">Scale factor (backend-dependent). (optional)</param>
+        /// <param name="bitrate">Target bitrate for the h264 codec. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> StreamsUiStreamAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, string? codec = default, string? fps = default, string? quality = default, string? scale = default, string? bitrate = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await StreamsUiStreamWithHttpInfoAsync(udid, backend, wdaUrl, timeout, codec, fps, quality, scale, bitrate, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Stream UI video (binary) Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); &#x60;codec&#x3D;h264&#x60; returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="codec">Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). (optional)</param>
+        /// <param name="fps">Target frames per second (backend-dependent). (optional)</param>
+        /// <param name="quality">JPEG quality for the mjpeg codec. (optional)</param>
+        /// <param name="scale">Scale factor (backend-dependent). (optional)</param>
+        /// <param name="bitrate">Target bitrate for the h264 codec. (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> StreamsUiStreamWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, string? codec = default, string? fps = default, string? quality = default, string? scale = default, string? bitrate = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->StreamsUiStream");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/octet-stream",
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            if (codec != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "codec", codec));
+            }
+            if (fps != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "fps", fps));
+            }
+            if (quality != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "quality", quality));
+            }
+            if (scale != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "scale", scale));
+            }
+            if (bitrate != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "bitrate", bitrate));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/ui/stream", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("StreamsUiStream", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Raw backend passthrough Raw passthrough to the backend. For WDA supply &#x60;method&#x60;/&#x60;path&#x60;/&#x60;body&#x60;; for DeviceKit supply &#x60;rpcMethod&#x60;/&#x60;rpcParams&#x60;. The backend response is forwarded verbatim.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAPIRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiApi(string udid, UIAPIRequest uIAPIRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiApiWithHttpInfo(udid, uIAPIRequest, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Raw backend passthrough Raw passthrough to the backend. For WDA supply &#x60;method&#x60;/&#x60;path&#x60;/&#x60;body&#x60;; for DeviceKit supply &#x60;rpcMethod&#x60;/&#x60;rpcParams&#x60;. The backend response is forwarded verbatim.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAPIRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiApiWithHttpInfo(string udid, UIAPIRequest uIAPIRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiApi");
+
+            // verify the required parameter 'uIAPIRequest' is set
+            if (uIAPIRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uIAPIRequest' when calling DefaultApi->UIUiApi");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uIAPIRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/device/{udid}/ui/api", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiApi", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Raw backend passthrough Raw passthrough to the backend. For WDA supply &#x60;method&#x60;/&#x60;path&#x60;/&#x60;body&#x60;; for DeviceKit supply &#x60;rpcMethod&#x60;/&#x60;rpcParams&#x60;. The backend response is forwarded verbatim.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAPIRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiApiAsync(string udid, UIAPIRequest uIAPIRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiApiWithHttpInfoAsync(udid, uIAPIRequest, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Raw backend passthrough Raw passthrough to the backend. For WDA supply &#x60;method&#x60;/&#x60;path&#x60;/&#x60;body&#x60;; for DeviceKit supply &#x60;rpcMethod&#x60;/&#x60;rpcParams&#x60;. The backend response is forwarded verbatim.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAPIRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiApiWithHttpInfoAsync(string udid, UIAPIRequest uIAPIRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiApi");
+
+            // verify the required parameter 'uIAPIRequest' is set
+            if (uIAPIRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uIAPIRequest' when calling DefaultApi->UIUiApi");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uIAPIRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/device/{udid}/ui/api", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiApi", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Foreground app (UI backend) Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns &#x60;501&#x60;. The request body is ignored.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiAppForeground(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiAppForegroundWithHttpInfo(udid, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Foreground app (UI backend) Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns &#x60;501&#x60;. The request body is ignored.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiAppForegroundWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiAppForeground");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/device/{udid}/ui/app/foreground", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiAppForeground", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Foreground app (UI backend) Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns &#x60;501&#x60;. The request body is ignored.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiAppForegroundAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiAppForegroundWithHttpInfoAsync(udid, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Foreground app (UI backend) Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns &#x60;501&#x60;. The request body is ignored.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiAppForegroundWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiAppForeground");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/device/{udid}/ui/app/foreground", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiAppForeground", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Launch app (UI backend) Launch the app identified by &#x60;bundleId&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiAppLaunch(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiAppLaunchWithHttpInfo(udid, uIAppRequest, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Launch app (UI backend) Launch the app identified by &#x60;bundleId&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiAppLaunchWithHttpInfo(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiAppLaunch");
+
+            // verify the required parameter 'uIAppRequest' is set
+            if (uIAppRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uIAppRequest' when calling DefaultApi->UIUiAppLaunch");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uIAppRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/device/{udid}/ui/app/launch", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiAppLaunch", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Launch app (UI backend) Launch the app identified by &#x60;bundleId&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiAppLaunchAsync(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiAppLaunchWithHttpInfoAsync(udid, uIAppRequest, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Launch app (UI backend) Launch the app identified by &#x60;bundleId&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiAppLaunchWithHttpInfoAsync(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiAppLaunch");
+
+            // verify the required parameter 'uIAppRequest' is set
+            if (uIAppRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uIAppRequest' when calling DefaultApi->UIUiAppLaunch");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uIAppRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/device/{udid}/ui/app/launch", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiAppLaunch", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Terminate app (UI backend) Terminate the app identified by &#x60;bundleId&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiAppTerminate(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiAppTerminateWithHttpInfo(udid, uIAppRequest, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Terminate app (UI backend) Terminate the app identified by &#x60;bundleId&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiAppTerminateWithHttpInfo(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiAppTerminate");
+
+            // verify the required parameter 'uIAppRequest' is set
+            if (uIAppRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uIAppRequest' when calling DefaultApi->UIUiAppTerminate");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uIAppRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/device/{udid}/ui/app/terminate", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiAppTerminate", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Terminate app (UI backend) Terminate the app identified by &#x60;bundleId&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiAppTerminateAsync(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiAppTerminateWithHttpInfoAsync(udid, uIAppRequest, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Terminate app (UI backend) Terminate the app identified by &#x60;bundleId&#x60;.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIAppRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiAppTerminateWithHttpInfoAsync(string udid, UIAppRequest uIAppRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiAppTerminate");
+
+            // verify the required parameter 'uIAppRequest' is set
+            if (uIAppRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uIAppRequest' when calling DefaultApi->UIUiAppTerminate");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uIAppRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/device/{udid}/ui/app/terminate", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiAppTerminate", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Press hardware button Press a hardware button by name (WDA supports only &#x60;home&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIButtonRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiButton(string udid, UIButtonRequest uIButtonRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiButtonWithHttpInfo(udid, uIButtonRequest, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Press hardware button Press a hardware button by name (WDA supports only &#x60;home&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIButtonRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiButtonWithHttpInfo(string udid, UIButtonRequest uIButtonRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiButton");
+
+            // verify the required parameter 'uIButtonRequest' is set
+            if (uIButtonRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uIButtonRequest' when calling DefaultApi->UIUiButton");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uIButtonRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/device/{udid}/ui/button", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiButton", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Press hardware button Press a hardware button by name (WDA supports only &#x60;home&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIButtonRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiButtonAsync(string udid, UIButtonRequest uIButtonRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiButtonWithHttpInfoAsync(udid, uIButtonRequest, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Press hardware button Press a hardware button by name (WDA supports only &#x60;home&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIButtonRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiButtonWithHttpInfoAsync(string udid, UIButtonRequest uIButtonRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiButton");
+
+            // verify the required parameter 'uIButtonRequest' is set
+            if (uIButtonRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uIButtonRequest' when calling DefaultApi->UIUiButton");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uIButtonRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/device/{udid}/ui/button", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiButton", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get orientation Get the current device orientation payload.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiGetOrientation(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiGetOrientationWithHttpInfo(udid, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get orientation Get the current device orientation payload.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiGetOrientationWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiGetOrientation");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/ui/orientation", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiGetOrientation", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Get orientation Get the current device orientation payload.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiGetOrientationAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiGetOrientationWithHttpInfoAsync(udid, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Get orientation Get the current device orientation payload.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiGetOrientationWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiGetOrientation");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/ui/orientation", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiGetOrientation", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Long press Press and hold at (x,y).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uILongPressRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiLongPress(string udid, UILongPressRequest uILongPressRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiLongPressWithHttpInfo(udid, uILongPressRequest, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Long press Press and hold at (x,y).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uILongPressRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiLongPressWithHttpInfo(string udid, UILongPressRequest uILongPressRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiLongPress");
+
+            // verify the required parameter 'uILongPressRequest' is set
+            if (uILongPressRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uILongPressRequest' when calling DefaultApi->UIUiLongPress");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uILongPressRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/device/{udid}/ui/longpress", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiLongPress", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Long press Press and hold at (x,y).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uILongPressRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiLongPressAsync(string udid, UILongPressRequest uILongPressRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiLongPressWithHttpInfoAsync(udid, uILongPressRequest, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Long press Press and hold at (x,y).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uILongPressRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiLongPressWithHttpInfoAsync(string udid, UILongPressRequest uILongPressRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiLongPress");
+
+            // verify the required parameter 'uILongPressRequest' is set
+            if (uILongPressRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uILongPressRequest' when calling DefaultApi->UIUiLongPress");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uILongPressRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/device/{udid}/ui/longpress", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiLongPress", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// UI screenshot (PNG) Capture the screen and return raw PNG bytes.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiScreenshot(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiScreenshotWithHttpInfo(udid, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// UI screenshot (PNG) Capture the screen and return raw PNG bytes.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiScreenshotWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiScreenshot");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "image/png",
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/ui/screenshot", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiScreenshot", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// UI screenshot (PNG) Capture the screen and return raw PNG bytes.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiScreenshotAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiScreenshotWithHttpInfoAsync(udid, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// UI screenshot (PNG) Capture the screen and return raw PNG bytes.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiScreenshotWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiScreenshot");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "image/png",
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/ui/screenshot", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiScreenshot", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Set orientation Set the device orientation.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIOrientationRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiSetOrientation(string udid, UIOrientationRequest uIOrientationRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiSetOrientationWithHttpInfo(udid, uIOrientationRequest, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Set orientation Set the device orientation.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIOrientationRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiSetOrientationWithHttpInfo(string udid, UIOrientationRequest uIOrientationRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiSetOrientation");
+
+            // verify the required parameter 'uIOrientationRequest' is set
+            if (uIOrientationRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uIOrientationRequest' when calling DefaultApi->UIUiSetOrientation");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uIOrientationRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Put<Object>("/api/v1/device/{udid}/ui/orientation", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiSetOrientation", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Set orientation Set the device orientation.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIOrientationRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiSetOrientationAsync(string udid, UIOrientationRequest uIOrientationRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiSetOrientationWithHttpInfoAsync(udid, uIOrientationRequest, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Set orientation Set the device orientation.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uIOrientationRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiSetOrientationWithHttpInfoAsync(string udid, UIOrientationRequest uIOrientationRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiSetOrientation");
+
+            // verify the required parameter 'uIOrientationRequest' is set
+            if (uIOrientationRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uIOrientationRequest' when calling DefaultApi->UIUiSetOrientation");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uIOrientationRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PutAsync<Object>("/api/v1/device/{udid}/ui/orientation", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiSetOrientation", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// UI source hierarchy Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiSource(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiSourceWithHttpInfo(udid, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// UI source hierarchy Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiSourceWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiSource");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/xml",
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/ui/source", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiSource", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// UI source hierarchy Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiSourceAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiSourceWithHttpInfoAsync(udid, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// UI source hierarchy Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiSourceWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiSource");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/xml",
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/ui/source", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiSource", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// UI backend status Return the backend status/health payload (WDA /status or DeviceKit /health).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiStatus(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiStatusWithHttpInfo(udid, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// UI backend status Return the backend status/health payload (WDA /status or DeviceKit /health).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiStatusWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiStatus");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/ui/status", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiStatus", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// UI backend status Return the backend status/health payload (WDA /status or DeviceKit /health).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiStatusAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiStatusWithHttpInfoAsync(udid, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// UI backend status Return the backend status/health payload (WDA /status or DeviceKit /health).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiStatusWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiStatus");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/ui/status", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiStatus", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Swipe Drag from (x1,y1) to (x2,y2).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uISwipeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiSwipe(string udid, UISwipeRequest uISwipeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiSwipeWithHttpInfo(udid, uISwipeRequest, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Swipe Drag from (x1,y1) to (x2,y2).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uISwipeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiSwipeWithHttpInfo(string udid, UISwipeRequest uISwipeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiSwipe");
+
+            // verify the required parameter 'uISwipeRequest' is set
+            if (uISwipeRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uISwipeRequest' when calling DefaultApi->UIUiSwipe");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uISwipeRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/device/{udid}/ui/swipe", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiSwipe", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Swipe Drag from (x1,y1) to (x2,y2).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uISwipeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiSwipeAsync(string udid, UISwipeRequest uISwipeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiSwipeWithHttpInfoAsync(udid, uISwipeRequest, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Swipe Drag from (x1,y1) to (x2,y2).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uISwipeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiSwipeWithHttpInfoAsync(string udid, UISwipeRequest uISwipeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiSwipe");
+
+            // verify the required parameter 'uISwipeRequest' is set
+            if (uISwipeRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uISwipeRequest' when calling DefaultApi->UIUiSwipe");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uISwipeRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/device/{udid}/ui/swipe", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiSwipe", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Tap Tap at absolute coordinates.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITapRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiTap(string udid, UITapRequest uITapRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiTapWithHttpInfo(udid, uITapRequest, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Tap Tap at absolute coordinates.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITapRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiTapWithHttpInfo(string udid, UITapRequest uITapRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiTap");
+
+            // verify the required parameter 'uITapRequest' is set
+            if (uITapRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uITapRequest' when calling DefaultApi->UIUiTap");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uITapRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/device/{udid}/ui/tap", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiTap", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Tap Tap at absolute coordinates.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITapRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiTapAsync(string udid, UITapRequest uITapRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiTapWithHttpInfoAsync(udid, uITapRequest, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Tap Tap at absolute coordinates.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITapRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiTapWithHttpInfoAsync(string udid, UITapRequest uITapRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiTap");
+
+            // verify the required parameter 'uITapRequest' is set
+            if (uITapRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uITapRequest' when calling DefaultApi->UIUiTap");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uITapRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/device/{udid}/ui/tap", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiTap", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Type text Send text as keyboard input.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITypeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiType(string udid, UITypeRequest uITypeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiTypeWithHttpInfo(udid, uITypeRequest, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Type text Send text as keyboard input.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITypeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiTypeWithHttpInfo(string udid, UITypeRequest uITypeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiType");
+
+            // verify the required parameter 'uITypeRequest' is set
+            if (uITypeRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uITypeRequest' when calling DefaultApi->UIUiType");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uITypeRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<Object>("/api/v1/device/{udid}/ui/type", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiType", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Type text Send text as keyboard input.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITypeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiTypeAsync(string udid, UITypeRequest uITypeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiTypeWithHttpInfoAsync(udid, uITypeRequest, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Type text Send text as keyboard input.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="uITypeRequest"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiTypeWithHttpInfoAsync(string udid, UITypeRequest uITypeRequest, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiType");
+
+            // verify the required parameter 'uITypeRequest' is set
+            if (uITypeRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'uITypeRequest' when calling DefaultApi->UIUiType");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+            localVarRequestOptions.Data = uITypeRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<Object>("/api/v1/device/{udid}/ui/type", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiType", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// UI window size Return the device window/screen size payload (typically {width,height}).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>Object</returns>
+        public Object UIUiWindowSize(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = UIUiWindowSizeWithHttpInfo(udid, backend, wdaUrl, timeout);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// UI window size Return the device window/screen size payload (typically {width,height}).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <returns>ApiResponse of Object</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<Object> UIUiWindowSizeWithHttpInfo(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiWindowSize");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<Object>("/api/v1/device/{udid}/ui/size", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiWindowSize", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// UI window size Return the device window/screen size payload (typically {width,height}).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of Object</returns>
+        public async System.Threading.Tasks.Task<Object> UIUiWindowSizeAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<Object> localVarResponse = await UIUiWindowSizeWithHttpInfoAsync(udid, backend, wdaUrl, timeout, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// UI window size Return the device window/screen size payload (typically {width,height}).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="backend">Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)</param>
+        /// <param name="wdaUrl">Forwarded backend base URL (defaults per backend). (optional)</param>
+        /// <param name="timeout">Per-request HTTP timeout in seconds (default 60). (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (Object)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<Object>> UIUiWindowSizeWithHttpInfoAsync(string udid, string? backend = default, string? wdaUrl = default, int? timeout = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->UIUiWindowSize");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (backend != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "backend", backend));
+            }
+            if (wdaUrl != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "wdaUrl", wdaUrl));
+            }
+            if (timeout != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "timeout", timeout));
+            }
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<Object>("/api/v1/device/{udid}/ui/size", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("UIUiWindowSize", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Evaluate JavaScript in a page Evaluate JavaScript in an inspectable page and return the result (CLI: &#x60;ios webinspector eval&#x60;). &#x60;404&#x60; when no matching page exists.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="webInspectorEvalRequest"></param>
+        /// <returns>WebInspectorEvalResult</returns>
+        public WebInspectorEvalResult WebInspectorWebInspectorEval(string udid, WebInspectorEvalRequest webInspectorEvalRequest)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<WebInspectorEvalResult> localVarResponse = WebInspectorWebInspectorEvalWithHttpInfo(udid, webInspectorEvalRequest);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Evaluate JavaScript in a page Evaluate JavaScript in an inspectable page and return the result (CLI: &#x60;ios webinspector eval&#x60;). &#x60;404&#x60; when no matching page exists.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="webInspectorEvalRequest"></param>
+        /// <returns>ApiResponse of WebInspectorEvalResult</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<WebInspectorEvalResult> WebInspectorWebInspectorEvalWithHttpInfo(string udid, WebInspectorEvalRequest webInspectorEvalRequest)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->WebInspectorWebInspectorEval");
+
+            // verify the required parameter 'webInspectorEvalRequest' is set
+            if (webInspectorEvalRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'webInspectorEvalRequest' when calling DefaultApi->WebInspectorWebInspectorEval");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            localVarRequestOptions.Data = webInspectorEvalRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<WebInspectorEvalResult>("/api/v1/device/{udid}/webinspector/eval", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("WebInspectorWebInspectorEval", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Evaluate JavaScript in a page Evaluate JavaScript in an inspectable page and return the result (CLI: &#x60;ios webinspector eval&#x60;). &#x60;404&#x60; when no matching page exists.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="webInspectorEvalRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of WebInspectorEvalResult</returns>
+        public async System.Threading.Tasks.Task<WebInspectorEvalResult> WebInspectorWebInspectorEvalAsync(string udid, WebInspectorEvalRequest webInspectorEvalRequest, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<WebInspectorEvalResult> localVarResponse = await WebInspectorWebInspectorEvalWithHttpInfoAsync(udid, webInspectorEvalRequest, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Evaluate JavaScript in a page Evaluate JavaScript in an inspectable page and return the result (CLI: &#x60;ios webinspector eval&#x60;). &#x60;404&#x60; when no matching page exists.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="webInspectorEvalRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (WebInspectorEvalResult)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<WebInspectorEvalResult>> WebInspectorWebInspectorEvalWithHttpInfoAsync(string udid, WebInspectorEvalRequest webInspectorEvalRequest, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->WebInspectorWebInspectorEval");
+
+            // verify the required parameter 'webInspectorEvalRequest' is set
+            if (webInspectorEvalRequest == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'webInspectorEvalRequest' when calling DefaultApi->WebInspectorWebInspectorEval");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            localVarRequestOptions.Data = webInspectorEvalRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<WebInspectorEvalResult>("/api/v1/device/{udid}/webinspector/eval", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("WebInspectorWebInspectorEval", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Open a URL in a new inspectable page Open a URL in a new inspectable page via a remote automation session (CLI: &#x60;ios webinspector launch &lt;url&gt;&#x60;). &#x60;url&#x60; may be a query param or in the body; &#x60;bundleId&#x60; defaults to Safari.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="url">URL to open (alternative to the request body). (optional)</param>
+        /// <param name="webInspectorLaunchRequest"> (optional)</param>
+        /// <returns>WebInspectorLaunchResult</returns>
+        public WebInspectorLaunchResult WebInspectorWebInspectorLaunch(string udid, string? url = default, WebInspectorLaunchRequest? webInspectorLaunchRequest = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<WebInspectorLaunchResult> localVarResponse = WebInspectorWebInspectorLaunchWithHttpInfo(udid, url, webInspectorLaunchRequest);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Open a URL in a new inspectable page Open a URL in a new inspectable page via a remote automation session (CLI: &#x60;ios webinspector launch &lt;url&gt;&#x60;). &#x60;url&#x60; may be a query param or in the body; &#x60;bundleId&#x60; defaults to Safari.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="url">URL to open (alternative to the request body). (optional)</param>
+        /// <param name="webInspectorLaunchRequest"> (optional)</param>
+        /// <returns>ApiResponse of WebInspectorLaunchResult</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<WebInspectorLaunchResult> WebInspectorWebInspectorLaunchWithHttpInfo(string udid, string? url = default, WebInspectorLaunchRequest? webInspectorLaunchRequest = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->WebInspectorWebInspectorLaunch");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (url != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "url", url));
+            }
+            localVarRequestOptions.Data = webInspectorLaunchRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Post<WebInspectorLaunchResult>("/api/v1/device/{udid}/webinspector/launch", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("WebInspectorWebInspectorLaunch", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// Open a URL in a new inspectable page Open a URL in a new inspectable page via a remote automation session (CLI: &#x60;ios webinspector launch &lt;url&gt;&#x60;). &#x60;url&#x60; may be a query param or in the body; &#x60;bundleId&#x60; defaults to Safari.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="url">URL to open (alternative to the request body). (optional)</param>
+        /// <param name="webInspectorLaunchRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of WebInspectorLaunchResult</returns>
+        public async System.Threading.Tasks.Task<WebInspectorLaunchResult> WebInspectorWebInspectorLaunchAsync(string udid, string? url = default, WebInspectorLaunchRequest? webInspectorLaunchRequest = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<WebInspectorLaunchResult> localVarResponse = await WebInspectorWebInspectorLaunchWithHttpInfoAsync(udid, url, webInspectorLaunchRequest, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// Open a URL in a new inspectable page Open a URL in a new inspectable page via a remote automation session (CLI: &#x60;ios webinspector launch &lt;url&gt;&#x60;). &#x60;url&#x60; may be a query param or in the body; &#x60;bundleId&#x60; defaults to Safari.
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="url">URL to open (alternative to the request body). (optional)</param>
+        /// <param name="webInspectorLaunchRequest"> (optional)</param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (WebInspectorLaunchResult)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<WebInspectorLaunchResult>> WebInspectorWebInspectorLaunchWithHttpInfoAsync(string udid, string? url = default, WebInspectorLaunchRequest? webInspectorLaunchRequest = default, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->WebInspectorWebInspectorLaunch");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+                "application/json"
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+            if (url != null)
+            {
+                localVarRequestOptions.QueryParameters.Add(GoIos.Sdk.Generated.Client.ClientUtils.ParameterToMultiMap("", "url", url));
+            }
+            localVarRequestOptions.Data = webInspectorLaunchRequest;
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.PostAsync<WebInspectorLaunchResult>("/api/v1/device/{udid}/webinspector/launch", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("WebInspectorWebInspectorLaunch", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// List inspectable pages List inspectable pages reported by the device (CLI: &#x60;ios webinspector list&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>List&lt;Object&gt;</returns>
+        public List<Object> WebInspectorWebInspectorPages(string udid)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<List<Object>> localVarResponse = WebInspectorWebInspectorPagesWithHttpInfo(udid);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// List inspectable pages List inspectable pages reported by the device (CLI: &#x60;ios webinspector list&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <returns>ApiResponse of List&lt;Object&gt;</returns>
+        public GoIos.Sdk.Generated.Client.ApiResponse<List<Object>> WebInspectorWebInspectorPagesWithHttpInfo(string udid)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->WebInspectorWebInspectorPages");
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+            var localVarResponse = this.Client.Get<List<Object>>("/api/v1/device/{udid}/webinspector/pages", localVarRequestOptions, this.Configuration);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("WebInspectorWebInspectorPages", localVarResponse);
+                if (_exception != null) throw _exception;
+            }
+
+            return localVarResponse;
+        }
+
+        /// <summary>
+        /// List inspectable pages List inspectable pages reported by the device (CLI: &#x60;ios webinspector list&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of List&lt;Object&gt;</returns>
+        public async System.Threading.Tasks.Task<List<Object>> WebInspectorWebInspectorPagesAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            GoIos.Sdk.Generated.Client.ApiResponse<List<Object>> localVarResponse = await WebInspectorWebInspectorPagesWithHttpInfoAsync(udid, cancellationToken).ConfigureAwait(false);
+            return localVarResponse.Data;
+        }
+
+        /// <summary>
+        /// List inspectable pages List inspectable pages reported by the device (CLI: &#x60;ios webinspector list&#x60;).
+        /// </summary>
+        /// <exception cref="GoIos.Sdk.Generated.Client.ApiException">Thrown when fails to make API call</exception>
+        /// <param name="udid"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns>Task of ApiResponse (List&lt;Object&gt;)</returns>
+        public async System.Threading.Tasks.Task<GoIos.Sdk.Generated.Client.ApiResponse<List<Object>>> WebInspectorWebInspectorPagesWithHttpInfoAsync(string udid, System.Threading.CancellationToken cancellationToken = default)
+        {
+            // verify the required parameter 'udid' is set
+            if (udid == null)
+                throw new GoIos.Sdk.Generated.Client.ApiException(400, "Missing required parameter 'udid' when calling DefaultApi->WebInspectorWebInspectorPages");
+
+
+            GoIos.Sdk.Generated.Client.RequestOptions localVarRequestOptions = new GoIos.Sdk.Generated.Client.RequestOptions();
+
+            string[] _contentTypes = new string[] {
+            };
+
+            // to determine the Accept header
+            string[] _accepts = new string[] {
+                "application/json"
+            };
+
+
+            var localVarContentType = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderContentType(_contentTypes);
+            if (localVarContentType != null) localVarRequestOptions.HeaderParameters.Add("Content-Type", localVarContentType);
+
+            var localVarAccept = GoIos.Sdk.Generated.Client.ClientUtils.SelectHeaderAccept(_accepts);
+            if (localVarAccept != null) localVarRequestOptions.HeaderParameters.Add("Accept", localVarAccept);
+
+            localVarRequestOptions.PathParameters.Add("udid", GoIos.Sdk.Generated.Client.ClientUtils.ParameterToString(udid)); // path parameter
+
+            // authentication (BearerAuth) required
+            // bearer authentication required
+            if (!string.IsNullOrEmpty(this.Configuration.AccessToken) && !localVarRequestOptions.HeaderParameters.ContainsKey("Authorization"))
+            {
+                localVarRequestOptions.HeaderParameters.Add("Authorization", "Bearer " + this.Configuration.AccessToken);
+            }
+
+            // make the HTTP request
+
+            var localVarResponse = await this.AsynchronousClient.GetAsync<List<Object>>("/api/v1/device/{udid}/webinspector/pages", localVarRequestOptions, this.Configuration, cancellationToken).ConfigureAwait(false);
+
+            if (this.ExceptionFactory != null)
+            {
+                Exception _exception = this.ExceptionFactory("WebInspectorWebInspectorPages", localVarResponse);
                 if (_exception != null) throw _exception;
             }
 
