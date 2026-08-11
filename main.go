@@ -155,6 +155,7 @@ Usage:
   ios tunnel ls [options]
   ios tunnel stop [options]
   ios tunnel refresh [options]
+  ios tunnel service (install | uninstall | status) [options] [--pair-record-path=<pairrecordpath>] [--userspace] [--user]
   ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--userspace]
   ios tunnel stopagent
   ios ui install (wda | devicekit) --p12file=<p12file> --profile=<mobileprovision> [--p12password=<password>] [--path=<ipaOrZipOrApp>] [--output=<signedPath>] [--bundleid=<bundleid>] [options]
@@ -560,6 +561,21 @@ The commands work as following:
     ios tunnel stop --udid=<udid>                                   Stop the tunnel for one device without stopping the tunnel agent.
 
     ios tunnel refresh --udid=<udid>                                Stop the tunnel for one device and wait until the agent recreates it.
+
+    ios tunnel service (install | uninstall | status) [options] [--pair-record-path=<pairrecordpath>] [--userspace] [--user]
+                                                                    Manage the tunnel agent as an OS service (systemd on Linux, launchd on
+                                                                    macOS), like 'cloudflared service install'. Windows is not supported yet.
+                                                                    'install' registers a service running 'ios tunnel start' with the current
+                                                                    flags (plus ORCHESTRATOR_URL, GO_IOS_AGENT_HOST, GO_IOS_AGENT_PORT and
+                                                                    USBMUXD_SOCKET_ADDRESS from the environment, if set), enables it at boot
+                                                                    with a restart policy, and starts it.
+                                                                    Re-running install replaces the existing definition.
+                                                                    Installing a system service needs sudo/admin privileges. Pass --user for
+                                                                    a user-level service (systemd --user unit / launchd LaunchAgent) instead;
+                                                                    on Linux enable lingering ('loginctl enable-linger') so it runs without a
+                                                                    login session. On Linux only systemd is supported.
+                                                                    'uninstall' stops, disables, and removes the service.
+                                                                    'status' prints whether the service is installed and running.
 
     ios tunnel start [options] [--pair-record-path=<pairrecordpath>] [--enabletun]
                                                                     Creates a tunnel connection to the device.

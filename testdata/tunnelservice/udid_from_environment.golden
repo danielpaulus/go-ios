@@ -1,0 +1,9 @@
+Name: go-ios-tunnel
+DisplayName: go-ios tunnel agent
+Description: go-ios tunnel agent (ios tunnel start) providing tunnels for iOS 17+ devices
+Executable: /usr/local/bin/ios
+Arguments: tunnel start --pair-record-path=/home/operator --userspace --udid=00008110-000A2DE21E10801E
+WorkingDirectory: /home/operator
+Option.Restart: always
+Option.RunAtLoad: true
+Option.UserService: false
