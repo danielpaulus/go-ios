@@ -24,16 +24,42 @@ pip install go-ios-sdk
 uv add go-ios-sdk
 ```
 
-## Auth
+## Connecting
 
-The go-ios server uses bearer auth (`Authorization: Bearer <GO_IOS_API_KEY>`).
-Pass your key as `api_key`; it is sent on every request. A server started with
-`--disable-auth` needs no key, but supplying one is still safe and encouraged.
+The go-ios REST daemon binds an **ephemeral loopback port** by default and writes
+a small discovery file at `<home>/rest-api.json` (home = `GO_IOS_HOME` if set,
+else `~/.go-ios`) recording its `baseUrl`. Construct a client with **no
+`base_url`** and the SDK auto-discovers the local daemon:
 
 ```python
 from go_ios_sdk import IosClient
 
-client = IosClient(base_url="http://localhost:60105", api_key="my-key")
+client = IosClient()  # reads ~/.go-ios/rest-api.json and connects
+```
+
+`base_url` is resolved in this order:
+
+1. an explicit `base_url=` argument (use this for remote daemons),
+2. the `GO_IOS_BASE_URL` env var,
+3. local discovery (`<GO_IOS_HOME or ~/.go-ios>/rest-api.json`),
+4. otherwise a clear `DiscoveryError` ("no local go-ios REST daemon found at
+   `<path>`; start it or pass an explicit base_url").
+
+To pin the daemon to a fixed port instead, start it with `--addr :8080` and/or
+set `GO_IOS_BASE_URL`.
+
+## Auth
+
+The go-ios server uses bearer auth (`Authorization: Bearer <GO_IOS_API_KEY>`).
+Pass your key as `api_key` (or set the `GO_IOS_API_KEY` env var); it is sent on
+every request. A server started with `--disable-auth` needs no key, but supplying
+one is still safe and encouraged.
+
+```python
+from go_ios_sdk import IosClient
+
+client = IosClient(api_key="my-key")                       # discovered daemon
+client = IosClient(base_url="http://remote:8080", api_key="my-key")  # explicit
 ```
 
 ## Quickstart (sync, unary calls)
@@ -41,7 +67,7 @@ client = IosClient(base_url="http://localhost:60105", api_key="my-key")
 ```python
 from go_ios_sdk import IosClient
 
-with IosClient(base_url="http://localhost:60105", api_key="my-key") as client:
+with IosClient(api_key="my-key") as client:  # auto-discovers the local daemon
     # Fleet
     for entry in client.devices.list()["deviceList"]:
         print(entry["properties"]["serialNumber"])
@@ -89,7 +115,9 @@ pre-release smoke test. Point them at a running daemon:
 
 ```bash
 export GO_IOS_API_KEY=your-key
-export GO_IOS_BASE_URL=http://localhost:8080   # optional; this is the default
+# GO_IOS_BASE_URL is optional — unset, the examples auto-discover the local
+# daemon (~/.go-ios/rest-api.json). Set it to target a pinned/remote daemon:
+# export GO_IOS_BASE_URL=http://localhost:8080
 uv run python examples/run_all.py              # runs 01–06 as a smoke test
 uv run python examples/01_list_devices.py      # or any single example
 ```
@@ -254,7 +282,7 @@ import asyncio
 from go_ios_sdk import AsyncIosClient
 
 async def main():
-    async with AsyncIosClient(base_url="http://localhost:60105", api_key="my-key") as client:
+    async with AsyncIosClient(api_key="my-key") as client:  # auto-discovers the daemon
         dev = client.device("00008110-0000000000000000")
 
         async for event in dev.syslog():
@@ -291,7 +319,7 @@ async with dev.syslog() as stream:
 ### Sync
 
 ```python
-with IosClient(base_url="http://localhost:60105", api_key="my-key") as client:
+with IosClient(api_key="my-key") as client:  # auto-discovers the local daemon
     for event in client.device(udid).syslog():
         print(event.message)
 ```

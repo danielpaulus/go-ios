@@ -26,7 +26,7 @@ Each script is standalone — read one top to bottom to learn the API it covers.
 | Variable          | Required | Default                 | Meaning                                            |
 | ----------------- | -------- | ----------------------- | -------------------------------------------------- |
 | `GO_IOS_API_KEY`  | **yes**  | —                       | Bearer token the daemon was started with           |
-| `GO_IOS_BASE_URL` | no       | `http://localhost:8080` | Daemon base URL                                     |
+| `GO_IOS_BASE_URL` | no       | auto-discovered         | Daemon base URL; unset -> discover the local daemon (`~/.go-ios/rest-api.json`) |
 | `GO_IOS_UDID`     | no       | first attached device   | udid (serial) of the device to target              |
 | `RUN_UI`          | no       | unset                   | set to `1` to also run `07_ui_automation` in the runner |
 
@@ -34,7 +34,8 @@ Every example exits non-zero with a helpful message if `GO_IOS_API_KEY` is unset
 
 ```bash
 export GO_IOS_API_KEY=your-key
-export GO_IOS_BASE_URL=http://localhost:8080   # optional; this is the default
+# GO_IOS_BASE_URL optional; unset, the local daemon is auto-discovered.
+# Set it to target a pinned/remote daemon: export GO_IOS_BASE_URL=http://localhost:8080
 export GO_IOS_UDID=00008110-000...             # optional; first device otherwise
 ```
 

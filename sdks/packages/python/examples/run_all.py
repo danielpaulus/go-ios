@@ -75,7 +75,7 @@ def _run_one(module_name: str, label: str) -> str:
 def main() -> int:
     # Fail fast and clearly if the daemon key is missing (one message, not six).
     require_api_key()
-    print(f"go-ios-sdk examples smoke test against {base_url()}")
+    print(f"go-ios-sdk examples smoke test against {base_url() or '(auto-discovered daemon)'}")
 
     plan = list(_CORE)
     if os.environ.get("RUN_UI") == "1":
