@@ -34,6 +34,8 @@ func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	// feat/restapi-w1c-fsync: AFC filesystem + cloud-config device routes.
 	registerFsyncRoutes(device)
 	registerProvisioningDeviceRoutes(device)
+	// feat/restapi-w1d-webinspector: WebInspector device routes.
+	registerWebInspectorRoutes(device)
 	appRoutes(device)
 }
 
