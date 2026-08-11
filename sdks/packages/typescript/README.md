@@ -32,8 +32,8 @@ npm install @go-ios/sdk
 ```ts
 import { IosClient, isSseEvent } from "@go-ios/sdk";
 
+// No baseUrl → auto-discovers the local go-ios REST daemon (see below).
 const client = new IosClient({
-  baseUrl: "http://localhost:60105",
   apiKey: process.env.GO_IOS_API_KEY, // optional if the server runs --disable-auth
 });
 
@@ -171,9 +171,35 @@ try {
 }
 ```
 
+## Connecting (base URL & discovery)
+
+`baseUrl` is optional. By default the go-ios REST daemon binds an ephemeral
+loopback port and writes a small discovery file at
+`<GO_IOS_HOME | ~/.go-ios>/rest-api.json` recording its `baseUrl`. Constructing
+`new IosClient()` with no `baseUrl` auto-discovers that local daemon.
+
+The base URL is resolved in this order:
+
+1. the explicit `baseUrl` option → used verbatim (skips discovery; use this for a
+   remote daemon)
+2. the `GO_IOS_BASE_URL` environment variable
+3. **discovery** — read `<home>/rest-api.json` and use its `baseUrl`
+4. none of the above → a clear error asking you to start the go-ios REST API or
+   pass a `baseUrl`
+
+```ts
+new IosClient();                                  // auto-discover local daemon
+new IosClient({ baseUrl: "http://remote:8080" }); // pin an explicit URL
+```
+
+To pin the daemon's port instead of using an ephemeral one, start it with
+`--addr :8080` (and/or set `GO_IOS_BASE_URL`). `GO_IOS_HOME` overrides the home
+directory used for the discovery file (default `~/.go-ios`). The `apiKey` is
+independent of discovery — pass it as an option or set `GO_IOS_API_KEY`.
+
 ## Public API
 
-- `new IosClient({ baseUrl, apiKey?, fetch? })`
+- `new IosClient({ baseUrl?, apiKey?, fetch? })` — `baseUrl` optional; auto-discovers the local daemon when omitted
 - `client.devices.list()`
 - `deviceUdid(entry)` — convenience accessor for `entry.properties.serialNumber`
 - `client.device(udid)` →

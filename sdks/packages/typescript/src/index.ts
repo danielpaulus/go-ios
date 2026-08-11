@@ -61,6 +61,7 @@ import type {
 } from "./generated/types.gen";
 import { IosApiError, unwrap } from "./errors";
 import { openBinaryStream, type BinaryStream } from "./binary";
+import { resolveBaseUrl } from "./discovery";
 import { parseSseStream, type SseEvent } from "./sse";
 import type {
   JobLogEventMap,
@@ -72,6 +73,13 @@ import type {
 } from "./events";
 
 export { IosApiError } from "./errors";
+export {
+  goIosHome,
+  discoveryFilePath,
+  discoverBaseUrl,
+  resolveBaseUrl,
+} from "./discovery";
+export type { RestApiDescriptor } from "./discovery";
 export { openBinaryStream } from "./binary";
 export type { BinaryStream } from "./binary";
 export { SseFrameParser, parseSseStream, isSseEvent } from "./sse";
@@ -93,8 +101,15 @@ export type * from "./generated/types.gen";
 
 /** Options for constructing an {@link IosClient}. */
 export interface IosClientOptions {
-  /** Base URL of the go-ios REST server, e.g. `http://localhost:60105`. */
-  baseUrl: string;
+  /**
+   * Base URL of the go-ios REST server, e.g. `http://localhost:60105`.
+   *
+   * Optional: when omitted, the base URL is resolved in order from the
+   * `GO_IOS_BASE_URL` environment variable, then via discovery of a local
+   * daemon (`<GO_IOS_HOME | ~/.go-ios>/rest-api.json`). When given, it is used
+   * verbatim and discovery is skipped (use this to talk to a remote daemon).
+   */
+  baseUrl?: string;
   /**
    * Bearer API key. Sent as `Authorization: Bearer <apiKey>` on every request.
    * Optional (the server may run with `--disable-auth`), but strongly encouraged
@@ -2097,10 +2112,13 @@ export class IosClient {
   /** Host-level device-preparation helpers (create-cert / skip-options). */
   readonly prepare: PrepareHandle;
 
-  constructor(options: IosClientOptions) {
+  constructor(options: IosClientOptions = {}) {
+    // Resolution order: explicit baseUrl option > GO_IOS_BASE_URL env >
+    // local-daemon discovery (<home>/rest-api.json) > clear throw.
+    const baseUrl = resolveBaseUrl(options.baseUrl);
     this.client = createClient(
       createConfig({
-        baseUrl: options.baseUrl,
+        baseUrl,
         ...(options.fetch ? { fetch: options.fetch } : {}),
         // The `bearer` security scheme reads this to set the Authorization header.
         ...(options.apiKey ? { auth: options.apiKey } : {}),
