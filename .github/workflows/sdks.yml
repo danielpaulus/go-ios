@@ -1,8 +1,8 @@
 name: SDKs CI
 
 # Validation only (spec compile + per-package build/test) for the SDKs under
-# sdks/. Publishing is handled by the separate, tag/dispatch-gated per-package
-# workflows (sdks-publish-*.yml).
+# sdks/. Publishing is handled by the separate, dispatch-only release-sdks.yml
+# (lockstep: all five SDKs share one version and ship together).
 on:
   pull_request:
     paths:
