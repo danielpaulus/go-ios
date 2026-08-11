@@ -17,7 +17,15 @@ func runPSCommand(ctx commandContext) {
 
 func runInstallCommand(ctx commandContext) {
 	path, _ := ctx.Args.String("--path")
-	installApp(ctx.Device, path)
+	method, _ := ctx.Args.String("--method")
+	switch method {
+	case "", "zipconduit":
+		installApp(ctx.Device, path)
+	case "installproxy":
+		installAppInstallProxy(ctx.Device, path)
+	default:
+		logFatal("unknown install method, supported values are 'zipconduit' (default) and 'installproxy'")
+	}
 }
 
 func runUninstallCommand(ctx commandContext) {

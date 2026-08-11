@@ -102,7 +102,7 @@ Usage:
   ios image mount [--path=<imagepath>] [options]
   ios image unmount [options]
   ios info [display | lockdown] [options]
-  ios install --path=<ipaOrAppFolder> [options]
+  ios install --path=<ipaOrAppFolder> [--method=<method>] [options]
   ios instruments notifications [options]
   ios ip [options]
   ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
@@ -323,7 +323,13 @@ The commands work as following:
 
     ios image unmount [options]                     Unmount developer disk image
     ios info [display | lockdown] [options]         Prints a dump of device information from the given source.
-    ios install --path=<ipaOrAppFolder> [options]   Specify a .app folder or an installable ipa file that will be installed.
+    ios install --path=<ipaOrAppFolder> [--method=<method>] [options]
+                                                    Specify a .app folder or an installable ipa file that will be installed.
+                                                    --method selects how the app is installed: 'zipconduit' (the default) streams
+                                                    the unpacked app to the device, 'installproxy' uploads the .ipa via AFC to
+                                                    PublicStaging and installs it with the installation_proxy service. The
+                                                    installproxy method transfers the compressed .ipa as-is, which is faster for
+                                                    large apps, but supports only .ipa files, not .app folders.
     ios instruments notifications [options]         Listen to application state notifications
 
     ios ip [options]                                Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
@@ -770,6 +776,12 @@ func installApp(device ios.DeviceEntry, path string) {
 	exitIfError("failed connecting to zipconduit, dev image installed?", err)
 	err = conn.SendFile(path)
 	exitIfError("failed writing", err)
+}
+
+func installAppInstallProxy(device ios.DeviceEntry, path string) {
+	slog.Info("installing via installproxy", "appPath", path, "device", device.Properties.SerialNumber)
+	err := installationproxy.InstallIpa(device, path)
+	exitIfError("failed installing", err)
 }
 
 func uninstallApp(device ios.DeviceEntry, bundleId string) {
