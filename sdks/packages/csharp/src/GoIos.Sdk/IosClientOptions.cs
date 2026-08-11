@@ -8,10 +8,14 @@ namespace GoIos;
 public sealed class IosClientOptions
 {
     /// <summary>
-    /// Base URL of the go-ios REST server, e.g. <c>http://localhost:60105</c>.
-    /// Defaults to the spec's default server.
+    /// Base URL of the go-ios REST server, e.g. <c>http://127.0.0.1:54321</c>.
+    /// Optional: when unset (null/empty), the client resolves the address in this
+    /// order — the <c>GO_IOS_BASE_URL</c> environment variable, then discovery of a
+    /// local daemon via <c>&lt;home&gt;/rest-api.json</c> (see <see cref="Discovery"/>).
+    /// Set this explicitly to target a remote daemon; it is then used verbatim and
+    /// discovery is skipped.
     /// </summary>
-    public string BaseUrl { get; set; } = "http://localhost:60105";
+    public string? BaseUrl { get; set; }
 
     /// <summary>
     /// Bearer token sent as <c>Authorization: Bearer &lt;ApiKey&gt;</c> on every

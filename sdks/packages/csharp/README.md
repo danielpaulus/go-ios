@@ -25,6 +25,37 @@ dotnet add package GoIos.Sdk
 
 Targets **net8.0**.
 
+## Connecting (daemon discovery)
+
+By default the go-ios REST daemon binds an **ephemeral, loopback-only** port and
+writes a discovery file at `<home>/rest-api.json` after it starts. The SDK reads
+that file so `new IosClient()` "just works" against a locally running daemon —
+no port to hardcode.
+
+`BaseUrl` is optional. When it is not set, the base URL is resolved in this order:
+
+1. **explicit `Options.BaseUrl`** — used verbatim (for remote daemons); discovery
+   is skipped;
+2. **`GO_IOS_BASE_URL`** environment variable;
+3. **discovery** — read `baseUrl` from `<home>/rest-api.json`;
+4. **none found** → a `DaemonNotFoundException` is thrown with a clear message
+   ("no local go-ios REST daemon found at `<path>`; start it … or pass an explicit
+   BaseUrl").
+
+The **home** directory is `GO_IOS_HOME` (if set and non-empty), otherwise
+`~/.go-ios` (the user profile dir; `%USERPROFILE%\.go-ios` on Windows). To pin the
+daemon to a fixed port instead of the ephemeral default, run it with `--addr :8080`
+and/or set `GO_IOS_BASE_URL`.
+
+The `ApiKey` is independent of discovery: set it on `Options.ApiKey` (see
+[Authentication](#authentication)). It is **not** read from the discovery file.
+
+You can also call the discovery helper directly:
+
+```csharp
+string baseUrl = GoIos.Discovery.DiscoverBaseUrl(); // throws DaemonNotFoundException if none
+```
+
 ## Quickstart
 
 ### Unary calls
@@ -32,11 +63,14 @@ Targets **net8.0**.
 ```csharp
 using GoIos;
 
+// No BaseUrl: the SDK auto-discovers a local go-ios REST daemon (see below).
 using var client = new IosClient(new IosClientOptions
 {
-    BaseUrl = "http://localhost:60105",
-    ApiKey  = "your-go-ios-api-key", // optional if the server runs with --disable-auth
+    ApiKey = "your-go-ios-api-key", // optional if the server runs with --disable-auth
 });
+
+// ...or, equivalently, with no options at all:
+using var discovered = new IosClient();
 
 // List devices
 var devices = await client.Devices.ListAsync();

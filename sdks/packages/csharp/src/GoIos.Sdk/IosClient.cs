@@ -37,14 +37,32 @@ public sealed class IosClient : IDisposable
     /// <summary>Host-scoped device-preparation helpers (supervision cert / skip options).</summary>
     public PrepareClient Prepare { get; }
 
-    /// <summary>Create a new client with the given options.</summary>
+    /// <summary>
+    /// Create a client that auto-resolves the go-ios REST daemon address via
+    /// <c>GO_IOS_BASE_URL</c> or local discovery (see <see cref="IosClient(IosClientOptions)"/>).
+    /// </summary>
+    public IosClient() : this(new IosClientOptions())
+    {
+    }
+
+    /// <summary>
+    /// Create a new client with the given options.
+    /// </summary>
+    /// <remarks>
+    /// When <see cref="IosClientOptions.BaseUrl"/> is not set, the base URL is
+    /// resolved in this order:
+    /// <list type="number">
+    /// <item>explicit <see cref="IosClientOptions.BaseUrl"/> (targets remote daemons; skips discovery);</item>
+    /// <item>the <c>GO_IOS_BASE_URL</c> environment variable;</item>
+    /// <item>discovery of a local daemon via <c>&lt;home&gt;/rest-api.json</c>.</item>
+    /// </list>
+    /// If none resolve, a <see cref="DaemonNotFoundException"/> is thrown.
+    /// </remarks>
     public IosClient(IosClientOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (string.IsNullOrWhiteSpace(options.BaseUrl))
-            throw new ArgumentException("BaseUrl must be set", nameof(options));
 
-        var baseUrl = new Uri(options.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute);
+        var baseUrl = new Uri(ResolveBaseUrl(options).TrimEnd('/') + "/", UriKind.Absolute);
         var apiKey = options.ApiKey;
 
         if (options.HttpClient is not null)
@@ -83,6 +101,23 @@ public sealed class IosClient : IDisposable
         if (string.IsNullOrWhiteSpace(udid))
             throw new ArgumentException("udid must be set", nameof(udid));
         return new DeviceClient(udid, _api, _raw);
+    }
+
+    /// <summary>
+    /// Resolve the base URL: explicit option &gt; <c>GO_IOS_BASE_URL</c> env &gt;
+    /// local discovery. Throws <see cref="DaemonNotFoundException"/> when nothing
+    /// resolves.
+    /// </summary>
+    private static string ResolveBaseUrl(IosClientOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+            return options.BaseUrl!;
+
+        var env = Environment.GetEnvironmentVariable("GO_IOS_BASE_URL");
+        if (!string.IsNullOrWhiteSpace(env))
+            return env;
+
+        return Discovery.DiscoverBaseUrl();
     }
 
     /// <inheritdoc/>
