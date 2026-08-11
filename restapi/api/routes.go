@@ -44,6 +44,9 @@ func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	registerWebInspectorRoutes(device)
 	// feat/restapi-w2-ui: UI-automation routes proxying to a forwarded WDA/DeviceKit backend.
 	registerUIRoutes(device)
+	// --- feat/restapi-w3b-pcap: live pcap streaming route ---
+	registerPcapRoutes(device)
+	// --- end feat/restapi-w3b-pcap ---
 	appRoutes(device)
 }
 
