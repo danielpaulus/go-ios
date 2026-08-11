@@ -47,6 +47,9 @@ func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	// --- feat/restapi-w3a-streams: live UI video stream + mjpeg screenshot stream ---
 	registerStreamRoutes(device)
 	// --- end feat/restapi-w3a-streams ---
+	// --- feat/restapi-w3b-pcap: live pcap streaming route ---
+	registerPcapRoutes(device)
+	// --- end feat/restapi-w3b-pcap ---
 	appRoutes(device)
 }
 
