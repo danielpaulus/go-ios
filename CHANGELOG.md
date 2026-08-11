@@ -13,6 +13,25 @@ Use `## [Unreleased]` to jot down notable changes between releases if you like.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-10
+
+## Security & stability
+- **Two rounds of hardening against malformed/hostile input** (#791, #792): eliminated panics, unbounded allocations, and hangs across the untrusted-input surface — plist/usbmux framing, XPC, AFC, the DTX codec, testmanagerd, and NSKeyedArchiver (including an uncatchable stack overflow from cyclic archives).
+- **REST API authentication (BREAKING).** The REST API no longer runs open by default: set `GO_IOS_API_KEY=<token>` (enforced as a bearer token on `/api/v1`) or pass `--disable-auth` to run without it. If neither is provided, the server refuses to start.
+- REST API: rejected `basedir` path traversal, capped image uploads, and fixed a single-request server kill (`/notifications`) and a 100% CPU streaming busy-loop.
+- Enabled TLS verification for the Apple TSS endpoint; contained AFC pull path traversal.
+- Dependency/toolchain CVE fixes: go-pkcs12 → v0.7.2, toolchain → go1.26.5, x/crypto → v0.52.0, x/net → v0.55.0, and a quic-go CVE upgrade.
+
+## Features
+- **MDM** subcommands for passcode and Screen Time management, a read-only security-info query, and unlock-token fetch (#778).
+- **Pasteboard** service control — get/set the device clipboard (#773).
+- WDA/XCUITest now run on iOS 14–16 via an in-memory test config (#790).
+
+## Fixes
+- pair: report locked devices instead of false success; fix a PairSupervised panic when the device is passcode-locked.
+- rsd: fail fast when a service is missing from the RSD list; export `RsdPortForService`; hint at outdated DDIs (#787).
+- imagemounter: validate plist replies and the UnmountImage reply; fix silent personalized-image mount failures (#788).
+
 ## [1.2.1] - 2026-08-03
 
 * fix(imagemounter): derive EPRO/ESEC from RestoreRequestRules for TSS [#781](https://github.com/danielpaulus/go-ios/pull/781)

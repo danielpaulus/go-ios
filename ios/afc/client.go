@@ -79,6 +79,13 @@ func (c *Client) List(p string) ([]string, error) {
 		if entry == "." || entry == ".." {
 			continue
 		}
+		// Drop entries whose device-supplied name would escape when joined to a
+		// host path (absolute or containing a ".." element). A legitimate
+		// filename is never affected; this filters traversal names like
+		// "../evil" so they cannot survive as directory entries.
+		if unsafeEntryName(entry) {
+			continue
+		}
 		list = append(list, entry)
 	}
 	return list, nil
