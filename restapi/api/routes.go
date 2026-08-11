@@ -11,6 +11,9 @@ func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	registerTunnelRoutes(router)
 	// feat/restapi-w1c-fsync: fleet/host-level provisioning routes (no device).
 	registerProvisioningHostRoutes(router)
+	// --- feat/restapi-w4-sign: host-local codesigning + supervision-cert routes ---
+	registerSignHostRoutes(router)
+	// --- end feat/restapi-w4-sign ---
 
 	device := router.Group("/device/:udid")
 	device.Use(DeviceMiddleware())
@@ -34,6 +37,9 @@ func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	// feat/restapi-w1c-fsync: AFC filesystem + cloud-config device routes.
 	registerFsyncRoutes(device)
 	registerProvisioningDeviceRoutes(device)
+	// --- feat/restapi-w4-sign: device-scoped prepare route ---
+	registerSignDeviceRoutes(device)
+	// --- end feat/restapi-w4-sign ---
 	// feat/restapi-w1d-webinspector: WebInspector device routes.
 	registerWebInspectorRoutes(device)
 	appRoutes(device)
