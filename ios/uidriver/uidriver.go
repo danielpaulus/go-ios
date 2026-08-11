@@ -452,12 +452,21 @@ var ErrStreamUnsupported = errors.New("uidriver: stream type not supported by th
 // ReadCloser and must Close it. A non-2xx response is returned as an *HTTPError
 // with the response body included.
 func (d *Driver) Stream(ctx context.Context, opts StreamOptions) (io.ReadCloser, error) {
+	body, _, err := d.StreamWithContentType(ctx, opts)
+	return body, err
+}
+
+// StreamWithContentType behaves like Stream but also returns the backend's
+// response Content-Type, so callers proxying the stream (for example the REST
+// API) can forward it verbatim. The returned Content-Type may be empty if the
+// backend did not set one.
+func (d *Driver) StreamWithContentType(ctx context.Context, opts StreamOptions) (io.ReadCloser, string, error) {
 	streamType := "mjpeg"
 	if opts.H264 {
 		streamType = "h264"
 	}
 	if d.backend == BackendWDA && streamType != "mjpeg" {
-		return nil, fmt.Errorf("%w: WDA stream supports mjpeg only; use the DeviceKit backend for h264", ErrStreamUnsupported)
+		return nil, "", fmt.Errorf("%w: WDA stream supports mjpeg only; use the DeviceKit backend for h264", ErrStreamUnsupported)
 	}
 	query := url.Values{}
 	setIfNotEmpty(query, "fps", opts.FPS)
@@ -475,19 +484,19 @@ func (d *Driver) Stream(ctx context.Context, opts StreamOptions) (io.ReadCloser,
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("uidriver: failed creating stream request: %w", err)
+		return nil, "", fmt.Errorf("uidriver: failed creating stream request: %w", err)
 	}
 	golog.Info("opening ui stream", "module", logModule, "backend", string(d.backend), "url", rawURL, "udid", d.udid)
 	resp, err := d.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("uidriver: stream request failed: %w", err)
+		return nil, "", fmt.Errorf("uidriver: stream request failed: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, &HTTPError{StatusCode: resp.StatusCode, Body: body}
+		return nil, "", &HTTPError{StatusCode: resp.StatusCode, Body: body}
 	}
-	return resp.Body, nil
+	return resp.Body, resp.Header.Get("Content-Type"), nil
 }
 
 // HTTPError is returned when a backend responds with a non-2xx status.
