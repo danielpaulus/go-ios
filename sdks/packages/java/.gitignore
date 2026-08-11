@@ -9,3 +9,11 @@ target/
 # so undo the repo-root "generated/" ignore for this subtree.
 !generated/
 !generated/**
+
+# The repo-root .gitignore has a bare "main" pattern (for the compiled go-ios
+# "main" binary) that also matches this Maven package's src/main/ directory,
+# which would silently untrack the hand-written Java facade sources. Re-include
+# the SDK sources so they are always tracked regardless of that rule.
+!src/
+!src/main/
+!src/main/**

@@ -193,8 +193,28 @@ jobs:
           # No NODE_AUTH_TOKEN / .npmrc auth line: npm authenticates via OIDC
           # trusted publishing. Any (even empty) token would break OIDC.
           npm publish --access public
-      - name: Note on MCP package
-        run: echo "packages/mcp is private (not published to npm); it is versioned + built/tested for lockstep parity only."
+      # @go-ios/mcp ships to npm alongside the TypeScript SDK (same OIDC trusted
+      # publishing + provenance). Guarded identically to the TS publish above.
+      - name: Prepare + build (mcp)
+        working-directory: sdks/packages/mcp
+        run: |
+          npm ci
+          npm run build
+      - name: npm publish --dry-run (mcp, dry_run)
+        if: ${{ inputs.dry_run }}
+        working-directory: sdks/packages/mcp
+        run: npm publish --dry-run --access public
+      - name: npm publish (mcp, OIDC)
+        if: ${{ !inputs.dry_run }}
+        working-directory: sdks/packages/mcp
+        run: |
+          set -euo pipefail
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::warning::npm OIDC context not available — skipping real @go-ios/mcp publish. Configure the @go-ios org + OIDC trusted publisher first (see sdks/docs/RELEASING.md)."
+            exit 0
+          fi
+          # No NODE_AUTH_TOKEN / .npmrc auth line: OIDC trusted publishing only.
+          npm publish --access public
 
   publish-pypi:
     needs: [prepare, build-typescript, build-mcp, build-python, build-csharp, build-java]
