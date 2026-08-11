@@ -15,6 +15,9 @@ func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	device.Use(RateLimitUDID(rateLimit, rateBurst))
 	simpleDeviceRoutes(device)
 	registerDeviceInfoRoutes(device)
+	// --- feat/restapi-w1a-diagnostics: diagnostics & network parity endpoints ---
+	registerDiagnosticsNetRoutes(device)
+	// --- end feat/restapi-w1a-diagnostics ---
 	registerDeviceMgmtRoutes(device)
 	registerFilesRoutes(device)
 	registerMediaRoutes(device)

@@ -28,6 +28,7 @@ var (
 	errMissingProxyHostPort = errors.New("both 'host' and 'port' form fields are required")
 	errUploadTooLarge       = errors.New("upload exceeds the maximum allowed size")
 	errInvalidPID           = errors.New("invalid pid parameter")
+	errRsdUnavailable       = errors.New("RSD is not available for this device: a running tunnel (iOS 17+) is required")
 )
 
 // RespondError writes a consistent JSON error envelope ({"error": "..."}) and

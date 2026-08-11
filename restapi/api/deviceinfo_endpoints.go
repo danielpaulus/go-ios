@@ -160,18 +160,43 @@ func GetProcesses(c *gin.Context) {
 	c.JSON(http.StatusOK, processList)
 }
 
-// GetLockdownValues returns all lockdown values (CLI: ios lockdown get).
+// GetLockdownValues returns lockdown values (CLI: ios lockdown get). Without a
+// `domain` query param it returns all values; with `domain` it returns only the
+// values scoped to that domain.
 // @Summary Get lockdown values
 // @Produce json
 // @Param udid path string true "Device UDID"
+// @Param domain query string false "Lockdown domain to scope the values to"
 // @Success 200 {object} interface{}
 // @Router /device/{udid}/lockdown [get]
 func GetLockdownValues(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
-	allValues, err := ios.GetValues(device)
+	domain := c.Query("domain")
+
+	// No domain: return the full set of lockdown values (default CLI behaviour).
+	if domain == "" {
+		allValues, err := ios.GetValues(device)
+		if err != nil {
+			RespondError(c, http.StatusInternalServerError, err)
+			return
+		}
+		c.JSON(http.StatusOK, allValues)
+		return
+	}
+
+	// Domain scoped: open a lockdown session and pass the domain through. An
+	// empty key returns all values within the requested domain.
+	lockdownConn, err := ios.ConnectLockdownWithSession(device)
 	if err != nil {
 		RespondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, allValues)
+	defer lockdownConn.Close()
+
+	value, err := lockdownConn.GetValueForDomain("", domain)
+	if err != nil {
+		RespondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"domain": domain, "value": value})
 }
