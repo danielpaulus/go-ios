@@ -81,6 +81,23 @@ with IosClient(base_url="http://localhost:60105", api_key="my-key") as client:
     dev.wda.delete_session(session["sessionId"])
 ```
 
+## Examples
+
+Runnable, heavily-commented example scripts live in
+[`examples/`](examples/README.md) — they double as documentation and as a
+pre-release smoke test. Point them at a running daemon:
+
+```bash
+export GO_IOS_API_KEY=your-key
+export GO_IOS_BASE_URL=http://localhost:8080   # optional; this is the default
+uv run python examples/run_all.py              # runs 01–06 as a smoke test
+uv run python examples/01_list_devices.py      # or any single example
+```
+
+Covered: listing devices, device info, installed apps, screenshots, SSE syslog
+streaming, async streaming (`sysmontap`), and (optional) UI automation over a
+forwarded WebDriverAgent backend. See [`examples/README.md`](examples/README.md).
+
 ## Full endpoint surface
 
 The facade groups all 80 daemon operations (same grouping and snake_case names
