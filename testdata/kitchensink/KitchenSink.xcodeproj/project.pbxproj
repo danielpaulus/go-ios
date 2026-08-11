@@ -1,0 +1,293 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1000010000000000000001 /* KitchenSinkApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001 /* KitchenSinkApp.swift */; };
+		A1000010000000000000002 /* OutcomeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002 /* OutcomeTests.swift */; };
+		A1000010000000000000003 /* SecondSuiteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000003 /* SecondSuiteTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A1000090000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A1000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1000020000000000000001;
+			remoteInfo = KitchenSink;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		A1000000000000000000001 /* KitchenSinkApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenSinkApp.swift; sourceTree = "<group>"; };
+		A1000000000000000000002 /* OutcomeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutcomeTests.swift; sourceTree = "<group>"; };
+		A1000000000000000000003 /* SecondSuiteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondSuiteTests.swift; sourceTree = "<group>"; };
+		A1000000000000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000A0000000000000001 /* KitchenSink.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KitchenSink.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000A0000000000000002 /* KitchenSinkUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KitchenSinkUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A1000030000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1000030000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A1000040000000000000000 = {
+			isa = PBXGroup;
+			children = (
+				A1000040000000000000001 /* KitchenSink */,
+				A1000040000000000000002 /* KitchenSinkUITests */,
+				A1000040000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A1000040000000000000001 /* KitchenSink */ = {
+			isa = PBXGroup;
+			children = (
+				A1000000000000000000001 /* KitchenSinkApp.swift */,
+				A1000000000000000000004 /* Info.plist */,
+			);
+			path = KitchenSink;
+			sourceTree = "<group>";
+		};
+		A1000040000000000000002 /* KitchenSinkUITests */ = {
+			isa = PBXGroup;
+			children = (
+				A1000000000000000000002 /* OutcomeTests.swift */,
+				A1000000000000000000003 /* SecondSuiteTests.swift */,
+			);
+			path = KitchenSinkUITests;
+			sourceTree = "<group>";
+		};
+		A1000040000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A10000A0000000000000001 /* KitchenSink.app */,
+				A10000A0000000000000002 /* KitchenSinkUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A1000020000000000000001 /* KitchenSink */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000070000000000000001 /* Build configuration list for PBXNativeTarget "KitchenSink" */;
+			buildPhases = (
+				A1000050000000000000001 /* Sources */,
+				A1000030000000000000001 /* Frameworks */,
+				A1000060000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KitchenSink;
+			productName = KitchenSink;
+			productReference = A10000A0000000000000001 /* KitchenSink.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A1000020000000000000002 /* KitchenSinkUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000070000000000000002 /* Build configuration list for PBXNativeTarget "KitchenSinkUITests" */;
+			buildPhases = (
+				A1000050000000000000002 /* Sources */,
+				A1000030000000000000002 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1000080000000000000001 /* PBXTargetDependency */,
+			);
+			name = KitchenSinkUITests;
+			productName = KitchenSinkUITests;
+			productReference = A10000A0000000000000002 /* KitchenSinkUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A1000000000000000000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					A1000020000000000000001 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					A1000020000000000000002 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = A1000020000000000000001;
+					};
+				};
+			};
+			buildConfigurationList = A1000070000000000000000 /* Build configuration list for PBXProject "KitchenSink" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A1000040000000000000000;
+			productRefGroup = A1000040000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A1000020000000000000001 /* KitchenSink */,
+				A1000020000000000000002 /* KitchenSinkUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A1000060000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A1000050000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000010000000000000001 /* KitchenSinkApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1000050000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000010000000000000002 /* OutcomeTests.swift in Sources */,
+				A1000010000000000000003 /* SecondSuiteTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A1000080000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1000020000000000000001 /* KitchenSink */;
+			targetProxy = A1000090000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		A10000B0000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A10000B0000000000000002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = KitchenSink/Info.plist;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.deviceboxhq.goios.kitchensink;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A10000B0000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.deviceboxhq.goios.kitchensink;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = KitchenSink;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A1000070000000000000000 /* Build configuration list for PBXProject "KitchenSink" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000B0000000000000001 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A1000070000000000000001 /* Build configuration list for PBXNativeTarget "KitchenSink" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000B0000000000000002 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A1000070000000000000002 /* Build configuration list for PBXNativeTarget "KitchenSinkUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000B0000000000000003 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A1000000000000000000000 /* Project object */;
+}
