@@ -13,6 +13,13 @@ Use `## [Unreleased]` to jot down notable changes between releases if you like.
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-08-11
+
+## Fixes
+
+- **accessibility:** the AX inspector no longer deadlocks the DTX connection. `hostInspectorMonitoredEventTypeChanged` events are now consumed continuously, so registering the inspector can't block the connection's single reader goroutine (which would silently stall every channel on that connection). Also adds `DisableSelectionMode()`. Thanks to @sakhisheikh for the fix (#823).
+- **installationproxy:** `browseApps` (`BrowseAllApps` / `BrowseUserApps`) now bounds its receive loop. It aborts with a clear error after a sane maximum number of chunks instead of accumulating unbounded memory when a device never returns `Status: "Complete"`, fixing a potential multi-gigabyte heap growth on misbehaving devices. Thanks to @UMR-Haozi for the thorough report (#818).
+
 ## [1.3.1] - 2026-08-11
 
 ## Fixes
