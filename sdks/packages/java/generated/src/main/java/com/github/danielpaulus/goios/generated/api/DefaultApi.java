@@ -17,10 +17,12 @@ import com.github.danielpaulus.goios.generated.invoker.ApiException;
 import com.github.danielpaulus.goios.generated.invoker.ApiResponse;
 import com.github.danielpaulus.goios.generated.invoker.Pair;
 
+import com.github.danielpaulus.goios.generated.model.AXEnabledRequest;
 import com.github.danielpaulus.goios.generated.model.AgentShutdown;
 import com.github.danielpaulus.goios.generated.model.AppInfo;
 import com.github.danielpaulus.goios.generated.model.AssistiveTouchState;
 import com.github.danielpaulus.goios.generated.model.BatteryInfo;
+import com.github.danielpaulus.goios.generated.model.BatteryRegistry;
 import com.github.danielpaulus.goios.generated.model.CrashListing;
 import com.github.danielpaulus.goios.generated.model.DevModeRequest;
 import com.github.danielpaulus.goios.generated.model.DevModeState;
@@ -28,31 +30,55 @@ import com.github.danielpaulus.goios.generated.model.DeviceDate;
 import com.github.danielpaulus.goios.generated.model.DeviceList;
 import com.github.danielpaulus.goios.generated.model.DeviceName;
 import com.github.danielpaulus.goios.generated.model.DevicesGetJob404Response;
+import com.github.danielpaulus.goios.generated.model.DiskSpaceInfo;
 import com.github.danielpaulus.goios.generated.model.EnabledRequest;
 import com.github.danielpaulus.goios.generated.model.FileDomain;
 import com.github.danielpaulus.goios.generated.model.FileListing;
 import com.github.danielpaulus.goios.generated.model.FilePushResult;
 import com.github.danielpaulus.goios.generated.model.ForwardRequest;
+import com.github.danielpaulus.goios.generated.model.FsyncListing;
+import com.github.danielpaulus.goios.generated.model.FsyncMessage;
+import com.github.danielpaulus.goios.generated.model.FsyncPushResult;
+import com.github.danielpaulus.goios.generated.model.FsyncTreeListing;
 import com.github.danielpaulus.goios.generated.model.GenericResponse;
 import com.github.danielpaulus.goios.generated.model.Job;
 import com.github.danielpaulus.goios.generated.model.LanguageConfiguration;
 import com.github.danielpaulus.goios.generated.model.MemLimitRequest;
 import com.github.danielpaulus.goios.generated.model.MemLimitResult;
 import com.github.danielpaulus.goios.generated.model.MountedImages;
+import com.github.danielpaulus.goios.generated.model.NetworkInfo;
 import com.github.danielpaulus.goios.generated.model.PasteboardContent;
+import com.github.danielpaulus.goios.generated.model.PrepareResult;
+import com.github.danielpaulus.goios.generated.model.PrepareSkipOptions;
 import com.github.danielpaulus.goios.generated.model.ProcessInfo;
 import com.github.danielpaulus.goios.generated.model.ProfileType;
+import com.github.danielpaulus.goios.generated.model.ProvisioningResult;
 import com.github.danielpaulus.goios.generated.model.RunTestRequest;
 import com.github.danielpaulus.goios.generated.model.SetLanguageRequest;
 import com.github.danielpaulus.goios.generated.model.StatusOk;
+import com.github.danielpaulus.goios.generated.model.SupervisionCert;
 import com.github.danielpaulus.goios.generated.model.TimeFormatRequest;
 import com.github.danielpaulus.goios.generated.model.TimeFormatState;
 import com.github.danielpaulus.goios.generated.model.Tunnel;
 import com.github.danielpaulus.goios.generated.model.TunnelStopped;
+import com.github.danielpaulus.goios.generated.model.UIAPIRequest;
+import com.github.danielpaulus.goios.generated.model.UIAppRequest;
+import com.github.danielpaulus.goios.generated.model.UIButtonRequest;
+import com.github.danielpaulus.goios.generated.model.UILongPressRequest;
+import com.github.danielpaulus.goios.generated.model.UIOrientationRequest;
+import com.github.danielpaulus.goios.generated.model.UISwipeRequest;
+import com.github.danielpaulus.goios.generated.model.UITapRequest;
+import com.github.danielpaulus.goios.generated.model.UITypeRequest;
 import com.github.danielpaulus.goios.generated.model.UnlockToken;
+import com.github.danielpaulus.goios.generated.model.VoiceOverState;
 import com.github.danielpaulus.goios.generated.model.WdaConfig;
 import com.github.danielpaulus.goios.generated.model.WdaSession;
+import com.github.danielpaulus.goios.generated.model.WebInspectorEvalRequest;
+import com.github.danielpaulus.goios.generated.model.WebInspectorEvalResult;
+import com.github.danielpaulus.goios.generated.model.WebInspectorLaunchRequest;
+import com.github.danielpaulus.goios.generated.model.WebInspectorLaunchResult;
 import com.github.danielpaulus.goios.generated.model.WifiRequest;
+import com.github.danielpaulus.goios.generated.model.ZoomTouchState;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -120,6 +146,699 @@ public class DefaultApi {
       body = "[no body]";
     }
     return operationId + " call failed with: " + statusCode + " - " + body;
+  }
+
+  /**
+   * Get accessibility element snapshot
+   * Get a snapshot of the currently focused accessibility element (CLI: &#x60;ios ax&#x60;).
+   * @param udid  (required)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object accessibilityGetAxSnapshot(String udid) throws ApiException {
+    ApiResponse<Object> localVarResponse = accessibilityGetAxSnapshotWithHttpInfo(udid);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Get accessibility element snapshot
+   * Get a snapshot of the currently focused accessibility element (CLI: &#x60;ios ax&#x60;).
+   * @param udid  (required)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> accessibilityGetAxSnapshotWithHttpInfo(String udid) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = accessibilityGetAxSnapshotRequestBuilder(udid);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("accessibilityGetAxSnapshot", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder accessibilityGetAxSnapshotRequestBuilder(String udid) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling accessibilityGetAxSnapshot");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ax"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Get VoiceOver state
+   * Get VoiceOver enabled state (CLI: &#x60;ios voiceover get&#x60;).
+   * @param udid  (required)
+   * @return VoiceOverState
+   * @throws ApiException if fails to make API call
+   */
+  public VoiceOverState accessibilityGetVoiceOver(String udid) throws ApiException {
+    ApiResponse<VoiceOverState> localVarResponse = accessibilityGetVoiceOverWithHttpInfo(udid);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Get VoiceOver state
+   * Get VoiceOver enabled state (CLI: &#x60;ios voiceover get&#x60;).
+   * @param udid  (required)
+   * @return ApiResponse&lt;VoiceOverState&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<VoiceOverState> accessibilityGetVoiceOverWithHttpInfo(String udid) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = accessibilityGetVoiceOverRequestBuilder(udid);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("accessibilityGetVoiceOver", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<VoiceOverState>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<VoiceOverState>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<VoiceOverState>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder accessibilityGetVoiceOverRequestBuilder(String udid) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling accessibilityGetVoiceOver");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/voiceover"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Get ZoomTouch state
+   * Get ZoomTouch enabled state (CLI: &#x60;ios zoomtouch get&#x60;).
+   * @param udid  (required)
+   * @return ZoomTouchState
+   * @throws ApiException if fails to make API call
+   */
+  public ZoomTouchState accessibilityGetZoomTouch(String udid) throws ApiException {
+    ApiResponse<ZoomTouchState> localVarResponse = accessibilityGetZoomTouchWithHttpInfo(udid);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Get ZoomTouch state
+   * Get ZoomTouch enabled state (CLI: &#x60;ios zoomtouch get&#x60;).
+   * @param udid  (required)
+   * @return ApiResponse&lt;ZoomTouchState&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ZoomTouchState> accessibilityGetZoomTouchWithHttpInfo(String udid) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = accessibilityGetZoomTouchRequestBuilder(udid);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("accessibilityGetZoomTouch", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<ZoomTouchState>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<ZoomTouchState>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<ZoomTouchState>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder accessibilityGetZoomTouchRequestBuilder(String udid) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling accessibilityGetZoomTouch");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/zoom"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Run accessibility audit
+   * Run the accessibility audit against the focused app and return the issues found (CLI: &#x60;ios ax audit&#x60;). Bounded by &#x60;timeout&#x60; (seconds, default 60).
+   * @param udid  (required)
+   * @param timeout Audit timeout in seconds (default 60). (optional)
+   * @return List&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public List<Object> accessibilityRunAxAudit(String udid, Integer timeout) throws ApiException {
+    ApiResponse<List<Object>> localVarResponse = accessibilityRunAxAuditWithHttpInfo(udid, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Run accessibility audit
+   * Run the accessibility audit against the focused app and return the issues found (CLI: &#x60;ios ax audit&#x60;). Bounded by &#x60;timeout&#x60; (seconds, default 60).
+   * @param udid  (required)
+   * @param timeout Audit timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;List&lt;Object&gt;&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<List<Object>> accessibilityRunAxAuditWithHttpInfo(String udid, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = accessibilityRunAxAuditRequestBuilder(udid, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("accessibilityRunAxAudit", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<List<Object>>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<List<Object>>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<List<Object>>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder accessibilityRunAxAuditRequestBuilder(String udid, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling accessibilityRunAxAudit");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ax/audit"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Simulate location from a GPX file
+   * Simulate live location tracking from an uploaded GPX file (CLI: &#x60;ios setlocationgpx&#x60;). Send multipart/form-data with a &#x60;gpx&#x60; file.
+   * @param udid  (required)
+   * @param gpx  (required)
+   * @return GenericResponse
+   * @throws ApiException if fails to make API call
+   */
+  public GenericResponse accessibilitySetLocationGpx(String udid, Object gpx) throws ApiException {
+    ApiResponse<GenericResponse> localVarResponse = accessibilitySetLocationGpxWithHttpInfo(udid, gpx);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Simulate location from a GPX file
+   * Simulate live location tracking from an uploaded GPX file (CLI: &#x60;ios setlocationgpx&#x60;). Send multipart/form-data with a &#x60;gpx&#x60; file.
+   * @param udid  (required)
+   * @param gpx  (required)
+   * @return ApiResponse&lt;GenericResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<GenericResponse> accessibilitySetLocationGpxWithHttpInfo(String udid, Object gpx) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = accessibilitySetLocationGpxRequestBuilder(udid, gpx);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("accessibilitySetLocationGpx", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<GenericResponse>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<GenericResponse>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<GenericResponse>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder accessibilitySetLocationGpxRequestBuilder(String udid, Object gpx) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling accessibilitySetLocationGpx");
+    }
+    // verify the required parameter 'gpx' is set
+    if (gpx == null) {
+      throw new ApiException(400, "Missing the required parameter 'gpx' when calling accessibilitySetLocationGpx");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/setlocation/gpx"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    MultipartEntityBuilder multiPartBuilder = MultipartEntityBuilder.create();
+    boolean hasFiles = false;
+    multiPartBuilder.addTextBody("gpx", gpx.toString());
+    HttpEntity entity = multiPartBuilder.build();
+    HttpRequest.BodyPublisher formDataPublisher;
+    if (hasFiles) {
+        Pipe pipe;
+        try {
+            pipe = Pipe.open();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        new Thread(() -> {
+            try (OutputStream outputStream = Channels.newOutputStream(pipe.sink())) {
+                entity.writeTo(outputStream);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+        formDataPublisher = HttpRequest.BodyPublishers.ofInputStream(() -> Channels.newInputStream(pipe.source()));
+    } else {
+        ByteArrayOutputStream formOutputStream = new ByteArrayOutputStream();
+        try {
+            entity.writeTo(formOutputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        formDataPublisher = HttpRequest.BodyPublishers
+            .ofInputStream(() -> new ByteArrayInputStream(formOutputStream.toByteArray()));
+    }
+    localVarRequestBuilder
+        .header("Content-Type", entity.getContentType().getValue())
+        .method("PUT", formDataPublisher);
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Set VoiceOver state
+   * Enable/disable VoiceOver (CLI: &#x60;ios voiceover enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+   * @param udid  (required)
+   * @param enabled Desired state (alternative to the request body). (optional)
+   * @param axEnabledRequest  (optional)
+   * @return VoiceOverState
+   * @throws ApiException if fails to make API call
+   */
+  public VoiceOverState accessibilitySetVoiceOver(String udid, Boolean enabled, AXEnabledRequest axEnabledRequest) throws ApiException {
+    ApiResponse<VoiceOverState> localVarResponse = accessibilitySetVoiceOverWithHttpInfo(udid, enabled, axEnabledRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Set VoiceOver state
+   * Enable/disable VoiceOver (CLI: &#x60;ios voiceover enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+   * @param udid  (required)
+   * @param enabled Desired state (alternative to the request body). (optional)
+   * @param axEnabledRequest  (optional)
+   * @return ApiResponse&lt;VoiceOverState&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<VoiceOverState> accessibilitySetVoiceOverWithHttpInfo(String udid, Boolean enabled, AXEnabledRequest axEnabledRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = accessibilitySetVoiceOverRequestBuilder(udid, enabled, axEnabledRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("accessibilitySetVoiceOver", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<VoiceOverState>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<VoiceOverState>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<VoiceOverState>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder accessibilitySetVoiceOverRequestBuilder(String udid, Boolean enabled, AXEnabledRequest axEnabledRequest) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling accessibilitySetVoiceOver");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/voiceover"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "enabled";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("enabled", enabled));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(axEnabledRequest);
+      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Set ZoomTouch state
+   * Enable/disable ZoomTouch (CLI: &#x60;ios zoomtouch enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+   * @param udid  (required)
+   * @param enabled Desired state (alternative to the request body). (optional)
+   * @param axEnabledRequest  (optional)
+   * @return ZoomTouchState
+   * @throws ApiException if fails to make API call
+   */
+  public ZoomTouchState accessibilitySetZoomTouch(String udid, Boolean enabled, AXEnabledRequest axEnabledRequest) throws ApiException {
+    ApiResponse<ZoomTouchState> localVarResponse = accessibilitySetZoomTouchWithHttpInfo(udid, enabled, axEnabledRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Set ZoomTouch state
+   * Enable/disable ZoomTouch (CLI: &#x60;ios zoomtouch enable|disable&#x60;). The desired state comes from the JSON body or the &#x60;enabled&#x60; query param.
+   * @param udid  (required)
+   * @param enabled Desired state (alternative to the request body). (optional)
+   * @param axEnabledRequest  (optional)
+   * @return ApiResponse&lt;ZoomTouchState&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ZoomTouchState> accessibilitySetZoomTouchWithHttpInfo(String udid, Boolean enabled, AXEnabledRequest axEnabledRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = accessibilitySetZoomTouchRequestBuilder(udid, enabled, axEnabledRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("accessibilitySetZoomTouch", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<ZoomTouchState>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<ZoomTouchState>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<ZoomTouchState>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder accessibilitySetZoomTouchRequestBuilder(String udid, Boolean enabled, AXEnabledRequest axEnabledRequest) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling accessibilitySetZoomTouch");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/zoom"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "enabled";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("enabled", enabled));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(axEnabledRequest);
+      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
   }
 
   /**
@@ -1672,25 +2391,27 @@ public class DefaultApi {
 
   /**
    * Get lockdown values
-   * Get all lockdown values (CLI: &#x60;ios lockdown get&#x60;).
+   * Get lockdown values (CLI: &#x60;ios lockdown get&#x60;). Without &#x60;domain&#x60; the full set is returned; with &#x60;domain&#x60; the values are scoped to that lockdown domain.
    * @param udid  (required)
+   * @param domain Optional lockdown domain to scope the returned values. (optional)
    * @return Object
    * @throws ApiException if fails to make API call
    */
-  public Object devicesGetLockdownValues(String udid) throws ApiException {
-    ApiResponse<Object> localVarResponse = devicesGetLockdownValuesWithHttpInfo(udid);
+  public Object devicesGetLockdownValues(String udid, String domain) throws ApiException {
+    ApiResponse<Object> localVarResponse = devicesGetLockdownValuesWithHttpInfo(udid, domain);
     return localVarResponse.getData();
   }
 
   /**
    * Get lockdown values
-   * Get all lockdown values (CLI: &#x60;ios lockdown get&#x60;).
+   * Get lockdown values (CLI: &#x60;ios lockdown get&#x60;). Without &#x60;domain&#x60; the full set is returned; with &#x60;domain&#x60; the values are scoped to that lockdown domain.
    * @param udid  (required)
+   * @param domain Optional lockdown domain to scope the returned values. (optional)
    * @return ApiResponse&lt;Object&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<Object> devicesGetLockdownValuesWithHttpInfo(String udid) throws ApiException {
-    HttpRequest.Builder localVarRequestBuilder = devicesGetLockdownValuesRequestBuilder(udid);
+  public ApiResponse<Object> devicesGetLockdownValuesWithHttpInfo(String udid, String domain) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = devicesGetLockdownValuesRequestBuilder(udid, domain);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
           localVarRequestBuilder.build(),
@@ -1729,7 +2450,7 @@ public class DefaultApi {
     }
   }
 
-  private HttpRequest.Builder devicesGetLockdownValuesRequestBuilder(String udid) throws ApiException {
+  private HttpRequest.Builder devicesGetLockdownValuesRequestBuilder(String udid, String domain) throws ApiException {
     // verify the required parameter 'udid' is set
     if (udid == null) {
       throw new ApiException(400, "Missing the required parameter 'udid' when calling devicesGetLockdownValues");
@@ -1740,7 +2461,22 @@ public class DefaultApi {
     String localVarPath = "/api/v1/device/{udid}/lockdown"
         .replace("{udid}", ApiClient.urlEncode(udid.toString()));
 
-    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "domain";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("domain", domain));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
 
     localVarRequestBuilder.header("Accept", "application/json");
 
@@ -7458,6 +8194,1165 @@ public class DefaultApi {
   }
 
   /**
+   * Get battery IORegistry
+   * Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: &#x60;ios diagnostics ioregistry&#x60;).
+   * @param udid  (required)
+   * @return BatteryRegistry
+   * @throws ApiException if fails to make API call
+   */
+  public BatteryRegistry diagnosticsNetGetBatteryRegistry(String udid) throws ApiException {
+    ApiResponse<BatteryRegistry> localVarResponse = diagnosticsNetGetBatteryRegistryWithHttpInfo(udid);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Get battery IORegistry
+   * Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: &#x60;ios diagnostics ioregistry&#x60;).
+   * @param udid  (required)
+   * @return ApiResponse&lt;BatteryRegistry&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<BatteryRegistry> diagnosticsNetGetBatteryRegistryWithHttpInfo(String udid) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = diagnosticsNetGetBatteryRegistryRequestBuilder(udid);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("diagnosticsNetGetBatteryRegistry", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<BatteryRegistry>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<BatteryRegistry>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<BatteryRegistry>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder diagnosticsNetGetBatteryRegistryRequestBuilder(String udid) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling diagnosticsNetGetBatteryRegistry");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/battery/registry"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Get device IP / network info
+   * Resolve the device&#39;s network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: &#x60;ios ip&#x60;).
+   * @param udid  (required)
+   * @return NetworkInfo
+   * @throws ApiException if fails to make API call
+   */
+  public NetworkInfo diagnosticsNetGetDeviceIp(String udid) throws ApiException {
+    ApiResponse<NetworkInfo> localVarResponse = diagnosticsNetGetDeviceIpWithHttpInfo(udid);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Get device IP / network info
+   * Resolve the device&#39;s network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: &#x60;ios ip&#x60;).
+   * @param udid  (required)
+   * @return ApiResponse&lt;NetworkInfo&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<NetworkInfo> diagnosticsNetGetDeviceIpWithHttpInfo(String udid) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = diagnosticsNetGetDeviceIpRequestBuilder(udid);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("diagnosticsNetGetDeviceIp", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<NetworkInfo>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<NetworkInfo>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<NetworkInfo>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder diagnosticsNetGetDeviceIpRequestBuilder(String udid) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling diagnosticsNetGetDeviceIp");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ip"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Get disk space info
+   * Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: &#x60;ios diskspace&#x60;).
+   * @param udid  (required)
+   * @return DiskSpaceInfo
+   * @throws ApiException if fails to make API call
+   */
+  public DiskSpaceInfo diagnosticsNetGetDiskSpace(String udid) throws ApiException {
+    ApiResponse<DiskSpaceInfo> localVarResponse = diagnosticsNetGetDiskSpaceWithHttpInfo(udid);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Get disk space info
+   * Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: &#x60;ios diskspace&#x60;).
+   * @param udid  (required)
+   * @return ApiResponse&lt;DiskSpaceInfo&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<DiskSpaceInfo> diagnosticsNetGetDiskSpaceWithHttpInfo(String udid) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = diagnosticsNetGetDiskSpaceRequestBuilder(udid);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("diagnosticsNetGetDiskSpace", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<DiskSpaceInfo>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<DiskSpaceInfo>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<DiskSpaceInfo>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder diagnosticsNetGetDiskSpaceRequestBuilder(String udid) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling diagnosticsNetGetDiskSpace");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/diskspace"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Get RSD service list
+   * Get the device&#39;s RSD (Remote Service Discovery) service list (CLI: &#x60;ios rsd ls&#x60;). Requires a running tunnel (iOS 17+); devices without RSD return &#x60;400&#x60;.
+   * @param udid  (required)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object diagnosticsNetGetRsdServices(String udid) throws ApiException {
+    ApiResponse<Object> localVarResponse = diagnosticsNetGetRsdServicesWithHttpInfo(udid);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Get RSD service list
+   * Get the device&#39;s RSD (Remote Service Discovery) service list (CLI: &#x60;ios rsd ls&#x60;). Requires a running tunnel (iOS 17+); devices without RSD return &#x60;400&#x60;.
+   * @param udid  (required)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> diagnosticsNetGetRsdServicesWithHttpInfo(String udid) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = diagnosticsNetGetRsdServicesRequestBuilder(udid);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("diagnosticsNetGetRsdServices", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder diagnosticsNetGetRsdServicesRequestBuilder(String udid) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling diagnosticsNetGetRsdServices");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/rsd"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * List a directory over AFC
+   * List a device directory over AFC (CLI: &#x60;ios fsync ls&#x60;).
+   * @param udid  (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @param path Device-side path (rejects &#x60;..&#x60; elements). (optional)
+   * @return FsyncListing
+   * @throws ApiException if fails to make API call
+   */
+  public FsyncListing fsyncFsyncLs(String udid, String bundleID, String path) throws ApiException {
+    ApiResponse<FsyncListing> localVarResponse = fsyncFsyncLsWithHttpInfo(udid, bundleID, path);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * List a directory over AFC
+   * List a device directory over AFC (CLI: &#x60;ios fsync ls&#x60;).
+   * @param udid  (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @param path Device-side path (rejects &#x60;..&#x60; elements). (optional)
+   * @return ApiResponse&lt;FsyncListing&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<FsyncListing> fsyncFsyncLsWithHttpInfo(String udid, String bundleID, String path) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = fsyncFsyncLsRequestBuilder(udid, bundleID, path);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("fsyncFsyncLs", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<FsyncListing>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<FsyncListing>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<FsyncListing>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder fsyncFsyncLsRequestBuilder(String udid, String bundleID, String path) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling fsyncFsyncLs");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/fsync/ls"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "bundleID";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("bundleID", bundleID));
+    localVarQueryParameterBaseName = "path";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Create a directory over AFC
+   * Create a directory over AFC (CLI: &#x60;ios fsync mkdir&#x60;).
+   * @param udid  (required)
+   * @param path Directory path to create (required). (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @return FsyncMessage
+   * @throws ApiException if fails to make API call
+   */
+  public FsyncMessage fsyncFsyncMkdir(String udid, String path, String bundleID) throws ApiException {
+    ApiResponse<FsyncMessage> localVarResponse = fsyncFsyncMkdirWithHttpInfo(udid, path, bundleID);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Create a directory over AFC
+   * Create a directory over AFC (CLI: &#x60;ios fsync mkdir&#x60;).
+   * @param udid  (required)
+   * @param path Directory path to create (required). (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @return ApiResponse&lt;FsyncMessage&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<FsyncMessage> fsyncFsyncMkdirWithHttpInfo(String udid, String path, String bundleID) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = fsyncFsyncMkdirRequestBuilder(udid, path, bundleID);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("fsyncFsyncMkdir", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<FsyncMessage>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<FsyncMessage>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<FsyncMessage>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder fsyncFsyncMkdirRequestBuilder(String udid, String path, String bundleID) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling fsyncFsyncMkdir");
+    }
+    // verify the required parameter 'path' is set
+    if (path == null) {
+      throw new ApiException(400, "Missing the required parameter 'path' when calling fsyncFsyncMkdir");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/fsync/mkdir"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "bundleID";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("bundleID", bundleID));
+    localVarQueryParameterBaseName = "path";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Download a file over AFC
+   * Download a file from the device over AFC (CLI: &#x60;ios fsync pull&#x60;). Returns the raw file bytes. &#x60;path&#x60; is required.
+   * @param udid  (required)
+   * @param path Remote file path on the device (required). (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object fsyncFsyncPull(String udid, String path, String bundleID) throws ApiException {
+    ApiResponse<Object> localVarResponse = fsyncFsyncPullWithHttpInfo(udid, path, bundleID);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Download a file over AFC
+   * Download a file from the device over AFC (CLI: &#x60;ios fsync pull&#x60;). Returns the raw file bytes. &#x60;path&#x60; is required.
+   * @param udid  (required)
+   * @param path Remote file path on the device (required). (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> fsyncFsyncPullWithHttpInfo(String udid, String path, String bundleID) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = fsyncFsyncPullRequestBuilder(udid, path, bundleID);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("fsyncFsyncPull", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder fsyncFsyncPullRequestBuilder(String udid, String path, String bundleID) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling fsyncFsyncPull");
+    }
+    // verify the required parameter 'path' is set
+    if (path == null) {
+      throw new ApiException(400, "Missing the required parameter 'path' when calling fsyncFsyncPull");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/fsync/pull"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "bundleID";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("bundleID", bundleID));
+    localVarQueryParameterBaseName = "path";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/octet-stream, application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Upload a file over AFC
+   * Upload a file to the device over AFC (CLI: &#x60;ios fsync push&#x60;). Accepts either raw bytes (application/octet-stream) or a multipart form with a &#x60;file&#x60; field. &#x60;path&#x60; is required. Bounded server-side; oversized uploads get &#x60;413&#x60;.
+   * @param udid  (required)
+   * @param path Destination path on the device (required). (required)
+   * @param body Raw file bytes to upload (application/octet-stream). (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @return FsyncPushResult
+   * @throws ApiException if fails to make API call
+   */
+  public FsyncPushResult fsyncFsyncPush(String udid, String path, Object body, String bundleID) throws ApiException {
+    ApiResponse<FsyncPushResult> localVarResponse = fsyncFsyncPushWithHttpInfo(udid, path, body, bundleID);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Upload a file over AFC
+   * Upload a file to the device over AFC (CLI: &#x60;ios fsync push&#x60;). Accepts either raw bytes (application/octet-stream) or a multipart form with a &#x60;file&#x60; field. &#x60;path&#x60; is required. Bounded server-side; oversized uploads get &#x60;413&#x60;.
+   * @param udid  (required)
+   * @param path Destination path on the device (required). (required)
+   * @param body Raw file bytes to upload (application/octet-stream). (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @return ApiResponse&lt;FsyncPushResult&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<FsyncPushResult> fsyncFsyncPushWithHttpInfo(String udid, String path, Object body, String bundleID) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = fsyncFsyncPushRequestBuilder(udid, path, body, bundleID);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("fsyncFsyncPush", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<FsyncPushResult>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<FsyncPushResult>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<FsyncPushResult>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder fsyncFsyncPushRequestBuilder(String udid, String path, Object body, String bundleID) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling fsyncFsyncPush");
+    }
+    // verify the required parameter 'path' is set
+    if (path == null) {
+      throw new ApiException(400, "Missing the required parameter 'path' when calling fsyncFsyncPush");
+    }
+    // verify the required parameter 'body' is set
+    if (body == null) {
+      throw new ApiException(400, "Missing the required parameter 'body' when calling fsyncFsyncPush");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/fsync/push"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "bundleID";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("bundleID", bundleID));
+    localVarQueryParameterBaseName = "path";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/octet-stream");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(body);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Remove a file or directory over AFC
+   * Remove a file or directory over AFC (CLI: &#x60;ios fsync rm&#x60;). Pass &#x60;recursive&#x3D;true&#x60; to delete a non-empty directory.
+   * @param udid  (required)
+   * @param path Path to remove (required). (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @param recursive Remove directory contents recursively. (optional)
+   * @return FsyncMessage
+   * @throws ApiException if fails to make API call
+   */
+  public FsyncMessage fsyncFsyncRm(String udid, String path, String bundleID, Boolean recursive) throws ApiException {
+    ApiResponse<FsyncMessage> localVarResponse = fsyncFsyncRmWithHttpInfo(udid, path, bundleID, recursive);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Remove a file or directory over AFC
+   * Remove a file or directory over AFC (CLI: &#x60;ios fsync rm&#x60;). Pass &#x60;recursive&#x3D;true&#x60; to delete a non-empty directory.
+   * @param udid  (required)
+   * @param path Path to remove (required). (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @param recursive Remove directory contents recursively. (optional)
+   * @return ApiResponse&lt;FsyncMessage&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<FsyncMessage> fsyncFsyncRmWithHttpInfo(String udid, String path, String bundleID, Boolean recursive) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = fsyncFsyncRmRequestBuilder(udid, path, bundleID, recursive);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("fsyncFsyncRm", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<FsyncMessage>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<FsyncMessage>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<FsyncMessage>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder fsyncFsyncRmRequestBuilder(String udid, String path, String bundleID, Boolean recursive) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling fsyncFsyncRm");
+    }
+    // verify the required parameter 'path' is set
+    if (path == null) {
+      throw new ApiException(400, "Missing the required parameter 'path' when calling fsyncFsyncRm");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/fsync/rm"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "bundleID";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("bundleID", bundleID));
+    localVarQueryParameterBaseName = "path";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+    localVarQueryParameterBaseName = "recursive";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("recursive", recursive));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Recursively list a directory over AFC
+   * Recursively list a device directory over AFC (CLI: &#x60;ios fsync tree&#x60;).
+   * @param udid  (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @param path Device-side path (rejects &#x60;..&#x60; elements). (optional)
+   * @return FsyncTreeListing
+   * @throws ApiException if fails to make API call
+   */
+  public FsyncTreeListing fsyncFsyncTree(String udid, String bundleID, String path) throws ApiException {
+    ApiResponse<FsyncTreeListing> localVarResponse = fsyncFsyncTreeWithHttpInfo(udid, bundleID, path);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Recursively list a directory over AFC
+   * Recursively list a device directory over AFC (CLI: &#x60;ios fsync tree&#x60;).
+   * @param udid  (required)
+   * @param bundleID App bundle id to scope to its container (else the media dir). (optional)
+   * @param path Device-side path (rejects &#x60;..&#x60; elements). (optional)
+   * @return ApiResponse&lt;FsyncTreeListing&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<FsyncTreeListing> fsyncFsyncTreeWithHttpInfo(String udid, String bundleID, String path) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = fsyncFsyncTreeRequestBuilder(udid, bundleID, path);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("fsyncFsyncTree", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<FsyncTreeListing>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<FsyncTreeListing>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<FsyncTreeListing>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder fsyncFsyncTreeRequestBuilder(String udid, String bundleID, String path) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling fsyncFsyncTree");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/fsync/tree"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "bundleID";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("bundleID", bundleID));
+    localVarQueryParameterBaseName = "path";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Get device cloud configuration
+   * Get the device cloud configuration (supervision status, skip-setup options, organization info).
+   * @param udid  (required)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object fsyncGetCloudConfig(String udid) throws ApiException {
+    ApiResponse<Object> localVarResponse = fsyncGetCloudConfigWithHttpInfo(udid);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Get device cloud configuration
+   * Get the device cloud configuration (supervision status, skip-setup options, organization info).
+   * @param udid  (required)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> fsyncGetCloudConfigWithHttpInfo(String udid) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = fsyncGetCloudConfigRequestBuilder(udid);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("fsyncGetCloudConfig", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder fsyncGetCloudConfigRequestBuilder(String udid) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling fsyncGetCloudConfig");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/cloudconfig"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * List setup skip options
+   * List all setup-pane skip options usable when preparing a device (CLI: &#x60;ios prepare printskip&#x60;). Static, device-free list.
+   * @return PrepareSkipOptions
+   * @throws ApiException if fails to make API call
+   */
+  public PrepareSkipOptions getPrepareSkipOptions() throws ApiException {
+    ApiResponse<PrepareSkipOptions> localVarResponse = getPrepareSkipOptionsWithHttpInfo();
+    return localVarResponse.getData();
+  }
+
+  /**
+   * List setup skip options
+   * List all setup-pane skip options usable when preparing a device (CLI: &#x60;ios prepare printskip&#x60;). Static, device-free list.
+   * @return ApiResponse&lt;PrepareSkipOptions&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<PrepareSkipOptions> getPrepareSkipOptionsWithHttpInfo() throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = getPrepareSkipOptionsRequestBuilder();
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("getPrepareSkipOptions", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<PrepareSkipOptions>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<PrepareSkipOptions>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<PrepareSkipOptions>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder getPrepareSkipOptionsRequestBuilder() throws ApiException {
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/prepare/skip-options";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
    * List devices
    * List all attached / reachable devices.
    * @return DeviceList
@@ -7602,6 +9497,218 @@ public class DefaultApi {
     localVarRequestBuilder.header("Accept", "application/json");
 
     localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Generate a supervision certificate
+   * Generate a self-signed supervision identity (CLI: &#x60;ios prepare create-cert&#x60;) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+   * @return SupervisionCert
+   * @throws ApiException if fails to make API call
+   */
+  public SupervisionCert prepareCreateCert() throws ApiException {
+    ApiResponse<SupervisionCert> localVarResponse = prepareCreateCertWithHttpInfo();
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Generate a supervision certificate
+   * Generate a self-signed supervision identity (CLI: &#x60;ios prepare create-cert&#x60;) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+   * @return ApiResponse&lt;SupervisionCert&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<SupervisionCert> prepareCreateCertWithHttpInfo() throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = prepareCreateCertRequestBuilder();
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("prepareCreateCert", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<SupervisionCert>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<SupervisionCert>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<SupervisionCert>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder prepareCreateCertRequestBuilder() throws ApiException {
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/prepare/create-cert";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Prepare (and optionally supervise) a device
+   * Run the device preparation/provisioning flow (CLI: &#x60;ios prepare&#x60;). Send multipart/form-data. To supervise the device include a &#x60;cert&#x60; file (DER/PEM/P12 supervision identity) and optional &#x60;p12password&#x60;; without a cert the device is prepared without supervision.
+   * @param udid  (required)
+   * @param cert  (optional)
+   * @param p12password P12 password (when &#x60;cert&#x60; is a P12). (optional)
+   * @param skip Setup panes to skip (see /prepare/skip-options). Repeatable. (optional)
+   * @param orgname Supervision organization name. (optional)
+   * @param locale Device locale (default en_US). (optional)
+   * @param lang Device language (default en). (optional)
+   * @return PrepareResult
+   * @throws ApiException if fails to make API call
+   */
+  public PrepareResult preparePrepareDevice(String udid, Object cert, String p12password, List<String> skip, String orgname, String locale, String lang) throws ApiException {
+    ApiResponse<PrepareResult> localVarResponse = preparePrepareDeviceWithHttpInfo(udid, cert, p12password, skip, orgname, locale, lang);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Prepare (and optionally supervise) a device
+   * Run the device preparation/provisioning flow (CLI: &#x60;ios prepare&#x60;). Send multipart/form-data. To supervise the device include a &#x60;cert&#x60; file (DER/PEM/P12 supervision identity) and optional &#x60;p12password&#x60;; without a cert the device is prepared without supervision.
+   * @param udid  (required)
+   * @param cert  (optional)
+   * @param p12password P12 password (when &#x60;cert&#x60; is a P12). (optional)
+   * @param skip Setup panes to skip (see /prepare/skip-options). Repeatable. (optional)
+   * @param orgname Supervision organization name. (optional)
+   * @param locale Device locale (default en_US). (optional)
+   * @param lang Device language (default en). (optional)
+   * @return ApiResponse&lt;PrepareResult&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<PrepareResult> preparePrepareDeviceWithHttpInfo(String udid, Object cert, String p12password, List<String> skip, String orgname, String locale, String lang) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = preparePrepareDeviceRequestBuilder(udid, cert, p12password, skip, orgname, locale, lang);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("preparePrepareDevice", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<PrepareResult>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<PrepareResult>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<PrepareResult>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder preparePrepareDeviceRequestBuilder(String udid, Object cert, String p12password, List<String> skip, String orgname, String locale, String lang) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling preparePrepareDevice");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/prepare"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    MultipartEntityBuilder multiPartBuilder = MultipartEntityBuilder.create();
+    boolean hasFiles = false;
+    multiPartBuilder.addTextBody("cert", cert.toString());
+    multiPartBuilder.addTextBody("p12password", p12password.toString());
+    for (int i=0; i < skip.size(); i++) {
+        multiPartBuilder.addTextBody("skip", skip.get(i).toString());
+    }
+    multiPartBuilder.addTextBody("orgname", orgname.toString());
+    multiPartBuilder.addTextBody("locale", locale.toString());
+    multiPartBuilder.addTextBody("lang", lang.toString());
+    HttpEntity entity = multiPartBuilder.build();
+    HttpRequest.BodyPublisher formDataPublisher;
+    if (hasFiles) {
+        Pipe pipe;
+        try {
+            pipe = Pipe.open();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        new Thread(() -> {
+            try (OutputStream outputStream = Channels.newOutputStream(pipe.sink())) {
+                entity.writeTo(outputStream);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+        formDataPublisher = HttpRequest.BodyPublishers.ofInputStream(() -> Channels.newInputStream(pipe.source()));
+    } else {
+        ByteArrayOutputStream formOutputStream = new ByteArrayOutputStream();
+        try {
+            entity.writeTo(formOutputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        formDataPublisher = HttpRequest.BodyPublishers
+            .ofInputStream(() -> new ByteArrayInputStream(formOutputStream.toByteArray()));
+    }
+    localVarRequestBuilder
+        .header("Content-Type", entity.getContentType().getValue())
+        .method("POST", formDataPublisher);
     if (memberVarReadTimeout != null) {
       localVarRequestBuilder.timeout(memberVarReadTimeout);
     }
@@ -7773,6 +9880,437 @@ public class DefaultApi {
   }
 
   /**
+   * Resign an app/IPA
+   * Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+   * @param ipa  (required)
+   * @param p12file  (required)
+   * @param profile  (required)
+   * @param p12password P12 password. (optional)
+   * @param bundleid Override bundle id. (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object signApp(Object ipa, Object p12file, Object profile, String p12password, String bundleid) throws ApiException {
+    ApiResponse<Object> localVarResponse = signAppWithHttpInfo(ipa, p12file, profile, p12password, bundleid);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Resign an app/IPA
+   * Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+   * @param ipa  (required)
+   * @param p12file  (required)
+   * @param profile  (required)
+   * @param p12password P12 password. (optional)
+   * @param bundleid Override bundle id. (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> signAppWithHttpInfo(Object ipa, Object p12file, Object profile, String p12password, String bundleid) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = signAppRequestBuilder(ipa, p12file, profile, p12password, bundleid);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("signApp", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder signAppRequestBuilder(Object ipa, Object p12file, Object profile, String p12password, String bundleid) throws ApiException {
+    // verify the required parameter 'ipa' is set
+    if (ipa == null) {
+      throw new ApiException(400, "Missing the required parameter 'ipa' when calling signApp");
+    }
+    // verify the required parameter 'p12file' is set
+    if (p12file == null) {
+      throw new ApiException(400, "Missing the required parameter 'p12file' when calling signApp");
+    }
+    // verify the required parameter 'profile' is set
+    if (profile == null) {
+      throw new ApiException(400, "Missing the required parameter 'profile' when calling signApp");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/sign/app";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/octet-stream, application/json");
+
+    MultipartEntityBuilder multiPartBuilder = MultipartEntityBuilder.create();
+    boolean hasFiles = false;
+    multiPartBuilder.addTextBody("ipa", ipa.toString());
+    multiPartBuilder.addTextBody("p12file", p12file.toString());
+    multiPartBuilder.addTextBody("profile", profile.toString());
+    multiPartBuilder.addTextBody("p12password", p12password.toString());
+    multiPartBuilder.addTextBody("bundleid", bundleid.toString());
+    HttpEntity entity = multiPartBuilder.build();
+    HttpRequest.BodyPublisher formDataPublisher;
+    if (hasFiles) {
+        Pipe pipe;
+        try {
+            pipe = Pipe.open();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        new Thread(() -> {
+            try (OutputStream outputStream = Channels.newOutputStream(pipe.sink())) {
+                entity.writeTo(outputStream);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+        formDataPublisher = HttpRequest.BodyPublishers.ofInputStream(() -> Channels.newInputStream(pipe.source()));
+    } else {
+        ByteArrayOutputStream formOutputStream = new ByteArrayOutputStream();
+        try {
+            entity.writeTo(formOutputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        formDataPublisher = HttpRequest.BodyPublishers
+            .ofInputStream(() -> new ByteArrayInputStream(formOutputStream.toByteArray()));
+    }
+    localVarRequestBuilder
+        .header("Content-Type", entity.getContentType().getValue())
+        .method("POST", formDataPublisher);
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Create a signing certificate
+   * Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable &#x60;application/x-pkcs12&#x60; file. The P12 password is echoed in the &#x60;X-P12-Password&#x60; response header and the certificate resource id in &#x60;X-Certificate-Id&#x60;. Host-scoped (device-free).
+   * @param ascPrivateKey  (required)
+   * @param ascKeyId App Store Connect key id. (required)
+   * @param ascIssuerId App Store Connect issuer id. (required)
+   * @param revokeExisting Revoke existing iOS Development certificates first. (optional)
+   * @param p12password Password to protect the generated P12. (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object signCertificate(Object ascPrivateKey, String ascKeyId, String ascIssuerId, String revokeExisting, String p12password) throws ApiException {
+    ApiResponse<Object> localVarResponse = signCertificateWithHttpInfo(ascPrivateKey, ascKeyId, ascIssuerId, revokeExisting, p12password);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Create a signing certificate
+   * Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable &#x60;application/x-pkcs12&#x60; file. The P12 password is echoed in the &#x60;X-P12-Password&#x60; response header and the certificate resource id in &#x60;X-Certificate-Id&#x60;. Host-scoped (device-free).
+   * @param ascPrivateKey  (required)
+   * @param ascKeyId App Store Connect key id. (required)
+   * @param ascIssuerId App Store Connect issuer id. (required)
+   * @param revokeExisting Revoke existing iOS Development certificates first. (optional)
+   * @param p12password Password to protect the generated P12. (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> signCertificateWithHttpInfo(Object ascPrivateKey, String ascKeyId, String ascIssuerId, String revokeExisting, String p12password) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = signCertificateRequestBuilder(ascPrivateKey, ascKeyId, ascIssuerId, revokeExisting, p12password);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("signCertificate", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder signCertificateRequestBuilder(Object ascPrivateKey, String ascKeyId, String ascIssuerId, String revokeExisting, String p12password) throws ApiException {
+    // verify the required parameter 'ascPrivateKey' is set
+    if (ascPrivateKey == null) {
+      throw new ApiException(400, "Missing the required parameter 'ascPrivateKey' when calling signCertificate");
+    }
+    // verify the required parameter 'ascKeyId' is set
+    if (ascKeyId == null) {
+      throw new ApiException(400, "Missing the required parameter 'ascKeyId' when calling signCertificate");
+    }
+    // verify the required parameter 'ascIssuerId' is set
+    if (ascIssuerId == null) {
+      throw new ApiException(400, "Missing the required parameter 'ascIssuerId' when calling signCertificate");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/sign/certificate";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/x-pkcs12, application/json");
+
+    MultipartEntityBuilder multiPartBuilder = MultipartEntityBuilder.create();
+    boolean hasFiles = false;
+    multiPartBuilder.addTextBody("asc-private-key", ascPrivateKey.toString());
+    multiPartBuilder.addTextBody("asc-key-id", ascKeyId.toString());
+    multiPartBuilder.addTextBody("asc-issuer-id", ascIssuerId.toString());
+    multiPartBuilder.addTextBody("revoke-existing", revokeExisting.toString());
+    multiPartBuilder.addTextBody("p12password", p12password.toString());
+    HttpEntity entity = multiPartBuilder.build();
+    HttpRequest.BodyPublisher formDataPublisher;
+    if (hasFiles) {
+        Pipe pipe;
+        try {
+            pipe = Pipe.open();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        new Thread(() -> {
+            try (OutputStream outputStream = Channels.newOutputStream(pipe.sink())) {
+                entity.writeTo(outputStream);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+        formDataPublisher = HttpRequest.BodyPublishers.ofInputStream(() -> Channels.newInputStream(pipe.source()));
+    } else {
+        ByteArrayOutputStream formOutputStream = new ByteArrayOutputStream();
+        try {
+            entity.writeTo(formOutputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        formDataPublisher = HttpRequest.BodyPublishers
+            .ofInputStream(() -> new ByteArrayInputStream(formOutputStream.toByteArray()));
+    }
+    localVarRequestBuilder
+        .header("Content-Type", entity.getContentType().getValue())
+        .method("POST", formDataPublisher);
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Create a provisioning profile + P12
+   * Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+   * @param ascPrivateKey  (required)
+   * @param ascKeyId App Store Connect key id. (required)
+   * @param ascIssuerId App Store Connect issuer id. (required)
+   * @param bundleid App bundle identifier. (required)
+   * @param udid Target device udid to register against the profile. (required)
+   * @param bundlename Bundle display name. (optional)
+   * @param profilename Provisioning profile name. (optional)
+   * @param devicename Device display name. (optional)
+   * @param certificateId Reuse an existing certificate (no new P12 is generated). (optional)
+   * @param revokeExisting Revoke existing certificates first. (optional)
+   * @param p12password Password to protect the generated P12. (optional)
+   * @return ProvisioningResult
+   * @throws ApiException if fails to make API call
+   */
+  public ProvisioningResult signProvision(Object ascPrivateKey, String ascKeyId, String ascIssuerId, String bundleid, String udid, String bundlename, String profilename, String devicename, String certificateId, String revokeExisting, String p12password) throws ApiException {
+    ApiResponse<ProvisioningResult> localVarResponse = signProvisionWithHttpInfo(ascPrivateKey, ascKeyId, ascIssuerId, bundleid, udid, bundlename, profilename, devicename, certificateId, revokeExisting, p12password);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Create a provisioning profile + P12
+   * Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+   * @param ascPrivateKey  (required)
+   * @param ascKeyId App Store Connect key id. (required)
+   * @param ascIssuerId App Store Connect issuer id. (required)
+   * @param bundleid App bundle identifier. (required)
+   * @param udid Target device udid to register against the profile. (required)
+   * @param bundlename Bundle display name. (optional)
+   * @param profilename Provisioning profile name. (optional)
+   * @param devicename Device display name. (optional)
+   * @param certificateId Reuse an existing certificate (no new P12 is generated). (optional)
+   * @param revokeExisting Revoke existing certificates first. (optional)
+   * @param p12password Password to protect the generated P12. (optional)
+   * @return ApiResponse&lt;ProvisioningResult&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ProvisioningResult> signProvisionWithHttpInfo(Object ascPrivateKey, String ascKeyId, String ascIssuerId, String bundleid, String udid, String bundlename, String profilename, String devicename, String certificateId, String revokeExisting, String p12password) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = signProvisionRequestBuilder(ascPrivateKey, ascKeyId, ascIssuerId, bundleid, udid, bundlename, profilename, devicename, certificateId, revokeExisting, p12password);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("signProvision", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<ProvisioningResult>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<ProvisioningResult>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<ProvisioningResult>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder signProvisionRequestBuilder(Object ascPrivateKey, String ascKeyId, String ascIssuerId, String bundleid, String udid, String bundlename, String profilename, String devicename, String certificateId, String revokeExisting, String p12password) throws ApiException {
+    // verify the required parameter 'ascPrivateKey' is set
+    if (ascPrivateKey == null) {
+      throw new ApiException(400, "Missing the required parameter 'ascPrivateKey' when calling signProvision");
+    }
+    // verify the required parameter 'ascKeyId' is set
+    if (ascKeyId == null) {
+      throw new ApiException(400, "Missing the required parameter 'ascKeyId' when calling signProvision");
+    }
+    // verify the required parameter 'ascIssuerId' is set
+    if (ascIssuerId == null) {
+      throw new ApiException(400, "Missing the required parameter 'ascIssuerId' when calling signProvision");
+    }
+    // verify the required parameter 'bundleid' is set
+    if (bundleid == null) {
+      throw new ApiException(400, "Missing the required parameter 'bundleid' when calling signProvision");
+    }
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling signProvision");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/sign/provision";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    MultipartEntityBuilder multiPartBuilder = MultipartEntityBuilder.create();
+    boolean hasFiles = false;
+    multiPartBuilder.addTextBody("asc-private-key", ascPrivateKey.toString());
+    multiPartBuilder.addTextBody("asc-key-id", ascKeyId.toString());
+    multiPartBuilder.addTextBody("asc-issuer-id", ascIssuerId.toString());
+    multiPartBuilder.addTextBody("bundleid", bundleid.toString());
+    multiPartBuilder.addTextBody("udid", udid.toString());
+    multiPartBuilder.addTextBody("bundlename", bundlename.toString());
+    multiPartBuilder.addTextBody("profilename", profilename.toString());
+    multiPartBuilder.addTextBody("devicename", devicename.toString());
+    multiPartBuilder.addTextBody("certificate-id", certificateId.toString());
+    multiPartBuilder.addTextBody("revoke-existing", revokeExisting.toString());
+    multiPartBuilder.addTextBody("p12password", p12password.toString());
+    HttpEntity entity = multiPartBuilder.build();
+    HttpRequest.BodyPublisher formDataPublisher;
+    if (hasFiles) {
+        Pipe pipe;
+        try {
+            pipe = Pipe.open();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        new Thread(() -> {
+            try (OutputStream outputStream = Channels.newOutputStream(pipe.sink())) {
+                entity.writeTo(outputStream);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+        formDataPublisher = HttpRequest.BodyPublishers.ofInputStream(() -> Channels.newInputStream(pipe.source()));
+    } else {
+        ByteArrayOutputStream formOutputStream = new ByteArrayOutputStream();
+        try {
+            entity.writeTo(formOutputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        formDataPublisher = HttpRequest.BodyPublishers
+            .ofInputStream(() -> new ByteArrayInputStream(formOutputStream.toByteArray()));
+    }
+    localVarRequestBuilder
+        .header("Content-Type", entity.getContentType().getValue())
+        .method("POST", formDataPublisher);
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
    * Stop tunnel
    * Stop the tunnel for a device (CLI: &#x60;ios tunnel stop --udid&#x60;).
    * @param udid  (required)
@@ -7847,6 +10385,2369 @@ public class DefaultApi {
     localVarRequestBuilder.header("Accept", "application/json");
 
     localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Stream a live pcap capture (binary)
+   * Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until &#x60;timeout&#x60; (seconds) elapses, the default timeout is reached, or the client disconnects.
+   * @param udid  (required)
+   * @param timeout Capture duration in seconds (default 60, max 3600). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object streamsPcap(String udid, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = streamsPcapWithHttpInfo(udid, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Stream a live pcap capture (binary)
+   * Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until &#x60;timeout&#x60; (seconds) elapses, the default timeout is reached, or the client disconnects.
+   * @param udid  (required)
+   * @param timeout Capture duration in seconds (default 60, max 3600). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> streamsPcapWithHttpInfo(String udid, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = streamsPcapRequestBuilder(udid, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("streamsPcap", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder streamsPcapRequestBuilder(String udid, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling streamsPcap");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/pcap"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/vnd.tcpdump.pcap, application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Stream screenshots as MJPEG (binary)
+   * Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+   * @param udid  (required)
+   * @param quality Optional JPEG quality (1–100, default 80). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object streamsScreenshotStream(String udid, Integer quality) throws ApiException {
+    ApiResponse<Object> localVarResponse = streamsScreenshotStreamWithHttpInfo(udid, quality);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Stream screenshots as MJPEG (binary)
+   * Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+   * @param udid  (required)
+   * @param quality Optional JPEG quality (1–100, default 80). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> streamsScreenshotStreamWithHttpInfo(String udid, Integer quality) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = streamsScreenshotStreamRequestBuilder(udid, quality);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("streamsScreenshotStream", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder streamsScreenshotStreamRequestBuilder(String udid, Integer quality) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling streamsScreenshotStream");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/screenshot/stream"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "quality";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("quality", quality));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "image/jpeg, application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Stream UI video (binary)
+   * Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); &#x60;codec&#x3D;h264&#x60; returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @param codec Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). (optional)
+   * @param fps Target frames per second (backend-dependent). (optional)
+   * @param quality JPEG quality for the mjpeg codec. (optional)
+   * @param scale Scale factor (backend-dependent). (optional)
+   * @param bitrate Target bitrate for the h264 codec. (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object streamsUiStream(String udid, String backend, String wdaUrl, Integer timeout, String codec, String fps, String quality, String scale, String bitrate) throws ApiException {
+    ApiResponse<Object> localVarResponse = streamsUiStreamWithHttpInfo(udid, backend, wdaUrl, timeout, codec, fps, quality, scale, bitrate);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Stream UI video (binary)
+   * Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); &#x60;codec&#x3D;h264&#x60; returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @param codec Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). (optional)
+   * @param fps Target frames per second (backend-dependent). (optional)
+   * @param quality JPEG quality for the mjpeg codec. (optional)
+   * @param scale Scale factor (backend-dependent). (optional)
+   * @param bitrate Target bitrate for the h264 codec. (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> streamsUiStreamWithHttpInfo(String udid, String backend, String wdaUrl, Integer timeout, String codec, String fps, String quality, String scale, String bitrate) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = streamsUiStreamRequestBuilder(udid, backend, wdaUrl, timeout, codec, fps, quality, scale, bitrate);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("streamsUiStream", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder streamsUiStreamRequestBuilder(String udid, String backend, String wdaUrl, Integer timeout, String codec, String fps, String quality, String scale, String bitrate) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling streamsUiStream");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/stream"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+    localVarQueryParameterBaseName = "codec";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("codec", codec));
+    localVarQueryParameterBaseName = "fps";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("fps", fps));
+    localVarQueryParameterBaseName = "quality";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("quality", quality));
+    localVarQueryParameterBaseName = "scale";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("scale", scale));
+    localVarQueryParameterBaseName = "bitrate";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("bitrate", bitrate));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/octet-stream, application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Raw backend passthrough
+   * Raw passthrough to the backend. For WDA supply &#x60;method&#x60;/&#x60;path&#x60;/&#x60;body&#x60;; for DeviceKit supply &#x60;rpcMethod&#x60;/&#x60;rpcParams&#x60;. The backend response is forwarded verbatim.
+   * @param udid  (required)
+   * @param uiAPIRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiApi(String udid, UIAPIRequest uiAPIRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiApiWithHttpInfo(udid, uiAPIRequest, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Raw backend passthrough
+   * Raw passthrough to the backend. For WDA supply &#x60;method&#x60;/&#x60;path&#x60;/&#x60;body&#x60;; for DeviceKit supply &#x60;rpcMethod&#x60;/&#x60;rpcParams&#x60;. The backend response is forwarded verbatim.
+   * @param udid  (required)
+   * @param uiAPIRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiApiWithHttpInfo(String udid, UIAPIRequest uiAPIRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiApiRequestBuilder(udid, uiAPIRequest, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiApi", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiApiRequestBuilder(String udid, UIAPIRequest uiAPIRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiApi");
+    }
+    // verify the required parameter 'uiAPIRequest' is set
+    if (uiAPIRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'uiAPIRequest' when calling uIUiApi");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/api"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(uiAPIRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Foreground app (UI backend)
+   * Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns &#x60;501&#x60;. The request body is ignored.
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiAppForeground(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiAppForegroundWithHttpInfo(udid, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Foreground app (UI backend)
+   * Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns &#x60;501&#x60;. The request body is ignored.
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiAppForegroundWithHttpInfo(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiAppForegroundRequestBuilder(udid, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiAppForeground", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiAppForegroundRequestBuilder(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiAppForeground");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/app/foreground"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Launch app (UI backend)
+   * Launch the app identified by &#x60;bundleId&#x60;.
+   * @param udid  (required)
+   * @param uiAppRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiAppLaunch(String udid, UIAppRequest uiAppRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiAppLaunchWithHttpInfo(udid, uiAppRequest, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Launch app (UI backend)
+   * Launch the app identified by &#x60;bundleId&#x60;.
+   * @param udid  (required)
+   * @param uiAppRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiAppLaunchWithHttpInfo(String udid, UIAppRequest uiAppRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiAppLaunchRequestBuilder(udid, uiAppRequest, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiAppLaunch", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiAppLaunchRequestBuilder(String udid, UIAppRequest uiAppRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiAppLaunch");
+    }
+    // verify the required parameter 'uiAppRequest' is set
+    if (uiAppRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'uiAppRequest' when calling uIUiAppLaunch");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/app/launch"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(uiAppRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Terminate app (UI backend)
+   * Terminate the app identified by &#x60;bundleId&#x60;.
+   * @param udid  (required)
+   * @param uiAppRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiAppTerminate(String udid, UIAppRequest uiAppRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiAppTerminateWithHttpInfo(udid, uiAppRequest, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Terminate app (UI backend)
+   * Terminate the app identified by &#x60;bundleId&#x60;.
+   * @param udid  (required)
+   * @param uiAppRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiAppTerminateWithHttpInfo(String udid, UIAppRequest uiAppRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiAppTerminateRequestBuilder(udid, uiAppRequest, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiAppTerminate", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiAppTerminateRequestBuilder(String udid, UIAppRequest uiAppRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiAppTerminate");
+    }
+    // verify the required parameter 'uiAppRequest' is set
+    if (uiAppRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'uiAppRequest' when calling uIUiAppTerminate");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/app/terminate"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(uiAppRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Press hardware button
+   * Press a hardware button by name (WDA supports only &#x60;home&#x60;).
+   * @param udid  (required)
+   * @param uiButtonRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiButton(String udid, UIButtonRequest uiButtonRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiButtonWithHttpInfo(udid, uiButtonRequest, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Press hardware button
+   * Press a hardware button by name (WDA supports only &#x60;home&#x60;).
+   * @param udid  (required)
+   * @param uiButtonRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiButtonWithHttpInfo(String udid, UIButtonRequest uiButtonRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiButtonRequestBuilder(udid, uiButtonRequest, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiButton", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiButtonRequestBuilder(String udid, UIButtonRequest uiButtonRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiButton");
+    }
+    // verify the required parameter 'uiButtonRequest' is set
+    if (uiButtonRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'uiButtonRequest' when calling uIUiButton");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/button"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(uiButtonRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Get orientation
+   * Get the current device orientation payload.
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiGetOrientation(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiGetOrientationWithHttpInfo(udid, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Get orientation
+   * Get the current device orientation payload.
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiGetOrientationWithHttpInfo(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiGetOrientationRequestBuilder(udid, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiGetOrientation", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiGetOrientationRequestBuilder(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiGetOrientation");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/orientation"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Long press
+   * Press and hold at (x,y).
+   * @param udid  (required)
+   * @param uiLongPressRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiLongPress(String udid, UILongPressRequest uiLongPressRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiLongPressWithHttpInfo(udid, uiLongPressRequest, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Long press
+   * Press and hold at (x,y).
+   * @param udid  (required)
+   * @param uiLongPressRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiLongPressWithHttpInfo(String udid, UILongPressRequest uiLongPressRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiLongPressRequestBuilder(udid, uiLongPressRequest, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiLongPress", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiLongPressRequestBuilder(String udid, UILongPressRequest uiLongPressRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiLongPress");
+    }
+    // verify the required parameter 'uiLongPressRequest' is set
+    if (uiLongPressRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'uiLongPressRequest' when calling uIUiLongPress");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/longpress"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(uiLongPressRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * UI screenshot (PNG)
+   * Capture the screen and return raw PNG bytes.
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiScreenshot(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiScreenshotWithHttpInfo(udid, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * UI screenshot (PNG)
+   * Capture the screen and return raw PNG bytes.
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiScreenshotWithHttpInfo(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiScreenshotRequestBuilder(udid, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiScreenshot", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiScreenshotRequestBuilder(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiScreenshot");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/screenshot"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "image/png, application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Set orientation
+   * Set the device orientation.
+   * @param udid  (required)
+   * @param uiOrientationRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiSetOrientation(String udid, UIOrientationRequest uiOrientationRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiSetOrientationWithHttpInfo(udid, uiOrientationRequest, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Set orientation
+   * Set the device orientation.
+   * @param udid  (required)
+   * @param uiOrientationRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiSetOrientationWithHttpInfo(String udid, UIOrientationRequest uiOrientationRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiSetOrientationRequestBuilder(udid, uiOrientationRequest, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiSetOrientation", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiSetOrientationRequestBuilder(String udid, UIOrientationRequest uiOrientationRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiSetOrientation");
+    }
+    // verify the required parameter 'uiOrientationRequest' is set
+    if (uiOrientationRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'uiOrientationRequest' when calling uIUiSetOrientation");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/orientation"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(uiOrientationRequest);
+      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * UI source hierarchy
+   * Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiSource(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiSourceWithHttpInfo(udid, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * UI source hierarchy
+   * Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiSourceWithHttpInfo(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiSourceRequestBuilder(udid, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiSource", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiSourceRequestBuilder(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiSource");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/source"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/xml, application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * UI backend status
+   * Return the backend status/health payload (WDA /status or DeviceKit /health).
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiStatus(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiStatusWithHttpInfo(udid, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * UI backend status
+   * Return the backend status/health payload (WDA /status or DeviceKit /health).
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiStatusWithHttpInfo(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiStatusRequestBuilder(udid, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiStatus", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiStatusRequestBuilder(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiStatus");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/status"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Swipe
+   * Drag from (x1,y1) to (x2,y2).
+   * @param udid  (required)
+   * @param uiSwipeRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiSwipe(String udid, UISwipeRequest uiSwipeRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiSwipeWithHttpInfo(udid, uiSwipeRequest, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Swipe
+   * Drag from (x1,y1) to (x2,y2).
+   * @param udid  (required)
+   * @param uiSwipeRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiSwipeWithHttpInfo(String udid, UISwipeRequest uiSwipeRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiSwipeRequestBuilder(udid, uiSwipeRequest, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiSwipe", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiSwipeRequestBuilder(String udid, UISwipeRequest uiSwipeRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiSwipe");
+    }
+    // verify the required parameter 'uiSwipeRequest' is set
+    if (uiSwipeRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'uiSwipeRequest' when calling uIUiSwipe");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/swipe"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(uiSwipeRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Tap
+   * Tap at absolute coordinates.
+   * @param udid  (required)
+   * @param uiTapRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiTap(String udid, UITapRequest uiTapRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiTapWithHttpInfo(udid, uiTapRequest, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Tap
+   * Tap at absolute coordinates.
+   * @param udid  (required)
+   * @param uiTapRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiTapWithHttpInfo(String udid, UITapRequest uiTapRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiTapRequestBuilder(udid, uiTapRequest, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiTap", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiTapRequestBuilder(String udid, UITapRequest uiTapRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiTap");
+    }
+    // verify the required parameter 'uiTapRequest' is set
+    if (uiTapRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'uiTapRequest' when calling uIUiTap");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/tap"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(uiTapRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Type text
+   * Send text as keyboard input.
+   * @param udid  (required)
+   * @param uiTypeRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiType(String udid, UITypeRequest uiTypeRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiTypeWithHttpInfo(udid, uiTypeRequest, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Type text
+   * Send text as keyboard input.
+   * @param udid  (required)
+   * @param uiTypeRequest  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiTypeWithHttpInfo(String udid, UITypeRequest uiTypeRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiTypeRequestBuilder(udid, uiTypeRequest, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiType", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiTypeRequestBuilder(String udid, UITypeRequest uiTypeRequest, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiType");
+    }
+    // verify the required parameter 'uiTypeRequest' is set
+    if (uiTypeRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'uiTypeRequest' when calling uIUiType");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/type"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(uiTypeRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * UI window size
+   * Return the device window/screen size payload (typically {width,height}).
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return Object
+   * @throws ApiException if fails to make API call
+   */
+  public Object uIUiWindowSize(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    ApiResponse<Object> localVarResponse = uIUiWindowSizeWithHttpInfo(udid, backend, wdaUrl, timeout);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * UI window size
+   * Return the device window/screen size payload (typically {width,height}).
+   * @param udid  (required)
+   * @param backend Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. (optional)
+   * @param wdaUrl Forwarded backend base URL (defaults per backend). (optional)
+   * @param timeout Per-request HTTP timeout in seconds (default 60). (optional)
+   * @return ApiResponse&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<Object> uIUiWindowSizeWithHttpInfo(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uIUiWindowSizeRequestBuilder(udid, backend, wdaUrl, timeout);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uIUiWindowSize", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<Object>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<Object>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<Object>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uIUiWindowSizeRequestBuilder(String udid, String backend, String wdaUrl, Integer timeout) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling uIUiWindowSize");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/ui/size"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "backend";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("backend", backend));
+    localVarQueryParameterBaseName = "wdaUrl";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("wdaUrl", wdaUrl));
+    localVarQueryParameterBaseName = "timeout";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("timeout", timeout));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Evaluate JavaScript in a page
+   * Evaluate JavaScript in an inspectable page and return the result (CLI: &#x60;ios webinspector eval&#x60;). &#x60;404&#x60; when no matching page exists.
+   * @param udid  (required)
+   * @param webInspectorEvalRequest  (required)
+   * @return WebInspectorEvalResult
+   * @throws ApiException if fails to make API call
+   */
+  public WebInspectorEvalResult webInspectorWebInspectorEval(String udid, WebInspectorEvalRequest webInspectorEvalRequest) throws ApiException {
+    ApiResponse<WebInspectorEvalResult> localVarResponse = webInspectorWebInspectorEvalWithHttpInfo(udid, webInspectorEvalRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Evaluate JavaScript in a page
+   * Evaluate JavaScript in an inspectable page and return the result (CLI: &#x60;ios webinspector eval&#x60;). &#x60;404&#x60; when no matching page exists.
+   * @param udid  (required)
+   * @param webInspectorEvalRequest  (required)
+   * @return ApiResponse&lt;WebInspectorEvalResult&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<WebInspectorEvalResult> webInspectorWebInspectorEvalWithHttpInfo(String udid, WebInspectorEvalRequest webInspectorEvalRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = webInspectorWebInspectorEvalRequestBuilder(udid, webInspectorEvalRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("webInspectorWebInspectorEval", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<WebInspectorEvalResult>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<WebInspectorEvalResult>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<WebInspectorEvalResult>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder webInspectorWebInspectorEvalRequestBuilder(String udid, WebInspectorEvalRequest webInspectorEvalRequest) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling webInspectorWebInspectorEval");
+    }
+    // verify the required parameter 'webInspectorEvalRequest' is set
+    if (webInspectorEvalRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'webInspectorEvalRequest' when calling webInspectorWebInspectorEval");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/webinspector/eval"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(webInspectorEvalRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * Open a URL in a new inspectable page
+   * Open a URL in a new inspectable page via a remote automation session (CLI: &#x60;ios webinspector launch &lt;url&gt;&#x60;). &#x60;url&#x60; may be a query param or in the body; &#x60;bundleId&#x60; defaults to Safari.
+   * @param udid  (required)
+   * @param url URL to open (alternative to the request body). (optional)
+   * @param webInspectorLaunchRequest  (optional)
+   * @return WebInspectorLaunchResult
+   * @throws ApiException if fails to make API call
+   */
+  public WebInspectorLaunchResult webInspectorWebInspectorLaunch(String udid, String url, WebInspectorLaunchRequest webInspectorLaunchRequest) throws ApiException {
+    ApiResponse<WebInspectorLaunchResult> localVarResponse = webInspectorWebInspectorLaunchWithHttpInfo(udid, url, webInspectorLaunchRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * Open a URL in a new inspectable page
+   * Open a URL in a new inspectable page via a remote automation session (CLI: &#x60;ios webinspector launch &lt;url&gt;&#x60;). &#x60;url&#x60; may be a query param or in the body; &#x60;bundleId&#x60; defaults to Safari.
+   * @param udid  (required)
+   * @param url URL to open (alternative to the request body). (optional)
+   * @param webInspectorLaunchRequest  (optional)
+   * @return ApiResponse&lt;WebInspectorLaunchResult&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<WebInspectorLaunchResult> webInspectorWebInspectorLaunchWithHttpInfo(String udid, String url, WebInspectorLaunchRequest webInspectorLaunchRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = webInspectorWebInspectorLaunchRequestBuilder(udid, url, webInspectorLaunchRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("webInspectorWebInspectorLaunch", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<WebInspectorLaunchResult>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<WebInspectorLaunchResult>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<WebInspectorLaunchResult>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder webInspectorWebInspectorLaunchRequestBuilder(String udid, String url, WebInspectorLaunchRequest webInspectorLaunchRequest) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling webInspectorWebInspectorLaunch");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/webinspector/launch"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "url";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("url", url));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(webInspectorLaunchRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+
+  /**
+   * List inspectable pages
+   * List inspectable pages reported by the device (CLI: &#x60;ios webinspector list&#x60;).
+   * @param udid  (required)
+   * @return List&lt;Object&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public List<Object> webInspectorWebInspectorPages(String udid) throws ApiException {
+    ApiResponse<List<Object>> localVarResponse = webInspectorWebInspectorPagesWithHttpInfo(udid);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * List inspectable pages
+   * List inspectable pages reported by the device (CLI: &#x60;ios webinspector list&#x60;).
+   * @param udid  (required)
+   * @return ApiResponse&lt;List&lt;Object&gt;&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<List<Object>> webInspectorWebInspectorPagesWithHttpInfo(String udid) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = webInspectorWebInspectorPagesRequestBuilder(udid);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("webInspectorWebInspectorPages", localVarResponse);
+        }
+        if (localVarResponse.body() == null) {
+          return new ApiResponse<List<Object>>(
+              localVarResponse.statusCode(),
+              localVarResponse.headers().map(),
+              null
+          );
+        }
+
+        String responseBody = new String(localVarResponse.body().readAllBytes());
+        localVarResponse.body().close();
+
+        return new ApiResponse<List<Object>>(
+            localVarResponse.statusCode(),
+            localVarResponse.headers().map(),
+            responseBody.isBlank()? null: memberVarObjectMapper.readValue(responseBody, new TypeReference<List<Object>>() {})
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder webInspectorWebInspectorPagesRequestBuilder(String udid) throws ApiException {
+    // verify the required parameter 'udid' is set
+    if (udid == null) {
+      throw new ApiException(400, "Missing the required parameter 'udid' when calling webInspectorWebInspectorPages");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/api/v1/device/{udid}/webinspector/pages"
+        .replace("{udid}", ApiClient.urlEncode(udid.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
     if (memberVarReadTimeout != null) {
       localVarRequestBuilder.timeout(memberVarReadTimeout);
     }
