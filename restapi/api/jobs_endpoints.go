@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 
@@ -197,13 +196,21 @@ func GetJob(c *gin.Context) {
 	c.JSON(http.StatusOK, j.view())
 }
 
-// StreamJobLogs streams a job's isolated log output: the buffered history first,
-// then live lines until the job ends or the client disconnects.
-// @Summary Stream a job's logs
-// @Produce text/plain
+// JobLogLine is the payload of a `log` event (SSE /jobs/{id}/logs).
+type JobLogLine struct {
+	Line string `json:"line"`
+}
+
+// StreamJobLogs streams a job's isolated log output as Server-Sent Events: the
+// buffered history first, then live lines until the job ends or the client
+// disconnects. Each `log` event carries a JobLogLine; a `heartbeat` event is
+// emitted on idle.
+// @Summary Stream a job's logs (SSE)
+// @Description Streams a job's log output as text/event-stream. Events: `log` (JobLogLine), `heartbeat`. Buffered history is replayed before live lines.
+// @Produce text/event-stream
 // @Param udid path string true "Device UDID"
 // @Param id path string true "job id"
-// @Success 200 {string} string
+// @Success 200 {object} JobLogLine
 // @Router /device/{udid}/jobs/{id}/logs [get]
 func StreamJobLogs(c *gin.Context) {
 	j, ok := jobForRequest(c)
@@ -215,18 +222,19 @@ func StreamJobLogs(c *gin.Context) {
 	// duplicated.
 	backlog, ch, unsubscribe := j.log.snapshotAndSubscribe()
 	defer unsubscribe()
-	for _, line := range backlog {
-		c.Writer.WriteString(line)
-	}
-	c.Writer.Flush()
 
-	c.Stream(func(w io.Writer) bool {
+	// Replay the buffered history first, then pull live lines from the channel.
+	streamSSE(c, j.UDID, func() (sseEvent, bool) {
+		if len(backlog) > 0 {
+			line := backlog[0]
+			backlog = backlog[1:]
+			return sseEvent{event: "log", payload: JobLogLine{Line: line}}, true
+		}
 		line, ok := <-ch
 		if !ok {
-			return false
+			return sseEvent{}, false
 		}
-		w.Write([]byte(line))
-		return true
+		return sseEvent{event: "log", payload: JobLogLine{Line: line}}, true
 	})
 }
 
