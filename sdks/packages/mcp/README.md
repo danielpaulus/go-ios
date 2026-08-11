@@ -258,6 +258,20 @@ within it, per the current MCP spec).
 
 Point the client at `http://127.0.0.1:3000/mcp` after starting the server with `--http`.
 
+## Examples
+
+See [`examples/`](examples/) for runnable examples that double as docs and as a
+pre-release smoke test:
+
+- **Client configs** ([`examples/client-config/`](examples/client-config/)) —
+  paste-ready and annotated configs for Claude Desktop and a generic MCP client.
+- **`list-tools`** — spawns this server over stdio and lists every tool
+  (no device/daemon needed).
+- **`call-tool`** — calls `list_devices` against a running daemon (SKIPs if none).
+- **`npm run examples`** — runs `list-tools` (asserts the full curated tool set)
+  and, when `GO_IOS_API_KEY` is set + the daemon is reachable, `call-tool`. A
+  mostly-device-free MCP smoke test.
+
 ## Development
 
 ```bash
