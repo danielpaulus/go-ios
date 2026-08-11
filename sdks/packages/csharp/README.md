@@ -268,6 +268,17 @@ await using var video = await device.Ui.StreamAsync(
 Console.WriteLine(video.ContentType);
 ```
 
+## Examples
+
+Runnable, heavily-commented examples live in [`examples/`](./examples). They
+double as documentation and as a pre-release smoke test: `examples/run.sh`
+(`dotnet run --project examples/GoIos.Examples -- run-all`) drives the read-only
+surface of a live daemon (list devices, device info, list apps, screenshot,
+stream syslog) and exits non-zero on any failure. Steps that need a device — or
+a forwarded WebDriverAgent for the optional UI example — print `SKIP` instead of
+failing. See [`examples/README.md`](./examples/README.md) for setup and the full
+command list.
+
 ## Authentication
 
 Every `/api/v1` route expects a bearer token
