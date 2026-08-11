@@ -36,6 +36,8 @@ func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	registerProvisioningDeviceRoutes(device)
 	// feat/restapi-w1d-webinspector: WebInspector device routes.
 	registerWebInspectorRoutes(device)
+	// feat/restapi-w2-ui: UI-automation routes proxying to a forwarded WDA/DeviceKit backend.
+	registerUIRoutes(device)
 	appRoutes(device)
 }
 
