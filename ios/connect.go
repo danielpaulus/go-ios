@@ -296,6 +296,42 @@ func initializeXpcConnection(h *http.HttpConnection) error {
 	return nil
 }
 
+// TunnelDialTimeout bounds TCP connects to tunnel/RSD endpoints. Without an
+// explicit timeout, a dial to a dead-but-still-routed tunnel address (device
+// rebooted or hung while the host-side TUN interface and route stayed up)
+// blocks for the kernel's TCP SYN timeout (~135s on Linux) per operation. 15s
+// is far above any healthy tunnel connect (sub-second) while still failing
+// fast enough for staleness handling to react.
+const TunnelDialTimeout = 15 * time.Second
+
+// ErrDialTimeout marks a tunnel/RSD TCP connect that exceeded go-ios' dial
+// timeout rather than failing outright. Callers can use errors.Is to treat the
+// endpoint as stale: the route existed but the device never answered, which is
+// the signature of a dead tunnel whose interface lingers.
+var ErrDialTimeout = errors.New("dial timed out")
+
+// DialTunnelTCP connects to a tunnel/RSD TCP endpoint (address in the form
+// accepted by net.Dial, e.g. "[fd00::1]:1234") with TunnelDialTimeout.
+func DialTunnelTCP(address string) (*net.TCPConn, error) {
+	return DialTunnelTCPWithTimeout(address, TunnelDialTimeout)
+}
+
+// DialTunnelTCPWithTimeout is DialTunnelTCP with a caller-chosen timeout.
+// Timeout errors are wrapped in ErrDialTimeout so they stay distinguishable
+// from refused/unreachable errors.
+func DialTunnelTCPWithTimeout(address string, timeout time.Duration) (*net.TCPConn, error) {
+	d := net.Dialer{Timeout: timeout}
+	conn, err := d.Dial("tcp", address)
+	if err != nil {
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			return nil, fmt.Errorf("%w after %v: %w", ErrDialTimeout, timeout, err)
+		}
+		return nil, err
+	}
+	return conn.(*net.TCPConn), nil
+}
+
 // ConnectTUNDevice creates a *net.TCPConn to the device at the given address and port.
 // If the device is a userspaceTUN device provided by go-ios agent, it will connect to this
 // automatically. Otherwise it will try a operating system level TUN device.
@@ -310,8 +346,7 @@ func ConnectTUNDevice(remoteIp string, port int, d DeviceEntry) (*net.TCPConn, e
 		return connectTUN(remoteIp, port)
 	}
 
-	addr, _ := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", d.UserspaceTUNHost, d.UserspaceTUNPort))
-	conn, err := net.DialTCP("tcp", nil, addr)
+	conn, err := DialTunnelTCP(fmt.Sprintf("%s:%d", d.UserspaceTUNHost, d.UserspaceTUNPort))
 	if err != nil {
 		return nil, fmt.Errorf("ConnectUserSpaceTunnel: failed to dial: %w", err)
 	}
@@ -332,11 +367,7 @@ func ConnectTUNDevice(remoteIp string, port int, d DeviceEntry) (*net.TCPConn, e
 
 // connect to a operating system level TUN device
 func connectTUN(address string, port int) (*net.TCPConn, error) {
-	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf("[%s]:%d", address, port))
-	if err != nil {
-		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to resolve address: %w", err)
-	}
-	conn, err := net.DialTCP("tcp", nil, addr)
+	conn, err := DialTunnelTCP(fmt.Sprintf("[%s]:%d", address, port))
 	if err != nil {
 		return nil, fmt.Errorf("ConnectToHttp2WithAddr: failed to dial: %w", err)
 	}

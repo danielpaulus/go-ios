@@ -95,6 +95,13 @@ func InstallImage(c *gin.Context) {
 		if basedir == "" {
 			basedir = "./devimages"
 		}
+		// basedir is remote input and gets used to build filesystem paths,
+		// reject anything that traverses upwards.
+		basedir = filepath.Clean(basedir)
+		if strings.Contains(basedir, "..") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "basedir must not contain '..'"})
+			return
+		}
 
 		// basedir flows into os.MkdirAll+path.Join in imagemounter, so reject
 		// absolute paths and any `..` traversal before using it.
