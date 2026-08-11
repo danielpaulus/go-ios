@@ -41,16 +41,43 @@ Gradle:
 implementation("com.github.danielpaulus:go-ios-sdk:0.1.0")
 ```
 
+## Connecting — daemon discovery
+
+`baseUrl` is **optional**. The go-ios REST daemon now binds an **ephemeral
+loopback port by default** and writes a discovery file at `<home>/rest-api.json`;
+the SDK reads it so you don't have to know the port. When you build a client with
+no explicit `baseUrl`, the endpoint is resolved in this order:
+
+1. an explicit `.baseUrl(...)` on the builder (use this for remote daemons);
+2. the `GO_IOS_BASE_URL` env var;
+3. **discovery** — the `baseUrl` field of `<home>/rest-api.json`, where `<home>`
+   is `GO_IOS_HOME` if set and non-empty, else `~/.go-ios`;
+4. otherwise `build()` throws `IosDiscoveryException` naming the expected path
+   (start the go-ios REST API, or pass a `baseUrl`).
+
+```java
+// Auto-discover a locally running daemon (no baseUrl needed):
+try (IosClient client = IosClient.builder()
+        .apiKey(System.getenv("GO_IOS_API_KEY"))
+        .build()) {
+    // ...
+}
+```
+
+To pin the daemon to a fixed port instead, start it with `--addr :8080` and/or
+set `GO_IOS_BASE_URL` (or pass `.baseUrl("http://localhost:8080")`).
+
 ## Authentication
 
 All `/api/v1` routes require `Authorization: Bearer <GO_IOS_API_KEY>`. Pass the
-key via the builder. It is optional (a server started with `--disable-auth`
-accepts requests without it) but strongly encouraged; the SDK sends it whenever
-it is set.
+key via the builder (or set `GO_IOS_API_KEY` and read it yourself). It is
+optional (a server started with `--disable-auth` accepts requests without it)
+but strongly encouraged; the SDK sends it whenever it is set. The API key is
+**not** read from the discovery file.
 
 ```java
 IosClient client = IosClient.builder()
-        .baseUrl("http://localhost:60105")         // /api/v1 is appended automatically
+        .baseUrl("http://localhost:8080")          // optional; /api/v1 is appended automatically
         .apiKey(System.getenv("GO_IOS_API_KEY"))   // optional but recommended
         .build();
 ```
@@ -62,8 +89,7 @@ import com.github.danielpaulus.goios.*;
 import com.github.danielpaulus.goios.generated.model.*;
 
 try (IosClient client = IosClient.builder()
-        .baseUrl("http://localhost:60105")
-        .apiKey(System.getenv("GO_IOS_API_KEY"))
+        .apiKey(System.getenv("GO_IOS_API_KEY"))   // baseUrl auto-discovered
         .build()) {
 
     // Fleet

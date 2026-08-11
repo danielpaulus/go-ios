@@ -22,11 +22,15 @@ import java.time.Duration;
  * <p>Mirrors the public shape of the TypeScript/Python/C# SDKs. When an
  * {@code apiKey} is set it is sent as {@code Authorization: Bearer <key>};
  * a server started with {@code --disable-auth} needs none.
+ *
+ * <p>{@code baseUrl} is optional. When it is not set explicitly, the builder
+ * resolves the daemon endpoint in this order: an explicit
+ * {@link Builder#baseUrl(String)}; the {@code GO_IOS_BASE_URL} env var; then
+ * discovery of a locally running daemon via {@code <home>/rest-api.json} (see
+ * {@link Discovery}). If none is available, {@link #build()} throws an
+ * {@link IosDiscoveryException} pointing at the expected discovery path.
  */
 public final class IosClient implements AutoCloseable {
-
-    /** Default local daemon endpoint. */
-    public static final String DEFAULT_BASE_URL = "http://localhost:60105";
 
     private final RawHttp http;
     private final Devices devices;
@@ -37,7 +41,10 @@ public final class IosClient implements AutoCloseable {
     private IosClient(Builder b) {
         HttpClient client = b.httpClient != null ? b.httpClient
                 : HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-        this.http = new RawHttp(b.baseUrl, b.apiKey, client, b.timeout);
+        String baseUrl = b.baseUrl != null && !b.baseUrl.isBlank()
+                ? b.baseUrl
+                : b.discovery.resolveBaseUrl();
+        this.http = new RawHttp(baseUrl, b.apiKey, client, b.timeout);
         this.devices = new Devices(http);
         this.tunnels = new Tunnels(http);
         this.sign = new Sign(http);
@@ -80,11 +87,18 @@ public final class IosClient implements AutoCloseable {
 
     /** Builder for {@link IosClient}. */
     public static final class Builder {
-        private String baseUrl = DEFAULT_BASE_URL;
+        private String baseUrl;
         private String apiKey;
         private Duration timeout = Duration.ofSeconds(30);
         private HttpClient httpClient;
+        private Discovery discovery = Discovery.system();
 
+        /**
+         * Pin the daemon origin (e.g. {@code http://localhost:8080}); {@code /api/v1}
+         * is appended automatically. Optional: when unset the builder falls back to
+         * the {@code GO_IOS_BASE_URL} env var and then to {@link Discovery discovery}
+         * of a local daemon.
+         */
         public Builder baseUrl(String baseUrl) {
             this.baseUrl = baseUrl;
             return this;
@@ -107,6 +121,19 @@ public final class IosClient implements AutoCloseable {
             return this;
         }
 
+        /** Override the discovery seam (test-only). */
+        Builder discovery(Discovery discovery) {
+            this.discovery = discovery;
+            return this;
+        }
+
+        /**
+         * Build the client, resolving {@code baseUrl} if it was not set explicitly.
+         *
+         * @throws IosDiscoveryException if no {@code baseUrl} is set, no
+         *                               {@code GO_IOS_BASE_URL} env var is present, and
+         *                               no local daemon discovery file can be read.
+         */
         public IosClient build() {
             return new IosClient(this);
         }
