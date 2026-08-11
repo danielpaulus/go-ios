@@ -13,6 +13,25 @@ Use `## [Unreleased]` to jot down notable changes between releases if you like.
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-08-11
+
+## Fixes
+
+- **syslog:** `ios syslog` now decodes BSD vis escapes, so non-ASCII log text (e.g. CJK/Chinese) renders correctly instead of appearing as `\M-` escape sequences (#687).
+- **image mount:** `ios image auto` resolves an already-downloaded developer disk image from the base directory before making any network request, so it works fully offline; DDI selection is now deterministic and cached image paths are contained within the base directory (#644).
+- **fsync / house_arrest:** falls back to `VendDocuments` when `VendContainer` is denied, so `ios fsync --app=<bundleID>` now works on App Store apps that previously failed with `InstallationLookupFailed` (#593).
+- **tunnel:** tunnel/RSD TCP dials are now bounded by a 15s timeout, so an unreachable device fails fast instead of hanging for ~135s (#764).
+- **tunnel (Windows/macOS):** interface-setup errors now include the actual `netsh`/`ifconfig` output, the command that was run, and its exit status, plus an elevation hint and a suggestion to use `--userspace` (#545).
+- **CLI dispatch:** `ios webinspector launch <url>` now runs the webinspector launcher instead of being misrouted to `ios launch`; related command-dispatch collisions were also hardened (#769).
+
+## Improvements
+
+- **help:** `ios help pcap` now includes practical usage examples, and the help catalog gained an `examples` field. Thanks to @sssppp-cooled for the contribution (#816).
+
+## Chores
+
+- Removed stray `proxy.mobileconfig` files from the repository root so they no longer leak into release assets (#731).
+
 ## [1.3.0] - 2026-08-10
 
 ## Security & stability
