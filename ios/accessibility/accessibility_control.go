@@ -124,6 +124,7 @@ func (a *ControlInterface) init(ctx context.Context) error {
 	a.channel.RegisterMethodForRemote("hostInspectorNotificationReceived:")
 	go a.readhostAppStateChanged(ctx)
 	go a.readhostInspectorNotificationReceived(ctx)
+	go a.readhostInspectorMonitoredEventTypeChanged(ctx)
 
 	err := a.notifyPublishedCapabilities()
 	if err != nil {
@@ -181,7 +182,17 @@ func (a *ControlInterface) init(ctx context.Context) error {
 func (a *ControlInterface) EnableSelectionMode() {
 	a.deviceInspectorSetMonitoredEventType(2)
 	a.deviceInspectorShowVisuals(true)
-	a.awaitHostInspectorMonitoredEventTypeChanged()
+}
+
+// DisableSelectionMode disables the UI element selection mode (monitored
+// event type 0). Starting with iOS 27, while selection mode is active the AX
+// daemon consumes touches to move the inspector focus to the element under
+// the finger, and the touched app never receives the touch event — so a
+// synthesized tap only highlights the element instead of activating it. Call
+// this before synthesizing taps (e.g. via XCUITest/WebDriverAgent) so they
+// reach the app.
+func (a *ControlInterface) DisableSelectionMode() {
+	a.deviceInspectorSetMonitoredEventType(0)
 }
 
 // SwitchToDevice is the same as switching to the Device in AX inspector.
@@ -204,7 +215,6 @@ func (a *ControlInterface) SwitchToDevice() {
 // TurnOff disable AX
 func (a *ControlInterface) TurnOff() {
 	a.deviceInspectorSetMonitoredEventType(0)
-	a.awaitHostInspectorMonitoredEventTypeChanged()
 	a.deviceInspectorFocusOnElement()
 	_, err := a.awaitHostInspectorCurrentElementChanged(context.Background())
 	if err != nil {
@@ -475,10 +485,21 @@ func (a *ControlInterface) awaitHostInspectorCurrentElementChanged(ctx context.C
 	return result[0].(map[string]interface{}), nil
 }
 
-func (a *ControlInterface) awaitHostInspectorMonitoredEventTypeChanged() {
-	msg := a.channel.ReceiveMethodCall("hostInspectorMonitoredEventTypeChanged:")
-	n, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
-	golog.Info("hostInspectorMonitoredEventTypeChanged set by the device", "module", logModule, "service", serviceName, "value", n[0])
+// readhostInspectorMonitoredEventTypeChanged continuously consumes
+// hostInspectorMonitoredEventTypeChanged: events. The device emits this not
+// only in response to deviceInspectorSetMonitoredEventType but also when the
+// device is physically interacted with, or on iOS 27 when tapping via
+// XCUITest/WebDriverAgent — a dedicated consumer prevents unconsumed events
+// from piling up.
+func (a *ControlInterface) readhostInspectorMonitoredEventTypeChanged(ctx context.Context) {
+	for {
+		msg, err := a.channel.ReceiveMethodCallWithTimeout(ctx, "hostInspectorMonitoredEventTypeChanged:")
+		if err != nil {
+			return
+		}
+		n, _ := nskeyedarchiver.Unarchive(msg.Auxiliary.GetArguments()[0].([]byte))
+		golog.Info("hostInspectorMonitoredEventTypeChanged set by the device", "module", logModule, "service", serviceName, "value", n[0])
+	}
 }
 
 func (a *ControlInterface) deviceInspectorMoveWithOptions(direction MoveDirection) {
