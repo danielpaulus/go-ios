@@ -1,29 +1,31 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, cast
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.generic_response import GenericResponse
-from ...models.lockdown_values import LockdownValues
 from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     udid: str,
     *,
-    domain: Union[Unset, str] = UNSET,
+    bundle_id: Union[Unset, str] = UNSET,
+    path: str,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
 
-    params["domain"] = domain
+    params["bundleID"] = bundle_id
+
+    params["path"] = path
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/v1/device/{udid}/lockdown".format(
+        "url": "/api/v1/device/{udid}/fsync/pull".format(
             udid=udid,
         ),
         "params": params,
@@ -34,11 +36,15 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[GenericResponse, LockdownValues]]:
+) -> Optional[Union[Any, GenericResponse]]:
     if response.status_code == 200:
-        response_200 = LockdownValues.from_dict(response.json())
-
+        response_200 = cast(Any, response.content)
         return response_200
+
+    if response.status_code == 400:
+        response_400 = GenericResponse.from_dict(response.json())
+
+        return response_400
 
     if response.status_code == 401:
         response_401 = GenericResponse.from_dict(response.json())
@@ -68,7 +74,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[GenericResponse, LockdownValues]]:
+) -> Response[Union[Any, GenericResponse]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -81,28 +87,31 @@ def sync_detailed(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    bundle_id: Union[Unset, str] = UNSET,
+    path: str,
+) -> Response[Union[Any, GenericResponse]]:
+    """Download a file over AFC
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Download a file from the device over AFC (CLI: `ios fsync pull`). Returns
+    the raw file bytes. `path` is required.
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        bundle_id (Union[Unset, str]):
+        path (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[Union[Any, GenericResponse]]
     """
 
     kwargs = _get_kwargs(
         udid=udid,
-        domain=domain,
+        bundle_id=bundle_id,
+        path=path,
     )
 
     response = client.get_httpx_client().request(
@@ -116,29 +125,32 @@ def sync(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    bundle_id: Union[Unset, str] = UNSET,
+    path: str,
+) -> Optional[Union[Any, GenericResponse]]:
+    """Download a file over AFC
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Download a file from the device over AFC (CLI: `ios fsync pull`). Returns
+    the raw file bytes. `path` is required.
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        bundle_id (Union[Unset, str]):
+        path (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        Union[Any, GenericResponse]
     """
 
     return sync_detailed(
         udid=udid,
         client=client,
-        domain=domain,
+        bundle_id=bundle_id,
+        path=path,
     ).parsed
 
 
@@ -146,28 +158,31 @@ async def asyncio_detailed(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    bundle_id: Union[Unset, str] = UNSET,
+    path: str,
+) -> Response[Union[Any, GenericResponse]]:
+    """Download a file over AFC
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Download a file from the device over AFC (CLI: `ios fsync pull`). Returns
+    the raw file bytes. `path` is required.
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        bundle_id (Union[Unset, str]):
+        path (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[Union[Any, GenericResponse]]
     """
 
     kwargs = _get_kwargs(
         udid=udid,
-        domain=domain,
+        bundle_id=bundle_id,
+        path=path,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -179,29 +194,32 @@ async def asyncio(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    bundle_id: Union[Unset, str] = UNSET,
+    path: str,
+) -> Optional[Union[Any, GenericResponse]]:
+    """Download a file over AFC
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Download a file from the device over AFC (CLI: `ios fsync pull`). Returns
+    the raw file bytes. `path` is required.
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        bundle_id (Union[Unset, str]):
+        path (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        Union[Any, GenericResponse]
     """
 
     return (
         await asyncio_detailed(
             udid=udid,
             client=client,
-            domain=domain,
+            bundle_id=bundle_id,
+            path=path,
         )
     ).parsed

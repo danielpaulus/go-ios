@@ -6,39 +6,59 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.generic_response import GenericResponse
-from ...models.lockdown_values import LockdownValues
+from ...models.ui_response import UIResponse
+from ...models.ui_swipe_request import UISwipeRequest
 from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     udid: str,
     *,
-    domain: Union[Unset, str] = UNSET,
+    body: UISwipeRequest,
+    backend: Union[Unset, str] = UNSET,
+    wda_url: Union[Unset, str] = UNSET,
+    timeout: Union[Unset, int] = UNSET,
 ) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+
     params: dict[str, Any] = {}
 
-    params["domain"] = domain
+    params["backend"] = backend
+
+    params["wdaUrl"] = wda_url
+
+    params["timeout"] = timeout
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": "/api/v1/device/{udid}/lockdown".format(
+        "method": "post",
+        "url": "/api/v1/device/{udid}/ui/swipe".format(
             udid=udid,
         ),
         "params": params,
     }
 
+    _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[GenericResponse, LockdownValues]]:
+) -> Optional[Union[GenericResponse, UIResponse]]:
     if response.status_code == 200:
-        response_200 = LockdownValues.from_dict(response.json())
+        response_200 = UIResponse.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 400:
+        response_400 = GenericResponse.from_dict(response.json())
+
+        return response_400
 
     if response.status_code == 401:
         response_401 = GenericResponse.from_dict(response.json())
@@ -60,6 +80,16 @@ def _parse_response(
 
         return response_500
 
+    if response.status_code == 501:
+        response_501 = GenericResponse.from_dict(response.json())
+
+        return response_501
+
+    if response.status_code == 502:
+        response_502 = GenericResponse.from_dict(response.json())
+
+        return response_502
+
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -68,7 +98,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[GenericResponse, LockdownValues]]:
+) -> Response[Union[GenericResponse, UIResponse]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -81,28 +111,37 @@ def sync_detailed(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    body: UISwipeRequest,
+    backend: Union[Unset, str] = UNSET,
+    wda_url: Union[Unset, str] = UNSET,
+    timeout: Union[Unset, int] = UNSET,
+) -> Response[Union[GenericResponse, UIResponse]]:
+    """Swipe
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Drag from (x1,y1) to (x2,y2).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        backend (Union[Unset, str]):
+        wda_url (Union[Unset, str]):
+        timeout (Union[Unset, int]):
+        body (UISwipeRequest): `POST /device/{udid}/ui/swipe` request — drag from (x1,y1) to
+            (x2,y2).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[Union[GenericResponse, UIResponse]]
     """
 
     kwargs = _get_kwargs(
         udid=udid,
-        domain=domain,
+        body=body,
+        backend=backend,
+        wda_url=wda_url,
+        timeout=timeout,
     )
 
     response = client.get_httpx_client().request(
@@ -116,29 +155,38 @@ def sync(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    body: UISwipeRequest,
+    backend: Union[Unset, str] = UNSET,
+    wda_url: Union[Unset, str] = UNSET,
+    timeout: Union[Unset, int] = UNSET,
+) -> Optional[Union[GenericResponse, UIResponse]]:
+    """Swipe
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Drag from (x1,y1) to (x2,y2).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        backend (Union[Unset, str]):
+        wda_url (Union[Unset, str]):
+        timeout (Union[Unset, int]):
+        body (UISwipeRequest): `POST /device/{udid}/ui/swipe` request — drag from (x1,y1) to
+            (x2,y2).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        Union[GenericResponse, UIResponse]
     """
 
     return sync_detailed(
         udid=udid,
         client=client,
-        domain=domain,
+        body=body,
+        backend=backend,
+        wda_url=wda_url,
+        timeout=timeout,
     ).parsed
 
 
@@ -146,28 +194,37 @@ async def asyncio_detailed(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    body: UISwipeRequest,
+    backend: Union[Unset, str] = UNSET,
+    wda_url: Union[Unset, str] = UNSET,
+    timeout: Union[Unset, int] = UNSET,
+) -> Response[Union[GenericResponse, UIResponse]]:
+    """Swipe
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Drag from (x1,y1) to (x2,y2).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        backend (Union[Unset, str]):
+        wda_url (Union[Unset, str]):
+        timeout (Union[Unset, int]):
+        body (UISwipeRequest): `POST /device/{udid}/ui/swipe` request — drag from (x1,y1) to
+            (x2,y2).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[Union[GenericResponse, UIResponse]]
     """
 
     kwargs = _get_kwargs(
         udid=udid,
-        domain=domain,
+        body=body,
+        backend=backend,
+        wda_url=wda_url,
+        timeout=timeout,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -179,29 +236,38 @@ async def asyncio(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    body: UISwipeRequest,
+    backend: Union[Unset, str] = UNSET,
+    wda_url: Union[Unset, str] = UNSET,
+    timeout: Union[Unset, int] = UNSET,
+) -> Optional[Union[GenericResponse, UIResponse]]:
+    """Swipe
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Drag from (x1,y1) to (x2,y2).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        backend (Union[Unset, str]):
+        wda_url (Union[Unset, str]):
+        timeout (Union[Unset, int]):
+        body (UISwipeRequest): `POST /device/{udid}/ui/swipe` request — drag from (x1,y1) to
+            (x2,y2).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        Union[GenericResponse, UIResponse]
     """
 
     return (
         await asyncio_detailed(
             udid=udid,
             client=client,
-            domain=domain,
+            body=body,
+            backend=backend,
+            wda_url=wda_url,
+            timeout=timeout,
         )
     ).parsed

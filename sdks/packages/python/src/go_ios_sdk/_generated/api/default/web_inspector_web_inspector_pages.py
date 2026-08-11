@@ -6,27 +6,18 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.generic_response import GenericResponse
-from ...models.lockdown_values import LockdownValues
-from ...types import UNSET, Response, Unset
+from ...models.web_inspector_page import WebInspectorPage
+from ...types import Response
 
 
 def _get_kwargs(
     udid: str,
-    *,
-    domain: Union[Unset, str] = UNSET,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {}
-
-    params["domain"] = domain
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/v1/device/{udid}/lockdown".format(
+        "url": "/api/v1/device/{udid}/webinspector/pages".format(
             udid=udid,
         ),
-        "params": params,
     }
 
     return _kwargs
@@ -34,9 +25,14 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[GenericResponse, LockdownValues]]:
+) -> Optional[Union[GenericResponse, list["WebInspectorPage"]]]:
     if response.status_code == 200:
-        response_200 = LockdownValues.from_dict(response.json())
+        response_200 = []
+        _response_200 = response.json()
+        for response_200_item_data in _response_200:
+            response_200_item = WebInspectorPage.from_dict(response_200_item_data)
+
+            response_200.append(response_200_item)
 
         return response_200
 
@@ -55,6 +51,11 @@ def _parse_response(
 
         return response_422
 
+    if response.status_code == 424:
+        response_424 = GenericResponse.from_dict(response.json())
+
+        return response_424
+
     if response.status_code == 500:
         response_500 = GenericResponse.from_dict(response.json())
 
@@ -68,7 +69,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[GenericResponse, LockdownValues]]:
+) -> Response[Union[GenericResponse, list["WebInspectorPage"]]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -81,28 +82,24 @@ def sync_detailed(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+) -> Response[Union[GenericResponse, list["WebInspectorPage"]]]:
+    """List inspectable pages
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     List inspectable pages reported by the device (CLI: `ios webinspector list`).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[Union[GenericResponse, list['WebInspectorPage']]]
     """
 
     kwargs = _get_kwargs(
         udid=udid,
-        domain=domain,
     )
 
     response = client.get_httpx_client().request(
@@ -116,29 +113,25 @@ def sync(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+) -> Optional[Union[GenericResponse, list["WebInspectorPage"]]]:
+    """List inspectable pages
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     List inspectable pages reported by the device (CLI: `ios webinspector list`).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        Union[GenericResponse, list['WebInspectorPage']]
     """
 
     return sync_detailed(
         udid=udid,
         client=client,
-        domain=domain,
     ).parsed
 
 
@@ -146,28 +139,24 @@ async def asyncio_detailed(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+) -> Response[Union[GenericResponse, list["WebInspectorPage"]]]:
+    """List inspectable pages
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     List inspectable pages reported by the device (CLI: `ios webinspector list`).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[Union[GenericResponse, list['WebInspectorPage']]]
     """
 
     kwargs = _get_kwargs(
         udid=udid,
-        domain=domain,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -179,29 +168,25 @@ async def asyncio(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+) -> Optional[Union[GenericResponse, list["WebInspectorPage"]]]:
+    """List inspectable pages
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     List inspectable pages reported by the device (CLI: `ios webinspector list`).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        Union[GenericResponse, list['WebInspectorPage']]
     """
 
     return (
         await asyncio_detailed(
             udid=udid,
             client=client,
-            domain=domain,
         )
     ).parsed

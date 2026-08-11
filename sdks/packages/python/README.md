@@ -1,11 +1,14 @@
 # go-ios SDK (Python)
 
 Ergonomic Python client for the [go-ios](https://github.com/danielpaulus/go-ios)
-REST API — full coverage of the go-ios daemon surface (80 endpoints): list and
-drive iOS devices, read device info/diagnostics, manage apps, files, crashes,
-profiles, images, settings, MDM and proxy, run asynchronous jobs (XCUITest /
-WebDriverAgent / port forwards), manage RemoteXPC tunnels, and consume all six
-live Server-Sent-Event streams as typed async/sync generators.
+REST API — full coverage of the go-ios daemon surface (125 endpoints): list and
+drive iOS devices, read device info/diagnostics/network, manage apps, files
+(AFC `fsync`), crashes, profiles, images, settings, accessibility, MDM and
+proxy, drive the UI over WebDriverAgent/DeviceKit, evaluate JavaScript via the
+Web Inspector, resign apps and provision devices, run asynchronous jobs
+(XCUITest / WebDriverAgent / port forwards), manage RemoteXPC tunnels, consume
+all six live Server-Sent-Event streams as typed async/sync generators, and
+consume the three raw **binary** streams (UI video, MJPEG screenshots, pcap).
 
 - **PyPI package:** `go-ios-sdk`
 - **Import name:** `go_ios_sdk`
@@ -144,6 +147,80 @@ dev.jobs.forward({"hostPort": 8100, "targetPort": 8100})
 dev.jobs.list(); dev.jobs.get(job["id"]); dev.jobs.delete(job["id"])
 for line in dev.jobs.logs(job["id"]):
     print(line.line)
+
+# --- diagnostics / network -------------------------------------------------
+dev.disk_space(); dev.ip(); dev.rsd(); dev.battery_registry()
+dev.lockdown(domain="com.apple.mobile.battery")   # domain-scoped lockdown
+
+# --- accessibility & location ----------------------------------------------
+dev.voice_over(); dev.set_voice_over(True)
+dev.zoom(); dev.set_zoom(True)
+dev.ax(); dev.ax_audit(timeout=30)
+dev.set_location_gpx("track.gpx")                 # multipart GPX upload
+
+# --- AFC file sync (fsync) + cloud config ----------------------------------
+dev.fsync.ls("/DCIM", bundle_id="com.example.MyApp")   # or media dir if omitted
+dev.fsync.tree("/DCIM")
+data: bytes = dev.fsync.pull("/DCIM/IMG_0001.HEIC")
+dev.fsync.push("/DCIM/new.jpg", b"...bytes...")
+dev.fsync.mkdir("/DCIM/sub"); dev.fsync.rm("/DCIM/sub", recursive=True)
+dev.cloud_config()
+
+# --- Web Inspector ---------------------------------------------------------
+dev.webinspector.pages()
+dev.webinspector.launch("https://example.com")
+dev.webinspector.eval("document.title", page="<page-id>")
+
+# --- UI automation (needs a running WDA/DeviceKit backend) ------------------
+# Bring WDA up first with dev.jobs.runwda(...) + dev.jobs.forward(...).
+dev.ui.tap(100, 200, backend="wda")               # backend/wda_url/timeout kwargs
+dev.ui.swipe(10, 10, 300, 400, duration=0.5)
+dev.ui.long_press(100, 200); dev.ui.type("hello"); dev.ui.button("home")
+shot: bytes = dev.ui.screenshot(); xml: str = dev.ui.source()
+dev.ui.size(); dev.ui.orientation(); dev.ui.set_orientation("LANDSCAPE")
+dev.ui.status(); dev.ui.api({"method": "GET", "path": "/status"})
+dev.ui.app.launch("com.example.MyApp"); dev.ui.app.terminate("com.example.MyApp")
+dev.ui.app.foreground()
+
+# --- device provisioning (multipart) ---------------------------------------
+dev.prepare("supervision.p12", skip=["WiFi", "Siri"], org_name="Acme")
+
+# --- host-scoped codesigning / provisioning (device-free) ------------------
+p12: bytes = client.sign.certificate("AuthKey.p8", "<key-id>", "<issuer-id>")
+client.sign.provision("AuthKey.p8", "<key-id>", "<issuer-id>",
+                      bundle_id="com.example.MyApp", udid=udid)
+signed: bytes = client.sign.app("MyApp.ipa", "id.p12", "profile.mobileprovision")
+client.prepare.create_cert(); client.prepare.skip_options()
+```
+
+## Binary streams (raw bytes, not SSE)
+
+Three endpoints stream raw bytes over a long-lived chunked HTTP response (they are
+**not** Server-Sent Events). Each returns a byte-chunk generator that is also a
+context manager; iterating yields `bytes`, and `close()` / leaving the `with`
+block (or cancelling the async task) releases the connection promptly.
+
+```python
+# Live UI video (MJPEG by default, or H.264 with codec="h264").
+with dev.ui.stream(codec="h264", backend="devicekit") as video:
+    for chunk in video:
+        ...            # write to a file / decoder; break to cancel
+
+# MJPEG screenshot stream from the instruments service.
+for chunk in dev.screenshot_stream(quality=80):
+    ...
+
+# Live libpcap packet capture (feed to wireshark/tshark).
+for chunk in dev.pcap(timeout=60):
+    ...
+```
+
+Async is identical with `async for` / `async with`:
+
+```python
+async with client.device(udid).pcap() as capture:
+    async for chunk in capture:
+        ...
 ```
 
 ## Streaming (SSE)
@@ -242,7 +319,7 @@ uv run ruff check src tests
 ```
 
 The low-level typed client under `go_ios_sdk._generated` is generated from the
-OpenAPI spec (`spec/openapi/openapi.yaml`, 80 operations) with
+OpenAPI spec (`spec/openapi/openapi.yaml`, 125 operations) with
 [openapi-python-client](https://github.com/openapi-generators/openapi-python-client)
 `0.26.1` and vendored so the package is self-contained. The public facade in
 `go_ios_sdk/` is hand-written and kept API-identical across the TypeScript, Java
