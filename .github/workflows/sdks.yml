@@ -76,6 +76,12 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm run build
       - run: npm test
+      # Device-free pre-release gate: the list-tools example spawns the built
+      # MCP server over stdio and asserts the exact curated 44-tool set. It needs
+      # no device and no daemon (call-tool auto-skips without GO_IOS_API_KEY), so
+      # a broken MCP server fails CI here. See sdks/docs/EXAMPLES.md.
+      - name: MCP examples smoke test (list-tools, device-free)
+        run: npm run examples
 
   python:
     name: Python SDK test (3.9-3.13) + types

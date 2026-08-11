@@ -42,6 +42,14 @@ go-ios-sdks/
   .github/workflows/         # CI: spec compile check
 ```
 
+## Examples
+
+Every SDK (and the MCP server) ships runnable, heavily-commented examples under
+`packages/<lang>/examples/`. They double as tutorials and as the pre-release
+smoke test. See [`docs/EXAMPLES.md`](docs/EXAMPLES.md) for the per-language
+index, the shared `GO_IOS_BASE_URL` / `GO_IOS_API_KEY` / `GO_IOS_UDID` /
+`RUN_UI` convention, and how to run them all.
+
 ## Regenerate everything
 
 ```bash
