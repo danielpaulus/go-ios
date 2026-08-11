@@ -13,6 +13,20 @@ const logModule = "go-ios/installationproxy"
 
 const serviceName = "com.apple.mobile.installation_proxy"
 
+// maxBrowseChunks bounds how many BrowseResponse chunks browseApps will accept
+// from a device before giving up. A healthy device paginates its app list in a
+// handful of chunks and terminates with Status == "Complete"; a device that
+// never sends Complete (or a hung/misbehaving connection) would otherwise make
+// the receive loop append a full BrowseResponse forever and grow the heap
+// without bound (see issue #818). 1000 is far above any real device's app-list
+// pagination while still capping runaway memory.
+const maxBrowseChunks = 1000
+
+// maxBrowseEntries bounds the total number of AppInfo entries browseApps will
+// allocate up front from the device-reported CurrentAmount fields, guarding the
+// result slice allocation against an absurd size claimed by a misbehaving device.
+const maxBrowseEntries = 1_000_000
+
 const (
 	// ApplicationType shows if this is a 'User', 'System' or 'Hidden' app
 	ApplicationType            = "ApplicationType"
@@ -84,6 +98,7 @@ func (conn *Connection) browseApps(request interface{}) ([]AppInfo, error) {
 	stillReceiving := true
 	responses := make([]BrowseResponse, 0)
 	size := uint64(0)
+	chunks := 0
 	for stillReceiving {
 		response, err := conn.plistCodec.Decode(reader)
 		if err != nil {
@@ -96,6 +111,17 @@ func (conn *Connection) browseApps(request interface{}) ([]AppInfo, error) {
 		stillReceiving = "Complete" != ifa.Status
 		size += ifa.CurrentAmount
 		responses = append(responses, ifa)
+		chunks++
+		if size > maxBrowseEntries {
+			golog.Error("browseApps aborted: too many app entries reported by device",
+				"module", logModule, "entries", size, "max", maxBrowseEntries, "chunks", chunks)
+			return make([]AppInfo, 0), fmt.Errorf("browseApps: device reported %d app entries, exceeding limit of %d", size, maxBrowseEntries)
+		}
+		if chunks >= maxBrowseChunks && stillReceiving {
+			golog.Error("browseApps aborted: too many response chunks without Complete status",
+				"module", logModule, "chunks", chunks, "max", maxBrowseChunks)
+			return make([]AppInfo, 0), fmt.Errorf("browseApps: exceeded %d response chunks without receiving Status \"Complete\", device likely stuck", maxBrowseChunks)
+		}
 	}
 	appinfos := make([]AppInfo, size)
 
