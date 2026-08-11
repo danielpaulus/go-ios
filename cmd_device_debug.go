@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios/crashreport"
 	"github.com/danielpaulus/go-ios/ios/debugserver"
@@ -22,7 +24,16 @@ func runPCAPCommand(ctx commandContext) {
 	i, _ := ctx.Args.Int("--pid")
 	pcap.Pid = int32(i)
 	pcap.ProcName = p
-	err := pcap.Start(ctx.Device)
+	captureCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if timeoutStr, _ := ctx.Args.String("--timeout"); timeoutStr != "" {
+		timeout, err := time.ParseDuration(timeoutStr)
+		exitIfError("invalid --timeout value, use a duration like 30s, 2m or 1h", err)
+		var cancel context.CancelFunc
+		captureCtx, cancel = context.WithTimeout(captureCtx, timeout)
+		defer cancel()
+	}
+	err := pcap.Start(captureCtx, ctx.Device)
 	if err != nil {
 		exitIfError("pcap failed", err)
 	}

@@ -119,7 +119,7 @@ Usage:
   ios mobilegestalt <key>... [--plist] [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pasteboard (set [<text>] | get) [options]
-  ios pcap [options] [--pid=<processID>] [--process=<processName>]
+  ios pcap [options] [--pid=<processID>] [--process=<processName>] [--timeout=<duration>]
   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale=<locale>] [--lang=<lang>] [options]
   ios prepare cloudconfig [options]
   ios prepare create-cert
@@ -395,7 +395,10 @@ The commands work as following:
     ios pasteboard (set [<text>] | get) [options]                     Read or write the device pasteboard (clipboard) over RemoteXPC (iOS 17+). Requires tunnel.
                                                                        set writes <text> (or stdin when omitted) to the pasteboard; get prints its text.
 
-    ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
+    ios pcap [options] [--pid=<processID>] [--process=<processName>] [--timeout=<duration>]
+                                                                       Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
+                                                                       Use --timeout with a duration like 30s, 2m or 1h to stop the capture automatically;
+                                                                       without it, capture runs until Ctrl-C. Either way the pcap file is closed cleanly.
 
     ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [options]
                                                                        Prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
