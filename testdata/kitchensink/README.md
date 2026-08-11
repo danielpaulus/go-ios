@@ -48,7 +48,7 @@ the UI-test runner.)
 | `testPasses` | pass (sleeps 0.3s) | plain `<testcase>`, no child |
 | `testFails` | fail (sleeps 0.5s, `XCTAssertEqual(1,2,"kitchen sink failure message")`) | `<failure message="…kitchen sink failure message…">` + `OutcomeTests.swift:<line>` chardata |
 | `testExpectedFailure` | expected failure (`XCTExpectFailure{ XCTFail("boom") }`) | `<skipped message="expected failure…">` |
-| `testSkipped` | skipped (`throw XCTSkip("skipped on purpose")`) | `<skipped>` mentioning "skipped on purpose" |
+| `testSkipped` | skipped (`throw XCTSkip("skipped on purpose")`) | `<skipped message="skipped">` — see note below |
 | `testWithAttachment` | pass, two `XCTAttachment(string:)` | plain `<testcase>`, report intact |
 | `testStalls` | **skipped by default**; sleeps 600s only when `KITCHENSINK_ENABLE_STALL=1` is passed via `--env` (kept OFF so the e2e stays stable) |
 
@@ -60,6 +60,17 @@ the UI-test runner.)
 
 Two XCTestCase subclasses ⇒ two `<testsuite>` elements aggregated under one
 `<testsuites>`.
+
+### Real-device finding: XCTSkip reasons are not propagated
+
+testmanagerd delivers `XCTSkip`'d tests with the bare status `"skipped"` and
+does **not** carry the skip reason string, so the real report is
+`<skipped message="skipped">` — the `"skipped on purpose"` text never leaves the
+device. go-ios's junit mapping is correct here: its default branch falls back to
+the status word as the message. (Expected failures are different: their
+`"expected failure"` status *does* come through, so that outcome maps to
+`<skipped message="expected failure">`.) The e2e asserts the `<skipped>` element
+and a skip marker, not the reason.
 
 ## Rebuilding the runner
 

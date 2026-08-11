@@ -208,13 +208,21 @@ func assertKitchenSinkReport(t *testing.T, raw []byte) {
 		t.Errorf("testExpectedFailure: <skipped message> should start with \"expected failure\"; got %q", c.Skipped.Message)
 	}
 
-	// testSkipped => <skipped> mentioning "skipped on purpose".
+	// testSkipped (throw XCTSkip("skipped on purpose")) => <skipped>.
+	//
+	// Real-device finding: testmanagerd delivers XCTSkip'd tests with the bare
+	// status "skipped" and does NOT propagate the skip reason string, so the real
+	// report is <skipped message="skipped"> — the "skipped on purpose" text never
+	// leaves the device. (Contrast expected failures above, whose "expected
+	// failure" status DOES come through.) go-ios's junit mapping is correct given
+	// the data: its default branch falls back to the status word "skipped" as the
+	// message. So we assert the element + a "skipped" marker, not the reason.
 	if c, ok := outcomeCases["testSkipped"]; !ok {
 		t.Errorf("OutcomeTests has no testSkipped case")
 	} else if c.Skipped == nil {
 		t.Errorf("testSkipped: expected a <skipped> child, got skipped=nil (failure=%v error=%v)", c.Failure, c.Error)
-	} else if !strings.Contains(c.Skipped.Message+c.Skipped.Content, "skipped on purpose") {
-		t.Errorf("testSkipped: <skipped> should mention \"skipped on purpose\"; got message=%q content=%q", c.Skipped.Message, c.Skipped.Content)
+	} else if !strings.Contains(strings.ToLower(c.Skipped.Message+c.Skipped.Content), "skip") {
+		t.Errorf("testSkipped: <skipped> should carry a skip marker; got message=%q content=%q", c.Skipped.Message, c.Skipped.Content)
 	}
 
 	// testWithAttachment => passed, report intact (attachments must not break it).
