@@ -1,10 +1,28 @@
 {
   "name": "@go-ios/mcp",
   "version": "0.1.0",
-  "private": true,
   "description": "Model Context Protocol server for go-ios — let autonomous agents control iOS devices through the go-ios REST daemon.",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://github.com/danielpaulus/go-ios/tree/main/sdks/packages/mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danielpaulus/go-ios.git",
+    "directory": "sdks/packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/danielpaulus/go-ios/issues"
+  },
+  "keywords": [
+    "ios",
+    "go-ios",
+    "mcp",
+    "model-context-protocol",
+    "wda",
+    "webdriveragent",
+    "ui-automation",
+    "device-automation"
+  ],
   "engines": {
     "node": ">=20"
   },
@@ -15,6 +33,10 @@
     "dist",
     "README.md"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

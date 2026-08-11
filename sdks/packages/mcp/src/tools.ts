@@ -158,9 +158,69 @@ interface Job {
   error?: string;
   result?: unknown;
 }
+type DiskSpaceInfo = Record<string, unknown>;
+type NetworkInfo = Record<string, unknown>;
+type UIResponse = Record<string, unknown> | unknown;
+interface FsyncListing {
+  path: string;
+  files: string[];
+  count: number;
+}
+type WebInspectorPage = Record<string, unknown>;
+interface WebInspectorEvalResult {
+  page: string;
+  result: unknown;
+}
 
 /** Bounded cap for pulled file/crash-report text (256 KiB). */
 const MAX_PULL_BYTES = 256 * 1024;
+
+/** Bounded cap for the UI view hierarchy / read_file text (512 KiB). */
+const MAX_SOURCE_BYTES = 512 * 1024;
+
+// ---------------------------------------------------------------------------
+// UI-automation shared args
+// ---------------------------------------------------------------------------
+//
+// The UI-automation routes (/device/{udid}/ui/*) forward to a UI backend —
+// WebDriverAgent (default) or DeviceKit — that must already be RUNNING and
+// PORT-FORWARDED. The recommended flow is: run_wda (boot WDA) → forward its port
+// → pass the forwarded base URL as `wdaUrl`. All UI tools accept the same
+// backend/wdaUrl/timeout knobs, defined once here.
+
+const backendArg = z
+  .enum(["wda", "devicekit"])
+  .optional()
+  .describe(
+    "UI-automation backend to target: 'wda' (default, WebDriverAgent) or 'devicekit'. " +
+      "The backend must already be running and forwarded (see run_wda).",
+  );
+
+const wdaUrlArg = z
+  .string()
+  .optional()
+  .describe(
+    "Base URL of the already-forwarded UI backend, e.g. http://localhost:8100 for WDA. " +
+      "Omit to use the daemon's per-backend default. If UI tools return 502, boot WDA with " +
+      "run_wda, forward its port, and pass that URL here.",
+  );
+
+const uiTimeoutArg = z
+  .number()
+  .int()
+  .min(1)
+  .max(120)
+  .optional()
+  .describe("Per-request HTTP timeout in seconds (default 60, max 120).");
+
+/** Build the shared UI backend query params (drops undefined). */
+function uiQuery(args: {
+  backend?: string;
+  wdaUrl?: string;
+  timeout?: number;
+}): Record<string, string | number | undefined> {
+  return { backend: args.backend, wdaUrl: args.wdaUrl, timeout: args.timeout };
+}
 
 // ---------------------------------------------------------------------------
 // Registration
@@ -192,13 +252,31 @@ export const CURATED_TOOL_NAMES = [
   "device_battery",
   "list_processes",
   "device_diagnostics",
+  "device_diskspace",
+  "device_ip",
   // Crash logs
   "list_crash_reports",
   "pull_crash_report",
   // Files (read-only)
   "list_files",
+  "list_device_files",
+  "read_file",
+  // Location
+  "set_location_gpx",
   // Performance
   "sample_performance",
+  // UI automation (act on the device — requires a running, forwarded WDA backend)
+  "ui_tap",
+  "ui_swipe",
+  "ui_type",
+  "ui_press_button",
+  "ui_source",
+  "ui_screenshot",
+  "ui_app_launch",
+  "ui_app_terminate",
+  // Web debugging (WebInspector)
+  "list_webinspector_pages",
+  "webinspector_eval",
   // Jobs (drive/observe test runs)
   "run_wda",
   "get_job",
@@ -812,6 +890,41 @@ export function registerTools(server: McpServer, client: GoIosClient): void {
       }),
   );
 
+  server.registerTool(
+    "device_diskspace",
+    {
+      title: "Get disk space info",
+      description:
+        "Get the device filesystem usage over AFC: total / free / used bytes and block size. " +
+        "Use this to check whether a device has enough free space before installing an app or " +
+        "pulling files. Returns an open map of the AFC filesystem values. Requires a udid.",
+      inputSchema: { udid: udidArg },
+    },
+    async ({ udid }) =>
+      guard(async () => {
+        const info = await client.getJson<DiskSpaceInfo>(`/device/${seg(udid)}/diskspace`);
+        return jsonResult(info);
+      }),
+  );
+
+  server.registerTool(
+    "device_ip",
+    {
+      title: "Get device network addresses",
+      description:
+        "Resolve the device's network addresses (MAC / IPv4 / IPv6) by briefly sniffing the " +
+        "device's packet capture. Use this to find the device's IP for network testing. This can " +
+        "take a few seconds and depends on the device generating traffic. Returns an open map of " +
+        "the discovered addresses. Requires a udid.",
+      inputSchema: { udid: udidArg },
+    },
+    async ({ udid }) =>
+      guard(async () => {
+        const info = await client.getJson<NetworkInfo>(`/device/${seg(udid)}/ip`);
+        return jsonResult(info);
+      }),
+  );
+
   // ---- Crash logs --------------------------------------------------------
 
   server.registerTool(
@@ -915,6 +1028,157 @@ export function registerTools(server: McpServer, client: GoIosClient): void {
           path,
         });
         return jsonResult(listing);
+      }),
+  );
+
+  server.registerTool(
+    "list_device_files",
+    {
+      title: "List a directory over AFC (read-only)",
+      description:
+        "List a device directory over AFC (Apple File Conduit). READ-ONLY. Without bundleId this " +
+        "browses the device media directory (e.g. DCIM); with bundleId it scopes to that app's " +
+        "documents container (the app must allow file sharing). 'path' selects the directory " +
+        "(defaults to the domain root). Returns { path, count, files:[name] }. Pair with read_file " +
+        "to read a file's contents. Requires a udid.",
+      inputSchema: {
+        udid: udidArg,
+        bundleId: z
+          .string()
+          .optional()
+          .describe("Scope to this app's container. Omit to browse the device media directory."),
+        path: z
+          .string()
+          .optional()
+          .describe("Directory path to list within the domain. Defaults to the root. '..' rejected."),
+      },
+    },
+    async ({ udid, bundleId, path }) =>
+      guard(async () => {
+        const listing = await client.getJson<FsyncListing>(`/device/${seg(udid)}/fsync/ls`, {
+          bundleID: bundleId,
+          path,
+        });
+        return jsonResult(listing);
+      }),
+  );
+
+  server.registerTool(
+    "read_file",
+    {
+      title: "Read a device file over AFC (bounded)",
+      description:
+        "Download and return the contents of a single device file over AFC as UTF-8 text, BOUNDED " +
+        "to 512 KiB (larger files are truncated; truncated=true). Use list_device_files first to " +
+        "find a path. Without bundleId the path is relative to the media directory; with bundleId " +
+        "it is relative to that app's container. Best for text/log/plist files — binary content " +
+        "will be lossy. Requires a udid and a path.",
+      inputSchema: {
+        udid: udidArg,
+        path: z
+          .string()
+          .min(1)
+          .describe("Remote file path on the device (required). '..' elements are rejected."),
+        bundleId: z
+          .string()
+          .optional()
+          .describe("Scope the path to this app's container. Omit for the media directory."),
+      },
+    },
+    async ({ udid, path, bundleId }) =>
+      guard(async () => {
+        const pulled = await client.getTextBounded(
+          `/device/${seg(udid)}/fsync/pull`,
+          { path, bundleID: bundleId },
+          MAX_SOURCE_BYTES,
+        );
+        return {
+          content: [{ type: "text", text: pulled.text }],
+          structuredContent: {
+            udid,
+            path,
+            bundleId,
+            bytes: pulled.bytes,
+            truncated: pulled.truncated,
+            text: pulled.text,
+          },
+        };
+      }),
+  );
+
+  // ---- Location ----------------------------------------------------------
+
+  server.registerTool(
+    "set_location_gpx",
+    {
+      title: "Simulate location from a GPX file",
+      description:
+        "Simulate live location tracking on the device by replaying a GPX track. Provide the " +
+        "absolute filesystem path to a .gpx file readable by THIS MCP server process; the server " +
+        "uploads it to the daemon as multipart/form-data and the device follows the waypoints. Use " +
+        "this to test location-aware behavior. Returns the daemon's status message. Requires a " +
+        "udid and gpxPath.",
+      inputSchema: {
+        udid: udidArg,
+        gpxPath: z
+          .string()
+          .min(1)
+          .describe("Absolute path to a .gpx file readable by the MCP server process."),
+      },
+    },
+    async ({ udid, gpxPath }) =>
+      guard(async () => {
+        const { readFile } = await import("node:fs/promises");
+        const { basename } = await import("node:path");
+        let bytes: Buffer;
+        try {
+          bytes = await readFile(gpxPath);
+        } catch (err) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: `Could not read GPX file at ${gpxPath}: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              },
+            ],
+          };
+        }
+        const form = new FormData();
+        form.append(
+          "gpx",
+          new Blob([new Uint8Array(bytes)], { type: "application/gpx+xml" }),
+          basename(gpxPath),
+        );
+        const url = client.url(`/device/${seg(udid)}/setlocation/gpx`);
+        const res = await fetch(url, {
+          method: "PUT",
+          headers: client.headers(),
+          body: form,
+        });
+        const text = await res.text();
+        let parsed: unknown = text;
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          /* keep text */
+        }
+        if (!res.ok) {
+          throw new GoIosApiError({
+            status: res.status,
+            statusText: res.statusText,
+            url,
+            body: parsed,
+            message:
+              (parsed as { error?: string; message?: string })?.error ??
+              (parsed as { message?: string })?.message ??
+              text ??
+              res.statusText,
+          });
+        }
+        return jsonResult(parsed);
       }),
   );
 
@@ -1171,21 +1435,324 @@ export function registerTools(server: McpServer, client: GoIosClient): void {
       }),
   );
 
-  // ---- Extension point: UI / accessibility interaction -------------------
+  // ---- UI automation (ACT on the device) ---------------------------------
   //
-  // TODO(ui-automation): the curated set can already START and OBSERVE UI
-  // automation — create_wda_session / run_wda boot WebDriverAgent, screenshot
-  // lets an agent SEE the screen, and tail_job_logs/get_job track the runner.
-  // What is still missing is ACTING on the UI. Once the go-ios daemon exposes UI
-  // interaction over REST (tap / type / query by accessibility id), add a small,
-  // task-shaped find-then-act set of curated tools here, riding on an existing
-  // WDA session (create_wda_session) or WDA runner job (run_wda), e.g.:
-  //   - `tap_element`   { udid, sessionId, accessibilityId }
-  //   - `type_into`     { udid, sessionId, accessibilityId, text }
-  //   - `query_element` { udid, sessionId, accessibilityId }  -> element state
-  //   - `dump_ui_tree`  { udid, sessionId }                   -> a11y hierarchy
-  // These would POST to the future /device/{udid}/wda/session/{sessionId}/...
-  // routes. Keep them curated and semantic (accessibility-id targeted), NOT a
-  // raw WDA HTTP passthrough, so descriptions stay LLM-legible. Pair each
-  // action tool with screenshot so an agent can verify the result it produced.
+  // These tools let an agent DRIVE the device, not just observe it. They forward
+  // to a UI backend (WebDriverAgent by default) that must already be RUNNING and
+  // PORT-FORWARDED. Recommended flow:
+  //   1. run_wda        — boot the WebDriverAgent runner as a job
+  //   2. forward WDA's port to a local port (e.g. 8100) via the go-ios CLI/API
+  //   3. call these tools with wdaUrl set to that forwarded URL (e.g.
+  //      http://localhost:8100)
+  // Coordinates are absolute screen points; use ui_source to inspect the view
+  // hierarchy (element frames) or ui_screenshot to see the screen, then act.
+
+  server.registerTool(
+    "ui_tap",
+    {
+      title: "Tap the screen (UI automation)",
+      description:
+        "Tap at absolute screen coordinates (x, y) via the UI-automation backend. This is a real " +
+        "on-screen tap — use it to press buttons, select fields, etc. PREREQUISITE: a running, " +
+        "forwarded WebDriverAgent backend (start it with run_wda, forward its port, and pass " +
+        "wdaUrl). Use ui_source or ui_screenshot to find where to tap. Requires a udid, x and y.",
+      inputSchema: {
+        udid: udidArg,
+        x: z.number().int().describe("Absolute x screen coordinate (points)."),
+        y: z.number().int().describe("Absolute y screen coordinate (points)."),
+        backend: backendArg,
+        wdaUrl: wdaUrlArg,
+        timeout: uiTimeoutArg,
+      },
+    },
+    async ({ udid, x, y, backend, wdaUrl, timeout }) =>
+      guard(async () => {
+        const res = await client.postJson<UIResponse>(`/device/${seg(udid)}/ui/tap`, {
+          query: uiQuery({ backend, wdaUrl, timeout }),
+          body: { x, y },
+        });
+        return jsonResult(res);
+      }),
+  );
+
+  server.registerTool(
+    "ui_swipe",
+    {
+      title: "Swipe / drag the screen (UI automation)",
+      description:
+        "Drag from (x1, y1) to (x2, y2) via the UI-automation backend — use it to scroll, swipe " +
+        "between pages, or pull to refresh. An optional duration (seconds) controls the gesture " +
+        "speed. PREREQUISITE: a running, forwarded WebDriverAgent backend (see run_wda + wdaUrl). " +
+        "Requires a udid and the four coordinates.",
+      inputSchema: {
+        udid: udidArg,
+        x1: z.number().int().describe("Start x coordinate (points)."),
+        y1: z.number().int().describe("Start y coordinate (points)."),
+        x2: z.number().int().describe("End x coordinate (points)."),
+        y2: z.number().int().describe("End y coordinate (points)."),
+        duration: z
+          .number()
+          .min(0)
+          .max(60)
+          .optional()
+          .describe("Gesture duration in seconds (optional; controls swipe speed)."),
+        backend: backendArg,
+        wdaUrl: wdaUrlArg,
+        timeout: uiTimeoutArg,
+      },
+    },
+    async ({ udid, x1, y1, x2, y2, duration, backend, wdaUrl, timeout }) =>
+      guard(async () => {
+        const res = await client.postJson<UIResponse>(`/device/${seg(udid)}/ui/swipe`, {
+          query: uiQuery({ backend, wdaUrl, timeout }),
+          body: { x1, y1, x2, y2, duration },
+        });
+        return jsonResult(res);
+      }),
+  );
+
+  server.registerTool(
+    "ui_type",
+    {
+      title: "Type text (UI automation)",
+      description:
+        "Send text as keyboard input to the currently focused field via the UI-automation " +
+        "backend. Tap the target field first (ui_tap) so it has keyboard focus, then type. " +
+        "PREREQUISITE: a running, forwarded WebDriverAgent backend (see run_wda + wdaUrl). " +
+        "Requires a udid and text.",
+      inputSchema: {
+        udid: udidArg,
+        text: z.string().describe("The text to type into the focused field."),
+        backend: backendArg,
+        wdaUrl: wdaUrlArg,
+        timeout: uiTimeoutArg,
+      },
+    },
+    async ({ udid, text, backend, wdaUrl, timeout }) =>
+      guard(async () => {
+        const res = await client.postJson<UIResponse>(`/device/${seg(udid)}/ui/type`, {
+          query: uiQuery({ backend, wdaUrl, timeout }),
+          body: { text },
+        });
+        return jsonResult(res);
+      }),
+  );
+
+  server.registerTool(
+    "ui_press_button",
+    {
+      title: "Press a hardware button (UI automation)",
+      description:
+        "Press a hardware button by name via the UI-automation backend. The WDA backend supports " +
+        "only 'home'; the devicekit backend supports more (e.g. 'volumeup', 'volumedown'). Use " +
+        "this to go to the home screen or adjust volume. PREREQUISITE: a running, forwarded " +
+        "WebDriverAgent backend (see run_wda + wdaUrl). Requires a udid and the button name.",
+      inputSchema: {
+        udid: udidArg,
+        name: z
+          .string()
+          .min(1)
+          .describe("Button name, e.g. 'home' (WDA), or 'volumeup'/'volumedown' (devicekit)."),
+        backend: backendArg,
+        wdaUrl: wdaUrlArg,
+        timeout: uiTimeoutArg,
+      },
+    },
+    async ({ udid, name, backend, wdaUrl, timeout }) =>
+      guard(async () => {
+        const res = await client.postJson<UIResponse>(`/device/${seg(udid)}/ui/button`, {
+          query: uiQuery({ backend, wdaUrl, timeout }),
+          body: { name },
+        });
+        return jsonResult(res);
+      }),
+  );
+
+  server.registerTool(
+    "ui_source",
+    {
+      title: "Get the UI view hierarchy (UI automation)",
+      description:
+        "Return the current on-screen view hierarchy (accessibility tree). For the WDA backend " +
+        "this is XML describing every element with its type, label/name, and frame — the best way " +
+        "to discover WHAT is on screen and WHERE (coordinates) to tap/type. Returned as text, " +
+        "BOUNDED to 512 KiB (truncated=true if larger). PREREQUISITE: a running, forwarded " +
+        "WebDriverAgent backend (see run_wda + wdaUrl). Requires a udid.",
+      inputSchema: {
+        udid: udidArg,
+        backend: backendArg,
+        wdaUrl: wdaUrlArg,
+        timeout: uiTimeoutArg,
+      },
+    },
+    async ({ udid, backend, wdaUrl, timeout }) =>
+      guard(async () => {
+        const pulled = await client.getTextBounded(
+          `/device/${seg(udid)}/ui/source`,
+          uiQuery({ backend, wdaUrl, timeout }),
+          MAX_SOURCE_BYTES,
+          "application/xml",
+        );
+        return {
+          content: [{ type: "text", text: pulled.text }],
+          structuredContent: {
+            udid,
+            contentType: pulled.contentType,
+            bytes: pulled.bytes,
+            truncated: pulled.truncated,
+            source: pulled.text,
+          },
+        };
+      }),
+  );
+
+  server.registerTool(
+    "ui_screenshot",
+    {
+      title: "Screenshot via the UI backend (UI automation)",
+      description:
+        "Capture a single screen frame THROUGH the UI-automation backend (WebDriverAgent) and " +
+        "return it as a PNG image. This is DISTINCT from the plain `screenshot` tool, which uses " +
+        "the device screenshot service directly and needs no WDA: prefer `screenshot` for a quick " +
+        "capture, and use this when you specifically want the backend's view (e.g. it matches the " +
+        "coordinate space of ui_tap). Single frame only — there is intentionally no video stream " +
+        "tool. PREREQUISITE: a running, forwarded WebDriverAgent backend (see run_wda + wdaUrl). " +
+        "Requires a udid.",
+      inputSchema: {
+        udid: udidArg,
+        backend: backendArg,
+        wdaUrl: wdaUrlArg,
+        timeout: uiTimeoutArg,
+      },
+    },
+    async ({ udid, backend, wdaUrl, timeout }) =>
+      guard(async () => {
+        const { bytes, contentType } = await client.getBytes(
+          `/device/${seg(udid)}/ui/screenshot`,
+          uiQuery({ backend, wdaUrl, timeout }),
+        );
+        const base64 = Buffer.from(bytes).toString("base64");
+        return {
+          content: [
+            {
+              type: "image",
+              data: base64,
+              mimeType: contentType.startsWith("image/") ? contentType : "image/png",
+            },
+          ],
+          structuredContent: { udid, bytes: bytes.length, mimeType: "image/png", backend: backend ?? "wda" },
+        };
+      }),
+  );
+
+  server.registerTool(
+    "ui_app_launch",
+    {
+      title: "Launch an app via the UI backend (UI automation)",
+      description:
+        "Launch an app by bundleId THROUGH the UI-automation backend so it becomes the active, " +
+        "automatable app (WDA attaches to it). Prefer this over the plain launch_app when you are " +
+        "about to drive the app with ui_tap/ui_type. PREREQUISITE: a running, forwarded " +
+        "WebDriverAgent backend (see run_wda + wdaUrl). Requires a udid and bundleId.",
+      inputSchema: {
+        udid: udidArg,
+        bundleId: bundleIdArg,
+        backend: backendArg,
+        wdaUrl: wdaUrlArg,
+        timeout: uiTimeoutArg,
+      },
+    },
+    async ({ udid, bundleId, backend, wdaUrl, timeout }) =>
+      guard(async () => {
+        const res = await client.postJson<UIResponse>(`/device/${seg(udid)}/ui/app/launch`, {
+          query: uiQuery({ backend, wdaUrl, timeout }),
+          body: { bundleId },
+        });
+        return jsonResult(res);
+      }),
+  );
+
+  server.registerTool(
+    "ui_app_terminate",
+    {
+      title: "Terminate an app via the UI backend (UI automation)",
+      description:
+        "Terminate an app by bundleId THROUGH the UI-automation backend. Use this to close an app " +
+        "you were driving before launching another. PREREQUISITE: a running, forwarded " +
+        "WebDriverAgent backend (see run_wda + wdaUrl). Requires a udid and bundleId.",
+      inputSchema: {
+        udid: udidArg,
+        bundleId: bundleIdArg,
+        backend: backendArg,
+        wdaUrl: wdaUrlArg,
+        timeout: uiTimeoutArg,
+      },
+    },
+    async ({ udid, bundleId, backend, wdaUrl, timeout }) =>
+      guard(async () => {
+        const res = await client.postJson<UIResponse>(`/device/${seg(udid)}/ui/app/terminate`, {
+          query: uiQuery({ backend, wdaUrl, timeout }),
+          body: { bundleId },
+        });
+        return jsonResult(res);
+      }),
+  );
+
+  // ---- Web debugging (WebInspector) --------------------------------------
+
+  server.registerTool(
+    "list_webinspector_pages",
+    {
+      title: "List inspectable web pages",
+      description:
+        "List the inspectable pages (Safari tabs and WKWebViews) the device currently exposes to " +
+        "Web Inspector. Use this to discover a page key before webinspector_eval. PREREQUISITE: " +
+        "Web Inspector / Remote Automation must be enabled on the device (Settings > Safari > " +
+        "Advanced). Returns { count, pages }. Requires a udid.",
+      inputSchema: { udid: udidArg },
+    },
+    async ({ udid }) =>
+      guard(async () => {
+        const pages = await client.getJson<WebInspectorPage[]>(
+          `/device/${seg(udid)}/webinspector/pages`,
+        );
+        return jsonResult({ count: pages?.length ?? 0, pages: pages ?? [] });
+      }),
+  );
+
+  server.registerTool(
+    "webinspector_eval",
+    {
+      title: "Evaluate JavaScript in a web page",
+      description:
+        "Evaluate JavaScript in an inspectable page (Safari tab / WKWebView) and return the " +
+        "result — powerful for web debugging: read the DOM, inspect app state, or drive a page " +
+        "programmatically. Leave 'page' empty to target the first matching page (optionally scoped " +
+        "by bundleId), or pass a page key from list_webinspector_pages. PREREQUISITE: Web " +
+        "Inspector / Remote Automation enabled on the device. Requires a udid and script.",
+      inputSchema: {
+        udid: udidArg,
+        script: z
+          .string()
+          .min(1)
+          .describe("JavaScript source to evaluate in the page, e.g. 'document.title'."),
+        page: z
+          .string()
+          .optional()
+          .describe("Page key from list_webinspector_pages. Empty = first matching page."),
+        bundleId: z
+          .string()
+          .optional()
+          .describe("Optional bundle id to scope page selection (e.g. com.apple.mobilesafari)."),
+      },
+    },
+    async ({ udid, script, page, bundleId }) =>
+      guard(async () => {
+        const res = await client.postJson<WebInspectorEvalResult>(
+          `/device/${seg(udid)}/webinspector/eval`,
+          { body: { script, page, bundleId } },
+        );
+        return jsonResult(res);
+      }),
+  );
 }
