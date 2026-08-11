@@ -108,9 +108,11 @@ func setupTunnelInterface(tunnelInfo tunnelParameters) (io.ReadWriteCloser, erro
 	setIpAddr := exec.Command("netsh", "interface", "ipv6", "set", "address", tunname, fmt.Sprintf("%s/%d", tunnelInfo.ClientParameters.Address, prefixLength))
 	err = runCmd(setIpAddr)
 	if err != nil {
-		return nil, fmt.Errorf("setupTunnelInterface: failed to set IP address for interface: %w", err)
+		return nil, fmt.Errorf("setupTunnelInterface: failed to set IP address for interface: %w. "+
+			"Common causes: the process is not elevated (wintun and netsh require administrator rights) "+
+			"or the wintun adapter was not created properly. "+
+			"Run from an administrator shell, or use 'ios tunnel start --userspace' which does not need admin rights", err)
 	}
-	golog.Info("windows cmd", "module", logModule, "cmd", setIpAddr.String())
 
 	return initTUNwrapper(tunDevice), nil
 }
