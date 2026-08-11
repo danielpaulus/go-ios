@@ -75,9 +75,15 @@ op getProcesses(
 } | DeviceErrors;
 
 /**
- * Get all lockdown values (CLI: `ios lockdown get`).
+ * Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
+ * is returned; with `domain` the values are scoped to that lockdown domain.
  */
 @route("/lockdown")
 @get
 @summary("Get lockdown values")
-op getLockdownValues(...UdidPath): LockdownValues | DeviceErrors;
+op getLockdownValues(
+  ...UdidPath,
+
+  /** Optional lockdown domain to scope the returned values. */
+  @query domain?: string,
+): LockdownValues | DeviceErrors;

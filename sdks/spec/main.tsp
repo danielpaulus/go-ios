@@ -18,6 +18,13 @@ import "./routes-monitoring.tsp";
 import "./routes-mdm.tsp";
 import "./routes-jobs.tsp";
 import "./routes-proxy.tsp";
+import "./routes-diagnostics.tsp";
+import "./routes-accessibility.tsp";
+import "./routes-fsync.tsp";
+import "./routes-webinspector.tsp";
+import "./routes-ui.tsp";
+import "./routes-streams.tsp";
+import "./routes-sign.tsp";
 
 using Http;
 using OpenAPI;

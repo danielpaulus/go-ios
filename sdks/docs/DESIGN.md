@@ -73,16 +73,24 @@ The spec fixes these warts; the companion go-ios server PR must conform:
    mislabeled `application/octet-stream`).
 3. **Consistent errors.** All error bodies are `GenericResponse` with the status
    codes above (previously a mix of `gin.H` shapes).
-4. **Real SSE.** The four streaming endpoints emit real `text/event-stream`
-   frames (today they emit NDJSON or, worse, concatenated JSON with no delimiter
-   for `/syslog` and `/listen`). See below.
+4. **Real SSE.** The six SSE endpoints emit real `text/event-stream` frames
+   (today they emit NDJSON or, worse, concatenated JSON with no delimiter for
+   `/syslog` and `/listen`). These are distinct from the v3 **binary** streams
+   (`ui/stream`, `screenshot/stream`, `pcap`), which are raw byte streams, not
+   SSE. See "Streaming contract" and "Binary streaming endpoints" below.
 
-## Endpoint surface (spec v2 — full daemon parity)
+## Endpoint surface (spec v3 — feature-complete daemon parity)
 
-Spec v2 models the **complete** go-ios REST daemon surface (PR #817
-`feature/restapi-parity`): **80 operations across 65 paths** under `/api/v1`,
-grouped as below. This matches the daemon's registered routes 1:1, with three
-deliberate exclusions (see "Excluded routes").
+Spec **v3** models the **complete, feature-complete** go-ios REST daemon surface
+(`feature/restapi-complete`, Waves 1–4): **125 operations across 107 paths**
+under `/api/v1`, grouped as below. This matches the daemon's registered routes
+1:1, with three deliberate exclusions (see "Excluded routes").
+
+Spec v2 (PR #817 `feature/restapi-parity`) modeled the pre-wave surface of **80
+operations across 65 paths**; v3 adds the **45 new operations** of Waves 1–4
+(diagnostics/network, accessibility/location, AFC fsync + provisioning,
+WebInspector, UI automation, binary streams, and codesigning/prepare). The new
+groups are called out in the table below.
 
 | Group                | Routes | Notes |
 | -------------------- | ------ | ----- |
@@ -99,10 +107,18 @@ deliberate exclusions (see "Excluded routes").
 | Media                | `GET/PUT wallpaper`, `GET/PUT icon-layout`, `GET/PUT pasteboard` | `routes-media.tsp`; wallpaper is supervised (multipart) |
 | Config / profiles    | `POST profiles`, `DELETE profiles/{name}` | `routes-config.tsp` (`GET profiles`, `GET/PUT image` are in `routes.tsp`) |
 | Settings             | `GET/PUT assistivetouch`, `GET/PUT timeformat`, `PUT/DELETE wifi` | `routes-settings.tsp` |
-| Monitoring           | `GET sysmontap` (SSE) | `routes-monitoring.tsp`; `pcap` not exposed yet |
+| Monitoring           | `GET sysmontap` (SSE) | `routes-monitoring.tsp` |
 | MDM (supervised)     | `POST mdm/security-info|fetch-unlock-token|clear-passcode|clear-screen-time-password` | `routes-mdm.tsp`; each takes a `p12` multipart identity |
 | Proxy (supervised)   | `PUT/DELETE httpproxy` | `routes-proxy.tsp` |
 | Async jobs           | `POST jobs/runtest|runwda|forward`, `GET jobs`, `GET jobs/{id}`, `GET jobs/{id}/logs` (SSE), `DELETE jobs/{id}` | `routes-jobs.tsp` |
+| **Diagnostics/network** (v3, w1a) | `GET diskspace`, `GET ip`, `GET rsd` (`400` w/o tunnel), `GET battery/registry`; `GET lockdown?domain=` | `routes-diagnostics.tsp`; open-map JSON. `lockdown` gained an optional `domain` query in `routes-deviceinfo.tsp` |
+| **Accessibility/location** (v3, w1b) | `GET/PUT voiceover`, `GET/PUT zoom`, `POST ax/audit`, `GET ax`, `PUT setlocation/gpx` (multipart) | `routes-accessibility.tsp`; toggles accept `{enabled}` body or `?enabled=` |
+| **AFC fsync** (v3, w1c) | `GET fsync/ls|tree`, `GET fsync/pull` (binary), `POST fsync/push` (raw or multipart), `DELETE fsync/rm`, `POST fsync/mkdir`; `GET cloudconfig` | `routes-fsync.tsp`; all take `?path=`/`?bundleID=`; `..` rejected (`400`); oversized push → `413` |
+| **Provisioning host** (v3, w1c/w4) | `GET /prepare/skip-options` | host-scoped (device-free); in `routes-fsync.tsp` / `routes-sign.tsp` |
+| **WebInspector** (v3, w1d) | `GET webinspector/pages`, `POST webinspector/launch`, `POST webinspector/eval` | `routes-webinspector.tsp`; `424` when Web Inspector/Remote Automation disabled; `eval` `404` on no page |
+| **UI automation** (v3, w2) | `POST ui/{tap,swipe,longpress,type,button,api}`, `POST ui/app/{launch,terminate,foreground}`, `GET ui/{screenshot(PNG),source,size,orientation,status}`, `PUT ui/orientation` | `routes-ui.tsp`; proxy to a forwarded WDA/DeviceKit backend via `?backend=/?wdaUrl=/?timeout=` (or headers). `501` unsupported op, `502` backend error/unreachable. **Not started by these routes** — bring up WDA via `jobs/runwda`+`jobs/forward` first |
+| **Binary streams** (v3, w3) | `GET ui/stream`, `GET screenshot/stream`, `GET pcap` | `routes-streams.tsp`; **binary, NOT SSE** — see "Binary streaming endpoints" below |
+| **Codesigning/prepare** (v3, w4) | `POST /sign/certificate` (→ P12), `POST /sign/provision` (JSON base64 envelope), `POST /sign/app` (→ signed ipa), `POST /prepare/create-cert`; `POST /device/{udid}/prepare` (multipart) | `routes-sign.tsp`; `/sign/*` and `/prepare/create-cert` are **host-scoped** (device-free); secrets never logged |
 
 ### Async jobs subsystem
 
@@ -223,13 +239,44 @@ contract machine-readable we provide it two ways:
 Generators/facades should read the event map from `x-sse-events` (or the 3.2 file)
 and hand-write the typed dispatch; do not rely on the bare 3.1 SSE response schema.
 
-## Binary & parity gaps (not in v0.1)
+## Binary streaming endpoints (v3 — BINARY, NOT SSE)
 
-- `GET /screenshot` returns `image/png` bytes (the only binary endpoint in v0.1).
+Three v3 endpoints (`routes-streams.tsp`) are **long-lived binary byte streams**,
+deliberately distinct from the `text/event-stream` SSE endpoints above. They have
+**no** `@events`/`x-sse-events`, no typed `event:` frames, and no
+`SSEStream<T>` — they stream raw bytes over chunked HTTP until the client
+disconnects or the source ends. SDKs must expose them as byte-stream readers (a
+hand-written async-iterator / `io.Reader`-style helper per SDK), **not** through
+the typed SSE dispatch:
+
+| Endpoint | Wire content-type | Modeled as | Notes |
+| -------- | ----------------- | ---------- | ----- |
+| `GET /device/{udid}/ui/stream` | `multipart/x-mixed-replace` (mjpeg) **or** `video/H264` (`?codec=h264`) | `UIVideoStream` → `application/octet-stream` bytes; real type per request in `x-content-type` | proxied from a forwarded WDA/DeviceKit backend; `?codec/fps/quality/scale/bitrate` + `UIBackendParams` |
+| `GET /device/{udid}/screenshot/stream` | `multipart/x-mixed-replace; boundary=BoundaryString` (each part `image/jpeg`) | `MjpegStream` → `image/jpeg` bytes; real multipart type in `x-content-type` | instruments screenshot service; `?quality=1..100` |
+| `GET /device/{udid}/pcap` | `application/vnd.tcpdump.pcap` | `PcapStream` → that media type | libpcap stream (wireshark/tshark); `?timeout=` seconds (default 60, max 3600) |
+
+> TypeSpec's HTTP library rejects a `multipart/*` **response body** that is not a
+> structured `@multipartBody` payload. Because `x-mixed-replace` is a continuous
+> byte stream (not a form), the two mjpeg streams are schematized with a
+> single-frame media type (`image/jpeg` / `application/octet-stream`) and carry
+> the true wire content-type in an `x-content-type` vendor extension; every binary
+> stream also carries `x-stream: binary`. Generators should treat any operation
+> whose response schema has `x-stream: binary` (or `x-content-type`) as a raw
+> byte stream.
+
+## Other binary & raw-body endpoints
+
+- `GET /screenshot` and `GET /device/{udid}/ui/screenshot` return `image/png` bytes.
+- `GET /device/{udid}/files/pull` and `GET /device/{udid}/fsync/pull` return
+  `application/octet-stream` file bytes.
+- `POST /device/{udid}/files/push` and `POST /device/{udid}/fsync/push` accept a
+  raw request body (`fsync/push` also accepts a multipart `file`); oversized
+  `fsync` uploads yield `413`.
 - `PUT /device/{udid}/image` accepts a raw image body (`application/octet-stream`,
   up to 2 GiB) or auto-resolves via `?auto=true&basedir=…`.
-- **Not yet in v0.1 (parity gap):** mjpeg screen mirroring and pcap packet
-  capture are binary streams that don't fit SSE/JSON framing. They will be
-  chunked-HTTP binary streams with a hand-written async-iterator helper per SDK
-  (one documented convention) when added. `/healthz` and `/readyz` are dead code
-  in go-ios and are intentionally excluded.
+- `POST /sign/certificate` returns `application/x-pkcs12`; `POST /sign/app`
+  returns the signed IPA as `application/octet-stream`; `POST /sign/provision`
+  and `POST /prepare/create-cert` return JSON envelopes with base64-encoded
+  binary artifacts.
+- `/healthz`, `/readyz` and `/swagger/*` are intentionally excluded (see
+  "Excluded routes").
