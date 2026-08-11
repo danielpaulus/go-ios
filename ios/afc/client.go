@@ -79,6 +79,13 @@ func (c *Client) List(p string) ([]string, error) {
 		if entry == "." || entry == ".." {
 			continue
 		}
+		// Drop entries whose device-supplied name would escape when joined to a
+		// host path (absolute or containing a ".." element). A legitimate
+		// filename is never affected; this filters traversal names like
+		// "../evil" so they cannot survive as directory entries.
+		if unsafeEntryName(entry) {
+			continue
+		}
 		list = append(list, entry)
 	}
 	return list, nil
@@ -194,6 +201,16 @@ func (c *Client) readPacket() (packet, error) {
 	if err != nil {
 		return packet{}, fmt.Errorf("error reading header: %w", err)
 	}
+	// Guard against malformed headers: these subtractions are on uint64 values,
+	// so an under-sized ThisLen/EntireLen would wrap around to a huge length and
+	// panic in make([]byte, ...). These invariants always hold for a valid AFC
+	// packet, so legitimate (including large) transfers are unaffected.
+	if h.ThisLen < headerSize {
+		return packet{}, fmt.Errorf("afc: header ThisLen %d smaller than header size %d", h.ThisLen, headerSize)
+	}
+	if h.EntireLen < h.ThisLen {
+		return packet{}, fmt.Errorf("afc: header EntireLen %d smaller than ThisLen %d", h.EntireLen, h.ThisLen)
+	}
 	headerPayloadLen := h.ThisLen - headerSize
 	payloadLen := h.EntireLen - h.ThisLen
 
@@ -220,6 +237,9 @@ func (c *Client) readPacket() (packet, error) {
 	}
 
 	if p.Header.Operation == status {
+		if len(p.HeaderPayload) < 8 {
+			return packet{}, fmt.Errorf("afc: status packet header payload too short: %d bytes", len(p.HeaderPayload))
+		}
 		code := binary.LittleEndian.Uint64(p.HeaderPayload)
 		if code == errSuccess {
 			return p, nil
@@ -433,12 +453,11 @@ func (f *File) Read(p []byte) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error reading data: %w", err)
 	}
-	copy(p, resp.Payload)
-	l := len(resp.Payload)
-	if l == 0 {
+	if len(resp.Payload) == 0 {
 		return 0, io.EOF
 	}
-	return l, nil
+	n := copy(p, resp.Payload)
+	return n, nil
 }
 
 func (f *File) Write(p []byte) (int, error) {

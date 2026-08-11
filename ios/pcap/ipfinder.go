@@ -35,6 +35,7 @@ func findIp(device ios.DeviceEntry, mac string) (NetworkInfo, error) {
 	if err != nil {
 		return NetworkInfo{}, err
 	}
+	defer intf.Close()
 	plistCodec := ios.NewPlistCodec()
 	info := NetworkInfo{}
 	info.Mac = mac

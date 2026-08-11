@@ -77,17 +77,23 @@ func (conn *Connection) browseApps(request interface{}) ([]AppInfo, error) {
 	if err != nil {
 		return make([]AppInfo, 0), err
 	}
-	conn.deviceConn.Send(bytes)
+	err = conn.deviceConn.Send(bytes)
+	if err != nil {
+		return make([]AppInfo, 0), err
+	}
 	stillReceiving := true
 	responses := make([]BrowseResponse, 0)
 	size := uint64(0)
 	for stillReceiving {
 		response, err := conn.plistCodec.Decode(reader)
-		ifa, err := plistFromBytes(response)
-		stillReceiving = "Complete" != ifa.Status
 		if err != nil {
 			return make([]AppInfo, 0), err
 		}
+		ifa, err := plistFromBytes(response)
+		if err != nil {
+			return make([]AppInfo, 0), err
+		}
+		stillReceiving = "Complete" != ifa.Status
 		size += ifa.CurrentAmount
 		responses = append(responses, ifa)
 	}

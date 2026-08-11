@@ -275,7 +275,11 @@ func waitForTargetID(ctx context.Context, client *Client, ws *websocket.Conn) st
 			_ = ws.WriteJSON(cdpError(0, err))
 			return ""
 		}
-		targetInfo, ok := event["params"].(map[string]any)["targetInfo"].(map[string]any)
+		params, ok := event["params"].(map[string]any)
+		if !ok {
+			continue
+		}
+		targetInfo, ok := params["targetInfo"].(map[string]any)
 		if !ok {
 			continue
 		}

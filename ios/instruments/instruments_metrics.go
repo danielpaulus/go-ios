@@ -25,13 +25,13 @@ func GetMetrics(device ios.DeviceEntry) (func() (map[string]interface{}, error),
 	channel := conn.RequestChannelIdentifier(mobileNotificationsChannel, channelDispatcher{})
 	resp, err := channel.MethodCall("setApplicationStateNotificationsEnabled:", true)
 	if err != nil {
-		golog.Error("setApplicationStateNotificationsEnabled failed", "module", logModule, "udid", device.Properties.SerialNumber, "response", resp, "payload", resp.Payload[0])
+		golog.Error("setApplicationStateNotificationsEnabled failed", "module", logModule, "udid", device.Properties.SerialNumber, "response", resp)
 		return nil, nil, err
 	}
 	golog.Debug("appstatenotifications enabled successfully", "module", logModule, "udid", device.Properties.SerialNumber, "response", resp)
 	resp, err = channel.MethodCall("setMemoryNotificationsEnabled:", true)
 	if err != nil {
-		golog.Error("setMemoryNotificationsEnabled failed", "module", logModule, "udid", device.Properties.SerialNumber, "response", resp, "payload", resp.Payload[0])
+		golog.Error("setMemoryNotificationsEnabled failed", "module", logModule, "udid", device.Properties.SerialNumber, "response", resp)
 		return nil, nil, err
 	}
 	golog.Debug("memory notifications enabled", "module", logModule, "udid", device.Properties.SerialNumber, "response", resp)

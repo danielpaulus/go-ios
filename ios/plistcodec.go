@@ -50,6 +50,9 @@ func (plistCodec PlistCodec) Decode(r io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	length := binary.BigEndian.Uint32(buf)
+	if length > maxMessageSize {
+		return nil, fmt.Errorf("lockdown payload length %d exceeds maximum allowed size %d", length, maxMessageSize)
+	}
 	payloadBytes := make([]byte, length)
 	n, err := io.ReadFull(r, payloadBytes)
 	if err != nil {
@@ -103,6 +106,9 @@ func (p PlistCodecReadWriter) Read(v interface{}) error {
 		return fmt.Errorf("Read: failed to read message length: %w", err)
 	}
 	length := binary.BigEndian.Uint32(buf)
+	if length > maxMessageSize {
+		return fmt.Errorf("Read: payload length %d exceeds maximum allowed size %d", length, maxMessageSize)
+	}
 	payloadBytes := make([]byte, length)
 	n, err := io.ReadFull(p.r, payloadBytes)
 	if uint32(n) != length {

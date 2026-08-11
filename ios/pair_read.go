@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/danielpaulus/go-ios/ios/golog"
 	plist "howett.net/plist"
 )
 
@@ -73,8 +74,8 @@ func PairRecordfromBytes(plistBytes []byte) PairRecord {
 	var data PairRecord
 	err := decoder.Decode(&data)
 	if err != nil {
-		// this is unrecoverable and should not happen
-		panic(fmt.Sprintf("Failed decoding pair record plist %x", plistBytes))
+		golog.Warn("failed decoding pair record plist", "module", logModule, "bytes", fmt.Sprintf("%x", plistBytes), "error", err)
+		return PairRecord{}
 	}
 	return data
 }
@@ -82,13 +83,18 @@ func PairRecordfromBytes(plistBytes []byte) PairRecord {
 // ReadPair reads the PairRecord from the usbmux socket for the given udid.
 // It returns the deserialized PairRecord.
 func (muxConn *UsbMuxConnection) ReadPair(udid string) (PairRecord, error) {
-	muxConn.Send(newReadPair(udid))
+	if err := muxConn.Send(newReadPair(udid)); err != nil {
+		return PairRecord{}, fmt.Errorf("Error sending ReadPair request: %v", err)
+	}
 	resp, err := muxConn.ReadMessage()
 	if err != nil {
 		return PairRecord{}, fmt.Errorf("Error reading PairRecord: %v", err)
 	}
 	pairRecordData, err := pairRecordDatafromBytes(resp.Payload)
-	return PairRecordfromBytes(pairRecordData.PairRecordData), err
+	if err != nil {
+		return PairRecord{}, err
+	}
+	return PairRecordfromBytes(pairRecordData.PairRecordData), nil
 }
 
 // ReadPairRecord creates a new USBMuxConnection just to read the pair record and closes it right after than.

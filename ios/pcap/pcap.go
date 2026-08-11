@@ -60,6 +60,7 @@ func Start(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
+	defer intf.Close()
 	plistCodec := ios.NewPlistCodec()
 	fname := fmt.Sprintf("dump-%d.pcap", time.Now().Unix())
 	if Pid > 0 {

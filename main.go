@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -59,18 +60,11 @@ func main() {
 
 const version = "local-build"
 
-// Main Exports main for testing
-func Main() {
-	helpCatalog, err := clihelp.Load()
-	exitIfError("failed loading help definitions", err)
-	if handled, exitCode := helpCatalog.WriteHelp(os.Args[1:], version, os.Stdout, os.Stderr); handled {
-		if exitCode != 0 {
-			os.Exit(exitCode)
-		}
-		return
-	}
-
-	usage := fmt.Sprintf(`go-ios %s
+// cliUsage returns the docopt usage string that drives command dispatch.
+// It is a function (not inlined in Main) so tests can parse real command
+// lines against the exact usage the CLI ships.
+func cliUsage() string {
+	return fmt.Sprintf(`go-ios %s
 
 Usage:
   ios --version | version [options]
@@ -118,8 +112,13 @@ Usage:
   ios listen [options]
   ios lockdown get [<key>] [--domain=<domain>] [options]
   ios memlimitoff (--process=<processName>) [options]
+  ios mdm fetch-unlock-token --p12file=<p12file> --output=<output> [--password=<p12password>] [options]
+  ios mdm clear-passcode --p12file=<p12file> --token=<tokenFile> [--password=<p12password>] [options]
+  ios mdm clear-screen-time-password --p12file=<p12file> [--password=<p12password>] [options]
+  ios mdm security-info --p12file=<p12file> [--password=<p12password>] [options]
   ios mobilegestalt <key>... [--plist] [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
+  ios pasteboard (set [<text>] | get) [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
   ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale=<locale>] [--lang=<lang>] [options]
   ios prepare cloudconfig [options]
@@ -354,6 +353,37 @@ The commands work as following:
 
     ios memlimitoff (--process=<processName>) [options]                Waives memory limit set by iOS (For instance a Broadcast Extension limit is 50 MB).
 
+    ios mdm fetch-unlock-token --p12file=<p12file> --output=<output> [--password=<p12password>]
+                                                                       Save the device passcode unlock token. The device must have no passcode
+                                                                       set; run once during provisioning. The token can be passed to
+                                                                       "mdm clear-passcode" at any time later.
+                                                                       Use --output=<file> to write raw bytes to a file, or --output=- to
+                                                                       print base64-encoded token to stdout (for piping into a secrets manager).
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
+    ios mdm clear-passcode --p12file=<p12file> --token=<tokenFile> [--password=<p12password>]
+                                                                       Remove the device lock passcode using a previously saved unlock token.
+                                                                       The token must have been saved before the passcode was set.
+                                                                       Works regardless of current lock state; does not require knowing the passcode.
+                                                                       Use --token=<file> for a raw token file, or --token=- to read a
+                                                                       base64-encoded token from stdin.
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
+    ios mdm clear-screen-time-password --p12file=<p12file> [--password=<p12password>]
+                                                                       Clear the Screen Time restrictions passcode (4-digit PIN protecting Screen Time settings).
+                                                                       No unlock token required; supervisor identity alone suffices.
+                                                                       Does not affect profile-based restrictions or the device lock passcode.
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
+    ios mdm security-info --p12file=<p12file> [--password=<p12password>]
+                                                                       Print the device's security status as JSON: PasscodePresent, PasscodeCompliant,
+                                                                       PasscodeCompliantWithProfiles, lock grace periods, hardware encryption caps
+                                                                       and management status. Read-only; performs no keybag operation.
+                                                                       PasscodePresent is the reliable "does this device have a passcode?" signal —
+                                                                       lockdown's PasswordProtected reports whether the device is currently locked
+                                                                       instead, and reads false on an unlocked device that has a passcode.
+                                                                       Requires supervision: pass --p12file and --password (or P12_PASSWORD env var).
+
     ios mobilegestalt <key>... [--plist] [options]                     Lets you query mobilegestalt keys.
                                                                        Standard output is json but if desired you can get it in plist format by adding the --plist param.
                                                                        Ex.: "ios mobilegestalt MainScreenCanvasSizes ArtworkTraits --plist"
@@ -361,6 +391,9 @@ The commands work as following:
     ios pair [--p12file=<orgid>] [--password=<p12password>] [options]  Pairs the device. If the device is supervised, specify the path to the p12 file
                                                                        to pair without a trust dialog. Specify the password either with the argument or
                                                                        by setting the environment variable 'P12_PASSWORD'
+
+    ios pasteboard (set [<text>] | get) [options]                     Read or write the device pasteboard (clipboard) over RemoteXPC (iOS 17+). Requires tunnel.
+                                                                       set writes <text> (or stdin when omitted) to the pasteboard; get prints its text.
 
     ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
 
@@ -564,7 +597,20 @@ The commands work as following:
                                                                     iOS 11+ only (Use --force to try on older versions).
 
   `, version)
-	arguments, err := docopt.ParseDoc(usage)
+}
+
+// Main Exports main for testing
+func Main() {
+	helpCatalog, err := clihelp.Load()
+	exitIfError("failed loading help definitions", err)
+	if handled, exitCode := helpCatalog.WriteHelp(os.Args[1:], version, os.Stdout, os.Stderr); handled {
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+		return
+	}
+
+	arguments, err := docopt.ParseDoc(cliUsage())
 	exitIfError("failed parsing args", err)
 	configureCLI(arguments)
 	if dispatchCommand(commandContext{Args: arguments}, preProxyCommands) {
@@ -642,10 +688,12 @@ func toEnvs(envsIn []string) map[string]interface{} {
 	env := map[string]interface{}{}
 
 	for _, entrystring := range envsIn {
-		entry := strings.Split(entrystring, "=")
-		key := entry[0]
-		value := entry[1]
-		env[key] = value
+		entry := strings.SplitN(entrystring, "=", 2)
+		if len(entry) != 2 {
+			slog.Warn("skipping malformed env entry, expected key=value", "entry", entrystring)
+			continue
+		}
+		env[entry[0]] = entry[1]
 	}
 
 	return env
@@ -858,7 +906,7 @@ func zoomTouch(device ios.DeviceEntry, operation string, force bool) {
 		if force && (operation == "enable" || operation == "disable") {
 			slog.Warn("Failed getting current ZoomTouch status. Continuing anyway.", "error", err)
 		} else {
-			exitIfError("failed getting current VoiceOver status", err)
+			exitIfError("failed getting current ZoomTouch status", err)
 		}
 	}
 
@@ -874,7 +922,7 @@ func zoomTouch(device ios.DeviceEntry, operation string, force bool) {
 	}
 	if operation != "get" && (force || wasEnabled != enable) {
 		err = ios.SetZoomTouch(device, enable)
-		exitIfError("failed setting VoiceOver", err)
+		exitIfError("failed setting ZoomTouch", err)
 	}
 	if operation == "get" {
 		if JSONdisabled {
@@ -1236,8 +1284,8 @@ func printDeviceDate(device ios.DeviceEntry) {
 }
 
 func printInstalledApps(device ios.DeviceEntry, system bool, all bool, list bool, filesharing bool) {
-	svc, _ := installationproxy.New(device)
-	var err error
+	svc, err := installationproxy.New(device)
+	exitIfError("failed to connect to installationproxy", err)
 	var response []installationproxy.AppInfo
 	appType := ""
 	if all {
@@ -1302,7 +1350,7 @@ func saveScreenshot(device ios.DeviceEntry, outputPath string) {
 		exitIfError("getting filepath failed", err)
 	}
 
-	err = os.WriteFile(outputPath, imageBytes, 0o777)
+	err = os.WriteFile(outputPath, imageBytes, 0o644)
 	exitIfError("write file failed", err)
 
 	if JSONdisabled {
@@ -1352,10 +1400,10 @@ func resetLocation(device ios.DeviceEntry) {
 
 func processList(device ios.DeviceEntry, applicationsOnly bool) {
 	service, err := instruments.NewDeviceInfoService(device)
-	defer service.Close()
 	if err != nil {
 		exitIfError("failed opening deviceInfoService for getting process list", err)
 	}
+	defer service.Close()
 	processList, err := service.ProcessList()
 	if applicationsOnly {
 		var applicationProcessList []instruments.ProcessInfo
@@ -1475,12 +1523,12 @@ func startListening() {
 	go func() {
 		for {
 			deviceConn, err := ios.NewDeviceConnection(ios.GetUsbmuxdSocket())
-			defer deviceConn.Close()
 			if err != nil {
 				slog.Error("could not connect, will retry in 3 seconds...", "socket", ios.GetUsbmuxdSocket(), "error", err)
 				time.Sleep(time.Second * 3)
 				continue
 			}
+			defer deviceConn.Close()
 			muxConnection := ios.NewUsbMuxConnection(deviceConn)
 
 			attachedReceiver, err := muxConnection.Listen()
@@ -1820,6 +1868,11 @@ func pairDevice(device ios.DeviceEntry, orgIdentityP12File string, p12Password s
 	p12, err := os.ReadFile(orgIdentityP12File)
 	exitIfError("Invalid file:"+orgIdentityP12File, err)
 	err = ios.PairSupervised(device, p12, p12Password)
+	if errors.Is(err, ios.ErrDeviceLockedPairingDeferred) {
+		// Do not claim success: no pair record was written. Exit non-zero so automation
+		// can tell this apart from a completed pairing.
+		logFatal(fmt.Sprintf("Pairing incomplete for %s", device.Properties.SerialNumber), "err", err)
+	}
 	exitIfError("Pairing failed", err)
 	slog.Info(fmt.Sprintf("Successfully paired %s", device.Properties.SerialNumber))
 }
@@ -1879,6 +1932,9 @@ func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, 
 	exitIfError(fmt.Sprintf("could not connect to RSD, host %s, port %d", address, rsdPort), err)
 	defer rsdService.Close()
 	rsdProvider, err := rsdService.Handshake()
+	// An unchecked handshake error would leave an empty RSD service list, and every
+	// service lookup would then misreport as 'service not available in RSD'.
+	exitIfError(fmt.Sprintf("RSD handshake failed, host %s, port %d", address, rsdPort), err)
 	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
 	device1.UserspaceTUN = device.UserspaceTUN
 	device1.UserspaceTUNHost = device.UserspaceTUNHost
@@ -1932,10 +1988,12 @@ func logFatal(msg string, args ...any) {
 func splitKeyValuePairs(envArgs []string, sep string) map[string]interface{} {
 	env := make(map[string]interface{})
 	for _, entrystring := range envArgs {
-		entry := strings.Split(entrystring, sep)
-		key := entry[0]
-		value := entry[1]
-		env[key] = value
+		entry := strings.SplitN(entrystring, sep, 2)
+		if len(entry) != 2 {
+			slog.Warn("skipping malformed key/value entry, expected key"+sep+"value", "entry", entrystring)
+			continue
+		}
+		env[entry[0]] = entry[1]
 	}
 	return env
 }

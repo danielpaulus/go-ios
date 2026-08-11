@@ -1,6 +1,7 @@
 package mobileactivation
 
 import (
+	"fmt"
 	"io"
 	"net/url"
 	"strings"
@@ -79,15 +80,22 @@ func Activate(device ios.DeviceEntry) error {
 		return err
 	}
 	golog.Debug("CreateTunnel1SessionInfoRequest response", "module", logModule, "udid", device.Properties.SerialNumber, "response", resp)
-	val := resp["Value"].(map[string]interface{})
+	val, ok := resp["Value"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("CreateTunnel1SessionInfoRequest: unexpected Value type %T", resp["Value"])
+	}
 
-	handshakeRequestMessage := val["HandshakeRequestMessage"].([]byte)
+	handshakeRequestMessage, ok := val["HandshakeRequestMessage"].([]byte)
+	if !ok {
+		return fmt.Errorf("CreateTunnel1SessionInfoRequest: unexpected HandshakeRequestMessage type %T", val["HandshakeRequestMessage"])
+	}
 	golog.Debug("handshake request message", "module", logModule, "udid", device.Properties.SerialNumber, "value", handshakeRequestMessage)
 	stringPlist := ios.ToPlist(val)
 	golog.Info("sending bytes via http to the handshake server", "module", logModule, "udid", device.Properties.SerialNumber, "count", len(stringPlist))
 	header, body, err := sendHandshakeRequest(strings.NewReader(stringPlist))
 	var handshakeResponse []byte
 	if body != nil {
+		defer body.Close()
 		handshakeResponse, err = io.ReadAll(body)
 		if err != nil {
 			return err
@@ -96,7 +104,6 @@ func Activate(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	defer body.Close()
 	golog.Debug("handshake response headers", "module", logModule, "udid", device.Properties.SerialNumber, "value", header)
 	golog.Debug("received handshake response", "module", logModule, "udid", device.Properties.SerialNumber, "count", len(handshakeResponse))
 	golog.Info("ok", "module", logModule, "udid", device.Properties.SerialNumber)
@@ -115,7 +122,10 @@ func Activate(device ios.DeviceEntry) error {
 	if err != nil {
 		return err
 	}
-	activationInfoResponseMap := activationInfoResponseResp["Value"].(map[string]interface{})
+	activationInfoResponseMap, ok := activationInfoResponseResp["Value"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("CreateActivationInfoRequest: unexpected Value type %T", activationInfoResponseResp["Value"])
+	}
 	activationResponsePlist := ios.ToPlist(activationInfoResponseMap)
 
 	params := url.Values{}

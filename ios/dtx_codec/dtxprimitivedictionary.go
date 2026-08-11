@@ -204,8 +204,10 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte, error) {
 			return 0, nil, auxBytes, fmt.Errorf("insufficient bytes for length field: need 8, got %d", len(auxBytes))
 		}
 		length := binary.LittleEndian.Uint32(auxBytes[4:])
-		if len(auxBytes) < int(8+length) {
-			return 0, nil, auxBytes, fmt.Errorf("insufficient bytes for data: need %d, got %d", 8+length, len(auxBytes))
+		// Compute the required length in uint64 so a large length (e.g. 0xFFFFFFFF)
+		// cannot wrap 8+length around in uint32 and pass the bounds check.
+		if uint64(len(auxBytes)) < 8+uint64(length) {
+			return 0, nil, auxBytes, fmt.Errorf("insufficient bytes for data: need %d, got %d", 8+uint64(length), len(auxBytes))
 		}
 		data := auxBytes[8 : 8+length]
 		if readType == t_string {
@@ -243,42 +245,4 @@ func toString(t uint32) string {
 
 func hasLength(typeCode uint32) bool {
 	return typeCode == t_bytearray || typeCode == t_string
-}
-
-type AuxiliaryEncoder struct {
-	buf bytes.Buffer
-}
-
-func (a *AuxiliaryEncoder) AddNsKeyedArchivedObject(object interface{}) {
-	a.writeEntry(t_null, nil)
-	bytes, err := archiver.ArchiveBin(object)
-	if err != nil {
-		panic(err)
-	}
-	a.writeEntry(t_bytearray, bytes)
-}
-
-func (a *AuxiliaryEncoder) writeEntry(entryType uint32, object interface{}) {
-	binary.Write(&a.buf, binary.LittleEndian, entryType)
-	if entryType == t_null {
-		return
-	}
-	if entryType == t_uint32 {
-		binary.Write(&a.buf, binary.LittleEndian, object.(int32))
-	}
-	if entryType == t_bytearray {
-		binary.Write(&a.buf, binary.LittleEndian, int32(len(object.([]byte))))
-		a.buf.Write(object.([]byte))
-
-	}
-	if entryType == t_string {
-		binary.Write(&a.buf, binary.LittleEndian, int32(len(object.([]byte))))
-		a.buf.Write([]byte(object.(string)))
-
-	}
-	panic(fmt.Sprintf("Unknown DtxPrimitiveDictionaryType: %d", entryType))
-}
-
-func (a *AuxiliaryEncoder) GetBytes() []byte {
-	return a.GetBytes()
 }

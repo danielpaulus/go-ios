@@ -109,7 +109,7 @@ type afcError struct {
 }
 
 func (a afcError) Error() string {
-	return fmt.Sprintf("afc error code: %d", a.code)
+	return fmt.Sprintf("afc error code: %d (%s)", a.code, getError(uint64(a.code)))
 }
 
 func isPermissionDeniedError(err error) bool {

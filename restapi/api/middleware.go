@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"strings"
 	"sync"
@@ -10,6 +11,22 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
+
+// BearerAuth returns a gin middleware that requires callers to present the
+// configured token in an `Authorization: Bearer <token>` header. The comparison
+// is constant-time to avoid leaking the token via timing. On a missing or
+// mismatching header it aborts the request with 401.
+func BearerAuth(token string) gin.HandlerFunc {
+	expected := []byte("Bearer " + token)
+	return func(c *gin.Context) {
+		provided := []byte(c.GetHeader("Authorization"))
+		if subtle.ConstantTimeCompare(provided, expected) != 1 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		c.Next()
+	}
+}
 
 // DeviceMiddleware makes sure a udid was specified and that a device with that UDID
 // is connected with the host. Will return 404 if the device is not found or 500 if something
@@ -87,18 +104,11 @@ func LimitNumClientsUDID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 		udid := device.Properties.SerialNumber
-		var sema chan struct{}
-		semaIntf, ok := semaMap.Load(udid)
-		if !ok {
-			sema = make(chan struct{}, maxClients)
-			semaMap.Store(udid, sema)
-		} else {
-			sema = semaIntf.(chan struct{})
-		}
+		semaIntf, _ := semaMap.LoadOrStore(udid, make(chan struct{}, maxClients))
+		sema := semaIntf.(chan struct{})
 		sema <- struct{}{}
 		defer func() { <-sema }()
 		c.Next()
-		print("mid done")
 	}
 }
 

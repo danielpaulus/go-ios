@@ -73,6 +73,12 @@ type TestAttachment struct {
 }
 
 func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer, attachmentsDirectory string) *TestListener {
+	if logWriter == nil {
+		logWriter = io.Discard
+	}
+	if debugLogWriter == nil {
+		debugLogWriter = io.Discard
+	}
 	return &TestListener{
 		finished:             make(chan struct{}),
 		logWriter:            logWriter,
@@ -80,6 +86,14 @@ func NewTestListener(logWriter io.Writer, debugLogWriter io.Writer, attachmentsD
 		TestSuites:           make([]TestSuite, 0),
 		attachmentsDirectory: attachmentsDirectory,
 	}
+}
+
+// noopTestListener returns a fully initialized TestListener that discards all
+// output. It is attached to secondary dispatchers (the XCTestDriverInterface
+// channels) so that a malformed or early device callback on those channels is
+// recorded/dropped safely instead of nil-dereferencing p.testListener.
+func noopTestListener() *TestListener {
+	return NewTestListener(nil, nil, "")
 }
 
 func (t *TestListener) didFinishExecutingTestPlan() {
@@ -116,6 +130,10 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 		// That's unfortunately the default behavior defined by Apple.
 		// This if block is a safe guard to auto correct the test case information
 		ts = t.runningTestSuite
+		if ts == nil {
+			golog.Debug("testCaseFinished without a running test suite", "module", logModule, "testClass", testClass, "testMethod", testMethod)
+			return
+		}
 		if len(ts.TestCases) == 0 {
 			golog.Debug("Received testCaseFinished without initialization", "module", logModule, "testClass", testClass, "testMethod", testMethod)
 			return
@@ -125,14 +143,11 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 
 	for _, attachment := range xcActivityRecord.Attachments {
 		attachmentsPath := filepath.Join(t.attachmentsDirectory, uuid.New().String())
-		file, err := os.Create(attachmentsPath)
-		if err != nil {
+		if err := writeAttachmentToDisk(attachmentsPath, attachment.Payload); err != nil {
 			golog.Warn("Received testCaseFinished with activity record but failed writing attachments to disk. Ignoring attachment", "module", logModule, "error", err, "attachment", attachment.Name)
 			continue
 		}
-		defer file.Close()
 
-		file.Write(attachment.Payload)
 		testCase.Attachments = append(testCase.Attachments, TestAttachment{
 			Name:                  strings.Clone(attachment.Name),
 			Timestamp:             attachment.Timestamp,
@@ -142,6 +157,20 @@ func (t *TestListener) testCaseFinished(testClass string, testMethod string, xcA
 			UniformTypeIdentifier: strings.Clone(attachment.UniformTypeIdentifier),
 		})
 	}
+}
+
+// writeAttachmentToDisk creates the file at path and writes payload to it,
+// closing the file before returning so a file descriptor is not leaked per
+// attachment.
+func writeAttachmentToDisk(path string, payload []byte) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.Write(payload)
+	return err
 }
 
 func (t *TestListener) testSuiteDidStart(suiteName string, date string) {
@@ -200,6 +229,13 @@ func (t *TestListener) testCaseFailedForClass(testClass string, testMethod strin
 	if testCase == nil {
 		golog.Warn("Received failure status for an unknown test, adding it to suite", "module", logModule)
 		ts := t.findTestSuite(testClass)
+		if ts == nil {
+			ts = t.runningTestSuite
+		}
+		if ts == nil {
+			golog.Debug("Received testCaseFailedForClass without a test suite", "module", logModule, "testClass", testClass, "testMethod", testMethod)
+			return
+		}
 		ts.TestCases = append(ts.TestCases, TestCase{
 			ClassName:  testClass,
 			MethodName: testMethod,

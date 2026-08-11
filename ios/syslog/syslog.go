@@ -58,12 +58,13 @@ func NewWithShimConnection(device ios.DeviceEntry) (*Connection, error) {
 
 // ReadLogMessage this is a blocking function that will return individual log messages received from syslog.
 // Call it in an endless for loop in a separate go routine.
+// Messages are vis-decoded (see DecodeVis) so non-ASCII text renders as UTF-8.
 func (sysLogConn *Connection) ReadLogMessage() (string, error) {
 	logmsg, err := sysLogConn.bufferedReader.ReadString(0)
 	if err != nil {
 		return "", err
 	}
-	return logmsg, nil
+	return DecodeVis(logmsg), nil
 }
 
 // LogEntry represents a parsed log entry
@@ -98,11 +99,11 @@ func Parser() func(log string) (*LogEntry, error) {
 		// Parse the original timestamp
 		originalTimestamp := result["Timestamp"]
 		parsedTime, err := time.Parse("Jan 2 15:04:05", originalTimestamp)
-		// Set the year to the current year from the system (this might cause friction at year end)
-		parsedTime = parsedTime.AddDate(time.Now().Year()-parsedTime.Year(), 0, 0)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse syslog timestamp: %s", log)
 		}
+		// Set the year to the current year from the system (this might cause friction at year end)
+		parsedTime = parsedTime.AddDate(time.Now().Year()-parsedTime.Year(), 0, 0)
 
 		// Convert to ISO 8601 format
 		isoTimestamp := parsedTime.Format("2006-01-02T15:04:05")

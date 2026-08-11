@@ -49,6 +49,83 @@ func TestDeviceListCommandOnlyMatchesTopLevelList(t *testing.T) {
 	}
 }
 
+// parseCLIArgs parses a real command line against the CLI's actual docopt
+// usage string, exactly as Main does.
+func parseCLIArgs(t *testing.T, argv ...string) docopt.Opts {
+	t.Helper()
+	parser := &docopt.Parser{HelpHandler: docopt.NoHelpHandler}
+	args, err := parser.ParseArgs(cliUsage(), argv, version)
+	if err != nil {
+		t.Fatalf("failed parsing argv %v: %v", argv, err)
+	}
+	return args
+}
+
+// firstMatchingCommand mirrors dispatchCommand's first-match-wins selection
+// without running the command.
+func firstMatchingCommand(args docopt.Opts, commands []command) string {
+	for _, cmd := range commands {
+		if cmd.match(args) {
+			return cmd.name
+		}
+	}
+	return ""
+}
+
+// dispatchedCommand walks the dispatch chain in the same order as Main
+// (globalCommands, then deviceCommands) and returns the name of the command
+// that would run.
+func dispatchedCommand(t *testing.T, argv ...string) string {
+	t.Helper()
+	args := parseCLIArgs(t, argv...)
+	if name := firstMatchingCommand(args, globalCommands); name != "" {
+		return "global:" + name
+	}
+	if name := firstMatchingCommand(args, deviceCommands); name != "" {
+		return "device:" + name
+	}
+	return ""
+}
+
+// TestDispatchSubcommandCollisions guards every subcommand literal that is also
+// a top-level command name. docopt sets a boolean for each literal it matched,
+// so e.g. `ios webinspector launch <url>` sets both "webinspector" and
+// "launch"; the registries must not let the wrong top-level command win
+// (issue #769).
+func TestDispatchSubcommandCollisions(t *testing.T) {
+	testCases := []struct {
+		name string
+		argv []string
+		want string
+	}{
+		// webinspector vs launch (issue #769)
+		{name: "webinspector launch dispatches webinspector", argv: []string{"webinspector", "launch", "https://example.com"}, want: "device:webinspector"},
+		{name: "webinspector launch with bundle-id dispatches webinspector", argv: []string{"webinspector", "launch", "https://example.com", "--bundle-id=com.apple.mobilesafari"}, want: "device:webinspector"},
+		{name: "plain launch dispatches launch", argv: []string{"launch", "com.apple.mobilesafari"}, want: "device:launch"},
+		// info vs lockdown
+		{name: "info lockdown dispatches info", argv: []string{"info", "lockdown"}, want: "device:info"},
+		{name: "plain lockdown dispatches lockdown", argv: []string{"lockdown", "get", "ProductVersion"}, want: "device:lockdown"},
+		// ui vs launch/screenshot/install/run
+		{name: "ui app launch dispatches ui", argv: []string{"ui", "app", "launch", "com.apple.mobilesafari"}, want: "global:ui"},
+		{name: "ui screenshot dispatches ui", argv: []string{"ui", "screenshot"}, want: "global:ui"},
+		{name: "plain screenshot dispatches screenshot", argv: []string{"screenshot"}, want: "device:screenshot"},
+		{name: "ui install dispatches ui install", argv: []string{"ui", "install", "wda", "--p12file=cert.p12", "--profile=dev.mobileprovision"}, want: "device:ui install"},
+		{name: "plain install dispatches install", argv: []string{"install", "--path=app.ipa"}, want: "device:install"},
+		{name: "ui run dispatches ui run", argv: []string{"ui", "run", "wda"}, want: "device:ui run"},
+		// webinspector vs list (also guarded by TestDeviceListCommandOnlyMatchesTopLevelList)
+		{name: "webinspector list dispatches webinspector", argv: []string{"webinspector", "list"}, want: "device:webinspector"},
+		{name: "plain list dispatches list", argv: []string{"list"}, want: "global:list"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := dispatchedCommand(t, testCase.argv...); got != testCase.want {
+				t.Fatalf("dispatchedCommand(%v) = %q, want %q", testCase.argv, got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestTunnelCommandMatcher(t *testing.T) {
 	if !isTunnelCommand(docopt.Opts{"tunnel": true}) {
 		t.Fatal("tunnel command did not match")

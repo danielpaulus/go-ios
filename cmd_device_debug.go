@@ -151,7 +151,7 @@ func runImageCommand(ctx commandContext) {
 		err := imagemounter.UnmountImage(ctx.Device)
 		if err != nil {
 			slog.Error("error unmounting image", "udid", ctx.Device.Properties.SerialNumber, "err", err)
-			return
+			os.Exit(1)
 		}
 		slog.Info("success unmounting image", "udid", ctx.Device.Properties.SerialNumber)
 	}

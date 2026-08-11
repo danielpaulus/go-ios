@@ -3,7 +3,6 @@ package tunnel
 import (
 	"context"
 	"fmt"
-	"net"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/http"
@@ -55,7 +54,7 @@ func ManualPairAndConnectToTunnelTCP(ctx context.Context, device ios.DeviceEntry
 	}
 
 	tunnelAddr := fmt.Sprintf("[%s]:%d", addr, tunnelPort)
-	tcpConn, err := net.Dial("tcp", tunnelAddr)
+	tcpConn, err := ios.DialTunnelTCP(tunnelAddr)
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("ManualPairAndConnectToTunnelTCP: failed to dial tunnel port %s: %w", tunnelAddr, err)
 	}

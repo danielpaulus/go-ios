@@ -114,7 +114,8 @@ func runRSDCommand(ctx commandContext) {
 }
 
 func runMobileGestaltCommand(ctx commandContext) {
-	conn, _ := diagnostics.New(ctx.Device)
+	conn, err := diagnostics.New(ctx.Device)
+	exitIfError("failed to connect to diagnostics service", err)
 	keys := ctx.Args["<key>"].([]string)
 	plist, _ := ctx.Args.Bool("--plist")
 	resp, _ := conn.MobileGestaltQuery(keys)

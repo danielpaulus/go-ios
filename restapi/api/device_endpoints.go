@@ -2,10 +2,13 @@ package api
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
@@ -59,6 +62,31 @@ func GetImages(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 
 }
+
+// maxImageUploadBytes caps a manually uploaded developer disk image at 2 GiB,
+// comfortably above any real DeveloperDiskImage, so legit uploads are unaffected
+// while an unbounded/hostile stream can't exhaust disk.
+const maxImageUploadBytes = 2 << 30
+
+// isSafeBasedir rejects absolute paths and any path containing a `..` segment,
+// so a caller-supplied basedir cannot escape the working directory when it is
+// passed to os.MkdirAll/path.Join in the image mounter.
+func isSafeBasedir(basedir string) bool {
+	if filepath.IsAbs(basedir) {
+		return false
+	}
+	cleaned := filepath.Clean(basedir)
+	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+		return false
+	}
+	for _, seg := range strings.Split(cleaned, string(filepath.Separator)) {
+		if seg == ".." {
+			return false
+		}
+	}
+	return true
+}
+
 func InstallImage(c *gin.Context) {
 	device := c.MustGet(IOS_KEY).(ios.DeviceEntry)
 	auto := c.Query("auto")
@@ -66,6 +94,20 @@ func InstallImage(c *gin.Context) {
 		basedir := c.Query("basedir")
 		if basedir == "" {
 			basedir = "./devimages"
+		}
+		// basedir is remote input and gets used to build filesystem paths,
+		// reject anything that traverses upwards.
+		basedir = filepath.Clean(basedir)
+		if strings.Contains(basedir, "..") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "basedir must not contain '..'"})
+			return
+		}
+
+		// basedir flows into os.MkdirAll+path.Join in imagemounter, so reject
+		// absolute paths and any `..` traversal before using it.
+		if !isSafeBasedir(basedir) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, GenericResponse{Error: "invalid basedir: must be a relative path without '..' segments"})
+			return
 		}
 
 		path, err := imagemounter.DownloadImageFor(device, basedir)
@@ -81,7 +123,7 @@ func InstallImage(c *gin.Context) {
 		c.JSON(http.StatusOK, "ok")
 		return
 	}
-	body := c.Request.Body
+	body := http.MaxBytesReader(c.Writer, c.Request.Body, maxImageUploadBytes)
 	defer body.Close()
 
 	tempfile, err := os.CreateTemp(os.TempDir(), "go-ios")
@@ -486,6 +528,12 @@ func PairDevice(c *gin.Context) {
 	}
 
 	err = ios.PairSupervised(device, p12fileBuf.Bytes(), supervision_password)
+	if errors.Is(err, ios.ErrDeviceLockedPairingDeferred) {
+		// The device accepted the identity but persisted no pair record, so this is not
+		// a successful pairing. 423 tells the caller the device must be unlocked first.
+		c.JSON(http.StatusLocked, GenericResponse{Error: err.Error()})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 		return

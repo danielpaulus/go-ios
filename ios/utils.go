@@ -22,6 +22,13 @@ import (
 // "module" attribute on every golog call in this package.
 const logModule = "go-ios"
 
+// maxMessageSize is an upper bound on the payload size we are willing to
+// allocate from a length prefix read off the wire. lockdown and usbmux control
+// messages are tiny (a few KiB at most), so 16 MiB cannot reject legitimate
+// control traffic while it prevents a malformed/hostile length prefix from
+// triggering an unbounded allocation.
+const maxMessageSize = 1 << 24
+
 // UseHttpProxy sets the default http transport to use the given proxy url.
 // If the proxyUrl is empty, it will try to use the HTTP_PROXY or HTTPS_PROXY environment variables.
 // If the environment variables are not set, it will not set a proxy.
@@ -206,7 +213,11 @@ func InterfaceToStringSlice(intfSlice interface{}) []string {
 	}
 	result := make([]string, len(slice))
 	for i, v := range slice {
-		result[i] = v.(string)
+		s, ok := v.(string)
+		if !ok {
+			continue
+		}
+		result[i] = s
 	}
 	return result
 }
