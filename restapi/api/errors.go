@@ -28,6 +28,10 @@ var (
 	errMissingProxyHostPort = errors.New("both 'host' and 'port' form fields are required")
 	errUploadTooLarge       = errors.New("upload exceeds the maximum allowed size")
 	errInvalidPID           = errors.New("invalid pid parameter")
+
+	errMissingPath = errors.New("missing required query param: path")
+	errUnsafePath  = errors.New("path must not contain '..' elements")
+	errPullIsDir   = errors.New("path is a directory; fsync pull only supports single files")
 )
 
 // RespondError writes a consistent JSON error envelope ({"error": "..."}) and

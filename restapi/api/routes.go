@@ -9,6 +9,8 @@ var streamingMiddleWare = StreamingHeaderMiddleware()
 func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	router.GET("/list", List)
 	registerTunnelRoutes(router)
+	// feat/restapi-w1c-fsync: fleet/host-level provisioning routes (no device).
+	registerProvisioningHostRoutes(router)
 
 	device := router.Group("/device/:udid")
 	device.Use(DeviceMiddleware())
@@ -24,6 +26,9 @@ func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	registerMdmRoutes(device)
 	registerJobRoutes(device)
 	registerProxyRoutes(device)
+	// feat/restapi-w1c-fsync: AFC filesystem + cloud-config device routes.
+	registerFsyncRoutes(device)
+	registerProvisioningDeviceRoutes(device)
 	appRoutes(device)
 }
 
