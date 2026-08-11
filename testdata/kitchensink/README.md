@@ -25,11 +25,19 @@ The runner `.app` inside the zip is `KitchenSinkUITests-Runner.app` and contains
 
 ```
 ios runtest \
-  --bundle-id=com.deviceboxhq.goios.kitchensink \
   --test-runner-bundle-id=com.deviceboxhq.goios.kitchensink.xctrunner \
   --xctest-config=KitchenSinkUITests.xctest \
   --junit-output=<path>/report.xml
 ```
+
+Note: **no `--bundle-id`.** The `.xctest` bundle is packaged inside the runner,
+so the runner is its own test host — there is no separate app-under-test to
+install. If you pass `--bundle-id=<host app>`, testmanagerd tries to look up that
+app among the installed apps and, when it isn't installed, the run yields an
+empty report. The tests here are pure asserts that never drive
+`XCUIApplication`, so a target app is unnecessary. (Only the runner is checked in
+/ installed; the `KitchenSink.app` host target exists just to let Xcode generate
+the UI-test runner.)
 
 ## Test outcomes (what each method produces in the JUnit report)
 

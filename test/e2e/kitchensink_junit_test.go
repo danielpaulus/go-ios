@@ -31,7 +31,6 @@ import (
 )
 
 const (
-	kitchenSinkHostBundleID   = "com.deviceboxhq.goios.kitchensink"
 	kitchenSinkRunnerBundleID = "com.deviceboxhq.goios.kitchensink.xctrunner"
 	kitchenSinkXctestConfig   = "KitchenSinkUITests.xctest"
 	kitchenSinkRunnerApp      = "KitchenSinkUITests-Runner.app"
@@ -101,9 +100,14 @@ func TestKitchenSinkJUnitOutput(t *testing.T) {
 		)
 
 		reportPath := filepath.Join(t.TempDir(), "report.xml")
+		// No --bundle-id: the .xctest is packaged inside the runner, so the runner
+		// is its own test host and there is no separate app-under-test to install.
+		// (Passing --bundle-id here would make testmanagerd look up an installed
+		// app-under-test and fail, producing an empty report.) The kitchen-sink
+		// tests are pure asserts and never drive XCUIApplication, so no target app
+		// is needed.
 		runIOSForDevice(t, udid,
 			"runtest",
-			"--bundle-id="+kitchenSinkHostBundleID,
 			"--test-runner-bundle-id="+kitchenSinkRunnerBundleID,
 			"--xctest-config="+kitchenSinkXctestConfig,
 			"--junit-output="+reportPath,
