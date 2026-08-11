@@ -7,7 +7,9 @@ lives here to keep each example short and focused on the one API it demonstrates
 Environment variables
 ----------------------
 ``GO_IOS_BASE_URL``
-    Base URL of the running go-ios daemon. Defaults to ``http://localhost:8080``.
+    Base URL of the running go-ios daemon. Optional — when unset the examples
+    auto-discover the local daemon via ``~/.go-ios/rest-api.json``. Set it only to
+    target a pinned or remote daemon.
 ``GO_IOS_API_KEY``
     Bearer token the daemon was started with. **Required** — every example
     exits with a helpful message and a non-zero status if it is unset. (A daemon
@@ -39,9 +41,6 @@ if os.path.isdir(_SRC) and _SRC not in sys.path:
 
 from go_ios_sdk import Device, IosClient  # noqa: E402  (after the sys.path shim above)
 
-#: Default daemon URL, overridable via ``GO_IOS_BASE_URL``.
-DEFAULT_BASE_URL = "http://localhost:8080"
-
 #: Exit code used for a configuration/usage problem (e.g. no API key). Distinct
 #: from ``1`` (which we let uncaught exceptions produce) purely for readability.
 EXIT_CONFIG = 2
@@ -56,9 +55,13 @@ class SkipExample(Exception):
     """
 
 
-def base_url() -> str:
-    """Return the configured daemon base URL."""
-    return os.environ.get("GO_IOS_BASE_URL", DEFAULT_BASE_URL)
+def base_url() -> Optional[str]:
+    """Return the configured daemon base URL, or ``None`` to auto-discover.
+
+    Unset ``GO_IOS_BASE_URL`` -> ``None``, so the SDK falls through to local
+    daemon discovery (``~/.go-ios/rest-api.json``).
+    """
+    return os.environ.get("GO_IOS_BASE_URL") or None
 
 
 def require_api_key() -> str:
@@ -76,7 +79,7 @@ def require_api_key() -> str:
             "with (or any value if it was started with --disable-auth):\n"
             "\n"
             "    export GO_IOS_API_KEY=your-key\n"
-            f"    export GO_IOS_BASE_URL={DEFAULT_BASE_URL}   # optional; this is the default\n"
+            "    # GO_IOS_BASE_URL is optional; unset, the local daemon is auto-discovered\n"
             "    export GO_IOS_UDID=00008110-000...           # optional; first device otherwise\n",
             file=sys.stderr,
         )
@@ -114,4 +117,4 @@ def resolve_device(client: IosClient) -> Tuple[str, Device]:
 def print_header(title: str) -> None:
     """Print a small banner so multi-example runs are easy to read."""
     print(f"\n=== {title} ===")
-    print(f"    daemon: {base_url()}")
+    print(f"    daemon: {base_url() or '(auto-discovered)'}")

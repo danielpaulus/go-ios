@@ -3,7 +3,7 @@
 Mirrors :mod:`go_ios_sdk.client` (same method names/shape) but every operation is
 a coroutine and streaming endpoints are async generators::
 
-    async with AsyncIosClient(base_url=..., api_key=...) as client:
+    async with AsyncIosClient(api_key=...) as client:  # auto-discovers the daemon
         await client.devices.list()
         dev = client.device(udid)
         await dev.info()
@@ -21,6 +21,7 @@ underlying HTTP response promptly.
 
 from __future__ import annotations
 
+import os
 from typing import Any, AsyncIterator, Dict, List, Optional, Sequence, Union
 
 import httpx
@@ -28,7 +29,6 @@ import httpx
 from ._http import API_PREFIX, build_headers, json_or_none, raise_for_status
 from .client import (
     _STREAM_TIMEOUT,
-    DEFAULT_BASE_URL,
     BytesLike,
     _bool_param,
     _close_multipart,
@@ -39,6 +39,7 @@ from .client import (
     _resolve_body,
     _ui_backend_params,
 )
+from .discovery import resolve_base_url
 from .sse import aiter_events
 
 
@@ -1036,7 +1037,7 @@ class AsyncIosClient:
 
     def __init__(
         self,
-        base_url: str = DEFAULT_BASE_URL,
+        base_url: Optional[str] = None,
         *,
         api_key: Optional[str] = None,
         timeout: float = 30.0,
@@ -1044,7 +1045,8 @@ class AsyncIosClient:
         headers: Optional[Dict[str, str]] = None,
         http_client: Optional[httpx.AsyncClient] = None,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        api_key = api_key if api_key is not None else os.environ.get("GO_IOS_API_KEY")
+        self.base_url = resolve_base_url(base_url).rstrip("/")
         self.api_key = api_key
         if http_client is not None:
             self._http = http_client

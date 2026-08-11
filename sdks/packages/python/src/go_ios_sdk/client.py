@@ -2,7 +2,7 @@
 
 Public shape (mirrored by the TypeScript/Java/C# SDKs)::
 
-    client = IosClient(base_url="http://localhost:60105", api_key="...")
+    client = IosClient(api_key="...")  # auto-discovers the local daemon
     client.devices.list()
     client.tunnels.list(); client.tunnels.refresh(udid); client.tunnels.shutdown_agent()
     dev = client.device(udid)
@@ -70,9 +70,9 @@ import httpx
 
 from . import events as _events
 from ._http import API_PREFIX, build_headers, json_or_none, raise_for_status
+from .discovery import resolve_base_url
 from .sse import iter_events
 
-DEFAULT_BASE_URL = "http://localhost:60105"
 # Streaming endpoints must not time out on read (they are long-lived, idle-tolerant
 # thanks to heartbeats). Connect timeout is still applied.
 _STREAM_TIMEOUT = httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0)
@@ -1358,10 +1358,13 @@ class IosClient:
     """Synchronous go-ios REST client.
 
     Args:
-        base_url: Server base URL (default ``http://localhost:60105``).
+        base_url: Server base URL. If omitted, it is resolved in order:
+            (1) the ``GO_IOS_BASE_URL`` env var, then (2) local daemon discovery
+            (``<GO_IOS_HOME or ~/.go-ios>/rest-api.json``). If neither is
+            available a :class:`~go_ios_sdk.discovery.DiscoveryError` is raised.
         api_key: Bearer token; sent as ``Authorization: Bearer <key>`` when set.
-            Optional (a server started with ``--disable-auth`` needs none), but
-            strongly encouraged.
+            Falls back to the ``GO_IOS_API_KEY`` env var. Optional (a server
+            started with ``--disable-auth`` needs none), but strongly encouraged.
         timeout: Per-request timeout in seconds for non-streaming calls.
         verify: TLS verification (bool / CA path / SSLContext), forwarded to httpx.
         http_client: Bring your own configured ``httpx.Client`` (overrides the
@@ -1370,7 +1373,7 @@ class IosClient:
 
     def __init__(
         self,
-        base_url: str = DEFAULT_BASE_URL,
+        base_url: Optional[str] = None,
         *,
         api_key: Optional[str] = None,
         timeout: float = 30.0,
@@ -1378,7 +1381,8 @@ class IosClient:
         headers: Optional[Dict[str, str]] = None,
         http_client: Optional[httpx.Client] = None,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        api_key = api_key if api_key is not None else os.environ.get("GO_IOS_API_KEY")
+        self.base_url = resolve_base_url(base_url).rstrip("/")
         self.api_key = api_key
         if http_client is not None:
             self._http = http_client

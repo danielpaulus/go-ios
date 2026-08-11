@@ -47,6 +47,7 @@ from .client import (
     Wda,
     WebInspector,
 )
+from .discovery import DiscoveryError, discover_base_url, go_ios_home
 from .errors import ApiError, GoIosError
 from .events import (
     AppStateNotification,
@@ -96,6 +97,10 @@ __all__ = [
     # errors
     "GoIosError",
     "ApiError",
+    "DiscoveryError",
+    # discovery
+    "discover_base_url",
+    "go_ios_home",
     # event payloads
     "AppStateNotification",
     "SyslogMessage",
