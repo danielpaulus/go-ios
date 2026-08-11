@@ -31,6 +31,10 @@ var (
 	errRsdUnavailable       = errors.New("RSD is not available for this device: a running tunnel (iOS 17+) is required")
 	errMissingGPX           = errors.New("missing required multipart 'gpx' file")
 	errInvalidTimeout       = errors.New("invalid 'timeout' query param; expected a positive integer number of seconds")
+
+	errMissingPath = errors.New("missing required query param: path")
+	errUnsafePath  = errors.New("path must not contain '..' elements")
+	errPullIsDir   = errors.New("path is a directory; fsync pull only supports single files")
 )
 
 // RespondError writes a consistent JSON error envelope ({"error": "..."}) and
