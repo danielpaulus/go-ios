@@ -217,6 +217,26 @@ try {
 - `client.sign` → `certificate(creds)` → pkcs12 bytes, `provision(opts)`, `app(opts)` → ipa bytes
 - `client.prepare` → `createCert()`, `skipOptions()`
 
+## Examples
+
+Runnable, heavily-commented example scripts live in
+[`examples/`](./examples/README.md). They double as documentation and as a
+pre-release smoke test — each uses only the real public API and is configured via
+env vars (`GO_IOS_BASE_URL`, `GO_IOS_API_KEY`, `GO_IOS_UDID`).
+
+```sh
+# against a running go-ios REST daemon (started with an API key):
+export GO_IOS_API_KEY=dev-secret
+npm run examples        # runs 01–05 in sequence; exit 0 = green, exit 1 = a real failure
+```
+
+The runner reports each example as `PASS` / `SKIP` / `FAIL`: device-dependent
+steps that can't run (no device attached, UI backend not forwarded) `SKIP` rather
+than fail, so the suite is green on any reachable daemon. Run a single example
+with `npx tsx examples/01-list-devices.ts`, typecheck them with
+`npm run examples:build`, and see [`examples/README.md`](./examples/README.md) for
+the full list and the UI-automation setup.
+
 ## Development
 
 ```sh

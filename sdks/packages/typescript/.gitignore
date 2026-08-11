@@ -4,3 +4,6 @@
 # `npm run generate` after spec changes.
 !src/generated/
 !src/generated/**
+
+# Artifact written by examples/04-screenshot.ts when run against a device.
+screenshot.png
