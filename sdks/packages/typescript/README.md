@@ -2,13 +2,18 @@
 
 TypeScript SDK for the [go-ios](https://github.com/danielpaulus/go-ios) REST
 server. Provides a typed, ergonomic client covering the **full daemon surface**
-(80 operations) — device info & diagnostics, management (reboot/shutdown/erase/
-devmode/lang), app management, on-device files & crash reports, media
+(125 operations) — device info & diagnostics (disk space, IP, RSD services,
+battery registry), management (reboot/shutdown/erase/devmode/lang), app
+management, on-device files & crash reports, the AFC `fsync` file surface, media
 (wallpaper/icon-layout/pasteboard), settings (AssistiveTouch/time format/wifi),
-supervised MDM, HTTP proxy, configuration profiles, developer disk images,
-WebDriverAgent sessions, condition inducers, async jobs (runtest/runwda/forward)
-and device tunnels — plus six long-lived **Server-Sent Events** streams exposed
-as typed async iterators.
+accessibility (VoiceOver/Zoom/AX snapshot & audit/GPX location), supervised MDM,
+HTTP proxy, configuration profiles, developer disk images, WebDriverAgent
+sessions, WebInspector (Safari), UI automation (tap/swipe/type/orientation/app
+lifecycle), condition inducers, async jobs (runtest/runwda/forward), device
+preparation, host-level code signing, and device tunnels — plus six long-lived
+**Server-Sent Events** streams exposed as typed async iterators and three
+**binary** streams (`ui.stream`, `screenshotStream`, `pcap`) exposed as
+cancellable async byte streams.
 
 - **ESM + CJS** dual build, ships `.d.ts` types, `sideEffects: false`, Node 20+.
 - Low-level client generated from the canonical OpenAPI 3.1 spec with
@@ -109,6 +114,39 @@ You can also use the low-level SSE helpers directly against any
 import { parseSseStream, SseFrameParser, isSseEvent } from "@go-ios/sdk";
 ```
 
+## Binary streams
+
+Three endpoints stream **raw bytes** (not SSE): the live screen mirror
+(`ui.stream`, mjpeg/h264), the MJPEG `screenshotStream`, and the `pcap` packet
+capture. Each returns a `BinaryStream` — an `AsyncIterable<Uint8Array>` that also
+exposes the raw `.body` (`ReadableStream`) and `.contentType`. Consume it with
+`for await`, pipe `.body` directly, and stop by `break`-ing out or passing an
+`AbortSignal`.
+
+```ts
+// Live H.264 screen stream (devicekit backend), stopped after 10s
+const ac = new AbortController();
+setTimeout(() => ac.abort(), 10_000);
+const stream = await client.device(udid).ui.stream({
+  backend: "devicekit",
+  codec: "h264",
+  signal: ac.signal,
+});
+for await (const chunk of stream) {
+  // chunk is a Uint8Array of encoded video bytes
+  encoder.write(chunk);
+}
+
+// Capture 30s of packets straight to a .pcap file (Node)
+import { Writable } from "node:stream";
+const cap = await client.device(udid).pcap({ timeout: 30 });
+await cap.body.pipeTo(Writable.toWeb(fs.createWriteStream("capture.pcap")));
+
+// MJPEG screenshot stream
+const shots = await client.device(udid).screenshotStream({ quality: 90 });
+for await (const jpeg of shots) { /* ... */ }
+```
+
 ## Authentication
 
 The server uses bearer auth on `/api/v1`. Pass `apiKey` to the constructor and it
@@ -140,17 +178,30 @@ try {
 - `deviceUdid(entry)` — convenience accessor for `entry.properties.serialNumber`
 - `client.device(udid)` →
   - info → `info()`, `deviceName()`, `date()`, `battery()`, `diagnostics()`,
-    `mobileGestalt(keys)`, `processes()`, `lockdown()`, `screenshot()`
+    `mobileGestalt(keys)`, `processes()`, `lockdown(domain?)`, `screenshot()`
+  - diagnostics/network → `diskSpace()`, `ip()`, `rsd()`, `batteryRegistry()`, `cloudConfig()`
+  - accessibility → `ax()`, `axAudit(opts?)`, `voiceOver()`, `setVoiceOver(enabled)`,
+    `zoom()`, `setZoom(enabled)`, `setLocationGpx(gpx)`
   - management → `reboot()`, `shutdown()`, `erase(confirm)`, `devmode()`,
     `setDevmode(action, enablePostRestart?)`, `lang()`, `setLang(language?, locale?)`,
-    `memlimitoff(process)`, `activate()`, `pair(opts)`, `resetAccessibility()`
+    `memlimitoff(process)`, `activate()`, `pair(opts)`, `resetAccessibility()`, `prepare(opts?)`
   - location → `resetLocation()`, `setLocation(latitude, longitude)`
   - conditions → `conditions()`, `enableCondition(profileTypeId, profileId)`, `disableCondition()`
   - developer disk images → `images()`, `mountedImages()`, `installImage(opts)`, `unmountImage()`
   - configuration profiles → `profiles()`, `addProfile(opts)`, `removeProfile(name)`
+  - binary streams → `ui.stream(opts?)`, `screenshotStream(opts?)`, `pcap(opts?)` → `BinaryStream`
   - `apps` → `list()`, `launch(bundleId)`, `kill(bundleId)`, `install(ipa)`, `uninstall(bundleId)`
   - `wda` → `createSession(config)`, `readSession(id)`, `deleteSession(id)`
   - `files` → `ls(scope, path?)`, `pull(scope, remote)`, `push(scope, remote, data)`
+  - `fsync` → `ls(path?, {bundleId?})`, `tree(path?, {bundleId?})`, `pull(path, {bundleId?})` → bytes,
+    `push(path, data, {bundleId?})`, `rm(path, {recursive?, bundleId?})`, `mkdir(path, {bundleId?})`
+  - `webinspector` → `pages()`, `launch(url, {bundleId?})`, `eval(script, {page?, bundleId?})`
+  - `ui` → `tap(x, y, opts?)`, `swipe(x1, y1, x2, y2, duration?, opts?)`,
+    `longPress(x, y, duration?, opts?)`, `type(text, opts?)`, `button(name, opts?)`,
+    `screenshot(opts?)` → bytes, `source(opts?)`, `size(opts?)`, `orientation(opts?)`,
+    `setOrientation(o, opts?)`, `status(opts?)`, `api(req, opts?)`, `stream(opts?)`,
+    `app.launch(bundleId, opts?)`, `app.terminate(bundleId, opts?)`, `app.foreground(opts?)`
+    — all accept `{ backend?, wdaUrl?, timeout? }`
   - `crashes` → `list(pattern?)`, `remove(pattern, cwd?)`
   - `media` → `getWallpaper()`, `setWallpaper(opts)`, `getIconLayout()`, `setIconLayout(layout)`,
     `getPasteboard()`, `setPasteboard(text)`
@@ -163,6 +214,8 @@ try {
     `logs(id)` (SSE), `delete(id)`
   - streams → `syslog()`, `notifications()`, `ostrace(filters?)`, `listen()`, `sysmontap()`
 - `client.tunnels` → `list()`, `delete(udid)`, `refresh(udid)`, `shutdownAgent()`
+- `client.sign` → `certificate(creds)` → pkcs12 bytes, `provision(opts)`, `app(opts)` → ipa bytes
+- `client.prepare` → `createCert()`, `skipOptions()`
 
 ## Development
 

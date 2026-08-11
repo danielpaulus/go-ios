@@ -5,17 +5,26 @@ import type {
   AgentShutdown,
   AppInfo,
   AssistiveTouchState,
+  AxAuditIssue,
+  AxElement,
   BatteryInfo,
+  BatteryRegistry,
+  CloudConfig,
   CrashListing,
   DeviceDate,
   DeviceInfo,
   DeviceList,
   DevModeState,
   Diagnostics,
+  DiskSpaceInfo,
   FileDomain,
   FileListing,
   FilePushResult,
   ForwardRequest,
+  FsyncListing,
+  FsyncMessage,
+  FsyncPushResult,
+  FsyncTreeListing,
   GenericResponse,
   IconLayout,
   InstalledProfiles,
@@ -25,20 +34,33 @@ import type {
   MemLimitResult,
   MobileGestalt,
   MountedImages,
+  NetworkInfo,
   PasteboardContent,
+  PrepareResult,
+  PrepareSkipOptions,
   ProcessInfo,
   ProfileType,
+  ProvisioningResult,
+  RsdServices,
   RunTestRequest,
   SecurityInfo,
   StatusOk,
+  SupervisionCert,
   TimeFormatState,
   Tunnel,
   TunnelStopped,
+  UiResponse,
   UnlockToken,
+  VoiceOverState,
   WdaConfig,
   WdaSession,
+  WebInspectorEvalResult,
+  WebInspectorLaunchResult,
+  WebInspectorPage,
+  ZoomTouchState,
 } from "./generated/types.gen";
 import { IosApiError, unwrap } from "./errors";
+import { openBinaryStream, type BinaryStream } from "./binary";
 import { parseSseStream, type SseEvent } from "./sse";
 import type {
   JobLogEventMap,
@@ -50,6 +72,8 @@ import type {
 } from "./events";
 
 export { IosApiError } from "./errors";
+export { openBinaryStream } from "./binary";
+export type { BinaryStream } from "./binary";
 export { SseFrameParser, parseSseStream, isSseEvent } from "./sse";
 export type {
   SseEvent,
@@ -165,6 +189,146 @@ export interface SetHttpProxyOptions extends SupervisionIdentity {
   user?: string;
   /** Proxy password. */
   pass?: string;
+}
+
+/**
+ * Fsync path scoping: which app container (if any) a path is resolved against.
+ * Omitting `bundleId` targets the media directory (the default AFC service).
+ */
+export interface FsyncOptions {
+  /** App bundle id to scope the path to that app's container. */
+  bundleId?: string;
+}
+
+/** Options for {@link FsyncHandle.rm} — recursive removal + container scope. */
+export interface FsyncRemoveOptions extends FsyncOptions {
+  /** Remove directory contents recursively. */
+  recursive?: boolean;
+}
+
+/**
+ * Shared options for the {@link UiHandle} methods. Every UI route accepts a
+ * backend selector, a forwarded backend URL and a per-request timeout.
+ */
+export interface UiOptions {
+  /** Backend to target: `wda` (default) or `devicekit`. */
+  backend?: string;
+  /** Forwarded backend base URL (defaults per backend). */
+  wdaUrl?: string;
+  /** Per-request HTTP timeout in seconds (default 60). */
+  timeout?: number;
+}
+
+/** Options for {@link UiHandle.stream} — codec plus backend selection + tuning. */
+export interface UiStreamOptions extends UiOptions {
+  /** Video codec: `mjpeg` (default) or `h264` (devicekit backend only). */
+  codec?: string;
+  /** Target frames per second (backend-dependent). */
+  fps?: string | number;
+  /** JPEG quality for the mjpeg codec. */
+  quality?: string | number;
+  /** Scale factor (backend-dependent). */
+  scale?: string | number;
+  /** Target bitrate for the h264 codec. */
+  bitrate?: string | number;
+  /** Abort signal to cancel the stream and release the connection. */
+  signal?: AbortSignal;
+}
+
+/** Options for {@link DeviceHandle.screenshotStream}. */
+export interface ScreenshotStreamOptions {
+  /** JPEG quality (1–100, default 80). */
+  quality?: number;
+  /** Abort signal to cancel the stream and release the connection. */
+  signal?: AbortSignal;
+}
+
+/** Options for {@link DeviceHandle.pcap}. */
+export interface PcapOptions {
+  /** Capture duration in seconds (default 60, max 3600). */
+  timeout?: number;
+  /** Abort signal to cancel the capture and release the connection. */
+  signal?: AbortSignal;
+}
+
+/** Options for {@link WebInspectorHandle.launch}. */
+export interface WebInspectorLaunchOptions {
+  /** Restrict the launch to a specific app by bundle id. */
+  bundleId?: string;
+}
+
+/** Options for {@link WebInspectorHandle.eval}. */
+export interface WebInspectorEvalOptions {
+  /** Target inspector page id (defaults to the first page). */
+  page?: string;
+  /** Restrict evaluation to a specific app by bundle id. */
+  bundleId?: string;
+}
+
+/** Options for {@link DeviceHandle.axAudit}. */
+export interface AxAuditOptions {
+  /** Audit timeout in seconds (default 60). */
+  timeout?: number;
+}
+
+/** Options for {@link DeviceHandle.prepare} (device supervision preparation). */
+export interface PrepareOptions {
+  /** Supervision identity (DER/PEM/P12). Omit to prepare unsupervised. */
+  cert?: BinaryInput;
+  /** P12 password (when `cert` is a P12). */
+  p12password?: string;
+  /** Setup panes to skip (see {@link PrepareHandle.skipOptions}). */
+  skip?: string[];
+  /** Supervision organization name. */
+  orgname?: string;
+  /** Device locale (default `en_US`). */
+  locale?: string;
+  /** Device language. */
+  lang?: string;
+}
+
+/** App Store Connect API credentials shared by the signing/provisioning ops. */
+export interface AscCredentials {
+  /** `.p8` App Store Connect API key bytes. */
+  ascPrivateKey: BinaryInput;
+  /** App Store Connect key id. */
+  ascKeyId: string;
+  /** App Store Connect issuer id. */
+  ascIssuerId: string;
+  /** Revoke existing certificates first. */
+  revokeExisting?: boolean;
+  /** Password to protect the generated P12. */
+  p12password?: string;
+}
+
+/** Options for {@link SignHandle.provision}. */
+export interface SignProvisionOptions extends AscCredentials {
+  /** App bundle identifier. */
+  bundleId: string;
+  /** Target device udid to register against the profile. */
+  udid: string;
+  /** Human-readable bundle name. */
+  bundleName?: string;
+  /** Profile name. */
+  profileName?: string;
+  /** Device name to register. */
+  deviceName?: string;
+  /** Existing certificate id to reuse. */
+  certificateId?: string;
+}
+
+/** Options for {@link SignHandle.app}. */
+export interface SignAppOptions {
+  /** App or `.ipa` bytes to resign. */
+  ipa: BinaryInput;
+  /** Signing identity (`.p12`) bytes. */
+  p12: BinaryInput;
+  /** Provisioning profile (`.mobileprovision`) bytes. */
+  profile: BinaryInput;
+  /** P12 password. */
+  p12password?: string;
+  /** Override bundle id. */
+  bundleId?: string;
 }
 
 /**
@@ -613,17 +777,437 @@ export class ProxyHandle {
 }
 
 /**
+ * AFC file-service sub-facade, reachable via `client.device(udid).fsync`. Every
+ * path is optionally scoped to an app container via `{ bundleId }`; omit it to
+ * target the media directory. This is the newer `fsync` surface (ls/tree/pull/
+ * push/rm/mkdir) distinct from the domain-based {@link FilesHandle}.
+ */
+export class FsyncHandle {
+  constructor(
+    private readonly client: Client,
+    private readonly udid: string,
+  ) {}
+
+  /** List a directory (defaults to `.`). */
+  async ls(path = ".", opts: FsyncOptions = {}): Promise<FsyncListing> {
+    return unwrap(
+      await api.fsyncFsyncLs({
+        client: this.client,
+        path: { udid: this.udid },
+        query: { path, ...bundleIdQuery(opts) },
+      }),
+    );
+  }
+
+  /** Recursively list a directory tree (defaults to `.`). */
+  async tree(path = ".", opts: FsyncOptions = {}): Promise<FsyncTreeListing> {
+    return unwrap(
+      await api.fsyncFsyncTree({
+        client: this.client,
+        path: { udid: this.udid },
+        query: { path, ...bundleIdQuery(opts) },
+      }),
+    );
+  }
+
+  /** Download a file from the device; resolves to the raw bytes. */
+  async pull(path: string, opts: FsyncOptions = {}): Promise<Uint8Array> {
+    const result = await api.fsyncFsyncPull({
+      client: this.client,
+      path: { udid: this.udid },
+      query: { path, ...bundleIdQuery(opts) },
+      parseAs: "blob",
+    });
+    const blob = unwrap(
+      result as { data?: Blob; error?: unknown; response: Response },
+    );
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+
+  /** Upload bytes to a device path. */
+  async push(
+    path: string,
+    data: BinaryInput,
+    opts: FsyncOptions = {},
+  ): Promise<FsyncPushResult> {
+    return unwrap(
+      await api.fsyncFsyncPush({
+        client: this.client,
+        path: { udid: this.udid },
+        query: { path, ...bundleIdQuery(opts) },
+        body: toBlob(data),
+        bodySerializer: null,
+      }),
+    );
+  }
+
+  /** Remove a file or directory (pass `{ recursive: true }` for directories). */
+  async rm(path: string, opts: FsyncRemoveOptions = {}): Promise<FsyncMessage> {
+    return unwrap(
+      await api.fsyncFsyncRm({
+        client: this.client,
+        path: { udid: this.udid },
+        query: {
+          path,
+          ...bundleIdQuery(opts),
+          ...(opts.recursive !== undefined ? { recursive: opts.recursive } : {}),
+        },
+      }),
+    );
+  }
+
+  /** Create a directory. */
+  async mkdir(path: string, opts: FsyncOptions = {}): Promise<FsyncMessage> {
+    return unwrap(
+      await api.fsyncFsyncMkdir({
+        client: this.client,
+        path: { udid: this.udid },
+        query: { path, ...bundleIdQuery(opts) },
+      }),
+    );
+  }
+}
+
+/**
+ * WebInspector (Safari / WKWebView) sub-facade, reachable via
+ * `client.device(udid).webinspector`.
+ */
+export class WebInspectorHandle {
+  constructor(
+    private readonly client: Client,
+    private readonly udid: string,
+  ) {}
+
+  /** List inspectable pages (open tabs / web views). */
+  async pages(): Promise<WebInspectorPage[]> {
+    return unwrap(
+      await api.webInspectorWebInspectorPages({
+        client: this.client,
+        path: { udid: this.udid },
+      }),
+    );
+  }
+
+  /** Open a URL in Safari (optionally scoped to a bundle id). */
+  async launch(
+    url: string,
+    opts: WebInspectorLaunchOptions = {},
+  ): Promise<WebInspectorLaunchResult> {
+    return unwrap(
+      await api.webInspectorWebInspectorLaunch({
+        client: this.client,
+        path: { udid: this.udid },
+        body: {
+          url,
+          ...(opts.bundleId !== undefined ? { bundleId: opts.bundleId } : {}),
+        },
+      }),
+    );
+  }
+
+  /** Evaluate JavaScript in an inspected page. */
+  async eval(
+    script: string,
+    opts: WebInspectorEvalOptions = {},
+  ): Promise<WebInspectorEvalResult> {
+    return unwrap(
+      await api.webInspectorWebInspectorEval({
+        client: this.client,
+        path: { udid: this.udid },
+        body: {
+          script,
+          ...(opts.page !== undefined ? { page: opts.page } : {}),
+          ...(opts.bundleId !== undefined ? { bundleId: opts.bundleId } : {}),
+        },
+      }),
+    );
+  }
+}
+
+/**
+ * UI-automation sub-facade, reachable via `client.device(udid).ui`. Drives taps,
+ * gestures, orientation, screenshots and app lifecycle through the WDA (default)
+ * or devicekit backend. Every method accepts {@link UiOptions} (`backend`,
+ * `wdaUrl`, `timeout`).
+ */
+export class UiHandle {
+  /** App-lifecycle operations (launch / terminate / foreground). */
+  readonly app: UiAppHandle;
+
+  constructor(
+    private readonly client: Client,
+    private readonly udid: string,
+  ) {
+    this.app = new UiAppHandle(client, udid);
+  }
+
+  /** Tap at a coordinate. */
+  async tap(x: number, y: number, opts: UiOptions = {}): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiTap({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+        body: { x, y },
+      }),
+    );
+  }
+
+  /** Swipe from one coordinate to another (optional `duration` in seconds). */
+  async swipe(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    duration?: number,
+    opts: UiOptions = {},
+  ): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiSwipe({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+        body: { x1, y1, x2, y2, ...(duration !== undefined ? { duration } : {}) },
+      }),
+    );
+  }
+
+  /** Long-press at a coordinate (optional `duration` in seconds). */
+  async longPress(
+    x: number,
+    y: number,
+    duration?: number,
+    opts: UiOptions = {},
+  ): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiLongPress({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+        body: { x, y, ...(duration !== undefined ? { duration } : {}) },
+      }),
+    );
+  }
+
+  /** Type text into the focused field. */
+  async type(text: string, opts: UiOptions = {}): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiType({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+        body: { text },
+      }),
+    );
+  }
+
+  /** Press a hardware/named button (e.g. `home`, `volumeup`). */
+  async button(name: string, opts: UiOptions = {}): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiButton({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+        body: { name },
+      }),
+    );
+  }
+
+  /** Take a PNG screenshot through the UI backend; resolves to raw bytes. */
+  async screenshot(opts: UiOptions = {}): Promise<Uint8Array> {
+    const result = await api.uiUiScreenshot({
+      client: this.client,
+      path: { udid: this.udid },
+      query: uiQuery(opts),
+      parseAs: "blob",
+    });
+    const blob = unwrap(
+      result as { data?: Blob; error?: unknown; response: Response },
+    );
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+
+  /** Get the current UI hierarchy as an XML source string. */
+  async source(opts: UiOptions = {}): Promise<string> {
+    const result = await api.uiUiSource({
+      client: this.client,
+      path: { udid: this.udid },
+      query: uiQuery(opts),
+      parseAs: "text",
+    });
+    return unwrap(
+      result as { data?: string; error?: unknown; response: Response },
+    );
+  }
+
+  /** Get the screen size / window bounds. */
+  async size(opts: UiOptions = {}): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiWindowSize({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+      }),
+    );
+  }
+
+  /** Get the current device orientation. */
+  async orientation(opts: UiOptions = {}): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiGetOrientation({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+      }),
+    );
+  }
+
+  /** Set the device orientation (e.g. `portrait`, `landscapeLeft`). */
+  async setOrientation(
+    orientation: string,
+    opts: UiOptions = {},
+  ): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiSetOrientation({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+        body: { orientation },
+      }),
+    );
+  }
+
+  /** Get the UI backend status (health / session info). */
+  async status(opts: UiOptions = {}): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiStatus({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+      }),
+    );
+  }
+
+  /**
+   * Make a raw pass-through call to the UI backend (escape hatch for WDA
+   * endpoints not modeled by the typed methods above).
+   */
+  async api(
+    request: {
+      method?: string;
+      path?: string;
+      body?: string;
+      rpcMethod?: string;
+      rpcParams?: unknown;
+    },
+    opts: UiOptions = {},
+  ): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiApi({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+        body: request,
+      }),
+    );
+  }
+
+  /**
+   * Open a live video stream of the device screen as a raw byte stream (mjpeg
+   * by default; h264 via the devicekit backend). Returns a {@link BinaryStream}
+   * — iterate the chunks with `for await`, `break` or pass `signal` to stop.
+   * This is a binary stream, not SSE.
+   */
+  stream(opts: UiStreamOptions = {}): Promise<BinaryStream> {
+    const query = {
+      ...uiQuery(opts),
+      ...(opts.codec !== undefined ? { codec: opts.codec } : {}),
+      ...(opts.fps !== undefined ? { fps: String(opts.fps) } : {}),
+      ...(opts.quality !== undefined ? { quality: String(opts.quality) } : {}),
+      ...(opts.scale !== undefined ? { scale: String(opts.scale) } : {}),
+      ...(opts.bitrate !== undefined ? { bitrate: String(opts.bitrate) } : {}),
+    };
+    return openBinaryStream(
+      api.streamsUiStream({
+        client: this.client,
+        path: { udid: this.udid },
+        query,
+        parseAs: "stream",
+        signal: opts.signal,
+      }),
+      opts.signal,
+    );
+  }
+}
+
+/**
+ * App-lifecycle sub-facade of {@link UiHandle}, reachable via
+ * `client.device(udid).ui.app`.
+ */
+export class UiAppHandle {
+  constructor(
+    private readonly client: Client,
+    private readonly udid: string,
+  ) {}
+
+  /** Launch an app by bundle id through the UI backend. */
+  async launch(bundleId: string, opts: UiOptions = {}): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiAppLaunch({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+        body: { bundleId },
+      }),
+    );
+  }
+
+  /** Terminate an app by bundle id through the UI backend. */
+  async terminate(bundleId: string, opts: UiOptions = {}): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiAppTerminate({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+        body: { bundleId },
+      }),
+    );
+  }
+
+  /**
+   * Bring the backgrounded app to the foreground (devicekit backend only; WDA
+   * returns `501`). Takes no bundle id — it foregrounds the current app.
+   */
+  async foreground(opts: UiOptions = {}): Promise<UiResponse> {
+    return unwrap(
+      await api.uiUiAppForeground({
+        client: this.client,
+        path: { udid: this.udid },
+        query: uiQuery(opts),
+      }),
+    );
+  }
+}
+
+/**
  * Device-scoped facade, reachable via `client.device(udid)`. Groups unary device
- * operations plus the `apps`, `wda`, `files`, `crashes`, `media`, `settings`,
- * `mdm`, `proxy` and `jobs` sub-facades and the SSE streams.
+ * operations plus the `apps`, `wda`, `files`, `fsync`, `crashes`, `media`,
+ * `settings`, `mdm`, `proxy`, `webinspector`, `ui` and `jobs` sub-facades, the
+ * SSE streams and the binary streams.
  */
 export class DeviceHandle {
   /** App-management operations for this device. */
   readonly apps: AppsHandle;
   /** WebDriverAgent session operations for this device. */
   readonly wda: WdaHandle;
-  /** On-device file-service operations for this device. */
+  /** On-device file-service operations for this device (domain-based). */
   readonly files: FilesHandle;
+  /** AFC file-sync operations for this device (`fsync`: ls/tree/pull/push/rm/mkdir). */
+  readonly fsync: FsyncHandle;
+  /** WebInspector (Safari/WKWebView) operations for this device. */
+  readonly webinspector: WebInspectorHandle;
+  /** UI-automation (tap/swipe/screenshot/app lifecycle) for this device. */
+  readonly ui: UiHandle;
   /** Crash-report operations for this device. */
   readonly crashes: CrashesHandle;
   /** Wallpaper / icon-layout / pasteboard operations for this device. */
@@ -645,6 +1229,9 @@ export class DeviceHandle {
     this.apps = new AppsHandle(client, udid);
     this.wda = new WdaHandle(client, udid);
     this.files = new FilesHandle(client, udid);
+    this.fsync = new FsyncHandle(client, udid);
+    this.webinspector = new WebInspectorHandle(client, udid);
+    this.ui = new UiHandle(client, udid);
     this.crashes = new CrashesHandle(client, udid);
     this.media = new MediaHandle(client, udid);
     this.settings = new SettingsHandle(client, udid);
@@ -724,13 +1311,198 @@ export class DeviceHandle {
     );
   }
 
-  /** Get all lockdown values (open map). */
-  async lockdown(): Promise<LockdownValues> {
+  /** Get lockdown values (open map), optionally scoped to a `domain`. */
+  async lockdown(domain?: string): Promise<LockdownValues> {
     return unwrap(
       await api.devicesGetLockdownValues({
         client: this.client,
         path: { udid: this.udid },
+        ...(domain !== undefined ? { query: { domain } } : {}),
       }),
+    );
+  }
+
+  // ---- Diagnostics / network ---------------------------------------------
+
+  /** Get free/total disk-space info for the device. */
+  async diskSpace(): Promise<DiskSpaceInfo> {
+    return unwrap(
+      await api.diagnosticsNetGetDiskSpace({
+        client: this.client,
+        path: { udid: this.udid },
+      }),
+    );
+  }
+
+  /** Get the device's network interface / IP info. */
+  async ip(): Promise<NetworkInfo> {
+    return unwrap(
+      await api.diagnosticsNetGetDeviceIp({
+        client: this.client,
+        path: { udid: this.udid },
+      }),
+    );
+  }
+
+  /** List RemoteServiceDiscovery (RSD) services exposed over the tunnel. */
+  async rsd(): Promise<RsdServices> {
+    return unwrap(
+      await api.diagnosticsNetGetRsdServices({
+        client: this.client,
+        path: { udid: this.udid },
+      }),
+    );
+  }
+
+  /** Get the IORegistry battery registry (detailed battery telemetry). */
+  async batteryRegistry(): Promise<BatteryRegistry> {
+    return unwrap(
+      await api.diagnosticsNetGetBatteryRegistry({
+        client: this.client,
+        path: { udid: this.udid },
+      }),
+    );
+  }
+
+  /** Get the device cloud-configuration (MDM enrollment) info. */
+  async cloudConfig(): Promise<CloudConfig> {
+    return unwrap(
+      await api.fsyncGetCloudConfig({
+        client: this.client,
+        path: { udid: this.udid },
+      }),
+    );
+  }
+
+  // ---- Accessibility ------------------------------------------------------
+
+  /** Get the accessibility element snapshot (the AX tree). */
+  async ax(): Promise<AxElement> {
+    return unwrap(
+      await api.accessibilityGetAxSnapshot({
+        client: this.client,
+        path: { udid: this.udid },
+      }),
+    );
+  }
+
+  /** Run an accessibility audit; resolves to the list of issues found. */
+  async axAudit(opts: AxAuditOptions = {}): Promise<AxAuditIssue[]> {
+    return unwrap(
+      await api.accessibilityRunAxAudit({
+        client: this.client,
+        path: { udid: this.udid },
+        ...(opts.timeout !== undefined ? { query: { timeout: opts.timeout } } : {}),
+      }),
+    );
+  }
+
+  /** Get the VoiceOver state. */
+  async voiceOver(): Promise<VoiceOverState> {
+    return unwrap(
+      await api.accessibilityGetVoiceOver({
+        client: this.client,
+        path: { udid: this.udid },
+      }),
+    );
+  }
+
+  /** Enable/disable VoiceOver. Returns the resulting state. */
+  async setVoiceOver(enabled: boolean): Promise<VoiceOverState> {
+    return unwrap(
+      await api.accessibilitySetVoiceOver({
+        client: this.client,
+        path: { udid: this.udid },
+        query: { enabled },
+      }),
+    );
+  }
+
+  /** Get the Zoom (accessibility zoom) state. */
+  async zoom(): Promise<ZoomTouchState> {
+    return unwrap(
+      await api.accessibilityGetZoomTouch({
+        client: this.client,
+        path: { udid: this.udid },
+      }),
+    );
+  }
+
+  /** Enable/disable Zoom. Returns the resulting state. */
+  async setZoom(enabled: boolean): Promise<ZoomTouchState> {
+    return unwrap(
+      await api.accessibilitySetZoomTouch({
+        client: this.client,
+        path: { udid: this.udid },
+        query: { enabled },
+      }),
+    );
+  }
+
+  /** Replay a GPX file as simulated GPS movement (multipart upload). */
+  async setLocationGpx(gpx: BinaryInput): Promise<GenericResponse> {
+    return unwrap(
+      await api.accessibilitySetLocationGpx({
+        client: this.client,
+        path: { udid: this.udid },
+        body: { gpx: toBlob(gpx) },
+      }),
+    );
+  }
+
+  // ---- Preparation / binary streams --------------------------------------
+
+  /** Prepare (supervise/configure) the device via a multipart upload. */
+  async prepare(opts: PrepareOptions = {}): Promise<PrepareResult> {
+    return unwrap(
+      await api.preparePrepareDevice({
+        client: this.client,
+        path: { udid: this.udid },
+        body: {
+          ...(opts.cert !== undefined ? { cert: toBlob(opts.cert) } : {}),
+          ...(opts.p12password !== undefined ? { p12password: opts.p12password } : {}),
+          ...(opts.skip !== undefined ? { skip: opts.skip } : {}),
+          ...(opts.orgname !== undefined ? { orgname: opts.orgname } : {}),
+          ...(opts.locale !== undefined ? { locale: opts.locale } : {}),
+          ...(opts.lang !== undefined ? { lang: opts.lang } : {}),
+        },
+      }),
+    );
+  }
+
+  /**
+   * Open a live MJPEG screenshot stream as a raw byte stream. Returns a
+   * {@link BinaryStream} (not SSE) — iterate the JPEG frames with `for await`,
+   * `break` or pass `signal` to stop.
+   */
+  screenshotStream(opts: ScreenshotStreamOptions = {}): Promise<BinaryStream> {
+    return openBinaryStream(
+      api.streamsScreenshotStream({
+        client: this.client,
+        path: { udid: this.udid },
+        ...(opts.quality !== undefined ? { query: { quality: opts.quality } } : {}),
+        parseAs: "stream",
+        signal: opts.signal,
+      }),
+      opts.signal,
+    );
+  }
+
+  /**
+   * Capture a live packet trace as a raw pcap byte stream. Returns a
+   * {@link BinaryStream} (not SSE) — pipe `.body` to a `.pcap` file or iterate
+   * the chunks with `for await`; `break` or pass `signal` to stop.
+   */
+  pcap(opts: PcapOptions = {}): Promise<BinaryStream> {
+    return openBinaryStream(
+      api.streamsPcap({
+        client: this.client,
+        path: { udid: this.udid },
+        ...(opts.timeout !== undefined ? { query: { timeout: opts.timeout } } : {}),
+        parseAs: "stream",
+        signal: opts.signal,
+      }),
+      opts.signal,
     );
   }
 
@@ -1213,6 +1985,88 @@ export class TunnelsHandle {
 }
 
 /**
+ * Host-level code-signing sub-facade, reachable via `client.sign`. These are
+ * device-free operations that talk to Apple's App Store Connect API to mint a
+ * signing certificate / provisioning profile, or to resign an app.
+ */
+export class SignHandle {
+  constructor(private readonly client: Client) {}
+
+  /**
+   * Mint an iOS Development signing certificate; resolves to the certificate
+   * bytes as a PKCS#12 (`.p12`) `Uint8Array`.
+   */
+  async certificate(creds: AscCredentials): Promise<Uint8Array> {
+    const result = await api.signCertificate({
+      client: this.client,
+      body: ascBody(creds),
+      parseAs: "blob",
+    });
+    const blob = unwrap(
+      result as { data?: Blob; error?: unknown; response: Response },
+    );
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+
+  /** Create a provisioning profile for a bundle id + device. */
+  async provision(opts: SignProvisionOptions): Promise<ProvisioningResult> {
+    return unwrap(
+      await api.signProvision({
+        client: this.client,
+        body: {
+          ...ascBody(opts),
+          bundleid: opts.bundleId,
+          udid: opts.udid,
+          ...(opts.bundleName !== undefined ? { bundlename: opts.bundleName } : {}),
+          ...(opts.profileName !== undefined ? { profilename: opts.profileName } : {}),
+          ...(opts.deviceName !== undefined ? { devicename: opts.deviceName } : {}),
+          ...(opts.certificateId !== undefined
+            ? { "certificate-id": opts.certificateId }
+            : {}),
+        },
+      }),
+    );
+  }
+
+  /** Resign an app/`.ipa`; resolves to the resigned `.ipa` bytes. */
+  async app(opts: SignAppOptions): Promise<Uint8Array> {
+    const result = await api.signApp({
+      client: this.client,
+      body: {
+        ipa: toBlob(opts.ipa),
+        p12file: toBlob(opts.p12),
+        profile: toBlob(opts.profile),
+        ...(opts.p12password !== undefined ? { p12password: opts.p12password } : {}),
+        ...(opts.bundleId !== undefined ? { bundleid: opts.bundleId } : {}),
+      },
+      parseAs: "blob",
+    });
+    const blob = unwrap(
+      result as { data?: Blob; error?: unknown; response: Response },
+    );
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+}
+
+/**
+ * Host-level device-preparation sub-facade, reachable via `client.prepare`.
+ * (The per-device `prepare` step itself is `client.device(udid).prepare()`.)
+ */
+export class PrepareHandle {
+  constructor(private readonly client: Client) {}
+
+  /** Generate a self-signed supervision identity (certificate + private key). */
+  async createCert(): Promise<SupervisionCert> {
+    return unwrap(await api.prepareCreateCert({ client: this.client }));
+  }
+
+  /** List the setup panes that can be skipped by {@link DeviceHandle.prepare}. */
+  async skipOptions(): Promise<PrepareSkipOptions> {
+    return unwrap(await api.getPrepareSkipOptions({ client: this.client }));
+  }
+}
+
+/**
  * Top-level go-ios SDK client.
  *
  * @example
@@ -1237,6 +2091,12 @@ export class IosClient {
   /** Device-tunnel operations. */
   readonly tunnels: TunnelsHandle;
 
+  /** Host-level code-signing operations (certificate / provision / resign). */
+  readonly sign: SignHandle;
+
+  /** Host-level device-preparation helpers (create-cert / skip-options). */
+  readonly prepare: PrepareHandle;
+
   constructor(options: IosClientOptions) {
     this.client = createClient(
       createConfig({
@@ -1253,6 +2113,8 @@ export class IosClient {
         unwrap(await api.listDevices({ client: this.client })),
     };
     this.tunnels = new TunnelsHandle(this.client);
+    this.sign = new SignHandle(this.client);
+    this.prepare = new PrepareHandle(this.client);
   }
 
   /** Get a device-scoped facade bound to `udid`. */
@@ -1302,6 +2164,41 @@ async function* streamSse<TMap>(
 /** Build the optional `identifier` query fragment for file-service calls. */
 function identifierQuery(scope: FileScope): { identifier?: string } {
   return scope.identifier !== undefined ? { identifier: scope.identifier } : {};
+}
+
+/** Build the optional `bundleID` query fragment for fsync calls. */
+function bundleIdQuery(opts: { bundleId?: string }): { bundleID?: string } {
+  return opts.bundleId !== undefined ? { bundleID: opts.bundleId } : {};
+}
+
+/** Build the shared `backend`/`wdaUrl`/`timeout` query fragment for UI calls. */
+function uiQuery(
+  opts: UiOptions,
+): { backend?: string; wdaUrl?: string; timeout?: number } {
+  return {
+    ...(opts.backend !== undefined ? { backend: opts.backend } : {}),
+    ...(opts.wdaUrl !== undefined ? { wdaUrl: opts.wdaUrl } : {}),
+    ...(opts.timeout !== undefined ? { timeout: opts.timeout } : {}),
+  };
+}
+
+/** Build the shared App Store Connect multipart body for signing calls. */
+function ascBody(creds: AscCredentials): {
+  "asc-private-key": Blob;
+  "asc-key-id": string;
+  "asc-issuer-id": string;
+  "revoke-existing"?: string;
+  p12password?: string;
+} {
+  return {
+    "asc-private-key": toBlob(creds.ascPrivateKey),
+    "asc-key-id": creds.ascKeyId,
+    "asc-issuer-id": creds.ascIssuerId,
+    ...(creds.revokeExisting !== undefined
+      ? { "revoke-existing": String(creds.revokeExisting) }
+      : {}),
+    ...(creds.p12password !== undefined ? { p12password: creds.p12password } : {}),
+  };
 }
 
 /** Build the shared multipart identity body for supervised MDM calls. */
