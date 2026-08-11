@@ -109,6 +109,7 @@ func runPrepareCommand(ctx commandContext) {
 	orgname, _ := ctx.Args.String("--orgname")
 	locale, _ := ctx.Args.String("--locale")
 	lang, _ := ctx.Args.String("--lang")
+	timezone, _ := ctx.Args.String("--timezone")
 	p12password, _ := ctx.Args.String("--p12password")
 	if p12password == "" {
 		p12password = os.Getenv("P12_PASSWORD")
@@ -123,7 +124,7 @@ func runPrepareCommand(ctx commandContext) {
 		certBytes, err = extractDERCertificate(rawCertBytes, p12password)
 		exitIfError("failed to parse supervision certificate", err)
 	}
-	exitIfError("failed erasing", mcinstall.Prepare(ctx.Device, skip, certBytes, orgname, locale, lang))
+	exitIfError("failed erasing", mcinstall.Prepare(ctx.Device, skip, certBytes, orgname, locale, lang, timezone))
 	fmt.Print(convertToJSONString("ok"))
 }
 

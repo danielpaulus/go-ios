@@ -58,13 +58,18 @@ func TestDevicename(t *testing.T) {
 }
 
 // TestDate reads the device clock and asserts formatedDate is a well-formed
-// RFC850 date (e.g. "Thursday, 20-Mar-25 17:56:04 CET").
+// RFC850 date (e.g. "Thursday, 20-Mar-25 17:56:04 CET") in the device's own
+// timezone, reported as a loadable IANA name.
 func TestDate(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		m := smokeObj(t, udid, []string{"TimeIntervalSince1970", "formatedDate"}, "date")
+		m := smokeObj(t, udid, []string{"TimeIntervalSince1970", "formatedDate", "TimeZone"}, "date")
 		fd, _ := m["formatedDate"].(string)
 		if _, err := time.Parse(time.RFC850, fd); err != nil {
 			t.Fatalf("date: formatedDate %q is not a parseable date: %v", fd, err)
+		}
+		tz, _ := m["TimeZone"].(string)
+		if _, err := time.LoadLocation(tz); err != nil {
+			t.Fatalf("date: TimeZone %q is not a valid IANA timezone: %v", tz, err)
 		}
 	})
 }
