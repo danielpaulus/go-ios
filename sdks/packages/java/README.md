@@ -284,6 +284,24 @@ client.prepare().createCert();     // self-signed supervision cert + key
 client.prepare().skipOptions();    // setup panes that prepare can skip
 ```
 
+## Examples
+
+Runnable, heavily commented example programs live in [`examples/`](examples/) —
+each a standalone `main`, configured via `GO_IOS_BASE_URL` / `GO_IOS_API_KEY` /
+`GO_IOS_UDID`. They double as documentation and as a pre-release smoke test:
+[`examples/RunAllExamples.java`](examples/RunAllExamples.java) runs listing
+devices, device info, apps, a screenshot and an SSE syslog stream in sequence
+(plus an optional UI-automation example gated on `RUN_UI=1`) and exits non-zero
+if any core step fails. Compile and run them without Maven:
+
+```bash
+export GO_IOS_API_KEY=...            # required
+bash examples/run.sh                 # compile + run all examples
+bash examples/run.sh --compile-only  # compile only; no daemon needed
+```
+
+See [`examples/README.md`](examples/README.md) for the full list and setup.
+
 ## Build & test
 
 Maven (recommended):
