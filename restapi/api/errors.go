@@ -28,6 +28,8 @@ var (
 	errMissingProxyHostPort = errors.New("both 'host' and 'port' form fields are required")
 	errUploadTooLarge       = errors.New("upload exceeds the maximum allowed size")
 	errInvalidPID           = errors.New("invalid pid parameter")
+	errMissingGPX           = errors.New("missing required multipart 'gpx' file")
+	errInvalidTimeout       = errors.New("invalid 'timeout' query param; expected a positive integer number of seconds")
 )
 
 // RespondError writes a consistent JSON error envelope ({"error": "..."}) and

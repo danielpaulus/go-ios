@@ -24,6 +24,8 @@ func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	registerMdmRoutes(device)
 	registerJobRoutes(device)
 	registerProxyRoutes(device)
+	// w1b accessibility + location parity (feat/restapi-w1b-a11y)
+	registerAccessibilityRoutes(device)
 	appRoutes(device)
 }
 
