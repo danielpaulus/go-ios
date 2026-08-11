@@ -24,6 +24,7 @@ func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	registerMdmRoutes(device)
 	registerJobRoutes(device)
 	registerProxyRoutes(device)
+	registerWebInspectorRoutes(device)
 	appRoutes(device)
 }
 
