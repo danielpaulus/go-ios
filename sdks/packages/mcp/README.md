@@ -8,6 +8,11 @@ It is **not** a naive 1:1 OpenAPI→tool mapping (which produces too many low-qu
 LLMs). Instead it exposes a hand-curated tool set with LLM-oriented descriptions, typed input
 schemas (zod), structured output, and explicit error surfacing (device-not-found, auth failures).
 
+Beyond observing a device, agents can now **drive** it: the `ui_*` tools tap, swipe, type, and
+read the view hierarchy through WebDriverAgent (see [UI automation](#ui-automation-drive-the-device)).
+
+Published on npm as [`@go-ios/mcp`](https://www.npmjs.com/package/@go-ios/mcp) (public).
+
 ## Requirements
 
 - Node.js 20+
@@ -17,7 +22,7 @@ schemas (zod), structured output, and explicit error surfacing (device-not-found
 ## Tools
 
 Every device-scoped tool takes a `udid` — get it from `list_devices` first. The set is
-curated (not a 1:1 map of the daemon's ~80 endpoints); see
+curated (not a 1:1 map of the daemon's ~125 endpoints); see
 [Deliberately omitted](#deliberately-omitted-tools) for what is left out and why.
 
 ### Discovery & info
@@ -52,6 +57,8 @@ curated (not a 1:1 map of the daemon's ~80 endpoints); see
 | `device_battery` | Battery snapshot: charge level, charging/plugged-in, temperature. |
 | `list_processes` | Running processes (pid, name, is-application); `apps_only` to filter. |
 | `device_diagnostics` | Low-level IORegistry/diagnostic values (open map). |
+| `device_diskspace` | Filesystem usage over AFC: total / free / used bytes, block size. |
+| `device_ip` | Resolve the device's MAC / IPv4 / IPv6 by sniffing pcapd (takes a few seconds). |
 
 ### Crash logs
 
@@ -65,6 +72,21 @@ curated (not a 1:1 map of the daemon's ~80 endpoints); see
 | Tool | What it does |
 | --- | --- |
 | `list_files` | List a device directory in the `app`/`app-group`/`crash`/`temp` domain. **Listing only.** |
+| `list_device_files` | List a directory over AFC (media dir, or an app container via `bundleId`). **Listing only.** |
+| `read_file` | Read a device file over AFC as text, **bounded to 512 KiB** (`truncated` flag). |
+
+### Location
+
+| Tool | What it does |
+| --- | --- |
+| `set_location_gpx` | Simulate live location by replaying a local `.gpx` track (uploaded as multipart). |
+
+### Web debugging (WebInspector)
+
+| Tool | What it does |
+| --- | --- |
+| `list_webinspector_pages` | List inspectable pages (Safari tabs / WKWebViews). Requires Web Inspector enabled. |
+| `webinspector_eval` | Evaluate JavaScript in an inspectable page and return the result. Powerful for web debugging. |
 
 ### Performance
 
@@ -97,6 +119,36 @@ curated (not a 1:1 map of the daemon's ~80 endpoints); see
 | `read_wda_session` | Fetch a running WDA session by `sessionId`. |
 | `delete_wda_session` | Stop a WDA session. |
 
+### UI automation (drive the device)
+
+These tools let an agent **act on** the device, not just observe it. They forward to a UI
+backend — **WebDriverAgent** (default) or **DeviceKit** — that must already be **running and
+port-forwarded**.
+
+| Tool | What it does |
+| --- | --- |
+| `ui_tap` | Tap at absolute screen coordinates `(x, y)`. |
+| `ui_swipe` | Drag from `(x1, y1)` to `(x2, y2)` (scroll / swipe); optional `duration`. |
+| `ui_type` | Type text into the focused field (tap it first). |
+| `ui_press_button` | Press a hardware button by name (`home`; devicekit also volume). |
+| `ui_source` | Return the view hierarchy (XML for WDA) — find element frames to tap. **Bounded to 512 KiB.** |
+| `ui_screenshot` | Single screen frame **via the UI backend** (distinct from `screenshot`); PNG image block. |
+| `ui_app_launch` | Launch an app by `bundleId` through the UI backend (attaches for automation). |
+| `ui_app_terminate` | Terminate an app by `bundleId` through the UI backend. |
+
+**Prerequisite — a forwarded WDA backend.** The UI tools need WebDriverAgent up and reachable:
+
+1. Start the runner: **`run_wda`** (or `create_wda_session`).
+2. Forward WDA's device port to a local port (e.g. `8100`) via the go-ios CLI/daemon.
+3. Call the `ui_*` tools with **`wdaUrl`** set to that forwarded URL (e.g. `http://localhost:8100`);
+   optionally set `backend` (`wda` | `devicekit`) and `timeout` (seconds).
+
+A typical loop: `ui_source` (or `ui_screenshot`) to see the screen → `ui_tap`/`ui_type`/`ui_swipe`
+to act → screenshot again to verify. If a UI tool returns **502**, the backend isn't reachable —
+recheck `run_wda`, the port forward, and `wdaUrl`. **501** means the chosen backend doesn't support
+that action. There is deliberately **no** UI video-stream tool — `ui_screenshot` captures a single
+frame instead (large binary streams don't fit a tool response).
+
 ### Device management (disruptive)
 
 | Tool | What it does |
@@ -110,14 +162,21 @@ Some daemon endpoints are intentionally **not** exposed as tools:
 
 - **`erase`** (`POST /device/{udid}/erase`) — factory-wipes the device. Too destructive and
   irreversible to hand an autonomous agent; omitted on purpose.
-- **Raw file writes** (`files/push`, `files/pull` as arbitrary download, `crashes` delete) —
-  `list_files` and `pull_crash_report` cover the safe, bounded read paths an agent needs.
-  Unbounded writes/deletes to on-device paths are omitted to avoid corrupting app state.
+- **`sign/*`** (`sign/app`, `sign/certificate`, `sign/provision`) and **`prepare`** — host-local,
+  secret-handling (certificates, provisioning) supervision flows. Not agent-appropriate; left to
+  the `ios` CLI / a human operator.
+- **Raw binary streams** — `pcap` (packet capture), `screenshot/stream` and `ui/stream` (video)
+  produce open-ended binary that doesn't fit a tool response. For screen capture, use the
+  single-frame `screenshot` / `ui_screenshot`; for logs/CPU, use the **bounded** `stream_logs` /
+  `sample_performance` / `tail_job_logs` capture pattern.
+- **Raw file writes** (`files/push`, `fsync/push`, `fsync/rm`, `fsync/mkdir`, `crashes` delete) —
+  the read-only `list_files` / `list_device_files` / `read_file` / `pull_crash_report` cover the
+  safe, bounded read paths an agent needs. Writes/deletes to on-device paths are omitted to avoid
+  corrupting app state.
 - **Supervised/MDM & system-config endpoints** (profiles, wifi, http-proxy, language, time
   format, wallpaper, dev-mode, conditions, pairing, tunnels, image mount, MDM
   clear-passcode, …) — low agent value and easy to leave a device in a bad state; left to the
-  `ios` CLI. UI **interaction** (tap/type by accessibility id) is a planned extension point
-  (see [below](#future-ui--accessibility-tools)), not yet exposed by the daemon over REST.
+  `ios` CLI.
 
 ### Bounded captures are not infinite streams
 
@@ -208,10 +267,8 @@ npm test           # vitest
 npm run typecheck  # tsc --noEmit
 ```
 
-## Future: UI / accessibility tools
+## Publishing
 
-The tool set includes a documented extension point in `src/tools.ts` for accessibility-id
-interaction (`tap_element`, `type_text`, `query_element`) that rides on a WDA session. These
-are held until the go-ios daemon exposes UI automation (tap/type/query by accessibility id)
-over REST; they should stay a small, task-shaped find-then-act set rather than a raw WDA
-HTTP passthrough.
+This package is **public and publishable** on npm as `@go-ios/mcp` (`publishConfig.access:
+"public"`, provenance-friendly). It ships as part of the go-ios SDK release
+(`.github/workflows/release-sdks.yml`) via npm OIDC trusted publishing — no auth token.

@@ -103,12 +103,32 @@ describe("tool registration", () => {
       "tail_job_logs",
       "get_pasteboard",
       "set_pasteboard",
+      // UI automation (act on the device).
+      "ui_tap",
+      "ui_swipe",
+      "ui_type",
+      "ui_press_button",
+      "ui_source",
+      "ui_screenshot",
+      "ui_app_launch",
+      "ui_app_terminate",
+      // New diagnostics / files / web debugging / location.
+      "device_diskspace",
+      "device_ip",
+      "list_device_files",
+      "read_file",
+      "set_location_gpx",
+      "list_webinspector_pages",
+      "webinspector_eval",
     ]) {
       expect(names.has(expected), `${expected} is registered`).toBe(true);
     }
     // erase is deliberately omitted (too destructive for an agent tool).
     expect(names.has("erase_device")).toBe(false);
     expect(names.has("erase")).toBe(false);
+    // sign/prepare are host-local / secret-handling — deliberately omitted.
+    expect(names.has("sign_app")).toBe(false);
+    expect(names.has("prepare")).toBe(false);
     await client.close();
   });
 
@@ -118,6 +138,30 @@ describe("tool registration", () => {
     const byName = new Map(tools.map((t) => [t.name, t]));
     expect(byName.get("reboot_device")!.description).toMatch(/DISRUPTIVE/);
     expect(byName.get("shutdown_device")!.description).toMatch(/DISRUPTIVE/);
+    await client.close();
+  });
+
+  it("UI-automation tools document the forwarded-WDA prerequisite", async () => {
+    const client = await connectedClient(baseConfig);
+    const { tools } = await client.listTools();
+    const byName = new Map(tools.map((t) => [t.name, t]));
+    for (const name of [
+      "ui_tap",
+      "ui_swipe",
+      "ui_type",
+      "ui_press_button",
+      "ui_source",
+      "ui_screenshot",
+      "ui_app_launch",
+      "ui_app_terminate",
+    ]) {
+      const desc = byName.get(name)!.description ?? "";
+      expect(desc, `${name} mentions the WDA prerequisite`).toMatch(/PREREQUISITE/);
+      expect(desc, `${name} mentions run_wda`).toMatch(/run_wda/);
+      const props = (byName.get(name)!.inputSchema.properties ?? {}) as Record<string, unknown>;
+      expect(props.wdaUrl, `${name} exposes wdaUrl`).toBeTruthy();
+      expect(props.backend, `${name} exposes backend`).toBeTruthy();
+    }
     await client.close();
   });
 
@@ -457,6 +501,192 @@ describe("tool handlers against a mock REST daemon", () => {
     expect(sc.returned).toBe(2);
     expect(sc.stoppedBy).toBe("maxLines");
     expect(sc.lines[0]!.message).toBe("a");
+    await client.close();
+  });
+
+  it("ui_tap posts x/y to the ui/tap route with backend query params", async () => {
+    let seenBody = "";
+    let seenBackend = "";
+    let seenWdaUrl = "";
+    daemon = await startMockDaemon((method, path, url, body) => {
+      if (method === "POST" && path === "/api/v1/device/UDID-A/ui/tap") {
+        seenBody = body;
+        seenBackend = url.searchParams.get("backend") ?? "";
+        seenWdaUrl = url.searchParams.get("wdaUrl") ?? "";
+        return { status: 200, body: JSON.stringify({ value: null }) };
+      }
+      return { status: 404, body: "{}" };
+    });
+    const client = await connectedClient({ ...baseConfig, baseUrl: daemon.baseUrl });
+    const res = await client.callTool({
+      name: "ui_tap",
+      arguments: { udid: "UDID-A", x: 100, y: 220, wdaUrl: "http://localhost:8100" },
+    });
+    expect(JSON.parse(seenBody)).toEqual({ x: 100, y: 220 });
+    expect(seenBackend).toBe(""); // omitted -> not sent
+    expect(seenWdaUrl).toBe("http://localhost:8100");
+    expect(res.isError).toBeFalsy();
+    await client.close();
+  });
+
+  it("ui_type posts the text body", async () => {
+    let seenBody = "";
+    daemon = await startMockDaemon((method, path, _url, body) => {
+      if (method === "POST" && path === "/api/v1/device/UDID-A/ui/type") {
+        seenBody = body;
+        return { status: 200, body: JSON.stringify({ value: null }) };
+      }
+      return { status: 404, body: "{}" };
+    });
+    const client = await connectedClient({ ...baseConfig, baseUrl: daemon.baseUrl });
+    const res = await client.callTool({
+      name: "ui_type",
+      arguments: { udid: "UDID-A", text: "hello world" },
+    });
+    expect(JSON.parse(seenBody)).toEqual({ text: "hello world" });
+    expect(res.isError).toBeFalsy();
+    await client.close();
+  });
+
+  it("ui_source returns the bounded XML view hierarchy", async () => {
+    daemon = await startMockDaemon((method, path) => {
+      if (method === "GET" && path === "/api/v1/device/UDID-A/ui/source") {
+        return {
+          status: 200,
+          contentType: "application/xml",
+          body: '<AppiumAUT><XCUIElementTypeButton name="OK"/></AppiumAUT>',
+        };
+      }
+      return { status: 404, body: "{}" };
+    });
+    const client = await connectedClient({ ...baseConfig, baseUrl: daemon.baseUrl });
+    const res = await client.callTool({ name: "ui_source", arguments: { udid: "UDID-A" } });
+    const sc = res.structuredContent as { source: string; truncated: boolean };
+    expect(sc.source).toContain('name="OK"');
+    expect(sc.truncated).toBe(false);
+    expect((res.content as Array<{ type: string; text: string }>)[0]!.text).toContain(
+      "XCUIElementTypeButton",
+    );
+    await client.close();
+  });
+
+  it("ui_screenshot returns an image content block from the ui backend", async () => {
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    daemon = await startMockDaemon((method, path) => {
+      if (method === "GET" && path === "/api/v1/device/UDID-A/ui/screenshot") {
+        return { status: 200, contentType: "image/png", body: png };
+      }
+      return { status: 404, body: "{}" };
+    });
+    const client = await connectedClient({ ...baseConfig, baseUrl: daemon.baseUrl });
+    const res = await client.callTool({ name: "ui_screenshot", arguments: { udid: "UDID-A" } });
+    const block = (res.content as Array<{ type: string; mimeType?: string; data?: string }>)[0]!;
+    expect(block.type).toBe("image");
+    expect(block.mimeType).toBe("image/png");
+    expect(block.data).toBe(png.toString("base64"));
+    await client.close();
+  });
+
+  it("device_diskspace returns the AFC filesystem map", async () => {
+    daemon = await startMockDaemon((method, path) => {
+      if (method === "GET" && path === "/api/v1/device/UDID-A/diskspace") {
+        return {
+          status: 200,
+          body: JSON.stringify({ TotalDiskCapacity: 128000000000, FreeDiskCapacity: 42000000000 }),
+        };
+      }
+      return { status: 404, body: "{}" };
+    });
+    const client = await connectedClient({ ...baseConfig, baseUrl: daemon.baseUrl });
+    const res = await client.callTool({ name: "device_diskspace", arguments: { udid: "UDID-A" } });
+    const sc = res.structuredContent as { FreeDiskCapacity: number };
+    expect(sc.FreeDiskCapacity).toBe(42000000000);
+    await client.close();
+  });
+
+  it("list_device_files lists over fsync and passes bundleID/path", async () => {
+    let seenBundle = "";
+    let seenPath = "";
+    daemon = await startMockDaemon((method, path, url) => {
+      if (method === "GET" && path === "/api/v1/device/UDID-A/fsync/ls") {
+        seenBundle = url.searchParams.get("bundleID") ?? "";
+        seenPath = url.searchParams.get("path") ?? "";
+        return {
+          status: 200,
+          body: JSON.stringify({ path: "Documents", files: ["a.txt", "b.log"], count: 2 }),
+        };
+      }
+      return { status: 404, body: "{}" };
+    });
+    const client = await connectedClient({ ...baseConfig, baseUrl: daemon.baseUrl });
+    const res = await client.callTool({
+      name: "list_device_files",
+      arguments: { udid: "UDID-A", bundleId: "com.example.app", path: "Documents" },
+    });
+    expect(seenBundle).toBe("com.example.app");
+    expect(seenPath).toBe("Documents");
+    expect((res.structuredContent as { count: number }).count).toBe(2);
+    await client.close();
+  });
+
+  it("read_file returns bounded text from fsync/pull", async () => {
+    let seenPath = "";
+    daemon = await startMockDaemon((method, path, url) => {
+      if (method === "GET" && path === "/api/v1/device/UDID-A/fsync/pull") {
+        seenPath = url.searchParams.get("path") ?? "";
+        return { status: 200, contentType: "application/octet-stream", body: "line1\nline2\n" };
+      }
+      return { status: 404, body: "{}" };
+    });
+    const client = await connectedClient({ ...baseConfig, baseUrl: daemon.baseUrl });
+    const res = await client.callTool({
+      name: "read_file",
+      arguments: { udid: "UDID-A", path: "Documents/log.txt" },
+    });
+    expect(seenPath).toBe("Documents/log.txt");
+    const sc = res.structuredContent as { text: string; truncated: boolean };
+    expect(sc.text).toContain("line2");
+    expect(sc.truncated).toBe(false);
+    await client.close();
+  });
+
+  it("webinspector_eval posts the script and returns the result", async () => {
+    let seenBody = "";
+    daemon = await startMockDaemon((method, path, _url, body) => {
+      if (method === "POST" && path === "/api/v1/device/UDID-A/webinspector/eval") {
+        seenBody = body;
+        return { status: 200, body: JSON.stringify({ page: "page-1", result: "Example Domain" }) };
+      }
+      return { status: 404, body: "{}" };
+    });
+    const client = await connectedClient({ ...baseConfig, baseUrl: daemon.baseUrl });
+    const res = await client.callTool({
+      name: "webinspector_eval",
+      arguments: { udid: "UDID-A", script: "document.title" },
+    });
+    expect(JSON.parse(seenBody).script).toBe("document.title");
+    const sc = res.structuredContent as { page: string; result: string };
+    expect(sc.page).toBe("page-1");
+    expect(sc.result).toBe("Example Domain");
+    await client.close();
+  });
+
+  it("list_webinspector_pages surfaces a 424 prerequisite error clearly", async () => {
+    daemon = await startMockDaemon(() => ({
+      status: 424,
+      body: JSON.stringify({ error: "web inspector not enabled" }),
+    }));
+    const client = await connectedClient({ ...baseConfig, baseUrl: daemon.baseUrl });
+    const res = await client.callTool({
+      name: "list_webinspector_pages",
+      arguments: { udid: "UDID-A" },
+    });
+    expect(res.isError).toBe(true);
+    const text = (res.content as Array<{ type: string; text: string }>)[0]!.text;
+    expect(text).toMatch(/Remote Automation|prerequisite/i);
     await client.close();
   });
 });

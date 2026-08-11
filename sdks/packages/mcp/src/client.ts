@@ -48,6 +48,12 @@ export class GoIosApiError extends Error {
         return "Device is locked (423). Unlock the device and retry.";
       case 400:
         return `Malformed request (400): ${this.message}`;
+      case 424:
+        return "A device-side prerequisite is missing (424). For WebInspector tools, enable Web Inspector / Remote Automation on the device (Settings > Safari > Advanced).";
+      case 501:
+        return "The selected UI-automation backend does not support this operation (501). Try a different backend, or ensure WebDriverAgent is running and forwarded.";
+      case 502:
+        return "The go-ios daemon could not reach the UI backend / tunnel agent (502). For UI tools, make sure WebDriverAgent is running (run_wda) and its port is forwarded, then pass the forwarded wdaUrl.";
       default:
         return `go-ios daemon returned ${this.status} ${this.statusText}: ${this.message}`;
     }
@@ -186,9 +192,12 @@ export class GoIosClient {
     return (await res.json()) as T;
   }
 
-  /** GET raw bytes (used for the PNG screenshot endpoint). */
-  async getBytes(path: string): Promise<{ bytes: Uint8Array; contentType: string }> {
-    const res = await this.request("GET", path, { accept: "image/png" });
+  /** GET raw bytes (used for the PNG screenshot endpoints). */
+  async getBytes(
+    path: string,
+    query?: Record<string, string | number | undefined>,
+  ): Promise<{ bytes: Uint8Array; contentType: string }> {
+    const res = await this.request("GET", path, { query, accept: "image/png" });
     const buf = new Uint8Array(await res.arrayBuffer());
     return { bytes: buf, contentType: res.headers.get("content-type") ?? "application/octet-stream" };
   }
@@ -203,10 +212,11 @@ export class GoIosClient {
     path: string,
     query: Record<string, string | number | undefined>,
     maxBytes: number,
+    accept = "application/octet-stream",
   ): Promise<{ text: string; bytes: number; truncated: boolean; contentType: string }> {
     const res = await this.request("GET", path, {
       query,
-      accept: "application/octet-stream",
+      accept,
     });
     const contentType = res.headers.get("content-type") ?? "application/octet-stream";
     if (!res.body) {
