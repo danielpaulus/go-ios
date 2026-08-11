@@ -51,64 +51,85 @@ func (c *DebugClient) Conn() net.Conn {
 	return c.c.Conn()
 }
 
-// Write the script file to the tmp directory and start lldb
-func startLLDB(appPath, container string, port int, stopAtEntry bool) error {
+// lldbScriptConfig holds everything needed to render the lldb command script
+// and the python helper it imports. Either the launch fields or pid are set,
+// never both.
+type lldbScriptConfig struct {
+	// launch mode
+	appPath     string // local .app bundle, becomes the lldb target
+	container   string // path of the installed app on the device
+	stopAtEntry bool
+	// attach mode
+	pid int // when > 0, attach to this process instead of launching
+
+	port int // local proxy port lldb connects to
+}
+
+// renderLLDBScripts renders the lldb command script and the python helper it
+// imports. It is a pure function so the generated scripts can be unit tested.
+func renderLLDBScripts(cfg lldbScriptConfig) (lldbScript string, pyScript string, err error) {
 	var optionStopAtEntry string
-	if stopAtEntry {
+	if cfg.stopAtEntry {
 		optionStopAtEntry = STOP_AT_ENTRY
 	}
 
-	py, err := os.OpenFile(PY_PATH, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644)
-	if err != nil {
-		return err
-	}
-	defer py.Close()
-
 	pyt, err := template.New("py").Parse(PY_FMT)
 	if err != nil {
-		return err
+		return "", "", err
 	}
-	err = pyt.Execute(py, struct {
+	var py strings.Builder
+	err = pyt.Execute(&py, struct {
 		StopAtEntry string
 	}{
 		StopAtEntry: optionStopAtEntry,
 	})
 	if err != nil {
-		return err
+		return "", "", err
 	}
-
-	script, err := os.OpenFile(SCRIPT_PATH, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644)
-	if err != nil {
-		return err
-	}
-	defer script.Close()
 
 	st, err := template.New("script").Parse(LLDB_FMT)
 	if err != nil {
-		return err
+		return "", "", err
 	}
-	err = st.Execute(script, struct {
+	var script strings.Builder
+	err = st.Execute(&script, struct {
 		AppPath   string
 		Container string
 		Port      int
+		Pid       int
 		PyName    string
 		PyPath    string
 	}{
-		AppPath:   appPath,
-		Container: container,
-		Port:      port,
+		AppPath:   cfg.appPath,
+		Container: cfg.container,
+		Port:      cfg.port,
+		Pid:       cfg.pid,
 		PyName:    strings.TrimSuffix(path.Base(PY_PATH), path.Ext(PY_PATH)),
 		PyPath:    PY_PATH,
 	})
 	if err != nil {
+		return "", "", err
+	}
+	return script.String(), py.String(), nil
+}
+
+// Write the script files to the tmp directory and start lldb
+func startLLDB(cfg lldbScriptConfig) error {
+	lldbScript, pyScript, err := renderLLDBScripts(cfg)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(PY_PATH, []byte(pyScript), 0o644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(SCRIPT_PATH, []byte(lldbScript), 0o644); err != nil {
 		return err
 	}
 	cmd := exec.Command(LLDB_SHELL, "-s", SCRIPT_PATH)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	err = cmd.Run()
-	return err
+	return cmd.Run()
 }
 
 func fileExists(filename string) bool {
@@ -163,6 +184,8 @@ func connectToDevice(device ios.DeviceEntry) (ios.DeviceConnectionInterface, err
 	return intf, err
 }
 
+// Start launches the app at appPath on the device and opens an interactive
+// lldb session for it.
 func Start(device ios.DeviceEntry, appPath string, stopAtEntry bool) error {
 	bundleId, err := getBundleidFromApp(appPath)
 	if err != nil {
@@ -187,6 +210,22 @@ func Start(device ios.DeviceEntry, appPath string, stopAtEntry bool) error {
 		return errors.New("cannot find container of bundleid: " + bundleId)
 	}
 
+	return runSession(device, lldbScriptConfig{appPath: appPath, container: container, stopAtEntry: stopAtEntry})
+}
+
+// AttachByPid opens an interactive lldb session attached to the process with
+// the given pid on the device.
+func AttachByPid(device ios.DeviceEntry, pid int) error {
+	if pid <= 0 {
+		return fmt.Errorf("invalid pid %d, must be > 0", pid)
+	}
+	golog.Info("attaching lldb to process", "module", logModule, "udid", device.Properties.SerialNumber, "pid", pid)
+	return runSession(device, lldbScriptConfig{pid: pid})
+}
+
+// runSession connects to the debugserver on the device, proxies it on a local
+// port and runs lldb against that port until the debug session ends.
+func runSession(device ios.DeviceEntry, cfg lldbScriptConfig) error {
 	intf, err := connectToDevice(device)
 	if err != nil {
 		return err
@@ -198,6 +237,7 @@ func Start(device ios.DeviceEntry, appPath string, stopAtEntry bool) error {
 	}
 	defer listener.Close()
 	port := listener.Addr().(*net.TCPAddr).Port
+	cfg.port = port
 	golog.Info("debug proxy listening", "module", logModule, "udid", device.Properties.SerialNumber, "port", port)
 
 	// Run lldb in the background; its result ends the debug session. Start
@@ -206,7 +246,7 @@ func Start(device ios.DeviceEntry, appPath string, stopAtEntry bool) error {
 	lldbDone := make(chan error, 1)
 	go func() {
 		time.Sleep(time.Second)
-		lldbDone <- startLLDB(appPath, container, port, stopAtEntry)
+		lldbDone <- startLLDB(cfg)
 	}()
 
 	// Proxy connections until Start returns and closes the listener.

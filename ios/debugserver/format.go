@@ -6,8 +6,8 @@ const (
 	LLDB_SHELL  = "/usr/bin/lldb"
 	LLDB_FMT    = `
 platform select remote-ios
-target create "{{.AppPath}}"
-script device_app="{{.Container}}"
+{{if .AppPath}}target create "{{.AppPath}}"
+{{end}}script device_app="{{.Container}}"
 script connect_url="connect://127.0.0.1:{{.Port}}"
 script output_path=""
 script error_path=""
@@ -17,7 +17,7 @@ command script add -s asynchronous -f {{.PyName}}.run_command run
 command script add -s asynchronous -f {{.PyName}}.autoexit_command autoexit
 command script add -s asynchronous -f {{.PyName}}.safequit_command safequit
 connect
-run
+{{if .Pid}}process attach --pid {{.Pid}}{{else}}run{{end}}
 `
 	STOP_AT_ENTRY = "launchInfo.SetLaunchFlags(lldb.eLaunchFlagStopAtEntry)"
 	PY_FMT        = `
@@ -34,6 +34,10 @@ def connect_command(debugger, command, result, internal_dict):
 	# These two are passed in by the script which loads us
 	connect_url = internal_dict['connect_url']
 	error = lldb.SBError()
+
+	# Attach mode starts without a local binary, so no target exists yet.
+	if not debugger.GetSelectedTarget().IsValid():
+		debugger.CreateTarget('')
 
 	# We create a new listener here and will use it for both target and the process.
 	# It allows us to prevent data races when both our code and internal lldb code
