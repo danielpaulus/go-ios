@@ -47,6 +47,15 @@ public sealed class DeviceClient
     /// <summary>Background-job operations (runtest / runwda / forward) for this device.</summary>
     public JobsClient Jobs { get; }
 
+    /// <summary>AFC file-sync operations (<c>ios fsync</c>) for this device.</summary>
+    public FsyncClient Fsync { get; }
+
+    /// <summary>WebInspector (remote web debugging) operations for this device.</summary>
+    public WebInspectorClient WebInspector { get; }
+
+    /// <summary>UI automation (WDA / DeviceKit) operations for this device.</summary>
+    public UiClient Ui { get; }
+
     internal DeviceClient(string udid, Gen.DefaultApi api, RawHttp raw)
     {
         _udid = udid;
@@ -61,6 +70,9 @@ public sealed class DeviceClient
         Mdm = new MdmClient(udid, raw);
         Proxy = new ProxyClient(udid, api, raw);
         Jobs = new JobsClient(udid, api, raw);
+        Fsync = new FsyncClient(udid, api, raw);
+        WebInspector = new WebInspectorClient(udid, api);
+        Ui = new UiClient(udid, api, raw);
     }
 
     // --- Info / lifecycle --------------------------------------------------
@@ -213,9 +225,126 @@ public sealed class DeviceClient
     public Task<List<GenModel.ProcessInfo>> ProcessesAsync(bool? apps = null, CancellationToken cancellationToken = default)
         => _api.DevicesGetProcessesAsync(_udid, apps, cancellationToken);
 
-    /// <summary>Get all lockdown values (<c>GET /lockdown</c>).</summary>
-    public async Task<IReadOnlyDictionary<string, object?>> LockdownAsync(CancellationToken cancellationToken = default)
-        => JsonHelpers.ToDictionary(await _api.DevicesGetLockdownValuesAsync(_udid, cancellationToken).ConfigureAwait(false));
+    /// <summary>
+    /// Get lockdown values (<c>GET /lockdown</c>). Pass <paramref name="domain"/> to
+    /// read a specific lockdown domain (e.g. <c>com.apple.mobile.battery</c>);
+    /// omit it for the default domain.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, object?>> LockdownAsync(
+        string? domain = null, CancellationToken cancellationToken = default)
+        => JsonHelpers.ToDictionary(await _api.DevicesGetLockdownValuesAsync(_udid, domain, cancellationToken).ConfigureAwait(false));
+
+    // --- Diagnostics / network --------------------------------------------
+
+    /// <summary>Get the device's data-partition disk usage (<c>GET /diskspace</c>).</summary>
+    public Task<GenModel.DiskSpaceInfo> DiskSpaceAsync(CancellationToken cancellationToken = default)
+        => _api.DiagnosticsNetGetDiskSpaceAsync(_udid, cancellationToken);
+
+    /// <summary>Get the device's MAC / IPv4 / IPv6 addresses (<c>GET /ip</c>).</summary>
+    public Task<GenModel.NetworkInfo> IpAsync(CancellationToken cancellationToken = default)
+        => _api.DiagnosticsNetGetDeviceIpAsync(_udid, cancellationToken);
+
+    /// <summary>Get the RemoteServiceDiscovery (RSD) service map for the device (<c>GET /rsd</c>).</summary>
+    public async Task<IReadOnlyDictionary<string, object?>> RsdAsync(CancellationToken cancellationToken = default)
+        => JsonHelpers.ToDictionary(await _api.DiagnosticsNetGetRsdServicesAsync(_udid, cancellationToken).ConfigureAwait(false));
+
+    /// <summary>Get the detailed IOKit battery registry snapshot (<c>GET /battery/registry</c>).</summary>
+    public Task<GenModel.BatteryRegistry> BatteryRegistryAsync(CancellationToken cancellationToken = default)
+        => _api.DiagnosticsNetGetBatteryRegistryAsync(_udid, cancellationToken);
+
+    // --- Accessibility -----------------------------------------------------
+
+    /// <summary>Get the VoiceOver enabled state (<c>GET /voiceover</c>).</summary>
+    public Task<GenModel.VoiceOverState> VoiceOverAsync(CancellationToken cancellationToken = default)
+        => _api.AccessibilityGetVoiceOverAsync(_udid, cancellationToken);
+
+    /// <summary>Enable or disable VoiceOver (<c>PUT /voiceover</c>).</summary>
+    public Task<GenModel.VoiceOverState> SetVoiceOverAsync(bool enabled, CancellationToken cancellationToken = default)
+        => _api.AccessibilitySetVoiceOverAsync(_udid, null, new GenModel.AXEnabledRequest(enabled), cancellationToken);
+
+    /// <summary>Get the Zoom (accessibility) enabled state (<c>GET /zoom</c>).</summary>
+    public Task<GenModel.ZoomTouchState> ZoomAsync(CancellationToken cancellationToken = default)
+        => _api.AccessibilityGetZoomTouchAsync(_udid, cancellationToken);
+
+    /// <summary>Enable or disable Zoom (<c>PUT /zoom</c>).</summary>
+    public Task<GenModel.ZoomTouchState> SetZoomAsync(bool enabled, CancellationToken cancellationToken = default)
+        => _api.AccessibilitySetZoomTouchAsync(_udid, null, new GenModel.AXEnabledRequest(enabled), cancellationToken);
+
+    /// <summary>Run the accessibility audit against the focused app (<c>POST /ax/audit</c>). Bounded by <paramref name="timeout"/> seconds.</summary>
+    public async Task<IReadOnlyList<IReadOnlyDictionary<string, object?>>> AxAuditAsync(
+        int? timeout = null, CancellationToken cancellationToken = default)
+    {
+        var raw = await _api.AccessibilityRunAxAuditAsync(_udid, timeout, cancellationToken).ConfigureAwait(false);
+        return (raw ?? new List<object>()).Select(JsonHelpers.ToDictionary).ToList();
+    }
+
+    /// <summary>Get the current accessibility (AX) element snapshot/hierarchy (<c>GET /ax</c>).</summary>
+    public async Task<IReadOnlyDictionary<string, object?>> AxAsync(CancellationToken cancellationToken = default)
+        => JsonHelpers.ToDictionary(await _api.AccessibilityGetAxSnapshotAsync(_udid, cancellationToken).ConfigureAwait(false));
+
+    /// <summary>Simulate live location tracking from an uploaded GPX file's bytes (<c>PUT /setlocation/gpx</c>, multipart).</summary>
+    public Task<GenModel.GenericResponse> SetLocationGpxAsync(byte[] gpx, CancellationToken cancellationToken = default)
+    {
+        var form = new MultipartFormDataContent { { Octet(gpx), "gpx", "route.gpx" } };
+        var req = _raw.NewRequest(HttpMethod.Put, $"api/v1/device/{Esc(_udid)}/setlocation/gpx");
+        req.Content = form;
+        return _raw.SendJsonAsync<GenModel.GenericResponse>(req, cancellationToken);
+    }
+
+    /// <summary>Read the device's cloud-configuration (supervision) payload (<c>GET /cloudconfig</c>).</summary>
+    public async Task<IReadOnlyDictionary<string, object?>> CloudConfigAsync(CancellationToken cancellationToken = default)
+        => JsonHelpers.ToDictionary(await _api.FsyncGetCloudConfigAsync(_udid, cancellationToken).ConfigureAwait(false));
+
+    // --- Preparation -------------------------------------------------------
+
+    /// <summary>
+    /// Run the device preparation/provisioning flow (<c>POST /prepare</c>, multipart).
+    /// To supervise the device supply a <paramref name="cert"/> (DER/PEM/P12 identity)
+    /// and optional <paramref name="p12Password"/>; <paramref name="skip"/> lists setup
+    /// panes to skip (see <see cref="PrepareClient.SkipOptionsAsync"/>).
+    /// </summary>
+    public Task<GenModel.PrepareResult> PrepareAsync(
+        byte[]? cert = null, string? p12Password = null, IEnumerable<string>? skip = null,
+        string? orgName = null, string? locale = null, string? lang = null,
+        CancellationToken cancellationToken = default)
+    {
+        var form = new MultipartFormDataContent();
+        if (cert is not null) form.Add(Octet(cert), "cert", "supervision.p12");
+        if (!string.IsNullOrEmpty(p12Password)) form.Add(new StringContent(p12Password), "p12password");
+        if (skip is not null) foreach (var s in skip) form.Add(new StringContent(s), "skip");
+        if (!string.IsNullOrEmpty(orgName)) form.Add(new StringContent(orgName), "orgname");
+        if (!string.IsNullOrEmpty(locale)) form.Add(new StringContent(locale), "locale");
+        if (!string.IsNullOrEmpty(lang)) form.Add(new StringContent(lang), "lang");
+        var req = _raw.NewRequest(HttpMethod.Post, $"api/v1/device/{Esc(_udid)}/prepare");
+        req.Content = form;
+        return _raw.SendJsonAsync<GenModel.PrepareResult>(req, cancellationToken);
+    }
+
+    // --- Binary streams (raw bytes, NOT SSE) ------------------------------
+
+    /// <summary>
+    /// Open an MJPEG (multipart/x-mixed-replace) stream of device screenshots
+    /// (<c>GET /screenshot/stream</c>). Returns a raw <see cref="BinaryStream"/>;
+    /// dispose it to stop. <paramref name="quality"/> is the JPEG quality (1–100).
+    /// </summary>
+    public Task<BinaryStream> ScreenshotStreamAsync(int? quality = null, CancellationToken cancellationToken = default)
+    {
+        var qs = quality.HasValue ? $"?quality={quality.Value}" : "";
+        var req = _raw.NewRequest(HttpMethod.Get, $"api/v1/device/{Esc(_udid)}/screenshot/stream{qs}");
+        return _raw.OpenBinaryStreamAsync(req, "image/jpeg", cancellationToken);
+    }
+
+    /// <summary>
+    /// Open a live pcap capture as a libpcap byte stream (<c>GET /pcap</c>). Returns
+    /// a raw <see cref="BinaryStream"/>; dispose it to stop. Runs until
+    /// <paramref name="timeout"/> seconds elapse or the client disconnects.
+    /// </summary>
+    public Task<BinaryStream> PcapAsync(int? timeout = null, CancellationToken cancellationToken = default)
+    {
+        var qs = timeout.HasValue ? $"?timeout={timeout.Value}" : "";
+        var req = _raw.NewRequest(HttpMethod.Get, $"api/v1/device/{Esc(_udid)}/pcap{qs}");
+        return _raw.OpenBinaryStreamAsync(req, "application/vnd.tcpdump.pcap", cancellationToken);
+    }
 
     // --- Management --------------------------------------------------------
 

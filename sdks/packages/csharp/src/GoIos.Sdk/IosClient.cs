@@ -31,6 +31,12 @@ public sealed class IosClient : IDisposable
     /// <summary>Global tunnel-agent operations.</summary>
     public TunnelsClient Tunnels { get; }
 
+    /// <summary>Host-scoped code-signing operations (App Store Connect).</summary>
+    public SignClient Sign { get; }
+
+    /// <summary>Host-scoped device-preparation helpers (supervision cert / skip options).</summary>
+    public PrepareClient Prepare { get; }
+
     /// <summary>Create a new client with the given options.</summary>
     public IosClient(IosClientOptions options)
     {
@@ -67,6 +73,8 @@ public sealed class IosClient : IDisposable
 
         Devices = new DevicesClient(_api);
         Tunnels = new TunnelsClient(_api);
+        Sign = new SignClient(_raw);
+        Prepare = new PrepareClient(_api);
     }
 
     /// <summary>Scope subsequent operations to a single device by udid.</summary>

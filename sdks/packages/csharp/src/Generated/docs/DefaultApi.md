@@ -4,6 +4,13 @@ All URIs are relative to *http://localhost:60105*
 
 | Method | HTTP request | Description |
 |--------|--------------|-------------|
+| [**AccessibilityGetAxSnapshot**](DefaultApi.md#accessibilitygetaxsnapshot) | **GET** /api/v1/device/{udid}/ax | Get accessibility element snapshot |
+| [**AccessibilityGetVoiceOver**](DefaultApi.md#accessibilitygetvoiceover) | **GET** /api/v1/device/{udid}/voiceover | Get VoiceOver state |
+| [**AccessibilityGetZoomTouch**](DefaultApi.md#accessibilitygetzoomtouch) | **GET** /api/v1/device/{udid}/zoom | Get ZoomTouch state |
+| [**AccessibilityRunAxAudit**](DefaultApi.md#accessibilityrunaxaudit) | **POST** /api/v1/device/{udid}/ax/audit | Run accessibility audit |
+| [**AccessibilitySetLocationGpx**](DefaultApi.md#accessibilitysetlocationgpx) | **PUT** /api/v1/device/{udid}/setlocation/gpx | Simulate location from a GPX file |
+| [**AccessibilitySetVoiceOver**](DefaultApi.md#accessibilitysetvoiceover) | **PUT** /api/v1/device/{udid}/voiceover | Set VoiceOver state |
+| [**AccessibilitySetZoomTouch**](DefaultApi.md#accessibilitysetzoomtouch) | **PUT** /api/v1/device/{udid}/zoom | Set ZoomTouch state |
 | [**DevicesActivate**](DefaultApi.md#devicesactivate) | **POST** /api/v1/device/{udid}/activate | Activate device |
 | [**DevicesAddProfile**](DefaultApi.md#devicesaddprofile) | **POST** /api/v1/device/{udid}/profiles | Install profile |
 | [**DevicesCreateWdaSession**](DefaultApi.md#devicescreatewdasession) | **POST** /api/v1/device/{udid}/wda/session | Start WDA session |
@@ -79,11 +86,779 @@ All URIs are relative to *http://localhost:60105*
 | [**DevicesStreamSysmontap**](DefaultApi.md#devicesstreamsysmontap) | **GET** /api/v1/device/{udid}/sysmontap | Stream CPU usage (SSE) |
 | [**DevicesUninstallApp**](DefaultApi.md#devicesuninstallapp) | **POST** /api/v1/device/{udid}/apps/uninstall | Uninstall app |
 | [**DevicesUnmountImage**](DefaultApi.md#devicesunmountimage) | **DELETE** /api/v1/device/{udid}/image | Unmount developer image |
+| [**DiagnosticsNetGetBatteryRegistry**](DefaultApi.md#diagnosticsnetgetbatteryregistry) | **GET** /api/v1/device/{udid}/battery/registry | Get battery IORegistry |
+| [**DiagnosticsNetGetDeviceIp**](DefaultApi.md#diagnosticsnetgetdeviceip) | **GET** /api/v1/device/{udid}/ip | Get device IP / network info |
+| [**DiagnosticsNetGetDiskSpace**](DefaultApi.md#diagnosticsnetgetdiskspace) | **GET** /api/v1/device/{udid}/diskspace | Get disk space info |
+| [**DiagnosticsNetGetRsdServices**](DefaultApi.md#diagnosticsnetgetrsdservices) | **GET** /api/v1/device/{udid}/rsd | Get RSD service list |
+| [**FsyncFsyncLs**](DefaultApi.md#fsyncfsyncls) | **GET** /api/v1/device/{udid}/fsync/ls | List a directory over AFC |
+| [**FsyncFsyncMkdir**](DefaultApi.md#fsyncfsyncmkdir) | **POST** /api/v1/device/{udid}/fsync/mkdir | Create a directory over AFC |
+| [**FsyncFsyncPull**](DefaultApi.md#fsyncfsyncpull) | **GET** /api/v1/device/{udid}/fsync/pull | Download a file over AFC |
+| [**FsyncFsyncPush**](DefaultApi.md#fsyncfsyncpush) | **POST** /api/v1/device/{udid}/fsync/push | Upload a file over AFC |
+| [**FsyncFsyncRm**](DefaultApi.md#fsyncfsyncrm) | **DELETE** /api/v1/device/{udid}/fsync/rm | Remove a file or directory over AFC |
+| [**FsyncFsyncTree**](DefaultApi.md#fsyncfsynctree) | **GET** /api/v1/device/{udid}/fsync/tree | Recursively list a directory over AFC |
+| [**FsyncGetCloudConfig**](DefaultApi.md#fsyncgetcloudconfig) | **GET** /api/v1/device/{udid}/cloudconfig | Get device cloud configuration |
+| [**GetPrepareSkipOptions**](DefaultApi.md#getprepareskipoptions) | **GET** /api/v1/prepare/skip-options | List setup skip options |
 | [**ListDevices**](DefaultApi.md#listdevices) | **GET** /api/v1/list | List devices |
 | [**ListTunnels**](DefaultApi.md#listtunnels) | **GET** /api/v1/tunnels | List tunnels |
+| [**PrepareCreateCert**](DefaultApi.md#preparecreatecert) | **POST** /api/v1/prepare/create-cert | Generate a supervision certificate |
+| [**PreparePrepareDevice**](DefaultApi.md#preparepreparedevice) | **POST** /api/v1/device/{udid}/prepare | Prepare (and optionally supervise) a device |
 | [**RefreshTunnel**](DefaultApi.md#refreshtunnel) | **POST** /api/v1/tunnels/{udid}/refresh | Refresh tunnel |
 | [**ShutdownTunnelAgent**](DefaultApi.md#shutdowntunnelagent) | **POST** /api/v1/tunnel-agent/shutdown | Shut down tunnel agent |
+| [**SignApp**](DefaultApi.md#signapp) | **POST** /api/v1/sign/app | Resign an app/IPA |
+| [**SignCertificate**](DefaultApi.md#signcertificate) | **POST** /api/v1/sign/certificate | Create a signing certificate |
+| [**SignProvision**](DefaultApi.md#signprovision) | **POST** /api/v1/sign/provision | Create a provisioning profile + P12 |
 | [**StopTunnel**](DefaultApi.md#stoptunnel) | **DELETE** /api/v1/tunnels/{udid} | Stop tunnel |
+| [**StreamsPcap**](DefaultApi.md#streamspcap) | **GET** /api/v1/device/{udid}/pcap | Stream a live pcap capture (binary) |
+| [**StreamsScreenshotStream**](DefaultApi.md#streamsscreenshotstream) | **GET** /api/v1/device/{udid}/screenshot/stream | Stream screenshots as MJPEG (binary) |
+| [**StreamsUiStream**](DefaultApi.md#streamsuistream) | **GET** /api/v1/device/{udid}/ui/stream | Stream UI video (binary) |
+| [**UIUiApi**](DefaultApi.md#uiuiapi) | **POST** /api/v1/device/{udid}/ui/api | Raw backend passthrough |
+| [**UIUiAppForeground**](DefaultApi.md#uiuiappforeground) | **POST** /api/v1/device/{udid}/ui/app/foreground | Foreground app (UI backend) |
+| [**UIUiAppLaunch**](DefaultApi.md#uiuiapplaunch) | **POST** /api/v1/device/{udid}/ui/app/launch | Launch app (UI backend) |
+| [**UIUiAppTerminate**](DefaultApi.md#uiuiappterminate) | **POST** /api/v1/device/{udid}/ui/app/terminate | Terminate app (UI backend) |
+| [**UIUiButton**](DefaultApi.md#uiuibutton) | **POST** /api/v1/device/{udid}/ui/button | Press hardware button |
+| [**UIUiGetOrientation**](DefaultApi.md#uiuigetorientation) | **GET** /api/v1/device/{udid}/ui/orientation | Get orientation |
+| [**UIUiLongPress**](DefaultApi.md#uiuilongpress) | **POST** /api/v1/device/{udid}/ui/longpress | Long press |
+| [**UIUiScreenshot**](DefaultApi.md#uiuiscreenshot) | **GET** /api/v1/device/{udid}/ui/screenshot | UI screenshot (PNG) |
+| [**UIUiSetOrientation**](DefaultApi.md#uiuisetorientation) | **PUT** /api/v1/device/{udid}/ui/orientation | Set orientation |
+| [**UIUiSource**](DefaultApi.md#uiuisource) | **GET** /api/v1/device/{udid}/ui/source | UI source hierarchy |
+| [**UIUiStatus**](DefaultApi.md#uiuistatus) | **GET** /api/v1/device/{udid}/ui/status | UI backend status |
+| [**UIUiSwipe**](DefaultApi.md#uiuiswipe) | **POST** /api/v1/device/{udid}/ui/swipe | Swipe |
+| [**UIUiTap**](DefaultApi.md#uiuitap) | **POST** /api/v1/device/{udid}/ui/tap | Tap |
+| [**UIUiType**](DefaultApi.md#uiuitype) | **POST** /api/v1/device/{udid}/ui/type | Type text |
+| [**UIUiWindowSize**](DefaultApi.md#uiuiwindowsize) | **GET** /api/v1/device/{udid}/ui/size | UI window size |
+| [**WebInspectorWebInspectorEval**](DefaultApi.md#webinspectorwebinspectoreval) | **POST** /api/v1/device/{udid}/webinspector/eval | Evaluate JavaScript in a page |
+| [**WebInspectorWebInspectorLaunch**](DefaultApi.md#webinspectorwebinspectorlaunch) | **POST** /api/v1/device/{udid}/webinspector/launch | Open a URL in a new inspectable page |
+| [**WebInspectorWebInspectorPages**](DefaultApi.md#webinspectorwebinspectorpages) | **GET** /api/v1/device/{udid}/webinspector/pages | List inspectable pages |
+
+<a id="accessibilitygetaxsnapshot"></a>
+# **AccessibilityGetAxSnapshot**
+> Object AccessibilityGetAxSnapshot (string udid)
+
+Get accessibility element snapshot
+
+Get a snapshot of the currently focused accessibility element (CLI: `ios ax`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class AccessibilityGetAxSnapshotExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+
+            try
+            {
+                // Get accessibility element snapshot
+                Object result = apiInstance.AccessibilityGetAxSnapshot(udid);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.AccessibilityGetAxSnapshot: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the AccessibilityGetAxSnapshotWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Get accessibility element snapshot
+    ApiResponse<Object> response = apiInstance.AccessibilityGetAxSnapshotWithHttpInfo(udid);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.AccessibilityGetAxSnapshotWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="accessibilitygetvoiceover"></a>
+# **AccessibilityGetVoiceOver**
+> VoiceOverState AccessibilityGetVoiceOver (string udid)
+
+Get VoiceOver state
+
+Get VoiceOver enabled state (CLI: `ios voiceover get`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class AccessibilityGetVoiceOverExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+
+            try
+            {
+                // Get VoiceOver state
+                VoiceOverState result = apiInstance.AccessibilityGetVoiceOver(udid);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.AccessibilityGetVoiceOver: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the AccessibilityGetVoiceOverWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Get VoiceOver state
+    ApiResponse<VoiceOverState> response = apiInstance.AccessibilityGetVoiceOverWithHttpInfo(udid);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.AccessibilityGetVoiceOverWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+
+### Return type
+
+[**VoiceOverState**](VoiceOverState.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="accessibilitygetzoomtouch"></a>
+# **AccessibilityGetZoomTouch**
+> ZoomTouchState AccessibilityGetZoomTouch (string udid)
+
+Get ZoomTouch state
+
+Get ZoomTouch enabled state (CLI: `ios zoomtouch get`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class AccessibilityGetZoomTouchExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+
+            try
+            {
+                // Get ZoomTouch state
+                ZoomTouchState result = apiInstance.AccessibilityGetZoomTouch(udid);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.AccessibilityGetZoomTouch: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the AccessibilityGetZoomTouchWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Get ZoomTouch state
+    ApiResponse<ZoomTouchState> response = apiInstance.AccessibilityGetZoomTouchWithHttpInfo(udid);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.AccessibilityGetZoomTouchWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+
+### Return type
+
+[**ZoomTouchState**](ZoomTouchState.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="accessibilityrunaxaudit"></a>
+# **AccessibilityRunAxAudit**
+> List&lt;Object&gt; AccessibilityRunAxAudit (string udid, int? timeout = null)
+
+Run accessibility audit
+
+Run the accessibility audit against the focused app and return the issues found (CLI: `ios ax audit`). Bounded by `timeout` (seconds, default 60).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class AccessibilityRunAxAuditExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var timeout = 56;  // int? | Audit timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Run accessibility audit
+                List<Object> result = apiInstance.AccessibilityRunAxAudit(udid, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.AccessibilityRunAxAudit: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the AccessibilityRunAxAuditWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Run accessibility audit
+    ApiResponse<List<Object>> response = apiInstance.AccessibilityRunAxAuditWithHttpInfo(udid, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.AccessibilityRunAxAuditWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **timeout** | **int?** | Audit timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**List<Object>**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="accessibilitysetlocationgpx"></a>
+# **AccessibilitySetLocationGpx**
+> GenericResponse AccessibilitySetLocationGpx (string udid, Object gpx)
+
+Simulate location from a GPX file
+
+Simulate live location tracking from an uploaded GPX file (CLI: `ios setlocationgpx`). Send multipart/form-data with a `gpx` file.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class AccessibilitySetLocationGpxExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var gpx = new Object(); // Object | 
+
+            try
+            {
+                // Simulate location from a GPX file
+                GenericResponse result = apiInstance.AccessibilitySetLocationGpx(udid, gpx);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.AccessibilitySetLocationGpx: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the AccessibilitySetLocationGpxWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Simulate location from a GPX file
+    ApiResponse<GenericResponse> response = apiInstance.AccessibilitySetLocationGpxWithHttpInfo(udid, gpx);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.AccessibilitySetLocationGpxWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **gpx** | [**Object**](Object.md) |  |  |
+
+### Return type
+
+[**GenericResponse**](GenericResponse.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="accessibilitysetvoiceover"></a>
+# **AccessibilitySetVoiceOver**
+> VoiceOverState AccessibilitySetVoiceOver (string udid, bool? enabled = null, AXEnabledRequest? aXEnabledRequest = null)
+
+Set VoiceOver state
+
+Enable/disable VoiceOver (CLI: `ios voiceover enable|disable`). The desired state comes from the JSON body or the `enabled` query param.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class AccessibilitySetVoiceOverExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var enabled = true;  // bool? | Desired state (alternative to the request body). (optional) 
+            var aXEnabledRequest = new AXEnabledRequest?(); // AXEnabledRequest? |  (optional) 
+
+            try
+            {
+                // Set VoiceOver state
+                VoiceOverState result = apiInstance.AccessibilitySetVoiceOver(udid, enabled, aXEnabledRequest);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.AccessibilitySetVoiceOver: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the AccessibilitySetVoiceOverWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Set VoiceOver state
+    ApiResponse<VoiceOverState> response = apiInstance.AccessibilitySetVoiceOverWithHttpInfo(udid, enabled, aXEnabledRequest);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.AccessibilitySetVoiceOverWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **enabled** | **bool?** | Desired state (alternative to the request body). | [optional]  |
+| **aXEnabledRequest** | [**AXEnabledRequest?**](AXEnabledRequest?.md) |  | [optional]  |
+
+### Return type
+
+[**VoiceOverState**](VoiceOverState.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="accessibilitysetzoomtouch"></a>
+# **AccessibilitySetZoomTouch**
+> ZoomTouchState AccessibilitySetZoomTouch (string udid, bool? enabled = null, AXEnabledRequest? aXEnabledRequest = null)
+
+Set ZoomTouch state
+
+Enable/disable ZoomTouch (CLI: `ios zoomtouch enable|disable`). The desired state comes from the JSON body or the `enabled` query param.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class AccessibilitySetZoomTouchExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var enabled = true;  // bool? | Desired state (alternative to the request body). (optional) 
+            var aXEnabledRequest = new AXEnabledRequest?(); // AXEnabledRequest? |  (optional) 
+
+            try
+            {
+                // Set ZoomTouch state
+                ZoomTouchState result = apiInstance.AccessibilitySetZoomTouch(udid, enabled, aXEnabledRequest);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.AccessibilitySetZoomTouch: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the AccessibilitySetZoomTouchWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Set ZoomTouch state
+    ApiResponse<ZoomTouchState> response = apiInstance.AccessibilitySetZoomTouchWithHttpInfo(udid, enabled, aXEnabledRequest);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.AccessibilitySetZoomTouchWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **enabled** | **bool?** | Desired state (alternative to the request body). | [optional]  |
+| **aXEnabledRequest** | [**AXEnabledRequest?**](AXEnabledRequest?.md) |  | [optional]  |
+
+### Return type
+
+[**ZoomTouchState**](ZoomTouchState.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 <a id="devicesactivate"></a>
 # **DevicesActivate**
@@ -1843,11 +2618,11 @@ catch (ApiException e)
 
 <a id="devicesgetlockdownvalues"></a>
 # **DevicesGetLockdownValues**
-> Object DevicesGetLockdownValues (string udid)
+> Object DevicesGetLockdownValues (string udid, string? domain = null)
 
 Get lockdown values
 
-Get all lockdown values (CLI: `ios lockdown get`).
+Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set is returned; with `domain` the values are scoped to that lockdown domain.
 
 ### Example
 ```csharp
@@ -1874,11 +2649,12 @@ namespace Example
             HttpClientHandler httpClientHandler = new HttpClientHandler();
             var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
             var udid = "udid_example";  // string | 
+            var domain = "domain_example";  // string? | Optional lockdown domain to scope the returned values. (optional) 
 
             try
             {
                 // Get lockdown values
-                Object result = apiInstance.DevicesGetLockdownValues(udid);
+                Object result = apiInstance.DevicesGetLockdownValues(udid, domain);
                 Debug.WriteLine(result);
             }
             catch (ApiException  e)
@@ -1899,7 +2675,7 @@ This returns an ApiResponse object which contains the response data, status code
 try
 {
     // Get lockdown values
-    ApiResponse<Object> response = apiInstance.DevicesGetLockdownValuesWithHttpInfo(udid);
+    ApiResponse<Object> response = apiInstance.DevicesGetLockdownValuesWithHttpInfo(udid, domain);
     Debug.Write("Status Code: " + response.StatusCode);
     Debug.Write("Response Headers: " + response.Headers);
     Debug.Write("Response Body: " + response.Data);
@@ -1917,6 +2693,7 @@ catch (ApiException e)
 | Name | Type | Description | Notes |
 |------|------|-------------|-------|
 | **udid** | **string** |  |  |
+| **domain** | **string?** | Optional lockdown domain to scope the returned values. | [optional]  |
 
 ### Return type
 
@@ -7922,6 +8699,1259 @@ catch (ApiException e)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+<a id="diagnosticsnetgetbatteryregistry"></a>
+# **DiagnosticsNetGetBatteryRegistry**
+> BatteryRegistry DiagnosticsNetGetBatteryRegistry (string udid)
+
+Get battery IORegistry
+
+Get the battery IORegistry stats (Temperature, Voltage, CurrentCapacity, ...) via the diagnostics relay (CLI: `ios diagnostics ioregistry`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class DiagnosticsNetGetBatteryRegistryExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+
+            try
+            {
+                // Get battery IORegistry
+                BatteryRegistry result = apiInstance.DiagnosticsNetGetBatteryRegistry(udid);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.DiagnosticsNetGetBatteryRegistry: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the DiagnosticsNetGetBatteryRegistryWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Get battery IORegistry
+    ApiResponse<BatteryRegistry> response = apiInstance.DiagnosticsNetGetBatteryRegistryWithHttpInfo(udid);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.DiagnosticsNetGetBatteryRegistryWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+
+### Return type
+
+[**BatteryRegistry**](BatteryRegistry.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="diagnosticsnetgetdeviceip"></a>
+# **DiagnosticsNetGetDeviceIp**
+> NetworkInfo DiagnosticsNetGetDeviceIp (string udid)
+
+Get device IP / network info
+
+Resolve the device's network addresses (MAC/IPv4/IPv6) by sniffing pcapd (CLI: `ios ip`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class DiagnosticsNetGetDeviceIpExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+
+            try
+            {
+                // Get device IP / network info
+                NetworkInfo result = apiInstance.DiagnosticsNetGetDeviceIp(udid);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.DiagnosticsNetGetDeviceIp: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the DiagnosticsNetGetDeviceIpWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Get device IP / network info
+    ApiResponse<NetworkInfo> response = apiInstance.DiagnosticsNetGetDeviceIpWithHttpInfo(udid);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.DiagnosticsNetGetDeviceIpWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+
+### Return type
+
+[**NetworkInfo**](NetworkInfo.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="diagnosticsnetgetdiskspace"></a>
+# **DiagnosticsNetGetDiskSpace**
+> DiskSpaceInfo DiagnosticsNetGetDiskSpace (string udid)
+
+Get disk space info
+
+Get filesystem info for the device (total/free/used bytes, block size) via AFC (CLI: `ios diskspace`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class DiagnosticsNetGetDiskSpaceExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+
+            try
+            {
+                // Get disk space info
+                DiskSpaceInfo result = apiInstance.DiagnosticsNetGetDiskSpace(udid);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.DiagnosticsNetGetDiskSpace: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the DiagnosticsNetGetDiskSpaceWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Get disk space info
+    ApiResponse<DiskSpaceInfo> response = apiInstance.DiagnosticsNetGetDiskSpaceWithHttpInfo(udid);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.DiagnosticsNetGetDiskSpaceWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+
+### Return type
+
+[**DiskSpaceInfo**](DiskSpaceInfo.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="diagnosticsnetgetrsdservices"></a>
+# **DiagnosticsNetGetRsdServices**
+> Object DiagnosticsNetGetRsdServices (string udid)
+
+Get RSD service list
+
+Get the device's RSD (Remote Service Discovery) service list (CLI: `ios rsd ls`). Requires a running tunnel (iOS 17+); devices without RSD return `400`.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class DiagnosticsNetGetRsdServicesExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+
+            try
+            {
+                // Get RSD service list
+                Object result = apiInstance.DiagnosticsNetGetRsdServices(udid);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.DiagnosticsNetGetRsdServices: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the DiagnosticsNetGetRsdServicesWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Get RSD service list
+    ApiResponse<Object> response = apiInstance.DiagnosticsNetGetRsdServicesWithHttpInfo(udid);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.DiagnosticsNetGetRsdServicesWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="fsyncfsyncls"></a>
+# **FsyncFsyncLs**
+> FsyncListing FsyncFsyncLs (string udid, string? bundleID = null, string? path = null)
+
+List a directory over AFC
+
+List a device directory over AFC (CLI: `ios fsync ls`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class FsyncFsyncLsExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var bundleID = "bundleID_example";  // string? | App bundle id to scope to its container (else the media dir). (optional) 
+            var path = "path_example";  // string? | Device-side path (rejects `..` elements). (optional) 
+
+            try
+            {
+                // List a directory over AFC
+                FsyncListing result = apiInstance.FsyncFsyncLs(udid, bundleID, path);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.FsyncFsyncLs: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the FsyncFsyncLsWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // List a directory over AFC
+    ApiResponse<FsyncListing> response = apiInstance.FsyncFsyncLsWithHttpInfo(udid, bundleID, path);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.FsyncFsyncLsWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **bundleID** | **string?** | App bundle id to scope to its container (else the media dir). | [optional]  |
+| **path** | **string?** | Device-side path (rejects &#x60;..&#x60; elements). | [optional]  |
+
+### Return type
+
+[**FsyncListing**](FsyncListing.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="fsyncfsyncmkdir"></a>
+# **FsyncFsyncMkdir**
+> FsyncMessage FsyncFsyncMkdir (string udid, string path, string? bundleID = null)
+
+Create a directory over AFC
+
+Create a directory over AFC (CLI: `ios fsync mkdir`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class FsyncFsyncMkdirExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var path = "path_example";  // string | Directory path to create (required).
+            var bundleID = "bundleID_example";  // string? | App bundle id to scope to its container (else the media dir). (optional) 
+
+            try
+            {
+                // Create a directory over AFC
+                FsyncMessage result = apiInstance.FsyncFsyncMkdir(udid, path, bundleID);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.FsyncFsyncMkdir: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the FsyncFsyncMkdirWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Create a directory over AFC
+    ApiResponse<FsyncMessage> response = apiInstance.FsyncFsyncMkdirWithHttpInfo(udid, path, bundleID);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.FsyncFsyncMkdirWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **path** | **string** | Directory path to create (required). |  |
+| **bundleID** | **string?** | App bundle id to scope to its container (else the media dir). | [optional]  |
+
+### Return type
+
+[**FsyncMessage**](FsyncMessage.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="fsyncfsyncpull"></a>
+# **FsyncFsyncPull**
+> Object FsyncFsyncPull (string udid, string path, string? bundleID = null)
+
+Download a file over AFC
+
+Download a file from the device over AFC (CLI: `ios fsync pull`). Returns the raw file bytes. `path` is required.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class FsyncFsyncPullExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var path = "path_example";  // string | Remote file path on the device (required).
+            var bundleID = "bundleID_example";  // string? | App bundle id to scope to its container (else the media dir). (optional) 
+
+            try
+            {
+                // Download a file over AFC
+                Object result = apiInstance.FsyncFsyncPull(udid, path, bundleID);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.FsyncFsyncPull: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the FsyncFsyncPullWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Download a file over AFC
+    ApiResponse<Object> response = apiInstance.FsyncFsyncPullWithHttpInfo(udid, path, bundleID);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.FsyncFsyncPullWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **path** | **string** | Remote file path on the device (required). |  |
+| **bundleID** | **string?** | App bundle id to scope to its container (else the media dir). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/octet-stream, application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="fsyncfsyncpush"></a>
+# **FsyncFsyncPush**
+> FsyncPushResult FsyncFsyncPush (string udid, string path, Object body, string? bundleID = null)
+
+Upload a file over AFC
+
+Upload a file to the device over AFC (CLI: `ios fsync push`). Accepts either raw bytes (application/octet-stream) or a multipart form with a `file` field. `path` is required. Bounded server-side; oversized uploads get `413`.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class FsyncFsyncPushExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var path = "path_example";  // string | Destination path on the device (required).
+            var body = null;  // Object | Raw file bytes to upload (application/octet-stream).
+            var bundleID = "bundleID_example";  // string? | App bundle id to scope to its container (else the media dir). (optional) 
+
+            try
+            {
+                // Upload a file over AFC
+                FsyncPushResult result = apiInstance.FsyncFsyncPush(udid, path, body, bundleID);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.FsyncFsyncPush: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the FsyncFsyncPushWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Upload a file over AFC
+    ApiResponse<FsyncPushResult> response = apiInstance.FsyncFsyncPushWithHttpInfo(udid, path, body, bundleID);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.FsyncFsyncPushWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **path** | **string** | Destination path on the device (required). |  |
+| **body** | **Object** | Raw file bytes to upload (application/octet-stream). |  |
+| **bundleID** | **string?** | App bundle id to scope to its container (else the media dir). | [optional]  |
+
+### Return type
+
+[**FsyncPushResult**](FsyncPushResult.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/octet-stream
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **413** | 413 — the uploaded body exceeded the server&#39;s size cap. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="fsyncfsyncrm"></a>
+# **FsyncFsyncRm**
+> FsyncMessage FsyncFsyncRm (string udid, string path, string? bundleID = null, bool? recursive = null)
+
+Remove a file or directory over AFC
+
+Remove a file or directory over AFC (CLI: `ios fsync rm`). Pass `recursive=true` to delete a non-empty directory.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class FsyncFsyncRmExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var path = "path_example";  // string | Path to remove (required).
+            var bundleID = "bundleID_example";  // string? | App bundle id to scope to its container (else the media dir). (optional) 
+            var recursive = true;  // bool? | Remove directory contents recursively. (optional) 
+
+            try
+            {
+                // Remove a file or directory over AFC
+                FsyncMessage result = apiInstance.FsyncFsyncRm(udid, path, bundleID, recursive);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.FsyncFsyncRm: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the FsyncFsyncRmWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Remove a file or directory over AFC
+    ApiResponse<FsyncMessage> response = apiInstance.FsyncFsyncRmWithHttpInfo(udid, path, bundleID, recursive);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.FsyncFsyncRmWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **path** | **string** | Path to remove (required). |  |
+| **bundleID** | **string?** | App bundle id to scope to its container (else the media dir). | [optional]  |
+| **recursive** | **bool?** | Remove directory contents recursively. | [optional]  |
+
+### Return type
+
+[**FsyncMessage**](FsyncMessage.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="fsyncfsynctree"></a>
+# **FsyncFsyncTree**
+> FsyncTreeListing FsyncFsyncTree (string udid, string? bundleID = null, string? path = null)
+
+Recursively list a directory over AFC
+
+Recursively list a device directory over AFC (CLI: `ios fsync tree`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class FsyncFsyncTreeExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var bundleID = "bundleID_example";  // string? | App bundle id to scope to its container (else the media dir). (optional) 
+            var path = "path_example";  // string? | Device-side path (rejects `..` elements). (optional) 
+
+            try
+            {
+                // Recursively list a directory over AFC
+                FsyncTreeListing result = apiInstance.FsyncFsyncTree(udid, bundleID, path);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.FsyncFsyncTree: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the FsyncFsyncTreeWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Recursively list a directory over AFC
+    ApiResponse<FsyncTreeListing> response = apiInstance.FsyncFsyncTreeWithHttpInfo(udid, bundleID, path);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.FsyncFsyncTreeWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **bundleID** | **string?** | App bundle id to scope to its container (else the media dir). | [optional]  |
+| **path** | **string?** | Device-side path (rejects &#x60;..&#x60; elements). | [optional]  |
+
+### Return type
+
+[**FsyncTreeListing**](FsyncTreeListing.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="fsyncgetcloudconfig"></a>
+# **FsyncGetCloudConfig**
+> Object FsyncGetCloudConfig (string udid)
+
+Get device cloud configuration
+
+Get the device cloud configuration (supervision status, skip-setup options, organization info).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class FsyncGetCloudConfigExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+
+            try
+            {
+                // Get device cloud configuration
+                Object result = apiInstance.FsyncGetCloudConfig(udid);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.FsyncGetCloudConfig: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the FsyncGetCloudConfigWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Get device cloud configuration
+    ApiResponse<Object> response = apiInstance.FsyncGetCloudConfigWithHttpInfo(udid);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.FsyncGetCloudConfigWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="getprepareskipoptions"></a>
+# **GetPrepareSkipOptions**
+> PrepareSkipOptions GetPrepareSkipOptions ()
+
+List setup skip options
+
+List all setup-pane skip options usable when preparing a device (CLI: `ios prepare printskip`). Static, device-free list.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class GetPrepareSkipOptionsExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+
+            try
+            {
+                // List setup skip options
+                PrepareSkipOptions result = apiInstance.GetPrepareSkipOptions();
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.GetPrepareSkipOptions: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the GetPrepareSkipOptionsWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // List setup skip options
+    ApiResponse<PrepareSkipOptions> response = apiInstance.GetPrepareSkipOptionsWithHttpInfo();
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.GetPrepareSkipOptionsWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+### Return type
+
+[**PrepareSkipOptions**](PrepareSkipOptions.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 <a id="listdevices"></a>
 # **ListDevices**
 > DeviceList ListDevices ()
@@ -8109,6 +10139,216 @@ This endpoint does not need any parameter.
 | **200** | The request has succeeded. |  -  |
 | **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
 | **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="preparecreatecert"></a>
+# **PrepareCreateCert**
+> SupervisionCert PrepareCreateCert ()
+
+Generate a supervision certificate
+
+Generate a self-signed supervision identity (CLI: `ios prepare create-cert`) and return the DER (base64) and PEM for both the certificate and private key. Host-scoped (device-free).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class PrepareCreateCertExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+
+            try
+            {
+                // Generate a supervision certificate
+                SupervisionCert result = apiInstance.PrepareCreateCert();
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.PrepareCreateCert: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the PrepareCreateCertWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Generate a supervision certificate
+    ApiResponse<SupervisionCert> response = apiInstance.PrepareCreateCertWithHttpInfo();
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.PrepareCreateCertWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+This endpoint does not need any parameter.
+### Return type
+
+[**SupervisionCert**](SupervisionCert.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="preparepreparedevice"></a>
+# **PreparePrepareDevice**
+> PrepareResult PreparePrepareDevice (string udid, Object? cert = null, string? p12password = null, List<string>? skip = null, string? orgname = null, string? locale = null, string? lang = null)
+
+Prepare (and optionally supervise) a device
+
+Run the device preparation/provisioning flow (CLI: `ios prepare`). Send multipart/form-data. To supervise the device include a `cert` file (DER/PEM/P12 supervision identity) and optional `p12password`; without a cert the device is prepared without supervision.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class PreparePrepareDeviceExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var cert = new Object?(); // Object? |  (optional) 
+            var p12password = "p12password_example";  // string? | P12 password (when `cert` is a P12). (optional) 
+            var skip = new List<string>?(); // List<string>? | Setup panes to skip (see /prepare/skip-options). Repeatable. (optional) 
+            var orgname = "orgname_example";  // string? | Supervision organization name. (optional) 
+            var locale = "locale_example";  // string? | Device locale (default en_US). (optional) 
+            var lang = "lang_example";  // string? | Device language (default en). (optional) 
+
+            try
+            {
+                // Prepare (and optionally supervise) a device
+                PrepareResult result = apiInstance.PreparePrepareDevice(udid, cert, p12password, skip, orgname, locale, lang);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.PreparePrepareDevice: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the PreparePrepareDeviceWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Prepare (and optionally supervise) a device
+    ApiResponse<PrepareResult> response = apiInstance.PreparePrepareDeviceWithHttpInfo(udid, cert, p12password, skip, orgname, locale, lang);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.PreparePrepareDeviceWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **cert** | [**Object?**](Object?.md) |  | [optional]  |
+| **p12password** | **string?** | P12 password (when &#x60;cert&#x60; is a P12). | [optional]  |
+| **skip** | [**List&lt;string&gt;?**](string.md) | Setup panes to skip (see /prepare/skip-options). Repeatable. | [optional]  |
+| **orgname** | **string?** | Supervision organization name. | [optional]  |
+| **locale** | **string?** | Device locale (default en_US). | [optional]  |
+| **lang** | **string?** | Device language (default en). | [optional]  |
+
+### Return type
+
+[**PrepareResult**](PrepareResult.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -8307,6 +10547,347 @@ This endpoint does not need any parameter.
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+<a id="signapp"></a>
+# **SignApp**
+> Object SignApp (Object ipa, Object p12file, Object profile, string? p12password = null, string? bundleid = null)
+
+Resign an app/IPA
+
+Resign an uploaded app/IPA with an uploaded P12 identity and provisioning profile, returning the signed IPA. Synchronous. Host-scoped.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class SignAppExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var ipa = new Object(); // Object | 
+            var p12file = new Object(); // Object | 
+            var profile = new Object(); // Object | 
+            var p12password = "p12password_example";  // string? | P12 password. (optional) 
+            var bundleid = "bundleid_example";  // string? | Override bundle id. (optional) 
+
+            try
+            {
+                // Resign an app/IPA
+                Object result = apiInstance.SignApp(ipa, p12file, profile, p12password, bundleid);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.SignApp: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the SignAppWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Resign an app/IPA
+    ApiResponse<Object> response = apiInstance.SignAppWithHttpInfo(ipa, p12file, profile, p12password, bundleid);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.SignAppWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **ipa** | [**Object**](Object.md) |  |  |
+| **p12file** | [**Object**](Object.md) |  |  |
+| **profile** | [**Object**](Object.md) |  |  |
+| **p12password** | **string?** | P12 password. | [optional]  |
+| **bundleid** | **string?** | Override bundle id. | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
+ - **Accept**: application/octet-stream, application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="signcertificate"></a>
+# **SignCertificate**
+> Object SignCertificate (Object ascPrivateKey, string ascKeyId, string ascIssuerId, string? revokeExisting = null, string? p12password = null)
+
+Create a signing certificate
+
+Create one App Store Connect signing certificate and return its P12 (certificate + private key) as a downloadable `application/x-pkcs12` file. The P12 password is echoed in the `X-P12-Password` response header and the certificate resource id in `X-Certificate-Id`. Host-scoped (device-free).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class SignCertificateExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var ascPrivateKey = new Object(); // Object | 
+            var ascKeyId = "ascKeyId_example";  // string | App Store Connect key id.
+            var ascIssuerId = "ascIssuerId_example";  // string | App Store Connect issuer id.
+            var revokeExisting = "revokeExisting_example";  // string? | Revoke existing iOS Development certificates first. (optional) 
+            var p12password = "p12password_example";  // string? | Password to protect the generated P12. (optional) 
+
+            try
+            {
+                // Create a signing certificate
+                Object result = apiInstance.SignCertificate(ascPrivateKey, ascKeyId, ascIssuerId, revokeExisting, p12password);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.SignCertificate: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the SignCertificateWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Create a signing certificate
+    ApiResponse<Object> response = apiInstance.SignCertificateWithHttpInfo(ascPrivateKey, ascKeyId, ascIssuerId, revokeExisting, p12password);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.SignCertificateWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **ascPrivateKey** | [**Object**](Object.md) |  |  |
+| **ascKeyId** | **string** | App Store Connect key id. |  |
+| **ascIssuerId** | **string** | App Store Connect issuer id. |  |
+| **revokeExisting** | **string?** | Revoke existing iOS Development certificates first. | [optional]  |
+| **p12password** | **string?** | Password to protect the generated P12. | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
+ - **Accept**: application/x-pkcs12, application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="signprovision"></a>
+# **SignProvision**
+> ProvisioningResult SignProvision (Object ascPrivateKey, string ascKeyId, string ascIssuerId, string bundleid, string udid, string? bundlename = null, string? profilename = null, string? devicename = null, string? certificateId = null, string? revokeExisting = null, string? p12password = null)
+
+Create a provisioning profile + P12
+
+Create a bundle id, development certificate and provisioning profile via App Store Connect and return both artifacts base64-encoded in a JSON envelope. The target device udid is supplied as a form field. Host-scoped.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class SignProvisionExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var ascPrivateKey = new Object(); // Object | 
+            var ascKeyId = "ascKeyId_example";  // string | App Store Connect key id.
+            var ascIssuerId = "ascIssuerId_example";  // string | App Store Connect issuer id.
+            var bundleid = "bundleid_example";  // string | App bundle identifier.
+            var udid = "udid_example";  // string | Target device udid to register against the profile.
+            var bundlename = "bundlename_example";  // string? | Bundle display name. (optional) 
+            var profilename = "profilename_example";  // string? | Provisioning profile name. (optional) 
+            var devicename = "devicename_example";  // string? | Device display name. (optional) 
+            var certificateId = "certificateId_example";  // string? | Reuse an existing certificate (no new P12 is generated). (optional) 
+            var revokeExisting = "revokeExisting_example";  // string? | Revoke existing certificates first. (optional) 
+            var p12password = "p12password_example";  // string? | Password to protect the generated P12. (optional) 
+
+            try
+            {
+                // Create a provisioning profile + P12
+                ProvisioningResult result = apiInstance.SignProvision(ascPrivateKey, ascKeyId, ascIssuerId, bundleid, udid, bundlename, profilename, devicename, certificateId, revokeExisting, p12password);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.SignProvision: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the SignProvisionWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Create a provisioning profile + P12
+    ApiResponse<ProvisioningResult> response = apiInstance.SignProvisionWithHttpInfo(ascPrivateKey, ascKeyId, ascIssuerId, bundleid, udid, bundlename, profilename, devicename, certificateId, revokeExisting, p12password);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.SignProvisionWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **ascPrivateKey** | [**Object**](Object.md) |  |  |
+| **ascKeyId** | **string** | App Store Connect key id. |  |
+| **ascIssuerId** | **string** | App Store Connect issuer id. |  |
+| **bundleid** | **string** | App bundle identifier. |  |
+| **udid** | **string** | Target device udid to register against the profile. |  |
+| **bundlename** | **string?** | Bundle display name. | [optional]  |
+| **profilename** | **string?** | Provisioning profile name. | [optional]  |
+| **devicename** | **string?** | Device display name. | [optional]  |
+| **certificateId** | **string?** | Reuse an existing certificate (no new P12 is generated). | [optional]  |
+| **revokeExisting** | **string?** | Revoke existing certificates first. | [optional]  |
+| **p12password** | **string?** | Password to protect the generated P12. | [optional]  |
+
+### Return type
+
+[**ProvisioningResult**](ProvisioningResult.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: multipart/form-data
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 <a id="stoptunnel"></a>
 # **StopTunnel**
 > TunnelStopped StopTunnel (string udid)
@@ -8404,6 +10985,2337 @@ catch (ApiException e)
 | **200** | The request has succeeded. |  -  |
 | **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
 | **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="streamspcap"></a>
+# **StreamsPcap**
+> Object StreamsPcap (string udid, int? timeout = null)
+
+Stream a live pcap capture (binary)
+
+Stream a live packet capture from the device as a libpcap byte stream (pipeable into wireshark/tshark). Runs until `timeout` (seconds) elapses, the default timeout is reached, or the client disconnects.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class StreamsPcapExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var timeout = 56;  // int? | Capture duration in seconds (default 60, max 3600). (optional) 
+
+            try
+            {
+                // Stream a live pcap capture (binary)
+                Object result = apiInstance.StreamsPcap(udid, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.StreamsPcap: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the StreamsPcapWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Stream a live pcap capture (binary)
+    ApiResponse<Object> response = apiInstance.StreamsPcapWithHttpInfo(udid, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.StreamsPcapWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **timeout** | **int?** | Capture duration in seconds (default 60, max 3600). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/vnd.tcpdump.pcap, application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="streamsscreenshotstream"></a>
+# **StreamsScreenshotStream**
+> Object StreamsScreenshotStream (string udid, int? quality = null)
+
+Stream screenshots as MJPEG (binary)
+
+Serve an MJPEG (multipart/x-mixed-replace) stream of device screenshots captured via the instruments screenshot service. Streams until the client disconnects or the source fails.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class StreamsScreenshotStreamExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var quality = 56;  // int? | Optional JPEG quality (1–100, default 80). (optional) 
+
+            try
+            {
+                // Stream screenshots as MJPEG (binary)
+                Object result = apiInstance.StreamsScreenshotStream(udid, quality);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.StreamsScreenshotStream: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the StreamsScreenshotStreamWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Stream screenshots as MJPEG (binary)
+    ApiResponse<Object> response = apiInstance.StreamsScreenshotStreamWithHttpInfo(udid, quality);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.StreamsScreenshotStreamWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **quality** | **int?** | Optional JPEG quality (1–100, default 80). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: image/jpeg, application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="streamsuistream"></a>
+# **StreamsUiStream**
+> Object StreamsUiStream (string udid, string? backend = null, string? wdaUrl = null, int? timeout = null, string? codec = null, string? fps = null, string? quality = null, string? scale = null, string? bitrate = null)
+
+Stream UI video (binary)
+
+Open a live UI video stream against a forwarded WDA/DeviceKit backend and pipe it straight through to the client. Default codec is MJPEG (multipart/x-mixed-replace); `codec=h264` returns an H.264 elementary stream (requires the devicekit backend). Streams until the client disconnects or the backend ends.  Requires a running, forwarded WDA/DeviceKit backend (see the UI routes).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class StreamsUiStreamExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+            var codec = "codec_example";  // string? | Video codec: `mjpeg` (default) or `h264` (devicekit backend only). (optional) 
+            var fps = "fps_example";  // string? | Target frames per second (backend-dependent). (optional) 
+            var quality = "quality_example";  // string? | JPEG quality for the mjpeg codec. (optional) 
+            var scale = "scale_example";  // string? | Scale factor (backend-dependent). (optional) 
+            var bitrate = "bitrate_example";  // string? | Target bitrate for the h264 codec. (optional) 
+
+            try
+            {
+                // Stream UI video (binary)
+                Object result = apiInstance.StreamsUiStream(udid, backend, wdaUrl, timeout, codec, fps, quality, scale, bitrate);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.StreamsUiStream: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the StreamsUiStreamWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Stream UI video (binary)
+    ApiResponse<Object> response = apiInstance.StreamsUiStreamWithHttpInfo(udid, backend, wdaUrl, timeout, codec, fps, quality, scale, bitrate);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.StreamsUiStreamWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+| **codec** | **string?** | Video codec: &#x60;mjpeg&#x60; (default) or &#x60;h264&#x60; (devicekit backend only). | [optional]  |
+| **fps** | **string?** | Target frames per second (backend-dependent). | [optional]  |
+| **quality** | **string?** | JPEG quality for the mjpeg codec. | [optional]  |
+| **scale** | **string?** | Scale factor (backend-dependent). | [optional]  |
+| **bitrate** | **string?** | Target bitrate for the h264 codec. | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/octet-stream, application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuiapi"></a>
+# **UIUiApi**
+> Object UIUiApi (string udid, UIAPIRequest uIAPIRequest, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Raw backend passthrough
+
+Raw passthrough to the backend. For WDA supply `method`/`path`/`body`; for DeviceKit supply `rpcMethod`/`rpcParams`. The backend response is forwarded verbatim.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiApiExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var uIAPIRequest = new UIAPIRequest(); // UIAPIRequest | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Raw backend passthrough
+                Object result = apiInstance.UIUiApi(udid, uIAPIRequest, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiApi: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiApiWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Raw backend passthrough
+    ApiResponse<Object> response = apiInstance.UIUiApiWithHttpInfo(udid, uIAPIRequest, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiApiWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **uIAPIRequest** | [**UIAPIRequest**](UIAPIRequest.md) |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuiappforeground"></a>
+# **UIUiAppForeground**
+> Object UIUiAppForeground (string udid, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Foreground app (UI backend)
+
+Bring the backgrounded app to the foreground. Only the devicekit backend supports this; WDA returns `501`. The request body is ignored.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiAppForegroundExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Foreground app (UI backend)
+                Object result = apiInstance.UIUiAppForeground(udid, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiAppForeground: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiAppForegroundWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Foreground app (UI backend)
+    ApiResponse<Object> response = apiInstance.UIUiAppForegroundWithHttpInfo(udid, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiAppForegroundWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuiapplaunch"></a>
+# **UIUiAppLaunch**
+> Object UIUiAppLaunch (string udid, UIAppRequest uIAppRequest, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Launch app (UI backend)
+
+Launch the app identified by `bundleId`.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiAppLaunchExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var uIAppRequest = new UIAppRequest(); // UIAppRequest | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Launch app (UI backend)
+                Object result = apiInstance.UIUiAppLaunch(udid, uIAppRequest, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiAppLaunch: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiAppLaunchWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Launch app (UI backend)
+    ApiResponse<Object> response = apiInstance.UIUiAppLaunchWithHttpInfo(udid, uIAppRequest, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiAppLaunchWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **uIAppRequest** | [**UIAppRequest**](UIAppRequest.md) |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuiappterminate"></a>
+# **UIUiAppTerminate**
+> Object UIUiAppTerminate (string udid, UIAppRequest uIAppRequest, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Terminate app (UI backend)
+
+Terminate the app identified by `bundleId`.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiAppTerminateExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var uIAppRequest = new UIAppRequest(); // UIAppRequest | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Terminate app (UI backend)
+                Object result = apiInstance.UIUiAppTerminate(udid, uIAppRequest, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiAppTerminate: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiAppTerminateWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Terminate app (UI backend)
+    ApiResponse<Object> response = apiInstance.UIUiAppTerminateWithHttpInfo(udid, uIAppRequest, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiAppTerminateWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **uIAppRequest** | [**UIAppRequest**](UIAppRequest.md) |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuibutton"></a>
+# **UIUiButton**
+> Object UIUiButton (string udid, UIButtonRequest uIButtonRequest, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Press hardware button
+
+Press a hardware button by name (WDA supports only `home`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiButtonExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var uIButtonRequest = new UIButtonRequest(); // UIButtonRequest | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Press hardware button
+                Object result = apiInstance.UIUiButton(udid, uIButtonRequest, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiButton: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiButtonWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Press hardware button
+    ApiResponse<Object> response = apiInstance.UIUiButtonWithHttpInfo(udid, uIButtonRequest, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiButtonWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **uIButtonRequest** | [**UIButtonRequest**](UIButtonRequest.md) |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuigetorientation"></a>
+# **UIUiGetOrientation**
+> Object UIUiGetOrientation (string udid, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Get orientation
+
+Get the current device orientation payload.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiGetOrientationExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Get orientation
+                Object result = apiInstance.UIUiGetOrientation(udid, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiGetOrientation: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiGetOrientationWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Get orientation
+    ApiResponse<Object> response = apiInstance.UIUiGetOrientationWithHttpInfo(udid, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiGetOrientationWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuilongpress"></a>
+# **UIUiLongPress**
+> Object UIUiLongPress (string udid, UILongPressRequest uILongPressRequest, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Long press
+
+Press and hold at (x,y).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiLongPressExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var uILongPressRequest = new UILongPressRequest(); // UILongPressRequest | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Long press
+                Object result = apiInstance.UIUiLongPress(udid, uILongPressRequest, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiLongPress: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiLongPressWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Long press
+    ApiResponse<Object> response = apiInstance.UIUiLongPressWithHttpInfo(udid, uILongPressRequest, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiLongPressWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **uILongPressRequest** | [**UILongPressRequest**](UILongPressRequest.md) |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuiscreenshot"></a>
+# **UIUiScreenshot**
+> Object UIUiScreenshot (string udid, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+UI screenshot (PNG)
+
+Capture the screen and return raw PNG bytes.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiScreenshotExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // UI screenshot (PNG)
+                Object result = apiInstance.UIUiScreenshot(udid, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiScreenshot: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiScreenshotWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // UI screenshot (PNG)
+    ApiResponse<Object> response = apiInstance.UIUiScreenshotWithHttpInfo(udid, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiScreenshotWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: image/png, application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuisetorientation"></a>
+# **UIUiSetOrientation**
+> Object UIUiSetOrientation (string udid, UIOrientationRequest uIOrientationRequest, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Set orientation
+
+Set the device orientation.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiSetOrientationExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var uIOrientationRequest = new UIOrientationRequest(); // UIOrientationRequest | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Set orientation
+                Object result = apiInstance.UIUiSetOrientation(udid, uIOrientationRequest, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiSetOrientation: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiSetOrientationWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Set orientation
+    ApiResponse<Object> response = apiInstance.UIUiSetOrientationWithHttpInfo(udid, uIOrientationRequest, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiSetOrientationWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **uIOrientationRequest** | [**UIOrientationRequest**](UIOrientationRequest.md) |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuisource"></a>
+# **UIUiSource**
+> Object UIUiSource (string udid, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+UI source hierarchy
+
+Return the current view hierarchy (XML for WDA; backend Content-Type preserved).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiSourceExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // UI source hierarchy
+                Object result = apiInstance.UIUiSource(udid, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiSource: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiSourceWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // UI source hierarchy
+    ApiResponse<Object> response = apiInstance.UIUiSourceWithHttpInfo(udid, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiSourceWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/xml, application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuistatus"></a>
+# **UIUiStatus**
+> Object UIUiStatus (string udid, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+UI backend status
+
+Return the backend status/health payload (WDA /status or DeviceKit /health).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiStatusExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // UI backend status
+                Object result = apiInstance.UIUiStatus(udid, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiStatus: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiStatusWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // UI backend status
+    ApiResponse<Object> response = apiInstance.UIUiStatusWithHttpInfo(udid, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiStatusWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuiswipe"></a>
+# **UIUiSwipe**
+> Object UIUiSwipe (string udid, UISwipeRequest uISwipeRequest, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Swipe
+
+Drag from (x1,y1) to (x2,y2).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiSwipeExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var uISwipeRequest = new UISwipeRequest(); // UISwipeRequest | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Swipe
+                Object result = apiInstance.UIUiSwipe(udid, uISwipeRequest, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiSwipe: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiSwipeWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Swipe
+    ApiResponse<Object> response = apiInstance.UIUiSwipeWithHttpInfo(udid, uISwipeRequest, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiSwipeWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **uISwipeRequest** | [**UISwipeRequest**](UISwipeRequest.md) |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuitap"></a>
+# **UIUiTap**
+> Object UIUiTap (string udid, UITapRequest uITapRequest, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Tap
+
+Tap at absolute coordinates.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiTapExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var uITapRequest = new UITapRequest(); // UITapRequest | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Tap
+                Object result = apiInstance.UIUiTap(udid, uITapRequest, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiTap: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiTapWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Tap
+    ApiResponse<Object> response = apiInstance.UIUiTapWithHttpInfo(udid, uITapRequest, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiTapWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **uITapRequest** | [**UITapRequest**](UITapRequest.md) |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuitype"></a>
+# **UIUiType**
+> Object UIUiType (string udid, UITypeRequest uITypeRequest, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+Type text
+
+Send text as keyboard input.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiTypeExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var uITypeRequest = new UITypeRequest(); // UITypeRequest | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // Type text
+                Object result = apiInstance.UIUiType(udid, uITypeRequest, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiType: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiTypeWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Type text
+    ApiResponse<Object> response = apiInstance.UIUiTypeWithHttpInfo(udid, uITypeRequest, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiTypeWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **uITypeRequest** | [**UITypeRequest**](UITypeRequest.md) |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="uiuiwindowsize"></a>
+# **UIUiWindowSize**
+> Object UIUiWindowSize (string udid, string? backend = null, string? wdaUrl = null, int? timeout = null)
+
+UI window size
+
+Return the device window/screen size payload (typically {width,height}).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class UIUiWindowSizeExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var backend = "backend_example";  // string? | Backend to target: `wda` (default) or `devicekit`. (optional) 
+            var wdaUrl = "wdaUrl_example";  // string? | Forwarded backend base URL (defaults per backend). (optional) 
+            var timeout = 56;  // int? | Per-request HTTP timeout in seconds (default 60). (optional) 
+
+            try
+            {
+                // UI window size
+                Object result = apiInstance.UIUiWindowSize(udid, backend, wdaUrl, timeout);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.UIUiWindowSize: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the UIUiWindowSizeWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // UI window size
+    ApiResponse<Object> response = apiInstance.UIUiWindowSizeWithHttpInfo(udid, backend, wdaUrl, timeout);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.UIUiWindowSizeWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **backend** | **string?** | Backend to target: &#x60;wda&#x60; (default) or &#x60;devicekit&#x60;. | [optional]  |
+| **wdaUrl** | **string?** | Forwarded backend base URL (defaults per backend). | [optional]  |
+| **timeout** | **int?** | Per-request HTTP timeout in seconds (default 60). | [optional]  |
+
+### Return type
+
+**Object**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+| **501** | 501 — the selected UI-automation backend does not support this operation. |  -  |
+| **502** | 502 — the tunnel agent could not be reached or returned an error. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="webinspectorwebinspectoreval"></a>
+# **WebInspectorWebInspectorEval**
+> WebInspectorEvalResult WebInspectorWebInspectorEval (string udid, WebInspectorEvalRequest webInspectorEvalRequest)
+
+Evaluate JavaScript in a page
+
+Evaluate JavaScript in an inspectable page and return the result (CLI: `ios webinspector eval`). `404` when no matching page exists.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class WebInspectorWebInspectorEvalExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var webInspectorEvalRequest = new WebInspectorEvalRequest(); // WebInspectorEvalRequest | 
+
+            try
+            {
+                // Evaluate JavaScript in a page
+                WebInspectorEvalResult result = apiInstance.WebInspectorWebInspectorEval(udid, webInspectorEvalRequest);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.WebInspectorWebInspectorEval: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the WebInspectorWebInspectorEvalWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Evaluate JavaScript in a page
+    ApiResponse<WebInspectorEvalResult> response = apiInstance.WebInspectorWebInspectorEvalWithHttpInfo(udid, webInspectorEvalRequest);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.WebInspectorWebInspectorEvalWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **webInspectorEvalRequest** | [**WebInspectorEvalRequest**](WebInspectorEvalRequest.md) |  |  |
+
+### Return type
+
+[**WebInspectorEvalResult**](WebInspectorEvalResult.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — the requested resource (e.g. a job) was not found for this device. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **424** | 424 — a device-side prerequisite is missing. Used by the WebInspector routes when Web Inspector / Remote Automation is not enabled on the device. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="webinspectorwebinspectorlaunch"></a>
+# **WebInspectorWebInspectorLaunch**
+> WebInspectorLaunchResult WebInspectorWebInspectorLaunch (string udid, string? url = null, WebInspectorLaunchRequest? webInspectorLaunchRequest = null)
+
+Open a URL in a new inspectable page
+
+Open a URL in a new inspectable page via a remote automation session (CLI: `ios webinspector launch <url>`). `url` may be a query param or in the body; `bundleId` defaults to Safari.
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class WebInspectorWebInspectorLaunchExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+            var url = "url_example";  // string? | URL to open (alternative to the request body). (optional) 
+            var webInspectorLaunchRequest = new WebInspectorLaunchRequest?(); // WebInspectorLaunchRequest? |  (optional) 
+
+            try
+            {
+                // Open a URL in a new inspectable page
+                WebInspectorLaunchResult result = apiInstance.WebInspectorWebInspectorLaunch(udid, url, webInspectorLaunchRequest);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.WebInspectorWebInspectorLaunch: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the WebInspectorWebInspectorLaunchWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // Open a URL in a new inspectable page
+    ApiResponse<WebInspectorLaunchResult> response = apiInstance.WebInspectorWebInspectorLaunchWithHttpInfo(udid, url, webInspectorLaunchRequest);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.WebInspectorWebInspectorLaunchWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+| **url** | **string?** | URL to open (alternative to the request body). | [optional]  |
+| **webInspectorLaunchRequest** | [**WebInspectorLaunchRequest?**](WebInspectorLaunchRequest?.md) |  | [optional]  |
+
+### Return type
+
+[**WebInspectorLaunchResult**](WebInspectorLaunchResult.md)
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **400** | 400 — malformed request (missing required query/body, bad payload). |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **424** | 424 — a device-side prerequisite is missing. Used by the WebInspector routes when Web Inspector / Remote Automation is not enabled on the device. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+<a id="webinspectorwebinspectorpages"></a>
+# **WebInspectorWebInspectorPages**
+> List&lt;Object&gt; WebInspectorWebInspectorPages (string udid)
+
+List inspectable pages
+
+List inspectable pages reported by the device (CLI: `ios webinspector list`).
+
+### Example
+```csharp
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using GoIos.Sdk.Generated.Api;
+using GoIos.Sdk.Generated.Client;
+using GoIos.Sdk.Generated.Model;
+
+namespace Example
+{
+    public class WebInspectorWebInspectorPagesExample
+    {
+        public static void Main()
+        {
+            Configuration config = new Configuration();
+            config.BasePath = "http://localhost:60105";
+            // Configure Bearer token for authorization: BearerAuth
+            config.AccessToken = "YOUR_BEARER_TOKEN";
+
+            // create instances of HttpClient, HttpClientHandler to be reused later with different Api classes
+            HttpClient httpClient = new HttpClient();
+            HttpClientHandler httpClientHandler = new HttpClientHandler();
+            var apiInstance = new DefaultApi(httpClient, config, httpClientHandler);
+            var udid = "udid_example";  // string | 
+
+            try
+            {
+                // List inspectable pages
+                List<Object> result = apiInstance.WebInspectorWebInspectorPages(udid);
+                Debug.WriteLine(result);
+            }
+            catch (ApiException  e)
+            {
+                Debug.Print("Exception when calling DefaultApi.WebInspectorWebInspectorPages: " + e.Message);
+                Debug.Print("Status Code: " + e.ErrorCode);
+                Debug.Print(e.StackTrace);
+            }
+        }
+    }
+}
+```
+
+#### Using the WebInspectorWebInspectorPagesWithHttpInfo variant
+This returns an ApiResponse object which contains the response data, status code and headers.
+
+```csharp
+try
+{
+    // List inspectable pages
+    ApiResponse<List<Object>> response = apiInstance.WebInspectorWebInspectorPagesWithHttpInfo(udid);
+    Debug.Write("Status Code: " + response.StatusCode);
+    Debug.Write("Response Headers: " + response.Headers);
+    Debug.Write("Response Body: " + response.Data);
+}
+catch (ApiException e)
+{
+    Debug.Print("Exception when calling DefaultApi.WebInspectorWebInspectorPagesWithHttpInfo: " + e.Message);
+    Debug.Print("Status Code: " + e.ErrorCode);
+    Debug.Print(e.StackTrace);
+}
+```
+
+### Parameters
+
+| Name | Type | Description | Notes |
+|------|------|-------------|-------|
+| **udid** | **string** |  |  |
+
+### Return type
+
+**List<Object>**
+
+### Authorization
+
+[BearerAuth](../README.md#BearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | The request has succeeded. |  -  |
+| **401** | 401 — missing/invalid bearer token (when auth is enabled). |  -  |
+| **404** | 404 — device (udid) not found. |  -  |
+| **422** | 422 — empty/invalid udid. |  -  |
+| **424** | 424 — a device-side prerequisite is missing. Used by the WebInspector routes when Web Inspector / Remote Automation is not enabled on the device. |  -  |
+| **500** | 500 — internal error while talking to the device. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

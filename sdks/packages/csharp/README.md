@@ -1,12 +1,15 @@
 # GoIos.Sdk — C#/.NET SDK for go-ios
 
 Ergonomic, async C#/.NET SDK for the [go-ios](https://github.com/danielpaulus/go-ios)
-REST API. It covers the **full daemon surface** — device info & diagnostics,
-apps, WebDriverAgent, condition inducers, location, developer images, files,
-crashes, media (wallpaper/icon-layout/pasteboard), profiles, settings, MDM,
-HTTP proxy, background jobs and tunnels — plus six live streams
-(syslog, notifications, os_trace, listen, sysmontap, job-logs) as typed
-`IAsyncEnumerable<SseEvent>`.
+REST API. It covers the **full daemon surface** (125 operations) — device info &
+diagnostics (disk space, IP, RSD, battery registry), apps, WebDriverAgent, UI
+automation, WebInspector, accessibility (VoiceOver / Zoom / AX audit), condition
+inducers, location (incl. GPX), developer images, files (AFC + fsync), crashes,
+media (wallpaper/icon-layout/pasteboard), profiles, settings, MDM, HTTP proxy,
+device preparation & supervision, host-side code signing, background jobs and
+tunnels — plus six live SSE streams (syslog, notifications, os_trace, listen,
+sysmontap, job-logs) as typed `IAsyncEnumerable<SseEvent>` and three raw binary
+streams (UI video, MJPEG screenshots, pcap) as `Stream`.
 
 - **Low-level client:** generated from the OpenAPI 3.1 spec with
   [openapi-generator](https://openapi-generator.tech/) (`csharp`, `httpclient`
@@ -55,7 +58,21 @@ var battery = await device.BatteryAsync();
 var diag    = await device.DiagnosticsAsync();
 var gestalt = await device.MobileGestaltAsync(new[] { "ProductType", "UniqueDeviceID" });
 var procs   = await device.ProcessesAsync(apps: true);
-var lockdown = await device.LockdownAsync();
+var lockdown = await device.LockdownAsync();                         // or LockdownAsync(domain: "com.apple.mobile.battery")
+
+// Diagnostics / network
+var disk    = await device.DiskSpaceAsync();
+var ip      = await device.IpAsync();
+var rsd     = await device.RsdAsync();
+var batReg  = await device.BatteryRegistryAsync();
+
+// Accessibility
+await device.SetVoiceOverAsync(true);
+await device.SetZoomAsync(false);
+var axIssues = await device.AxAuditAsync(timeout: 60);
+var axTree   = await device.AxAsync();
+await device.SetLocationGpxAsync(File.ReadAllBytes("route.gpx"));
+var cloudCfg = await device.CloudConfigAsync();
 
 // Management
 await device.RebootAsync();
@@ -69,6 +86,44 @@ await device.MemLimitOffAsync("MyApp");
 var listing = await device.Files.LsAsync(domain: "appDocuments", path: "Documents", identifier: "com.example.app");
 byte[] pulled = await device.Files.PullAsync("appDocuments", "Documents/log.txt", "com.example.app");
 await device.Files.PushAsync("appDocuments", "Documents/out.txt", pulled, "com.example.app");
+
+// fsync (ios fsync ...) — path + optional bundleId scope
+var tree = await device.Fsync.TreeAsync(path: "/Documents", bundleId: "com.example.app");
+byte[] f = await device.Fsync.PullAsync("/Documents/log.txt", bundleId: "com.example.app");
+await device.Fsync.PushAsync("/Documents/out.txt", f, bundleId: "com.example.app");
+await device.Fsync.MkdirAsync("/Documents/sub", bundleId: "com.example.app");
+await device.Fsync.RmAsync("/Documents/old", recursive: true, bundleId: "com.example.app");
+
+// UI automation (WDA / DeviceKit) — optional backend/wdaUrl/timeout via Options
+var ui = device.Ui;
+await ui.TapAsync(100, 200);
+await ui.SwipeAsync(10, 400, 10, 100, duration: 0.5);
+await ui.LongPressAsync(100, 200, duration: 1.0);
+await ui.TypeAsync("hello");
+await ui.ButtonAsync("home");
+byte[] uiShot = await ui.ScreenshotAsync();
+string source = await ui.SourceAsync();
+var size = await ui.SizeAsync();
+await ui.SetOrientationAsync("landscape");
+await ui.AppLaunchAsync("com.apple.Preferences", new UiClient.Options { Backend = "devicekit", Timeout = 30 });
+var raw = await ui.ApiAsync(method: "GET", path: "/status");
+
+// WebInspector (remote web debugging)
+var pages = await device.WebInspector.PagesAsync();
+await device.WebInspector.LaunchAsync(url: "https://example.com");
+var eval = await device.WebInspector.EvalAsync("document.title", page: pages[0]["id"]?.ToString());
+
+// Device preparation (multipart; supply a supervision cert to supervise)
+var prep = await device.PrepareAsync(cert: File.ReadAllBytes("supervision.p12"),
+                                     p12Password: "pass", skip: new[] { "Siri" }, orgName: "Acme");
+
+// Host-side code signing / preparation (device-free)
+var skipOpts = await client.Prepare.SkipOptionsAsync();
+var superCert = await client.Prepare.CreateCertAsync();
+byte[] p12Cert = await client.Sign.CertificateAsync(File.ReadAllBytes("AuthKey.p8"), "KEYID", "ISSUER");
+byte[] signedIpa = await client.Sign.AppAsync(File.ReadAllBytes("app.ipa"),
+                                              File.ReadAllBytes("id.p12"),
+                                              File.ReadAllBytes("app.mobileprovision"));
 
 // Crashes
 var crashes = await device.Crashes.ListAsync("*.ips");
@@ -186,6 +241,33 @@ await foreach (var e in device.Jobs.LogsAsync(job.Id, cts.Token))
 Cancel the `CancellationToken` (or `break`) to stop a stream and release the
 connection.
 
+### Binary streams (raw bytes, not SSE)
+
+Three endpoints emit an open-ended stream of raw bytes rather than SSE frames:
+live UI video (MJPEG / H.264), MJPEG screenshots, and a libpcap capture. Each
+returns a `BinaryStream` — a read-only `Stream` opened with
+`HttpCompletionOption.ResponseHeadersRead` so bytes are pulled off the socket as
+they arrive. Reads honor the `CancellationToken`; dispose the stream to stop the
+capture and release the connection. `ContentType` exposes the negotiated media
+type.
+
+```csharp
+using var cts = new CancellationTokenSource();
+
+// pcap → pipe straight to a file (or into wireshark/tshark)
+await using (var pcap = await device.PcapAsync(timeout: 30, cancellationToken: cts.Token))
+await using (var file = File.Create("capture.pcap"))
+    await pcap.CopyToAsync(file, cts.Token);
+
+// MJPEG screenshot stream
+await using var shots = await device.ScreenshotStreamAsync(quality: 80, cancellationToken: cts.Token);
+
+// UI video (MJPEG default; codec: "h264" needs the devicekit backend)
+await using var video = await device.Ui.StreamAsync(
+    new UiClient.Options { Backend = "devicekit" }, codec: "h264", cancellationToken: cts.Token);
+Console.WriteLine(video.ContentType);
+```
+
 ## Authentication
 
 Every `/api/v1` route expects a bearer token
@@ -209,10 +291,15 @@ strongly encouraged.
 
 ## Notes on coverage
 
-All 80 daemon operations are exposed. Two conveniences are intentionally absent
+All 125 daemon operations are exposed. Two conveniences are intentionally absent
 because the daemon has **no corresponding endpoint**: there is no set-device-name
 or set-date route (only `GET /devicename` and `GET /date`), so the SDK offers
 `DeviceNameAsync`/`DateAsync` but no setters.
+
+Endpoints whose response is an open, schema-less JSON object (RSD services,
+cloud config, AX snapshot/audit, WebInspector pages, and the UI backend
+passthrough responses) are surfaced as `IReadOnlyDictionary<string, object?>`
+(or a list of them) so no data is lost to a fixed DTO.
 
 ## Regenerating the low-level client
 

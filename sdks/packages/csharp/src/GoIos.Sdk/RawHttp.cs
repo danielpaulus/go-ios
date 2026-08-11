@@ -43,6 +43,34 @@ internal sealed class RawHttp
         return await resp.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Open a raw binary stream (NOT SSE): sends the request with
+    /// <see cref="HttpCompletionOption.ResponseHeadersRead"/> and returns the live
+    /// response <see cref="Stream"/> of bytes. The returned <see cref="BinaryStream"/>
+    /// owns the request/response and must be disposed to release the connection.
+    /// </summary>
+    public async Task<BinaryStream> OpenBinaryStreamAsync(HttpRequestMessage req, string? accept, CancellationToken ct)
+    {
+        if (!string.IsNullOrEmpty(accept)) req.Headers.Accept.ParseAdd(accept);
+        var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+        try
+        {
+            await EnsureSuccessAsync(resp, ct).ConfigureAwait(false);
+#if NET5_0_OR_GREATER
+            var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+#else
+            var stream = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false);
+#endif
+            return new BinaryStream(stream, resp, req, resp.Content.Headers.ContentType?.MediaType);
+        }
+        catch
+        {
+            resp.Dispose();
+            req.Dispose();
+            throw;
+        }
+    }
+
     /// <summary>Send a request whose response body is raw bytes (e.g. octet-stream file pull).</summary>
     public async Task<byte[]> SendBytesAsync(HttpRequestMessage req, CancellationToken ct)
     {
@@ -87,5 +115,80 @@ internal sealed class RawHttp
         string body = "";
         try { body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false); } catch { /* ignore */ }
         throw new IosApiException((int)resp.StatusCode, resp.ReasonPhrase, body);
+    }
+}
+
+/// <summary>
+/// A live read-only <see cref="Stream"/> of raw response bytes returned by a
+/// binary streaming endpoint (pcap, UI video, MJPEG screenshot stream). It is a
+/// pass-through over the HTTP response body: reads pull bytes off the socket as
+/// they arrive and honor the <see cref="CancellationToken"/> passed to the
+/// originating call. Disposing it releases the underlying HTTP connection.
+/// </summary>
+public sealed class BinaryStream : Stream
+{
+    private readonly Stream _inner;
+    private readonly HttpResponseMessage _response;
+    private readonly HttpRequestMessage _request;
+
+    /// <summary>The response <c>Content-Type</c> (e.g. <c>application/vnd.tcpdump.pcap</c>, <c>multipart/x-mixed-replace</c>), if any.</summary>
+    public string? ContentType { get; }
+
+    internal BinaryStream(Stream inner, HttpResponseMessage response, HttpRequestMessage request, string? contentType)
+    {
+        _inner = inner;
+        _response = response;
+        _request = request;
+        ContentType = contentType;
+    }
+
+    /// <inheritdoc/>
+    public override bool CanRead => true;
+    /// <inheritdoc/>
+    public override bool CanSeek => false;
+    /// <inheritdoc/>
+    public override bool CanWrite => false;
+    /// <inheritdoc/>
+    public override long Length => throw new NotSupportedException();
+    /// <inheritdoc/>
+    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+    /// <inheritdoc/>
+    public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+    /// <inheritdoc/>
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        => _inner.ReadAsync(buffer, offset, count, cancellationToken);
+    /// <inheritdoc/>
+    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        => _inner.ReadAsync(buffer, cancellationToken);
+
+    /// <inheritdoc/>
+    public override void Flush() { }
+    /// <inheritdoc/>
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    /// <inheritdoc/>
+    public override void SetLength(long value) => throw new NotSupportedException();
+    /// <inheritdoc/>
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _inner.Dispose();
+            _response.Dispose();
+            _request.Dispose();
+        }
+        base.Dispose(disposing);
+    }
+
+    /// <inheritdoc/>
+    public override async ValueTask DisposeAsync()
+    {
+        await _inner.DisposeAsync().ConfigureAwait(false);
+        _response.Dispose();
+        _request.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

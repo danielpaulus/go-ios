@@ -145,13 +145,13 @@ namespace Example
 
             try
             {
-                // Activate device
-                GenericResponse result = apiInstance.DevicesActivate(udid);
+                // Get accessibility element snapshot
+                Object result = apiInstance.AccessibilityGetAxSnapshot(udid);
                 Debug.WriteLine(result);
             }
             catch (ApiException e)
             {
-                Debug.Print("Exception when calling DefaultApi.DevicesActivate: " + e.Message );
+                Debug.Print("Exception when calling DefaultApi.AccessibilityGetAxSnapshot: " + e.Message );
                 Debug.Print("Status Code: "+ e.ErrorCode);
                 Debug.Print(e.StackTrace);
             }
@@ -168,6 +168,13 @@ All URIs are relative to *http://localhost:60105*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+*DefaultApi* | [**AccessibilityGetAxSnapshot**](docs/DefaultApi.md#accessibilitygetaxsnapshot) | **GET** /api/v1/device/{udid}/ax | Get accessibility element snapshot
+*DefaultApi* | [**AccessibilityGetVoiceOver**](docs/DefaultApi.md#accessibilitygetvoiceover) | **GET** /api/v1/device/{udid}/voiceover | Get VoiceOver state
+*DefaultApi* | [**AccessibilityGetZoomTouch**](docs/DefaultApi.md#accessibilitygetzoomtouch) | **GET** /api/v1/device/{udid}/zoom | Get ZoomTouch state
+*DefaultApi* | [**AccessibilityRunAxAudit**](docs/DefaultApi.md#accessibilityrunaxaudit) | **POST** /api/v1/device/{udid}/ax/audit | Run accessibility audit
+*DefaultApi* | [**AccessibilitySetLocationGpx**](docs/DefaultApi.md#accessibilitysetlocationgpx) | **PUT** /api/v1/device/{udid}/setlocation/gpx | Simulate location from a GPX file
+*DefaultApi* | [**AccessibilitySetVoiceOver**](docs/DefaultApi.md#accessibilitysetvoiceover) | **PUT** /api/v1/device/{udid}/voiceover | Set VoiceOver state
+*DefaultApi* | [**AccessibilitySetZoomTouch**](docs/DefaultApi.md#accessibilitysetzoomtouch) | **PUT** /api/v1/device/{udid}/zoom | Set ZoomTouch state
 *DefaultApi* | [**DevicesActivate**](docs/DefaultApi.md#devicesactivate) | **POST** /api/v1/device/{udid}/activate | Activate device
 *DefaultApi* | [**DevicesAddProfile**](docs/DefaultApi.md#devicesaddprofile) | **POST** /api/v1/device/{udid}/profiles | Install profile
 *DefaultApi* | [**DevicesCreateWdaSession**](docs/DefaultApi.md#devicescreatewdasession) | **POST** /api/v1/device/{udid}/wda/session | Start WDA session
@@ -243,22 +250,62 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**DevicesStreamSysmontap**](docs/DefaultApi.md#devicesstreamsysmontap) | **GET** /api/v1/device/{udid}/sysmontap | Stream CPU usage (SSE)
 *DefaultApi* | [**DevicesUninstallApp**](docs/DefaultApi.md#devicesuninstallapp) | **POST** /api/v1/device/{udid}/apps/uninstall | Uninstall app
 *DefaultApi* | [**DevicesUnmountImage**](docs/DefaultApi.md#devicesunmountimage) | **DELETE** /api/v1/device/{udid}/image | Unmount developer image
+*DefaultApi* | [**DiagnosticsNetGetBatteryRegistry**](docs/DefaultApi.md#diagnosticsnetgetbatteryregistry) | **GET** /api/v1/device/{udid}/battery/registry | Get battery IORegistry
+*DefaultApi* | [**DiagnosticsNetGetDeviceIp**](docs/DefaultApi.md#diagnosticsnetgetdeviceip) | **GET** /api/v1/device/{udid}/ip | Get device IP / network info
+*DefaultApi* | [**DiagnosticsNetGetDiskSpace**](docs/DefaultApi.md#diagnosticsnetgetdiskspace) | **GET** /api/v1/device/{udid}/diskspace | Get disk space info
+*DefaultApi* | [**DiagnosticsNetGetRsdServices**](docs/DefaultApi.md#diagnosticsnetgetrsdservices) | **GET** /api/v1/device/{udid}/rsd | Get RSD service list
+*DefaultApi* | [**FsyncFsyncLs**](docs/DefaultApi.md#fsyncfsyncls) | **GET** /api/v1/device/{udid}/fsync/ls | List a directory over AFC
+*DefaultApi* | [**FsyncFsyncMkdir**](docs/DefaultApi.md#fsyncfsyncmkdir) | **POST** /api/v1/device/{udid}/fsync/mkdir | Create a directory over AFC
+*DefaultApi* | [**FsyncFsyncPull**](docs/DefaultApi.md#fsyncfsyncpull) | **GET** /api/v1/device/{udid}/fsync/pull | Download a file over AFC
+*DefaultApi* | [**FsyncFsyncPush**](docs/DefaultApi.md#fsyncfsyncpush) | **POST** /api/v1/device/{udid}/fsync/push | Upload a file over AFC
+*DefaultApi* | [**FsyncFsyncRm**](docs/DefaultApi.md#fsyncfsyncrm) | **DELETE** /api/v1/device/{udid}/fsync/rm | Remove a file or directory over AFC
+*DefaultApi* | [**FsyncFsyncTree**](docs/DefaultApi.md#fsyncfsynctree) | **GET** /api/v1/device/{udid}/fsync/tree | Recursively list a directory over AFC
+*DefaultApi* | [**FsyncGetCloudConfig**](docs/DefaultApi.md#fsyncgetcloudconfig) | **GET** /api/v1/device/{udid}/cloudconfig | Get device cloud configuration
+*DefaultApi* | [**GetPrepareSkipOptions**](docs/DefaultApi.md#getprepareskipoptions) | **GET** /api/v1/prepare/skip-options | List setup skip options
 *DefaultApi* | [**ListDevices**](docs/DefaultApi.md#listdevices) | **GET** /api/v1/list | List devices
 *DefaultApi* | [**ListTunnels**](docs/DefaultApi.md#listtunnels) | **GET** /api/v1/tunnels | List tunnels
+*DefaultApi* | [**PrepareCreateCert**](docs/DefaultApi.md#preparecreatecert) | **POST** /api/v1/prepare/create-cert | Generate a supervision certificate
+*DefaultApi* | [**PreparePrepareDevice**](docs/DefaultApi.md#preparepreparedevice) | **POST** /api/v1/device/{udid}/prepare | Prepare (and optionally supervise) a device
 *DefaultApi* | [**RefreshTunnel**](docs/DefaultApi.md#refreshtunnel) | **POST** /api/v1/tunnels/{udid}/refresh | Refresh tunnel
 *DefaultApi* | [**ShutdownTunnelAgent**](docs/DefaultApi.md#shutdowntunnelagent) | **POST** /api/v1/tunnel-agent/shutdown | Shut down tunnel agent
+*DefaultApi* | [**SignApp**](docs/DefaultApi.md#signapp) | **POST** /api/v1/sign/app | Resign an app/IPA
+*DefaultApi* | [**SignCertificate**](docs/DefaultApi.md#signcertificate) | **POST** /api/v1/sign/certificate | Create a signing certificate
+*DefaultApi* | [**SignProvision**](docs/DefaultApi.md#signprovision) | **POST** /api/v1/sign/provision | Create a provisioning profile + P12
 *DefaultApi* | [**StopTunnel**](docs/DefaultApi.md#stoptunnel) | **DELETE** /api/v1/tunnels/{udid} | Stop tunnel
+*DefaultApi* | [**StreamsPcap**](docs/DefaultApi.md#streamspcap) | **GET** /api/v1/device/{udid}/pcap | Stream a live pcap capture (binary)
+*DefaultApi* | [**StreamsScreenshotStream**](docs/DefaultApi.md#streamsscreenshotstream) | **GET** /api/v1/device/{udid}/screenshot/stream | Stream screenshots as MJPEG (binary)
+*DefaultApi* | [**StreamsUiStream**](docs/DefaultApi.md#streamsuistream) | **GET** /api/v1/device/{udid}/ui/stream | Stream UI video (binary)
+*DefaultApi* | [**UIUiApi**](docs/DefaultApi.md#uiuiapi) | **POST** /api/v1/device/{udid}/ui/api | Raw backend passthrough
+*DefaultApi* | [**UIUiAppForeground**](docs/DefaultApi.md#uiuiappforeground) | **POST** /api/v1/device/{udid}/ui/app/foreground | Foreground app (UI backend)
+*DefaultApi* | [**UIUiAppLaunch**](docs/DefaultApi.md#uiuiapplaunch) | **POST** /api/v1/device/{udid}/ui/app/launch | Launch app (UI backend)
+*DefaultApi* | [**UIUiAppTerminate**](docs/DefaultApi.md#uiuiappterminate) | **POST** /api/v1/device/{udid}/ui/app/terminate | Terminate app (UI backend)
+*DefaultApi* | [**UIUiButton**](docs/DefaultApi.md#uiuibutton) | **POST** /api/v1/device/{udid}/ui/button | Press hardware button
+*DefaultApi* | [**UIUiGetOrientation**](docs/DefaultApi.md#uiuigetorientation) | **GET** /api/v1/device/{udid}/ui/orientation | Get orientation
+*DefaultApi* | [**UIUiLongPress**](docs/DefaultApi.md#uiuilongpress) | **POST** /api/v1/device/{udid}/ui/longpress | Long press
+*DefaultApi* | [**UIUiScreenshot**](docs/DefaultApi.md#uiuiscreenshot) | **GET** /api/v1/device/{udid}/ui/screenshot | UI screenshot (PNG)
+*DefaultApi* | [**UIUiSetOrientation**](docs/DefaultApi.md#uiuisetorientation) | **PUT** /api/v1/device/{udid}/ui/orientation | Set orientation
+*DefaultApi* | [**UIUiSource**](docs/DefaultApi.md#uiuisource) | **GET** /api/v1/device/{udid}/ui/source | UI source hierarchy
+*DefaultApi* | [**UIUiStatus**](docs/DefaultApi.md#uiuistatus) | **GET** /api/v1/device/{udid}/ui/status | UI backend status
+*DefaultApi* | [**UIUiSwipe**](docs/DefaultApi.md#uiuiswipe) | **POST** /api/v1/device/{udid}/ui/swipe | Swipe
+*DefaultApi* | [**UIUiTap**](docs/DefaultApi.md#uiuitap) | **POST** /api/v1/device/{udid}/ui/tap | Tap
+*DefaultApi* | [**UIUiType**](docs/DefaultApi.md#uiuitype) | **POST** /api/v1/device/{udid}/ui/type | Type text
+*DefaultApi* | [**UIUiWindowSize**](docs/DefaultApi.md#uiuiwindowsize) | **GET** /api/v1/device/{udid}/ui/size | UI window size
+*DefaultApi* | [**WebInspectorWebInspectorEval**](docs/DefaultApi.md#webinspectorwebinspectoreval) | **POST** /api/v1/device/{udid}/webinspector/eval | Evaluate JavaScript in a page
+*DefaultApi* | [**WebInspectorWebInspectorLaunch**](docs/DefaultApi.md#webinspectorwebinspectorlaunch) | **POST** /api/v1/device/{udid}/webinspector/launch | Open a URL in a new inspectable page
+*DefaultApi* | [**WebInspectorWebInspectorPages**](docs/DefaultApi.md#webinspectorwebinspectorpages) | **GET** /api/v1/device/{udid}/webinspector/pages | List inspectable pages
 
 
 <a id="documentation-for-models"></a>
 ## Documentation for Models
 
+ - [Model.AXEnabledRequest](docs/AXEnabledRequest.md)
  - [Model.AgentShutdown](docs/AgentShutdown.md)
  - [Model.AppInfo](docs/AppInfo.md)
  - [Model.AppStateNotification](docs/AppStateNotification.md)
  - [Model.AssistiveTouchState](docs/AssistiveTouchState.md)
  - [Model.AttachDetachEvent](docs/AttachDetachEvent.md)
  - [Model.BatteryInfo](docs/BatteryInfo.md)
+ - [Model.BatteryRegistry](docs/BatteryRegistry.md)
  - [Model.CpuUsageSample](docs/CpuUsageSample.md)
  - [Model.CrashListing](docs/CrashListing.md)
  - [Model.DevModeRequest](docs/DevModeRequest.md)
@@ -269,12 +316,18 @@ Class | Method | HTTP request | Description
  - [Model.DeviceName](docs/DeviceName.md)
  - [Model.DeviceProperties](docs/DeviceProperties.md)
  - [Model.DevicesGetJob404Response](docs/DevicesGetJob404Response.md)
+ - [Model.DiskSpaceInfo](docs/DiskSpaceInfo.md)
  - [Model.EnabledRequest](docs/EnabledRequest.md)
  - [Model.FileDomain](docs/FileDomain.md)
  - [Model.FileEntry](docs/FileEntry.md)
  - [Model.FileListing](docs/FileListing.md)
  - [Model.FilePushResult](docs/FilePushResult.md)
  - [Model.ForwardRequest](docs/ForwardRequest.md)
+ - [Model.FsyncListing](docs/FsyncListing.md)
+ - [Model.FsyncMessage](docs/FsyncMessage.md)
+ - [Model.FsyncPushResult](docs/FsyncPushResult.md)
+ - [Model.FsyncTreeEntry](docs/FsyncTreeEntry.md)
+ - [Model.FsyncTreeListing](docs/FsyncTreeListing.md)
  - [Model.GenericResponse](docs/GenericResponse.md)
  - [Model.Job](docs/Job.md)
  - [Model.JobLogEvents](docs/JobLogEvents.md)
@@ -285,16 +338,22 @@ Class | Method | HTTP request | Description
  - [Model.MemLimitRequest](docs/MemLimitRequest.md)
  - [Model.MemLimitResult](docs/MemLimitResult.md)
  - [Model.MountedImages](docs/MountedImages.md)
+ - [Model.NetworkInfo](docs/NetworkInfo.md)
  - [Model.NotificationEvents](docs/NotificationEvents.md)
  - [Model.OsTraceEntry](docs/OsTraceEntry.md)
  - [Model.OsTraceEvents](docs/OsTraceEvents.md)
  - [Model.PasteboardContent](docs/PasteboardContent.md)
+ - [Model.PrepareResult](docs/PrepareResult.md)
+ - [Model.PrepareSkipOptions](docs/PrepareSkipOptions.md)
  - [Model.ProcessInfo](docs/ProcessInfo.md)
  - [Model.Profile](docs/Profile.md)
  - [Model.ProfileType](docs/ProfileType.md)
+ - [Model.ProvisioningResult](docs/ProvisioningResult.md)
+ - [Model.RsdServiceEntry](docs/RsdServiceEntry.md)
  - [Model.RunTestRequest](docs/RunTestRequest.md)
  - [Model.SetLanguageRequest](docs/SetLanguageRequest.md)
  - [Model.StatusOk](docs/StatusOk.md)
+ - [Model.SupervisionCert](docs/SupervisionCert.md)
  - [Model.SyslogEvents](docs/SyslogEvents.md)
  - [Model.SyslogMessage](docs/SyslogMessage.md)
  - [Model.SysmontapEvents](docs/SysmontapEvents.md)
@@ -302,10 +361,24 @@ Class | Method | HTTP request | Description
  - [Model.TimeFormatState](docs/TimeFormatState.md)
  - [Model.Tunnel](docs/Tunnel.md)
  - [Model.TunnelStopped](docs/TunnelStopped.md)
+ - [Model.UIAPIRequest](docs/UIAPIRequest.md)
+ - [Model.UIAppRequest](docs/UIAppRequest.md)
+ - [Model.UIButtonRequest](docs/UIButtonRequest.md)
+ - [Model.UILongPressRequest](docs/UILongPressRequest.md)
+ - [Model.UIOrientationRequest](docs/UIOrientationRequest.md)
+ - [Model.UISwipeRequest](docs/UISwipeRequest.md)
+ - [Model.UITapRequest](docs/UITapRequest.md)
+ - [Model.UITypeRequest](docs/UITypeRequest.md)
  - [Model.UnlockToken](docs/UnlockToken.md)
+ - [Model.VoiceOverState](docs/VoiceOverState.md)
  - [Model.WdaConfig](docs/WdaConfig.md)
  - [Model.WdaSession](docs/WdaSession.md)
+ - [Model.WebInspectorEvalRequest](docs/WebInspectorEvalRequest.md)
+ - [Model.WebInspectorEvalResult](docs/WebInspectorEvalResult.md)
+ - [Model.WebInspectorLaunchRequest](docs/WebInspectorLaunchRequest.md)
+ - [Model.WebInspectorLaunchResult](docs/WebInspectorLaunchResult.md)
  - [Model.WifiRequest](docs/WifiRequest.md)
+ - [Model.ZoomTouchState](docs/ZoomTouchState.md)
 
 
 <a id="documentation-for-authorization"></a>
