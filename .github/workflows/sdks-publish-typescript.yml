@@ -1,0 +1,50 @@
+name: SDKs — TypeScript publish (npm)
+
+# Config only — dispatch-driven. Publishes @go-ios/sdk to npm with provenance.
+# Do NOT enable auto-publish on push without a maintainer sign-off.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  # Required for npm provenance (OIDC-signed publish attestation).
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/packages/typescript
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: sdks/packages/typescript/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # `changeset publish` runs `npm publish`; with npm >= 9 and id-token: write
+      # this emits a provenance attestation. Do NOT set NODE_AUTH_TOKEN to an
+      # empty value or add an .npmrc token line — that breaks OIDC provenance.
+      - name: Version & publish
+        run: |
+          npx changeset version
+          npx changeset publish
+        env:
+          NPM_CONFIG_PROVENANCE: "true"
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

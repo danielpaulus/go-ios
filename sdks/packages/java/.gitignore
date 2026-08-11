@@ -1,0 +1,11 @@
+# Build output
+target/
+
+# Local build tooling downloaded by scripts/generate.sh and the compile check:
+# the openapi-generator jar and the javac/JUnit classpath jars. Not committed.
+.tools/
+
+# The generated low-level client IS committed for this package (see README),
+# so undo the repo-root "generated/" ignore for this subtree.
+!generated/
+!generated/**

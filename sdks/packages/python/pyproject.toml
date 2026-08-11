@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "go-ios-sdk"
+version = "0.1.0"
+description = "Ergonomic Python client for the go-ios REST API (device automation, SSE streaming)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{ name = "go-ios" }]
+keywords = ["ios", "go-ios", "device", "automation", "sse", "webdriveragent"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+dependencies = [
+    "httpx>=0.23,<1",
+    "attrs>=21.3.0",
+    "python-dateutil>=2.8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/danielpaulus/go-ios"
+Repository = "https://github.com/danielpaulus/go-ios"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "mypy>=1.8",
+    "ruff>=0.5",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/go_ios_sdk"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/go_ios_sdk", "README.md"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_unused_ignores = false
+ignore_missing_imports = true
+# The vendored generated client is checked loosely; the facade is what we assert on.
+[[tool.mypy.overrides]]
+module = "go_ios_sdk._generated.*"
+ignore_errors = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+# Explicit rule set: pyflakes (F), a pycodestyle subset (E), import sorting (I).
+# We deliberately keep py3.9-style typing.* aliases (List/Optional) throughout, so
+# the pyupgrade (UP) rules are intentionally not enabled.
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/go_ios_sdk/_generated/**" = ["ALL"]

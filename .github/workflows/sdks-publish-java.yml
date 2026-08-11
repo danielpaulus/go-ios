@@ -1,0 +1,39 @@
+name: SDKs — Java SDK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sdks/packages/java/**"
+      - "sdks/spec/openapi/openapi.yaml"
+      - ".github/workflows/sdks-publish-java.yml"
+  pull_request:
+    paths:
+      - "sdks/packages/java/**"
+      - "sdks/spec/openapi/openapi.yaml"
+      - ".github/workflows/sdks-publish-java.yml"
+
+jobs:
+  build:
+    name: Build & test (Java 17)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/packages/java
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Verify generated client is up to date
+        run: |
+          ./scripts/generate.sh
+          git diff --exit-code -- generated/src \
+            || (echo "::error::generated/ is stale — run sdks/packages/java/scripts/generate.sh and commit" && exit 1)
+
+      - name: Build & test
+        run: mvn -B -ntp verify
