@@ -33,7 +33,9 @@ public final class ListDevicesExample {
 
         // try-with-resources guarantees the underlying HTTP client is released.
         try (IosClient client = Env.client()) {
-            System.out.println("Listing devices from " + Env.baseUrl() + " ...");
+            String baseUrl = Env.baseUrl();
+            System.out.println("Listing devices from "
+                    + (baseUrl != null ? baseUrl : "(auto-discovered local daemon)") + " ...");
 
             // GET /list -> the typed device envelope, unwrapped to a List.
             List<DeviceEntry> devices = client.devices().list();

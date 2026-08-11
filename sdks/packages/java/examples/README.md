@@ -28,7 +28,12 @@ with `--disable-auth`, in which case any non-empty `GO_IOS_API_KEY` works):
 
 ```bash
 # From the go-ios repo root; --api-key can be any secret you choose.
-ios api --api-key "$GO_IOS_API_KEY"          # serves on http://localhost:8080
+# By default the daemon binds an ephemeral loopback port and writes a discovery
+# file at ~/.go-ios/rest-api.json; the examples auto-discover it.
+ios api --api-key "$GO_IOS_API_KEY"
+
+# To pin a fixed port instead:
+# ios api --api-key "$GO_IOS_API_KEY" --addr :8080   # then GO_IOS_BASE_URL=http://localhost:8080
 ```
 
 ## 2. Configure the environment
@@ -36,13 +41,14 @@ ios api --api-key "$GO_IOS_API_KEY"          # serves on http://localhost:8080
 | Variable | Required | Default | Meaning |
 | -------- | -------- | ------- | ------- |
 | `GO_IOS_API_KEY` | **yes** | — | Bearer token sent on every request. Missing → the example prints help and exits 1. |
-| `GO_IOS_BASE_URL` | no | `http://localhost:8080` | Daemon origin (the SDK appends `/api/v1`). |
+| `GO_IOS_BASE_URL` | no | auto-discovered (`~/.go-ios/rest-api.json`) | Daemon origin (the SDK appends `/api/v1`). Unset → discover the local daemon. |
 | `GO_IOS_UDID` | no | first attached device | Target device udid. |
 | `RUN_UI` | no | unset | Set to `1` to also run the UI-automation example. |
 
 ```bash
 export GO_IOS_API_KEY=dev
-export GO_IOS_BASE_URL=http://localhost:8080   # optional
+# GO_IOS_BASE_URL is optional; unset, the local daemon is auto-discovered.
+# export GO_IOS_BASE_URL=http://localhost:8080   # only to pin a fixed/remote daemon
 # export GO_IOS_UDID=00008110-0011...          # optional
 ```
 

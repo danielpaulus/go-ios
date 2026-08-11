@@ -18,6 +18,11 @@ ships.
   ios api --udid <udid>     # prints the base URL and the API key on startup
   ```
 
+  By default the daemon binds an **ephemeral loopback port** and writes a
+  discovery file at `~/.go-ios/rest-api.json`; the examples auto-discover it, so
+  you do not need to know or set the port. To pin a fixed port, start it with
+  `--addr :8080` and set `GO_IOS_BASE_URL=http://localhost:8080`.
+
   (Or run it with `--disable-auth` for local experiments — see below.)
 - For most examples, **an iOS device attached** to the daemon's host. Steps that
   need a device print `SKIP` instead of failing when none is available.
@@ -30,7 +35,7 @@ All configuration is via environment variables:
 
 | Variable          | Default                  | Meaning                                                        |
 | ----------------- | ------------------------ | -------------------------------------------------------------- |
-| `GO_IOS_BASE_URL` | `http://localhost:8080`  | Base URL of the go-ios REST daemon.                            |
+| `GO_IOS_BASE_URL` | auto-discovered          | Base URL of the go-ios REST daemon. Unset → discover the local daemon (`~/.go-ios/rest-api.json`). |
 | `GO_IOS_API_KEY`  | *(required)*             | Bearer token the daemon prints on startup.                     |
 | `GO_IOS_UDID`     | *(first device)*         | Target device udid. When unset, the first device is used.      |
 | `RUN_UI`          | *(off)*                  | Set to `1` to also run the mutating `ui-automation` example.   |
@@ -42,7 +47,8 @@ non-empty placeholder to acknowledge that.
 ## Running
 
 ```sh
-export GO_IOS_BASE_URL=http://localhost:8080
+# GO_IOS_BASE_URL is optional; unset, the local daemon is auto-discovered.
+# export GO_IOS_BASE_URL=http://localhost:8080   # only to pin a fixed/remote daemon
 export GO_IOS_API_KEY=<the-key-the-daemon-printed>
 # export GO_IOS_UDID=00008110-000123456789ABCD   # optional
 

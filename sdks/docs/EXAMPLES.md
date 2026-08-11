@@ -32,16 +32,17 @@ exact curated 44-tool set), so it runs in ordinary CI as a gate. Its
 All example runners read the same environment variables so a single set of
 exports drives every language:
 
-| Variable          | Required | Default                 | Meaning                                                         |
-| ----------------- | -------- | ----------------------- | -------------------------------------------------------------- |
-| `GO_IOS_BASE_URL` | no       | `http://localhost:8080` | Origin of the go-ios REST daemon. The SDK appends `/api/v1`.   |
-| `GO_IOS_API_KEY`  | yes\*    | —                       | Bearer token. \*Not needed if the daemon runs `--disable-auth`. |
-| `GO_IOS_UDID`     | no       | first attached device   | Which device to target.                                        |
-| `RUN_UI`          | no       | unset (off)             | Set to `1` to also run the mutating UI-automation example.     |
+| Variable          | Required | Default                              | Meaning                                                         |
+| ----------------- | -------- | ------------------------------------ | -------------------------------------------------------------- |
+| `GO_IOS_BASE_URL` | no       | auto-discovered (`~/.go-ios/rest-api.json`) | Origin of the go-ios REST daemon. The SDK appends `/api/v1`. Unset → discover the local daemon. |
+| `GO_IOS_API_KEY`  | yes\*    | —                                    | Bearer token. \*Not needed if the daemon runs `--disable-auth`. |
+| `GO_IOS_UDID`     | no       | first attached device                | Which device to target.                                        |
+| `RUN_UI`          | no       | unset (off)                          | Set to `1` to also run the mutating UI-automation example.     |
 
 ```bash
 export GO_IOS_API_KEY=your-secret          # required (unless --disable-auth)
-export GO_IOS_BASE_URL=http://localhost:8080   # optional; this is the default
+# GO_IOS_BASE_URL is optional; unset, the local daemon is auto-discovered.
+# export GO_IOS_BASE_URL=http://localhost:8080   # only to pin a fixed/remote daemon
 export GO_IOS_UDID=00008030-0000...        # optional; first device otherwise
 # export RUN_UI=1                          # optional; include UI automation
 ```
@@ -50,25 +51,42 @@ Read-only examples SKIP (rather than fail) when a device isn't attached, so the
 runners are safe to invoke even without hardware — but for a real smoke test you
 want a device connected.
 
-## Canonical daemon port: `8080`
+## Daemon discovery (no hardcoded port)
 
-**The examples target `http://localhost:8080`**, which is the go-ios REST
-daemon's real default bind address (`--addr` defaults to `:8080` in the daemon's
-`restapi/api/server.go`). Start the daemon with:
+By default the go-ios REST daemon binds an **ephemeral loopback port**
+(`--addr` defaults to `127.0.0.1:0`) and, after binding, writes a discovery file
+at `~/.go-ios/rest-api.json` (`$GO_IOS_HOME/rest-api.json` when `GO_IOS_HOME` is
+set) containing the real `baseUrl`. The file is removed on graceful shutdown.
+
+Every SDK (TypeScript, Python, Java, C#) resolves its base URL in the same
+order — the examples rely on this rather than hardcoding a port:
+
+1. an **explicit** `baseUrl` / `BaseUrl` init option → used verbatim (for remote
+   daemons; discovery is skipped);
+2. the **`GO_IOS_BASE_URL`** environment variable;
+3. the **discovery file** `~/.go-ios/rest-api.json` (its `baseUrl`);
+4. otherwise a **clear error** telling you to start the daemon or pass a base URL.
+
+So you normally just start the daemon and run the examples — no port to know:
 
 ```bash
-ios api --api-key "$GO_IOS_API_KEY"        # serves on http://localhost:8080
+ios api --api-key "$GO_IOS_API_KEY"        # ephemeral loopback port; writes ~/.go-ios/rest-api.json
 ```
 
-> **SDK-library-vs-daemon default discrepancy (for Daniel to reconcile):**
-> the *SDK client libraries* (TypeScript, Python, Java, C#) currently default
-> their `baseUrl` / `BaseUrl` to **`http://localhost:60105`** — that value comes
-> from the OpenAPI spec's `servers` URL, **not** from the daemon, which actually
-> listens on **`:8080`**. The examples in this tree are deliberately consistent
-> with the *daemon* (`:8080`) and always pass an explicit base URL, so they are
-> correct regardless. Reconciling the library default (change the spec `servers`
-> URL to `:8080`, or change the daemon default to `:60105`) is **out of scope**
-> for the examples work and left for a follow-up so the two agree.
+To **pin** a fixed port (e.g. to reach a daemon on another host, or expose it),
+start it with `--addr` and point the SDK at it:
+
+```bash
+ios api --api-key "$GO_IOS_API_KEY" --addr :8080
+export GO_IOS_BASE_URL=http://localhost:8080
+```
+
+> **Resolved:** the earlier SDK-library-vs-daemon default mismatch (the SDK
+> libraries defaulting `baseUrl` to `http://localhost:60105` from the OpenAPI
+> spec's `servers` URL, while the daemon listened on `:8080`) no longer exists.
+> The SDKs have **no hardcoded default** — they auto-discover the local daemon
+> via `~/.go-ios/rest-api.json`. The OpenAPI `servers` URL is now a documentation
+> placeholder only. (Daemon side: PR #825 / #821; SDK side: PR #819.)
 
 ## Run them all
 

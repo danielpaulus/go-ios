@@ -46,7 +46,8 @@ public final class RunAllExamples {
         Env.requireApiKey();
 
         System.out.println("== go-ios Java SDK examples ==");
-        System.out.println("baseUrl = " + Env.baseUrl());
+        String baseUrl = Env.baseUrl();
+        System.out.println("baseUrl = " + (baseUrl != null ? baseUrl : "(auto-discovered local daemon)"));
         System.out.println();
 
         // Core examples (1-5). Any exception here fails the whole run.

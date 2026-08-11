@@ -5,7 +5,10 @@
  * environment variables, so it can be run against any running go-ios REST
  * daemon without editing code:
  *
- *   GO_IOS_BASE_URL   Base URL of the daemon. Default: http://localhost:8080
+ *   GO_IOS_BASE_URL   Base URL of the daemon. OPTIONAL — when unset the
+ *                     examples pass no baseUrl, so the SDK auto-discovers the
+ *                     local daemon via ~/.go-ios/rest-api.json. Set it only to
+ *                     target a pinned or remote daemon.
  *   GO_IOS_API_KEY    Bearer API key. REQUIRED (the examples refuse to run
  *                     without one, so you never accidentally hit an unsecured
  *                     daemon). Start the daemon with the same key.
@@ -26,9 +29,6 @@ import { IosClient, type DeviceEntry } from "../src/index";
 // Re-export the client type so each example can import it from one place.
 export { IosClient } from "../src/index";
 export type { DeviceEntry } from "../src/index";
-
-/** Default daemon URL, matching the task's contract. */
-export const DEFAULT_BASE_URL = "http://localhost:8080";
 
 /**
  * A small typed error the runner recognizes as "this step could not run in this
@@ -51,9 +51,14 @@ export function isMain(moduleUrl: string): boolean {
   return process.argv[1] !== undefined && moduleUrl === `file://${process.argv[1]}`;
 }
 
-/** Resolve the base URL from the environment (or the default). */
-export function baseUrl(): string {
-  return process.env.GO_IOS_BASE_URL?.trim() || DEFAULT_BASE_URL;
+/**
+ * Resolve the base URL from the environment, or `undefined` to let the SDK
+ * auto-discover the local daemon (`~/.go-ios/rest-api.json`). When
+ * `GO_IOS_BASE_URL` is unset we deliberately pass no baseUrl so discovery kicks
+ * in — we no longer hardcode a default port.
+ */
+export function baseUrl(): string | undefined {
+  return process.env.GO_IOS_BASE_URL?.trim() || undefined;
 }
 
 /**

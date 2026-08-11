@@ -27,7 +27,7 @@ through environment variables — no code edits needed.
 
 | Variable | Meaning | Default |
 | --- | --- | --- |
-| `GO_IOS_BASE_URL` | Base URL of the go-ios REST daemon | `http://localhost:8080` |
+| `GO_IOS_BASE_URL` | Base URL of the go-ios REST daemon | auto-discovered (`~/.go-ios/rest-api.json`) |
 | `GO_IOS_API_KEY` | Bearer API key (**required**) | — |
 | `GO_IOS_UDID` | Target device udid (optional → first device) | first device |
 | `RUN_UI` | Set to `1` to also run `06-ui-automation` | unset |
@@ -38,13 +38,18 @@ non-zero (a smoke test that silently skips auth would be misleading).
 
 ## Start a go-ios REST daemon
 
-The examples talk to the go-ios REST server over HTTP with bearer auth. Start it
-with an API key and point the examples at it:
+The examples talk to the go-ios REST server over HTTP with bearer auth. By
+default the daemon binds an **ephemeral loopback port** and writes a discovery
+file at `~/.go-ios/rest-api.json`; the examples auto-discover it, so you do not
+need to know or set the port. Start it with an API key:
 
 ```sh
-# Terminal 1 — start the daemon with an API key on port 8080
+# Terminal 1 — start the daemon with an API key (ephemeral loopback port)
 GO_IOS_API_KEY=dev-secret ios --rest --api-key dev-secret
 ```
+
+To pin a fixed port instead, start the daemon with `--addr :8080` and set
+`GO_IOS_BASE_URL=http://localhost:8080` before running the examples.
 
 (See `ios help` / the top-level README for the exact daemon flags on your
 version — the key point is that the daemon is bound to an API key and the
@@ -55,7 +60,8 @@ examples send that same key as `Authorization: Bearer <key>`.)
 ```sh
 # Terminal 2
 export GO_IOS_API_KEY=dev-secret
-# export GO_IOS_BASE_URL=http://localhost:8080   # only if not the default
+# GO_IOS_BASE_URL is optional; unset, the local daemon is auto-discovered.
+# export GO_IOS_BASE_URL=http://localhost:8080   # only to pin a fixed/remote daemon
 # export GO_IOS_UDID=00008030-...                # only to pin a specific device
 
 npm run examples

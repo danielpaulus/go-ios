@@ -8,8 +8,10 @@ namespace GoIos.Examples;
 /// The examples are configured entirely through environment variables so they
 /// can run unchanged in a shell, a container, or CI:
 ///
-///   GO_IOS_BASE_URL   Base URL of the go-ios REST daemon.
-///                     Default: http://localhost:8080
+///   GO_IOS_BASE_URL   Base URL of the go-ios REST daemon. Optional — when unset
+///                     the examples pass no BaseUrl, so the SDK auto-discovers
+///                     the local daemon via ~/.go-ios/rest-api.json. Set it only
+///                     to target a pinned or remote daemon.
 ///   GO_IOS_API_KEY    Bearer token the daemon was started with. REQUIRED
 ///                     unless the daemon runs with --disable-auth (in which
 ///                     case set it to any non-empty placeholder, or export it
@@ -25,8 +27,8 @@ namespace GoIos.Examples;
 /// </summary>
 public sealed class ExampleContext : IDisposable
 {
-    /// <summary>Base URL of the go-ios daemon (from GO_IOS_BASE_URL).</summary>
-    public string BaseUrl { get; }
+    /// <summary>Base URL of the go-ios daemon (from GO_IOS_BASE_URL), or null to auto-discover the local daemon.</summary>
+    public string? BaseUrl { get; }
 
     /// <summary>Bearer token (from GO_IOS_API_KEY). May be empty when the daemon runs with --disable-auth.</summary>
     public string ApiKey { get; }
@@ -37,7 +39,7 @@ public sealed class ExampleContext : IDisposable
     /// <summary>The single, reusable, thread-safe SDK client. Construct once, share everywhere.</summary>
     public IosClient Client { get; }
 
-    private ExampleContext(string baseUrl, string apiKey, string? preferredUdid)
+    private ExampleContext(string? baseUrl, string apiKey, string? preferredUdid)
     {
         BaseUrl = baseUrl;
         ApiKey = apiKey;
@@ -62,9 +64,11 @@ public sealed class ExampleContext : IDisposable
     /// </summary>
     public static ExampleContext? FromEnvironment()
     {
+        // Leave baseUrl null when GO_IOS_BASE_URL is unset so the SDK falls
+        // through to local-daemon discovery; we no longer hardcode a default port.
         var baseUrl = Environment.GetEnvironmentVariable("GO_IOS_BASE_URL");
         if (string.IsNullOrWhiteSpace(baseUrl))
-            baseUrl = "http://localhost:8080";
+            baseUrl = null;
 
         var apiKey = Environment.GetEnvironmentVariable("GO_IOS_API_KEY") ?? "";
         var udid = Environment.GetEnvironmentVariable("GO_IOS_UDID");

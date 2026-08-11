@@ -46,7 +46,7 @@ using var ctx = ExampleContext.FromEnvironment();
 if (ctx is null)
     return 2;
 
-Console.WriteLine($"go-ios examples -> {ctx.BaseUrl}");
+Console.WriteLine($"go-ios examples -> {ctx.BaseUrl ?? "(auto-discovered local daemon)"}");
 Console.WriteLine();
 
 // Named example registry. Order matters for run-all.

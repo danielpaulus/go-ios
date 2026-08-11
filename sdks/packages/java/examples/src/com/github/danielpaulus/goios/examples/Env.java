@@ -14,8 +14,10 @@ import java.util.List;
  *
  * <ul>
  *   <li>{@code GO_IOS_BASE_URL} — base URL of the daemon. The SDK appends
- *       {@code /api/v1} automatically, so pass just the origin. Defaults to
- *       {@code http://localhost:8080}.</li>
+ *       {@code /api/v1} automatically, so pass just the origin. Optional — when
+ *       unset the examples pass no baseUrl, so the SDK auto-discovers the local
+ *       daemon via {@code ~/.go-ios/rest-api.json}. Set it only to target a
+ *       pinned or remote daemon.</li>
  *   <li>{@code GO_IOS_API_KEY} — bearer token. The daemon refuses to start
  *       without an API key unless launched with {@code --disable-auth}. Every
  *       example treats a missing key as a fatal misconfiguration and exits with
@@ -30,16 +32,18 @@ import java.util.List;
  */
 public final class Env {
 
-    /** Default daemon endpoint when {@code GO_IOS_BASE_URL} is unset. */
-    public static final String DEFAULT_BASE_URL = "http://localhost:8080";
-
     private Env() {
     }
 
-    /** The configured base URL, or {@link #DEFAULT_BASE_URL}. */
+    /**
+     * The configured base URL, or {@code null} to let the SDK auto-discover the
+     * local daemon ({@code ~/.go-ios/rest-api.json}). When {@code GO_IOS_BASE_URL}
+     * is unset we return {@code null} so the builder falls through to discovery —
+     * we no longer hardcode a default port.
+     */
     public static String baseUrl() {
         String v = System.getenv("GO_IOS_BASE_URL");
-        return (v == null || v.isBlank()) ? DEFAULT_BASE_URL : v;
+        return (v == null || v.isBlank()) ? null : v;
     }
 
     /** The configured API key, or {@code null} when unset. */
@@ -81,10 +85,14 @@ public final class Env {
      * try-with-resources).
      */
     public static IosClient client() {
-        return IosClient.builder()
-                .baseUrl(baseUrl())
-                .apiKey(apiKey())
-                .build();
+        // Only set baseUrl when GO_IOS_BASE_URL is provided; leaving it unset lets
+        // the builder fall through to local-daemon discovery.
+        IosClient.Builder builder = IosClient.builder().apiKey(apiKey());
+        String url = baseUrl();
+        if (url != null) {
+            builder.baseUrl(url);
+        }
+        return builder.build();
     }
 
     /**

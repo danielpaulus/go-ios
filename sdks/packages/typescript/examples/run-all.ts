@@ -74,7 +74,7 @@ async function runOne(client: IosClient, ex: Example): Promise<Outcome> {
 async function main(): Promise<void> {
   // `makeClient()` enforces GO_IOS_API_KEY (exits non-zero if missing).
   const client = makeClient();
-  console.log(`go-ios examples suite → ${baseUrl()}`);
+  console.log(`go-ios examples suite → ${baseUrl() ?? "(auto-discovered local daemon)"}`);
 
   const suite: Example[] = [...CORE];
   if (process.env.RUN_UI === "1") {
