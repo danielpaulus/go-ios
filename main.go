@@ -148,7 +148,7 @@ Usage:
   ios get-wallpaper [--output=<outfile>] [options]
   ios get-icon-layout [--output=<outfile>] [options]
   ios set-icon-layout <layoutFile> [options]
-  ios syslog [--parse] [options]
+  ios syslog [--parse] [--pid=<processID>] [--process=<processName>] [options]
   ios ostrace [--pid=<processID>] [--process=<processName>] [--follow] [--level=<levels>] [--subsystem=<sub>] [--match=<str>] [--exclude=<str>] [options]
   ios sysmontap [options]
   ios timeformat (24h | 12h | toggle | get) [--force] [options]
@@ -534,7 +534,17 @@ The commands work as following:
                                                                     behavior may occur if the given layout does not contain every icon on the device".
                                                                     Missing apps are re-paginated, not hidden.
 
-    ios syslog [--parse] [options]                                  Prints a device's log output, Use --parse to parse the fields from the log
+    ios syslog [--parse] [--pid=<processID>] [--process=<processName>]
+                                                                    Prints a device's log output, Use --parse to parse the fields from the log
+                                                                    Client-side filters (the full stream is still received from the device):
+                                                                      --process=<name>     Only show entries logged by this process name (exact match;
+                                                                                           a "(Library)" annotation as in "SpringBoard(FrontBoard)" is ignored)
+                                                                      --pid=<pid>          Only show entries logged by this process ID
+                                                                    Lines that cannot be parsed (and therefore cannot be attributed to a
+                                                                    process) are omitted while a filter is active.
+                                                                    Filtering is handy alongside 'ios test'/'ios runtest': run syslog with
+                                                                    --process=<appName> in a second terminal to capture the NSLog/os_log
+                                                                    output of the app under test while the tests execute.
     ios ostrace [--pid=<processID>] [--process=<processName>] [--follow] [--level=<levels>] [--subsystem=<sub>] [--match=<str>] [--exclude=<str>]
                                                                      Stream structured syslog via os_trace_relay. Note: streaming logs
                                                                      places significant CPU load on the device.
@@ -1580,7 +1590,7 @@ func printDeviceInfo(device ios.DeviceEntry) {
 	fmt.Println(convertToJSONString(allValues))
 }
 
-func runSyslog(device ios.DeviceEntry, parse bool) {
+func runSyslog(device ios.DeviceEntry, parse bool, filter syslog.EntryFilter) {
 	slog.Debug("Run Syslog.")
 
 	syslogConnection, err := syslog.New(device)
@@ -1597,6 +1607,7 @@ func runSyslog(device ios.DeviceEntry, parse bool) {
 		logFormatter = legacyJsonSyslog()
 	}
 
+	filterParser := syslog.Parser()
 	go func() {
 		for {
 			logMessage, err := syslogConnection.ReadLogMessage()
@@ -1605,6 +1616,14 @@ func runSyslog(device ios.DeviceEntry, parse bool) {
 			}
 			logMessage = strings.TrimSuffix(logMessage, "\x00")
 			logMessage = strings.TrimSuffix(logMessage, "\x0A")
+
+			if !filter.IsEmpty() {
+				entry, err := filterParser(logMessage)
+				if err != nil || !filter.Matches(entry) {
+					// unparseable lines cannot be attributed to a process, skip them while filtering
+					continue
+				}
+			}
 
 			fmt.Println(logFormatter(logMessage))
 		}

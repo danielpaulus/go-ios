@@ -195,6 +195,115 @@ func TestDecodeVis(t *testing.T) {
 	}
 }
 
+func TestEntryFilter(t *testing.T) {
+	parse := syslog.Parser()
+	springboard, err := parse("Jan 2 15:04:05 iPhone SpringBoard[123] <Notice>: hello world")
+	require.NoError(t, err)
+	myApp, err := parse("Jan 2 15:04:06 iPhone MyApp[42] <Error>: something failed")
+	require.NoError(t, err)
+	annotated, err := parse("Jan 2 15:04:07 iPhone SpringBoard(FrontBoard)[123] <Notice>: os_log line")
+	require.NoError(t, err)
+	require.Equal(t, "SpringBoard(FrontBoard)", annotated.Process)
+
+	tests := []struct {
+		name   string
+		filter syslog.EntryFilter
+		entry  *syslog.LogEntry
+		want   bool
+	}{
+		{
+			name:   "empty filter matches everything",
+			filter: syslog.EntryFilter{},
+			entry:  springboard,
+			want:   true,
+		},
+		{
+			name:   "process name matches",
+			filter: syslog.EntryFilter{Process: "MyApp"},
+			entry:  myApp,
+			want:   true,
+		},
+		{
+			name:   "process name does not match",
+			filter: syslog.EntryFilter{Process: "MyApp"},
+			entry:  springboard,
+			want:   false,
+		},
+		{
+			name:   "process name match is exact, not substring",
+			filter: syslog.EntryFilter{Process: "MyApp"},
+			entry:  &syslog.LogEntry{Process: "MyAppExtension", PID: "43"},
+			want:   false,
+		},
+		{
+			name:   "process name matches despite (Library) annotation",
+			filter: syslog.EntryFilter{Process: "SpringBoard"},
+			entry:  annotated,
+			want:   true,
+		},
+		{
+			name:   "annotated process name matches exactly",
+			filter: syslog.EntryFilter{Process: "SpringBoard(FrontBoard)"},
+			entry:  annotated,
+			want:   true,
+		},
+		{
+			name:   "library annotation alone does not match",
+			filter: syslog.EntryFilter{Process: "FrontBoard"},
+			entry:  annotated,
+			want:   false,
+		},
+		{
+			name:   "annotation does not turn exact match into prefix match",
+			filter: syslog.EntryFilter{Process: "MyApp"},
+			entry:  &syslog.LogEntry{Process: "MyAppExtension(Foundation)", PID: "44"},
+			want:   false,
+		},
+		{
+			name:   "pid matches",
+			filter: syslog.EntryFilter{PID: "42"},
+			entry:  myApp,
+			want:   true,
+		},
+		{
+			name:   "pid does not match",
+			filter: syslog.EntryFilter{PID: "42"},
+			entry:  springboard,
+			want:   false,
+		},
+		{
+			name:   "process and pid both match",
+			filter: syslog.EntryFilter{Process: "MyApp", PID: "42"},
+			entry:  myApp,
+			want:   true,
+		},
+		{
+			name:   "process matches but pid does not",
+			filter: syslog.EntryFilter{Process: "MyApp", PID: "99"},
+			entry:  myApp,
+			want:   false,
+		},
+		{
+			name:   "nil entry never matches",
+			filter: syslog.EntryFilter{},
+			entry:  nil,
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.filter.Matches(tt.entry))
+		})
+	}
+}
+
+func TestEntryFilterIsEmpty(t *testing.T) {
+	assert.True(t, syslog.EntryFilter{}.IsEmpty())
+	assert.False(t, syslog.EntryFilter{Process: "MyApp"}.IsEmpty())
+	assert.False(t, syslog.EntryFilter{PID: "42"}.IsEmpty())
+}
+
 func TestParserWithDecodedVisLine(t *testing.T) {
 	parse := syslog.Parser()
 	line := syslog.DecodeVis(`Jan 2 15:04:05 iPhone MyApp[42] <Error>: indexPath \M-f\M^H\M^V model \M-d\M-8\M-:\M-g\M-)\M-:`)
