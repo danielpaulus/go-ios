@@ -6,59 +6,49 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.generic_response import GenericResponse
-from ...models.lockdown_values import LockdownValues
-from ...types import UNSET, Response, Unset
+from ...models.sign_certificate_body import SignCertificateBody
+from ...types import Response
 
 
 def _get_kwargs(
-    udid: str,
     *,
-    domain: Union[Unset, str] = UNSET,
+    body: SignCertificateBody,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {}
-
-    params["domain"] = domain
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+    headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": "/api/v1/device/{udid}/lockdown".format(
-            udid=udid,
-        ),
-        "params": params,
+        "method": "post",
+        "url": "/api/v1/sign/certificate",
     }
 
+    _kwargs["files"] = body.to_multipart()
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    if response.status_code == 200:
-        response_200 = LockdownValues.from_dict(response.json())
+) -> Optional[GenericResponse]:
+    if response.status_code == 400:
+        response_400 = GenericResponse.from_dict(response.json())
 
-        return response_200
+        return response_400
 
     if response.status_code == 401:
         response_401 = GenericResponse.from_dict(response.json())
 
         return response_401
 
-    if response.status_code == 404:
-        response_404 = GenericResponse.from_dict(response.json())
-
-        return response_404
-
-    if response.status_code == 422:
-        response_422 = GenericResponse.from_dict(response.json())
-
-        return response_422
-
     if response.status_code == 500:
         response_500 = GenericResponse.from_dict(response.json())
 
         return response_500
+
+    if response.status_code == 502:
+        response_502 = GenericResponse.from_dict(response.json())
+
+        return response_502
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -68,7 +58,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[GenericResponse, LockdownValues]]:
+) -> Response[GenericResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -78,31 +68,30 @@ def _build_response(
 
 
 def sync_detailed(
-    udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    body: SignCertificateBody,
+) -> Response[GenericResponse]:
+    """Create a signing certificate
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Create one App Store Connect signing certificate and return its P12
+    (certificate + private key) as a downloadable `application/x-pkcs12` file. The
+    P12 password is echoed in the `X-P12-Password` response header and the
+    certificate resource id in `X-Certificate-Id`. Host-scoped (device-free).
 
     Args:
-        udid (str):
-        domain (Union[Unset, str]):
+        body (SignCertificateBody):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[GenericResponse]
     """
 
     kwargs = _get_kwargs(
-        udid=udid,
-        domain=domain,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -113,61 +102,59 @@ def sync_detailed(
 
 
 def sync(
-    udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    body: SignCertificateBody,
+) -> Optional[GenericResponse]:
+    """Create a signing certificate
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Create one App Store Connect signing certificate and return its P12
+    (certificate + private key) as a downloadable `application/x-pkcs12` file. The
+    P12 password is echoed in the `X-P12-Password` response header and the
+    certificate resource id in `X-Certificate-Id`. Host-scoped (device-free).
 
     Args:
-        udid (str):
-        domain (Union[Unset, str]):
+        body (SignCertificateBody):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        GenericResponse
     """
 
     return sync_detailed(
-        udid=udid,
         client=client,
-        domain=domain,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    body: SignCertificateBody,
+) -> Response[GenericResponse]:
+    """Create a signing certificate
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Create one App Store Connect signing certificate and return its P12
+    (certificate + private key) as a downloadable `application/x-pkcs12` file. The
+    P12 password is echoed in the `X-P12-Password` response header and the
+    certificate resource id in `X-Certificate-Id`. Host-scoped (device-free).
 
     Args:
-        udid (str):
-        domain (Union[Unset, str]):
+        body (SignCertificateBody):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[GenericResponse]
     """
 
     kwargs = _get_kwargs(
-        udid=udid,
-        domain=domain,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -176,32 +163,31 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    body: SignCertificateBody,
+) -> Optional[GenericResponse]:
+    """Create a signing certificate
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Create one App Store Connect signing certificate and return its P12
+    (certificate + private key) as a downloadable `application/x-pkcs12` file. The
+    P12 password is echoed in the `X-P12-Password` response header and the
+    certificate resource id in `X-Certificate-Id`. Host-scoped (device-free).
 
     Args:
-        udid (str):
-        domain (Union[Unset, str]):
+        body (SignCertificateBody):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        GenericResponse
     """
 
     return (
         await asyncio_detailed(
-            udid=udid,
             client=client,
-            domain=domain,
+            body=body,
         )
     ).parsed

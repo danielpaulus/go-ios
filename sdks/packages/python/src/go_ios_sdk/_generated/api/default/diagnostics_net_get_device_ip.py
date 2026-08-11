@@ -6,27 +6,18 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.generic_response import GenericResponse
-from ...models.lockdown_values import LockdownValues
-from ...types import UNSET, Response, Unset
+from ...models.network_info import NetworkInfo
+from ...types import Response
 
 
 def _get_kwargs(
     udid: str,
-    *,
-    domain: Union[Unset, str] = UNSET,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {}
-
-    params["domain"] = domain
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/v1/device/{udid}/lockdown".format(
+        "url": "/api/v1/device/{udid}/ip".format(
             udid=udid,
         ),
-        "params": params,
     }
 
     return _kwargs
@@ -34,9 +25,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[GenericResponse, LockdownValues]]:
+) -> Optional[Union[GenericResponse, NetworkInfo]]:
     if response.status_code == 200:
-        response_200 = LockdownValues.from_dict(response.json())
+        response_200 = NetworkInfo.from_dict(response.json())
 
         return response_200
 
@@ -68,7 +59,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[GenericResponse, LockdownValues]]:
+) -> Response[Union[GenericResponse, NetworkInfo]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -81,28 +72,25 @@ def sync_detailed(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+) -> Response[Union[GenericResponse, NetworkInfo]]:
+    """Get device IP / network info
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Resolve the device's network addresses (MAC/IPv4/IPv6) by sniffing pcapd
+    (CLI: `ios ip`).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[Union[GenericResponse, NetworkInfo]]
     """
 
     kwargs = _get_kwargs(
         udid=udid,
-        domain=domain,
     )
 
     response = client.get_httpx_client().request(
@@ -116,29 +104,26 @@ def sync(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+) -> Optional[Union[GenericResponse, NetworkInfo]]:
+    """Get device IP / network info
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Resolve the device's network addresses (MAC/IPv4/IPv6) by sniffing pcapd
+    (CLI: `ios ip`).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        Union[GenericResponse, NetworkInfo]
     """
 
     return sync_detailed(
         udid=udid,
         client=client,
-        domain=domain,
     ).parsed
 
 
@@ -146,28 +131,25 @@ async def asyncio_detailed(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+) -> Response[Union[GenericResponse, NetworkInfo]]:
+    """Get device IP / network info
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Resolve the device's network addresses (MAC/IPv4/IPv6) by sniffing pcapd
+    (CLI: `ios ip`).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[Union[GenericResponse, NetworkInfo]]
     """
 
     kwargs = _get_kwargs(
         udid=udid,
-        domain=domain,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -179,29 +161,26 @@ async def asyncio(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+) -> Optional[Union[GenericResponse, NetworkInfo]]:
+    """Get device IP / network info
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Resolve the device's network addresses (MAC/IPv4/IPv6) by sniffing pcapd
+    (CLI: `ios ip`).
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        Union[GenericResponse, NetworkInfo]
     """
 
     return (
         await asyncio_detailed(
             udid=udid,
             client=client,
-            domain=domain,
         )
     ).parsed

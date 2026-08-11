@@ -21,10 +21,15 @@ from .async_client import (
     AsyncDevice,
     AsyncDevices,
     AsyncFiles,
+    AsyncFsync,
     AsyncIosClient,
     AsyncJobs,
+    AsyncPrepare,
+    AsyncSign,
     AsyncTunnels,
+    AsyncUi,
     AsyncWda,
+    AsyncWebInspector,
 )
 from .client import (
     Apps,
@@ -32,10 +37,15 @@ from .client import (
     Device,
     Devices,
     Files,
+    Fsync,
     IosClient,
     Jobs,
+    Prepare,
+    Sign,
     Tunnels,
+    Ui,
     Wda,
+    WebInspector,
 )
 from .errors import ApiError, GoIosError
 from .events import (
@@ -64,6 +74,11 @@ __all__ = [
     "Crashes",
     "Jobs",
     "Tunnels",
+    "Fsync",
+    "WebInspector",
+    "Ui",
+    "Sign",
+    "Prepare",
     # handles (async)
     "AsyncDevices",
     "AsyncDevice",
@@ -73,6 +88,11 @@ __all__ = [
     "AsyncCrashes",
     "AsyncJobs",
     "AsyncTunnels",
+    "AsyncFsync",
+    "AsyncWebInspector",
+    "AsyncUi",
+    "AsyncSign",
+    "AsyncPrepare",
     # errors
     "GoIosError",
     "ApiError",

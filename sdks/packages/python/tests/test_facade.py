@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import List, Tuple
 
 import httpx
@@ -39,6 +40,8 @@ JOB_LOGS_STREAM = (
     b"event: heartbeat\ndata: {}\n\n"
     b'event: log\ndata: {"line":"done"}\n\n'
 )
+# A binary (non-SSE) stream delivered as several chunked byte frames.
+PCAP_CHUNKS = [b"\xd4\xc3\xb2\xa1", b"packet-1", b"packet-2"]
 
 
 def _handler(record: List[httpx.Request]):
@@ -75,6 +78,38 @@ def _handler(record: List[httpx.Request]):
         if path.endswith("/logs"):
             return httpx.Response(200, content=JOB_LOGS_STREAM,
                                   headers={"content-type": "text/event-stream"})
+        if path.endswith("/diskspace"):
+            return httpx.Response(200, json={"TotalDiskCapacity": 128, "TotalDataFree": 64})
+        if path.endswith("/fsync/pull"):
+            return httpx.Response(200, content=b"FSYNCDATA",
+                                  headers={"content-type": "application/octet-stream"})
+        if path.endswith("/fsync/ls"):
+            return httpx.Response(200, json={"path": "/", "entries": []})
+        if path.endswith("/webinspector/pages"):
+            return httpx.Response(200, json=[{"id": "1", "url": "about:blank"}])
+        if path.endswith("/ui/tap"):
+            return httpx.Response(200, json={"status": "ok"})
+        if path.endswith("/ui/source"):
+            return httpx.Response(200, content=b"<XCUIElementTypeApplication/>",
+                                  headers={"content-type": "application/xml"})
+        if path.endswith("/ui/screenshot"):
+            return httpx.Response(200, content=b"\x89PNG\r\n",
+                                  headers={"content-type": "image/png"})
+        if path.endswith("/sign/certificate"):
+            return httpx.Response(200, content=b"P12BYTES",
+                                  headers={"content-type": "application/x-pkcs12"})
+        if path.endswith("/sign/app"):
+            return httpx.Response(200, content=b"SIGNEDIPA",
+                                  headers={"content-type": "application/octet-stream"})
+        if path == "/api/v1/prepare/skip-options":
+            return httpx.Response(200, json={"options": ["WiFi", "Location"]})
+        if path.endswith("/pcap") or path.endswith("/screenshot/stream") \
+                or path.endswith("/ui/stream"):
+            return httpx.Response(
+                200,
+                stream=httpx.ByteStream(b"".join(PCAP_CHUNKS)),
+                headers={"content-type": "application/octet-stream"},
+            )
         if path.endswith("/missing"):
             return httpx.Response(404, json={"message": "device not found"})
         return httpx.Response(200, json={"message": "ok"})
@@ -292,6 +327,223 @@ def test_sync_job_logs_stream_typed() -> None:
 
 
 # --------------------------------------------------------------------------
+# v3 new groups (sync)
+# --------------------------------------------------------------------------
+
+
+def test_disk_space() -> None:
+    client, record = _sync_client()
+    out = client.device("UDID1").disk_space()
+    assert out["TotalDiskCapacity"] == 128
+    assert record[-1].url.path.endswith("/diskspace")
+
+
+def test_lockdown_domain_param() -> None:
+    client, record = _sync_client()
+    client.device("UDID1").lockdown(domain="com.apple.mobile.battery")
+    assert dict(record[-1].url.params) == {"domain": "com.apple.mobile.battery"}
+
+
+def test_set_voice_over_body() -> None:
+    client, record = _sync_client()
+    client.device("UDID1").set_voice_over(True)
+    req = record[-1]
+    assert req.method == "PUT"
+    assert req.url.path.endswith("/voiceover")
+    assert req.read() == b'{"enabled":true}'
+
+
+def test_ax_audit_timeout_param() -> None:
+    client, record = _sync_client()
+    client.device("UDID1").ax_audit(timeout=30)
+    req = record[-1]
+    assert req.method == "POST"
+    assert req.url.path.endswith("/ax/audit")
+    assert dict(req.url.params) == {"timeout": "30"}
+
+
+def test_fsync_ls_bundle_id_maps_to_bundleID() -> None:
+    client, record = _sync_client()
+    client.device("UDID1").fsync.ls("/Documents", bundle_id="com.foo")
+    req = record[-1]
+    assert req.url.path.endswith("/fsync/ls")
+    assert dict(req.url.params) == {"path": "/Documents", "bundleID": "com.foo"}
+
+
+def test_fsync_pull_returns_bytes() -> None:
+    client, record = _sync_client()
+    data = client.device("UDID1").fsync.pull("/Documents/a.bin")
+    assert data == b"FSYNCDATA"
+    assert dict(record[-1].url.params) == {"path": "/Documents/a.bin"}
+
+
+def test_fsync_rm_recursive_param() -> None:
+    client, record = _sync_client()
+    client.device("UDID1").fsync.rm("/dir", recursive=True)
+    req = record[-1]
+    assert req.method == "DELETE"
+    assert dict(req.url.params) == {"path": "/dir", "recursive": "true"}
+
+
+def test_cloud_config() -> None:
+    client, record = _sync_client()
+    client.device("UDID1").cloud_config()
+    assert record[-1].url.path.endswith("/cloudconfig")
+
+
+def test_webinspector_pages_and_eval() -> None:
+    client, record = _sync_client()
+    pages = client.device("UDID1").webinspector.pages()
+    assert pages[0]["url"] == "about:blank"
+    client.device("UDID1").webinspector.eval("1+1", page="p1", bundle_id="com.apple.mobilesafari")
+    req = record[-1]
+    assert req.url.path.endswith("/webinspector/eval")
+    body = req.read()
+    assert b'"script":"1+1"' in body and b'"page":"p1"' in body
+
+
+def test_ui_tap_body_and_backend_params() -> None:
+    client, record = _sync_client()
+    client.device("UDID1").ui.tap(10, 20, backend="wda", wda_url="http://127.0.0.1:8100", timeout=5)
+    req = record[-1]
+    assert req.method == "POST"
+    assert req.url.path.endswith("/ui/tap")
+    assert req.read() == b'{"x":10,"y":20}'
+    assert dict(req.url.params) == {
+        "backend": "wda", "wdaUrl": "http://127.0.0.1:8100", "timeout": "5",
+    }
+
+
+def test_ui_source_returns_xml_text() -> None:
+    client, _ = _sync_client()
+    xml = client.device("UDID1").ui.source()
+    assert isinstance(xml, str)
+    assert xml.startswith("<XCUIElementTypeApplication")
+
+
+def test_ui_app_launch() -> None:
+    client, record = _sync_client()
+    client.device("UDID1").ui.app.launch("com.foo.bar")
+    req = record[-1]
+    assert req.url.path.endswith("/ui/app/launch")
+    assert req.read() == b'{"bundleId":"com.foo.bar"}'
+
+
+def test_ui_set_orientation() -> None:
+    client, record = _sync_client()
+    client.device("UDID1").ui.set_orientation("LANDSCAPE")
+    req = record[-1]
+    assert req.method == "PUT"
+    assert req.url.path.endswith("/ui/orientation")
+    assert req.read() == b'{"orientation":"LANDSCAPE"}'
+
+
+def test_sign_certificate_returns_bytes() -> None:
+    client, record = _sync_client()
+    out = client.sign.certificate(b"privkey", "KEYID", "ISSUER", p12_password="pw")
+    assert out == b"P12BYTES"
+    req = record[-1]
+    assert req.method == "POST"
+    assert req.url.path == "/api/v1/sign/certificate"
+    assert req.headers["Content-Type"].startswith("multipart/form-data")
+    body = req.read()
+    assert b"privkey" in body and b"KEYID" in body and b"pw" in body
+
+
+def test_sign_app_returns_signed_ipa_bytes() -> None:
+    client, _ = _sync_client()
+    out = client.sign.app(b"ipa", b"p12", b"profile")
+    assert out == b"SIGNEDIPA"
+
+
+def test_prepare_skip_options_host_scoped() -> None:
+    client, record = _sync_client()
+    out = client.prepare.skip_options()
+    assert out["options"] == ["WiFi", "Location"]
+    assert record[-1].url.path == "/api/v1/prepare/skip-options"
+
+
+def test_device_prepare_multipart_with_skip_list() -> None:
+    client, record = _sync_client()
+    client.device("UDID1").prepare(b"certdata", skip=["WiFi", "Siri"], org_name="Acme")
+    req = record[-1]
+    assert req.method == "POST"
+    assert req.url.path.endswith("/prepare")
+    assert req.headers["Content-Type"].startswith("multipart/form-data")
+    body = req.read()
+    assert b"certdata" in body and b"WiFi" in body and b"Siri" in body and b"Acme" in body
+
+
+# --------------------------------------------------------------------------
+# Binary streams (sync) — raw byte chunks, NOT SSE
+# --------------------------------------------------------------------------
+
+
+class _ChunkedSyncTransport(httpx.BaseTransport):
+    """A transport that streams a fixed list of byte chunks, one iter_bytes() at a time."""
+
+    def __init__(self, chunks: List[bytes]) -> None:
+        self._chunks = chunks
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, headers={"content-type": "application/octet-stream"},
+            stream=_IterStream(self._chunks),
+        )
+
+
+class _IterStream(httpx.SyncByteStream):
+    def __init__(self, chunks: List[bytes]) -> None:
+        self._chunks = chunks
+
+    def __iter__(self):
+        yield from self._chunks
+
+
+def test_binary_stream_preserves_chunk_boundaries_and_cancels() -> None:
+    # A real chunked transport (MockTransport collapses chunks) proving the byte
+    # generator yields each chunk and that early close() is honored (cancelable).
+    transport = _ChunkedSyncTransport(PCAP_CHUNKS)
+    http = httpx.Client(base_url=BASE, transport=transport)
+    client = IosClient(base_url=BASE, http_client=http)
+    stream = client.device("UDID1").pcap()
+    got = []
+    for chunk in stream:
+        got.append(chunk)
+        if len(got) == 2:
+            stream.close()  # cancel after two chunks
+            break
+    assert got == PCAP_CHUNKS[:2]
+
+
+def test_pcap_yields_raw_byte_chunks() -> None:
+    client, record = _sync_client()
+    chunks = list(client.device("UDID1").pcap(timeout=10))
+    assert b"".join(chunks) == b"".join(PCAP_CHUNKS)
+    assert dict(record[-1].url.params) == {"timeout": "10"}
+
+
+def test_screenshot_stream_context_manager() -> None:
+    client, _ = _sync_client()
+    collected = []
+    with client.device("UDID1").screenshot_stream(quality=70) as stream:
+        for chunk in stream:
+            collected.append(chunk)
+    assert b"".join(collected) == b"".join(PCAP_CHUNKS)
+
+
+def test_ui_stream_cancel_via_close_releases_response() -> None:
+    client, _ = _sync_client()
+    stream = client.device("UDID1").ui.stream(codec="h264", backend="devicekit")
+    it = iter(stream)
+    first = next(it)
+    assert first.startswith(PCAP_CHUNKS[0])
+    # Cancel early: closing must not raise and must release the response.
+    stream.close()
+    stream.close()  # idempotent
+
+
+# --------------------------------------------------------------------------
 # Async
 # --------------------------------------------------------------------------
 
@@ -349,6 +601,56 @@ async def test_async_job_logs_stream() -> None:
         lines = [ln async for ln in client.device("UDID1").jobs.logs("job-1")]
     assert [ln.line for ln in lines] == ["starting", "done"]
     assert all(isinstance(ln, JobLogLine) for ln in lines)
+
+
+@pytest.mark.asyncio
+async def test_async_ui_tap_and_fsync_pull() -> None:
+    client, record = _async_client()
+    async with client:
+        await client.device("UDID1").ui.tap(1, 2, backend="wda")
+        assert record[-1].read() == b'{"x":1,"y":2}'
+        assert record[-1].url.params["backend"] == "wda"
+        data = await client.device("UDID1").fsync.pull("/a.bin", bundle_id="com.foo")
+        assert data == b"FSYNCDATA"
+        assert record[-1].url.params["bundleID"] == "com.foo"
+
+
+@pytest.mark.asyncio
+async def test_async_sign_certificate_bytes() -> None:
+    client, _ = _async_client()
+    async with client:
+        out = await client.sign.certificate(b"k", "KID", "IID")
+    assert out == b"P12BYTES"
+
+
+@pytest.mark.asyncio
+async def test_async_pcap_binary_stream() -> None:
+    client, record = _async_client()
+    async with client:
+        chunks = [c async for c in client.device("UDID1").pcap()]
+    assert b"".join(chunks) == b"".join(PCAP_CHUNKS)
+    assert record[-1].url.path.endswith("/pcap")
+
+
+@pytest.mark.asyncio
+async def test_async_ui_stream_cancellation_stops_and_closes() -> None:
+    seen = 0
+
+    async def consume() -> None:
+        nonlocal seen
+        client, _ = _async_client()
+        async with client:
+            async for _chunk in client.device("UDID1").ui.stream():
+                seen += 1
+                await asyncio.sleep(3600)  # block until cancelled
+
+    task = asyncio.create_task(consume())
+    while seen < 1:
+        await asyncio.sleep(0.001)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert seen == 1
 
 
 @pytest.mark.asyncio

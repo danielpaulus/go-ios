@@ -163,6 +163,48 @@ class _SyncStream:
                 self._response = None
 
 
+class _SyncBytesStream:
+    """A closeable sync generator of raw byte chunks from a long-lived response.
+
+    Backs the v3 **binary** streams (``ui/stream``, ``screenshot/stream``,
+    ``pcap``) which are *not* SSE — they emit an unframed chunked byte stream. Use
+    it as an iterator (``for chunk in stream``) or a context manager
+    (``with dev.pcap() as s: ...``); either way the HTTP response is released when
+    iteration finishes, the block exits, or ``close()`` is called (cancelable).
+    """
+
+    def __init__(self, request_cm: Any) -> None:
+        self._request_cm = request_cm
+        self._response: Optional[httpx.Response] = None
+
+    def _open(self) -> httpx.Response:
+        if self._response is None:
+            self._response = self._request_cm.__enter__()
+            raise_for_status(self._response)
+        return self._response
+
+    def __iter__(self) -> Iterator[bytes]:
+        resp = self._open()
+        try:
+            yield from resp.iter_bytes()
+        finally:
+            self.close()
+
+    def __enter__(self) -> "_SyncBytesStream":
+        self._open()
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self.close()
+
+    def close(self) -> None:
+        if self._response is not None:
+            try:
+                self._request_cm.__exit__(None, None, None)
+            finally:
+                self._response = None
+
+
 class Apps:
     """App-management operations for a single device."""
 
@@ -324,6 +366,324 @@ class Jobs:
         )
 
 
+class Fsync:
+    """AFC file-sync operations for a single device (``/fsync/*``)."""
+
+    def __init__(self, device: "Device") -> None:
+        self._d = device
+
+    def ls(self, path: Optional[str] = None, *, bundle_id: Optional[str] = None) -> Dict[str, Any]:
+        """List a device directory over AFC (``GET /fsync/ls``)."""
+        return self._d._get_json("/fsync/ls", params=_fsync_params(path, bundle_id)) or {}
+
+    def tree(self, path: Optional[str] = None, *, bundle_id: Optional[str] = None) -> Dict[str, Any]:
+        """Recursively list a device directory over AFC (``GET /fsync/tree``)."""
+        return self._d._get_json("/fsync/tree", params=_fsync_params(path, bundle_id)) or {}
+
+    def pull(self, path: str, *, bundle_id: Optional[str] = None) -> bytes:
+        """Download a file's raw bytes over AFC (``GET /fsync/pull``)."""
+        return self._d._get_bytes("/fsync/pull", params=_fsync_params(path, bundle_id))
+
+    def push(
+        self, path: str, data: BytesLike, *, bundle_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Upload raw bytes to a device path over AFC (``POST /fsync/push``)."""
+        return self._d._request_json(
+            "post",
+            "/fsync/push",
+            params=_fsync_params(path, bundle_id),
+            content=_resolve_body(data),
+            headers={"Content-Type": "application/octet-stream"},
+        )
+
+    def rm(
+        self, path: str, *, recursive: bool = False, bundle_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Remove a file/directory over AFC (``DELETE /fsync/rm``)."""
+        params = _fsync_params(path, bundle_id) or {}
+        if recursive:
+            params["recursive"] = "true"
+        return self._d._request_json("delete", "/fsync/rm", params=params)
+
+    def mkdir(self, path: str, *, bundle_id: Optional[str] = None) -> Dict[str, Any]:
+        """Create a directory over AFC (``POST /fsync/mkdir``)."""
+        return self._d._post_json("/fsync/mkdir", params=_fsync_params(path, bundle_id))
+
+
+class WebInspector:
+    """Safari Web Inspector operations for a single device (``/webinspector/*``)."""
+
+    def __init__(self, device: "Device") -> None:
+        self._d = device
+
+    def pages(self) -> List[Dict[str, Any]]:
+        """List inspectable pages (``GET /webinspector/pages``)."""
+        return self._d._get_json("/webinspector/pages") or []
+
+    def launch(self, url: str, *, bundle_id: Optional[str] = None) -> Dict[str, Any]:
+        """Open a URL in a new inspectable page (``POST /webinspector/launch``)."""
+        body: Dict[str, Any] = {"url": url}
+        if bundle_id is not None:
+            body["bundleId"] = bundle_id
+        return self._d._post_json("/webinspector/launch", json=body)
+
+    def eval(
+        self, script: str, *, page: Optional[str] = None, bundle_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Evaluate JavaScript against a page (``POST /webinspector/eval``)."""
+        body: Dict[str, Any] = {"script": script}
+        if page is not None:
+            body["page"] = page
+        if bundle_id is not None:
+            body["bundleId"] = bundle_id
+        return self._d._post_json("/webinspector/eval", json=body)
+
+
+class UiApp:
+    """App lifecycle over the UI (WDA/DeviceKit) backend (``/ui/app/*``)."""
+
+    def __init__(self, ui: "Ui") -> None:
+        self._ui = ui
+
+    def launch(self, bundle_id: str, **backend: Any) -> Dict[str, Any]:
+        """Launch an app via the UI backend (``POST /ui/app/launch``)."""
+        return self._ui._post("/ui/app/launch", backend, json={"bundleId": bundle_id})
+
+    def terminate(self, bundle_id: str, **backend: Any) -> Dict[str, Any]:
+        """Terminate an app via the UI backend (``POST /ui/app/terminate``)."""
+        return self._ui._post("/ui/app/terminate", backend, json={"bundleId": bundle_id})
+
+    def foreground(self, **backend: Any) -> Dict[str, Any]:
+        """Bring the active app to the foreground (``POST /ui/app/foreground``)."""
+        return self._ui._post("/ui/app/foreground", backend)
+
+
+class Ui:
+    """UI automation proxied to a forwarded WDA/DeviceKit backend (``/ui/*``).
+
+    Every method accepts ``backend=``, ``wda_url=`` and ``timeout=`` keyword
+    arguments selecting/locating the backend (mapped to ``?backend/?wdaUrl/?timeout``).
+    The backend must already be running (bring up WDA via ``jobs.runwda`` +
+    ``jobs.forward`` first).
+    """
+
+    def __init__(self, device: "Device") -> None:
+        self._d = device
+        self.app = UiApp(self)
+
+    def _params(self, backend: Dict[str, Any], extra: Optional[Dict[str, Any]] = None) -> Any:
+        return _ui_backend_params(
+            backend.get("backend"), backend.get("wda_url"), backend.get("timeout"), extra
+        )
+
+    def _post(
+        self, suffix: str, backend: Dict[str, Any], *, json: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        return self._d._post_json(suffix, params=self._params(backend), json=json)
+
+    def _get(self, suffix: str, backend: Dict[str, Any]) -> Any:
+        return self._d._get_json(suffix, params=self._params(backend))
+
+    # -- gestures -----------------------------------------------------------
+    def tap(self, x: int, y: int, **backend: Any) -> Dict[str, Any]:
+        """Tap at ``(x, y)`` (``POST /ui/tap``)."""
+        return self._post("/ui/tap", backend, json={"x": x, "y": y})
+
+    def swipe(
+        self, x1: int, y1: int, x2: int, y2: int, *, duration: Optional[float] = None, **backend: Any
+    ) -> Dict[str, Any]:
+        """Swipe from ``(x1, y1)`` to ``(x2, y2)`` (``POST /ui/swipe``)."""
+        body: Dict[str, Any] = {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
+        if duration is not None:
+            body["duration"] = duration
+        return self._post("/ui/swipe", backend, json=body)
+
+    def long_press(
+        self, x: int, y: int, *, duration: Optional[float] = None, **backend: Any
+    ) -> Dict[str, Any]:
+        """Long-press at ``(x, y)`` (``POST /ui/longpress``)."""
+        body: Dict[str, Any] = {"x": x, "y": y}
+        if duration is not None:
+            body["duration"] = duration
+        return self._post("/ui/longpress", backend, json=body)
+
+    def type(self, text: str, **backend: Any) -> Dict[str, Any]:
+        """Type ``text`` into the focused field (``POST /ui/type``)."""
+        return self._post("/ui/type", backend, json={"text": text})
+
+    def button(self, name: str, **backend: Any) -> Dict[str, Any]:
+        """Press a hardware/software button by name (``POST /ui/button``)."""
+        return self._post("/ui/button", backend, json={"name": name})
+
+    def api(self, request: Dict[str, Any], **backend: Any) -> Dict[str, Any]:
+        """Send a raw request to the backend automation API (``POST /ui/api``)."""
+        return self._post("/ui/api", backend, json=request)
+
+    # -- queries ------------------------------------------------------------
+    def screenshot(self, **backend: Any) -> bytes:
+        """Capture a PNG screenshot via the UI backend (``GET /ui/screenshot``)."""
+        return self._d._get_bytes("/ui/screenshot", params=self._params(backend))
+
+    def source(self, **backend: Any) -> str:
+        """Get the UI source tree as XML text (``GET /ui/source``)."""
+        return self._d._get_text("/ui/source", params=self._params(backend))
+
+    def size(self, **backend: Any) -> Dict[str, Any]:
+        """Get the screen size (``GET /ui/size``)."""
+        return self._get("/ui/size", backend) or {}
+
+    def orientation(self, **backend: Any) -> Dict[str, Any]:
+        """Get the current orientation (``GET /ui/orientation``)."""
+        return self._get("/ui/orientation", backend) or {}
+
+    def set_orientation(self, orientation: str, **backend: Any) -> Dict[str, Any]:
+        """Set the orientation (``PUT /ui/orientation``)."""
+        return self._d._request_json(
+            "put", "/ui/orientation", params=self._params(backend),
+            json={"orientation": orientation},
+        )
+
+    def status(self, **backend: Any) -> Dict[str, Any]:
+        """Get the backend status (``GET /ui/status``)."""
+        return self._get("/ui/status", backend) or {}
+
+    def stream(
+        self,
+        *,
+        codec: Optional[str] = None,
+        backend: Optional[str] = None,
+        wda_url: Optional[str] = None,
+        timeout: Optional[Union[int, float]] = None,
+        fps: Optional[int] = None,
+        quality: Optional[int] = None,
+        scale: Optional[float] = None,
+        bitrate: Optional[int] = None,
+    ) -> _SyncBytesStream:
+        """Open the live UI video byte stream (``GET /ui/stream``).
+
+        Yields raw bytes chunks (MJPEG, or H.264 with ``codec="h264"``). Binary,
+        not SSE. Cancelable via ``close()`` / leaving the ``with`` block.
+        """
+        extra: Dict[str, Any] = {}
+        for key, val in (
+            ("codec", codec), ("fps", fps), ("quality", quality),
+            ("scale", scale), ("bitrate", bitrate),
+        ):
+            if val is not None:
+                extra[key] = val
+        params = _ui_backend_params(backend, wda_url, timeout, extra)
+        return self._d._bytes_stream("/ui/stream", params=params)
+
+
+class Sign:
+    """Host-scoped codesigning operations (``/sign/*``, device-free)."""
+
+    def __init__(self, client: "IosClient") -> None:
+        self._c = client
+
+    def certificate(
+        self,
+        asc_private_key: BytesLike,
+        asc_key_id: str,
+        asc_issuer_id: str,
+        *,
+        revoke_existing: Optional[bool] = None,
+        p12_password: Optional[str] = None,
+    ) -> bytes:
+        """Create an Apple dev certificate as a P12 (``POST /sign/certificate``) -> bytes."""
+        data: Dict[str, str] = {"asc-key-id": asc_key_id, "asc-issuer-id": asc_issuer_id}
+        if revoke_existing is not None:
+            data["revoke-existing"] = _bool_param(revoke_existing)
+        if p12_password is not None:
+            data["p12password"] = p12_password
+        return self._c._multipart_bytes(
+            "/sign/certificate", {"asc-private-key": (asc_private_key, "AuthKey.p8")}, data
+        )
+
+    def provision(
+        self,
+        asc_private_key: BytesLike,
+        asc_key_id: str,
+        asc_issuer_id: str,
+        bundle_id: str,
+        udid: str,
+        *,
+        bundle_name: Optional[str] = None,
+        profile_name: Optional[str] = None,
+        device_name: Optional[str] = None,
+        certificate_id: Optional[str] = None,
+        revoke_existing: Optional[bool] = None,
+        p12_password: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create a provisioning profile (``POST /sign/provision``) -> JSON envelope."""
+        data: Dict[str, str] = {
+            "asc-key-id": asc_key_id, "asc-issuer-id": asc_issuer_id,
+            "bundleid": bundle_id, "udid": udid,
+        }
+        for key, val in (
+            ("bundlename", bundle_name), ("profilename", profile_name),
+            ("devicename", device_name), ("certificate-id", certificate_id),
+            ("p12password", p12_password),
+        ):
+            if val is not None:
+                data[key] = val
+        if revoke_existing is not None:
+            data["revoke-existing"] = _bool_param(revoke_existing)
+        return self._c._multipart(
+            "post", "/sign/provision",
+            {"asc-private-key": (asc_private_key, "AuthKey.p8")}, data,
+        )
+
+    def app(
+        self,
+        ipa: BytesLike,
+        p12file: BytesLike,
+        profile: BytesLike,
+        *,
+        p12_password: Optional[str] = None,
+        bundle_id: Optional[str] = None,
+    ) -> bytes:
+        """Resign an app/IPA and return the signed IPA (``POST /sign/app``) -> bytes."""
+        data: Dict[str, str] = {}
+        if p12_password is not None:
+            data["p12password"] = p12_password
+        if bundle_id is not None:
+            data["bundleid"] = bundle_id
+        return self._c._multipart_bytes(
+            "/sign/app",
+            {
+                "ipa": (ipa, "app.ipa"),
+                "p12file": (p12file, "identity.p12"),
+                "profile": (profile, "profile.mobileprovision"),
+            },
+            data,
+        )
+
+
+class Prepare:
+    """Host-scoped provisioning helpers (``/prepare/*``, device-free)."""
+
+    def __init__(self, client: "IosClient") -> None:
+        self._c = client
+
+    def create_cert(self) -> Dict[str, Any]:
+        """Generate a self-signed supervision identity (``POST /prepare/create-cert``)."""
+        return self._c._request_json("post", "/prepare/create-cert")
+
+    def skip_options(self) -> Dict[str, Any]:
+        """List setup-pane skip options (``GET /prepare/skip-options``)."""
+        return self._c._get_json("/prepare/skip-options") or {}
+
+
+def _fsync_params(path: Optional[str], bundle_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    params: Dict[str, Any] = {}
+    if path is not None:
+        params["path"] = path
+    if bundle_id is not None:
+        params["bundleID"] = bundle_id
+    return params or None
+
+
 class Devices:
     """Fleet-level device operations."""
 
@@ -384,6 +744,9 @@ class Device:
         self.files = Files(self)
         self.crashes = Crashes(self)
         self.jobs = Jobs(self)
+        self.fsync = Fsync(self)
+        self.webinspector = WebInspector(self)
+        self.ui = Ui(self)
 
     # -- internal request helpers -------------------------------------------
     def _url(self, suffix: str) -> str:
@@ -404,6 +767,19 @@ class Device:
         raise_for_status(resp)
         return resp.content
 
+    def _get_text(self, suffix: str, **kwargs: Any) -> str:
+        resp = self._c._http.get(self._url(suffix), **kwargs)
+        raise_for_status(resp)
+        return resp.text
+
+    def _bytes_stream(
+        self, suffix: str, *, params: Optional[Dict[str, Any]] = None
+    ) -> _SyncBytesStream:
+        cm = self._c._http.stream(
+            "GET", self._url(suffix), params=params, timeout=_STREAM_TIMEOUT
+        )
+        return _SyncBytesStream(cm)
+
     def _post_json(self, suffix: str, **kwargs: Any) -> Dict[str, Any]:
         return self._request_json("post", suffix, **kwargs)
 
@@ -415,12 +791,12 @@ class Device:
         method: str,
         suffix: str,
         file_fields: Dict[str, Any],
-        data_fields: Optional[Dict[str, str]] = None,
+        data_fields: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Send a multipart request.
 
         ``file_fields`` maps field -> ``(source, default_name)``; ``data_fields``
-        maps field -> plain string value.
+        maps field -> a string (or list of strings for repeated fields).
         """
         sources = {name: src for name, (src, _) in file_fields.items()}
         files = {
@@ -431,6 +807,27 @@ class Device:
             return self._request_json(
                 method, suffix, files=files, data=data_fields or None
             )
+        finally:
+            _close_multipart(files, sources)
+
+    def _multipart_bytes(
+        self,
+        suffix: str,
+        file_fields: Dict[str, Any],
+        data_fields: Optional[Dict[str, Any]] = None,
+    ) -> bytes:
+        """Like :meth:`_multipart` but returns the raw response bytes (POST)."""
+        sources = {name: src for name, (src, _) in file_fields.items()}
+        files = {
+            name: _file_tuple(src, default)
+            for name, (src, default) in file_fields.items()
+        }
+        try:
+            resp = self._c._http.post(
+                self._url(suffix), files=files, data=data_fields or None
+            )
+            raise_for_status(resp)
+            return resp.content
         finally:
             _close_multipart(files, sources)
 
@@ -503,9 +900,85 @@ class Device:
         params = {"apps": _bool_param(apps)} if apps is not None else None
         return self._get_json("/processes", params=params) or []
 
-    def lockdown(self) -> Dict[str, Any]:
-        """Read all lockdown values (``GET /lockdown``)."""
-        return self._get_json("/lockdown") or {}
+    def lockdown(self, *, domain: Optional[str] = None) -> Dict[str, Any]:
+        """Read lockdown values, optionally scoped to a ``domain`` (``GET /lockdown``)."""
+        params = {"domain": domain} if domain is not None else None
+        return self._get_json("/lockdown", params=params) or {}
+
+    # -- diagnostics / network (v3) -----------------------------------------
+    def disk_space(self) -> Dict[str, Any]:
+        """Get filesystem disk-space info (``GET /diskspace``)."""
+        return self._get_json("/diskspace") or {}
+
+    def ip(self) -> Dict[str, Any]:
+        """Get the device's IP address info (``GET /ip``)."""
+        return self._get_json("/ip") or {}
+
+    def rsd(self) -> Dict[str, Any]:
+        """Get RemoteServiceDiscovery info (``GET /rsd``; requires a tunnel)."""
+        return self._get_json("/rsd") or {}
+
+    def battery_registry(self) -> Dict[str, Any]:
+        """Get the raw battery IORegistry dump (``GET /battery/registry``)."""
+        return self._get_json("/battery/registry") or {}
+
+    # -- accessibility (v3) --------------------------------------------------
+    def voice_over(self) -> Dict[str, Any]:
+        """Get VoiceOver enabled state (``GET /voiceover``)."""
+        return self._get_json("/voiceover") or {}
+
+    def set_voice_over(self, enabled: bool) -> Dict[str, Any]:
+        """Enable/disable VoiceOver (``PUT /voiceover``)."""
+        return self._put_json("/voiceover", json={"enabled": enabled})
+
+    def zoom(self) -> Dict[str, Any]:
+        """Get Zoom enabled state (``GET /zoom``)."""
+        return self._get_json("/zoom") or {}
+
+    def set_zoom(self, enabled: bool) -> Dict[str, Any]:
+        """Enable/disable Zoom (``PUT /zoom``)."""
+        return self._put_json("/zoom", json={"enabled": enabled})
+
+    def ax(self) -> Dict[str, Any]:
+        """Get an accessibility snapshot of the screen (``GET /ax``)."""
+        return self._get_json("/ax") or {}
+
+    def ax_audit(self, *, timeout: Optional[Union[int, float]] = None) -> Dict[str, Any]:
+        """Run an accessibility audit (``POST /ax/audit``)."""
+        params = {"timeout": timeout} if timeout is not None else None
+        return self._post_json("/ax/audit", params=params)
+
+    def set_location_gpx(self, gpx: BytesLike) -> Dict[str, Any]:
+        """Replay a GPX track as the simulated location (``PUT /setlocation/gpx``)."""
+        return self._multipart("put", "/setlocation/gpx", {"gpx": (gpx, "track.gpx")})
+
+    def cloud_config(self) -> Dict[str, Any]:
+        """Get the device cloud configuration (``GET /cloudconfig``)."""
+        return self._get_json("/cloudconfig") or {}
+
+    def prepare(
+        self,
+        cert: BytesLike,
+        *,
+        p12_password: Optional[str] = None,
+        skip: Optional[Sequence[str]] = None,
+        org_name: Optional[str] = None,
+        locale: Optional[str] = None,
+        lang: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Prepare/supervise the device with a certificate (``POST /prepare``, multipart)."""
+        data: Dict[str, Any] = {}
+        if p12_password is not None:
+            data["p12password"] = p12_password
+        if skip:
+            data["skip"] = list(skip)
+        if org_name is not None:
+            data["orgname"] = org_name
+        if locale is not None:
+            data["locale"] = locale
+        if lang is not None:
+            data["lang"] = lang
+        return self._multipart("post", "/prepare", {"cert": (cert, "supervision.p12")}, data or None)
 
     # -- management ----------------------------------------------------------
     def reboot(self) -> Dict[str, Any]:
@@ -831,6 +1304,34 @@ class Device:
         """Stream CPU-usage samples (``GET /sysmontap``) as typed events."""
         return self._stream("/sysmontap", include_heartbeats=include_heartbeats)
 
+    # -- binary streams (v3; raw bytes, NOT SSE) -----------------------------
+    def screenshot_stream(self, *, quality: Optional[int] = None) -> _SyncBytesStream:
+        """Stream MJPEG screenshots as raw byte chunks (``GET /screenshot/stream``)."""
+        params = {"quality": quality} if quality is not None else None
+        return self._bytes_stream("/screenshot/stream", params=params)
+
+    def pcap(self, *, timeout: Optional[Union[int, float]] = None) -> _SyncBytesStream:
+        """Stream a live libpcap packet capture as raw byte chunks (``GET /pcap``)."""
+        params = {"timeout": timeout} if timeout is not None else None
+        return self._bytes_stream("/pcap", params=params)
+
+
+def _ui_backend_params(
+    backend: Optional[str],
+    wda_url: Optional[str],
+    timeout: Optional[Union[int, float]],
+    extra: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Build the shared ``?backend=/?wdaUrl=/?timeout=`` query for the UI group."""
+    params: Dict[str, Any] = dict(extra or {})
+    if backend is not None:
+        params["backend"] = backend
+    if wda_url is not None:
+        params["wdaUrl"] = wda_url
+    if timeout is not None:
+        params["timeout"] = timeout
+    return params or None
+
 
 def _ostrace_params(
     pid: Optional[int],
@@ -892,6 +1393,8 @@ class IosClient:
             self._owns_http = True
         self.devices = Devices(self)
         self.tunnels = Tunnels(self)
+        self.sign = Sign(self)
+        self.prepare = Prepare(self)
 
     # -- fleet-level request helpers ----------------------------------------
     def _get_json(self, suffix: str, **kwargs: Any) -> Any:
@@ -903,6 +1406,39 @@ class IosClient:
         resp = self._http.request(method, f"{API_PREFIX}{suffix}", **kwargs)
         raise_for_status(resp)
         return json_or_none(resp) or {}
+
+    def _multipart(
+        self,
+        method: str,
+        suffix: str,
+        file_fields: Dict[str, Any],
+        data_fields: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Host-scoped multipart request. See :meth:`Device._multipart`."""
+        sources = {name: src for name, (src, _) in file_fields.items()}
+        files = {name: _file_tuple(src, d) for name, (src, d) in file_fields.items()}
+        try:
+            return self._request_json(method, suffix, files=files, data=data_fields or None)
+        finally:
+            _close_multipart(files, sources)
+
+    def _multipart_bytes(
+        self,
+        suffix: str,
+        file_fields: Dict[str, Any],
+        data_fields: Optional[Dict[str, Any]] = None,
+    ) -> bytes:
+        """Host-scoped multipart POST returning raw response bytes."""
+        sources = {name: src for name, (src, _) in file_fields.items()}
+        files = {name: _file_tuple(src, d) for name, (src, d) in file_fields.items()}
+        try:
+            resp = self._http.post(
+                f"{API_PREFIX}{suffix}", files=files, data=data_fields or None
+            )
+            raise_for_status(resp)
+            return resp.content
+        finally:
+            _close_multipart(files, sources)
 
     def device(self, udid: str) -> Device:
         """Return a :class:`Device` handle for ``udid``."""

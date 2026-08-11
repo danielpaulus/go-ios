@@ -5,25 +5,31 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.fsync_message import FsyncMessage
 from ...models.generic_response import GenericResponse
-from ...models.lockdown_values import LockdownValues
 from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     udid: str,
     *,
-    domain: Union[Unset, str] = UNSET,
+    bundle_id: Union[Unset, str] = UNSET,
+    path: str,
+    recursive: Union[Unset, bool] = UNSET,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
 
-    params["domain"] = domain
+    params["bundleID"] = bundle_id
+
+    params["path"] = path
+
+    params["recursive"] = recursive
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": "/api/v1/device/{udid}/lockdown".format(
+        "method": "delete",
+        "url": "/api/v1/device/{udid}/fsync/rm".format(
             udid=udid,
         ),
         "params": params,
@@ -34,11 +40,16 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[GenericResponse, LockdownValues]]:
+) -> Optional[Union[FsyncMessage, GenericResponse]]:
     if response.status_code == 200:
-        response_200 = LockdownValues.from_dict(response.json())
+        response_200 = FsyncMessage.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 400:
+        response_400 = GenericResponse.from_dict(response.json())
+
+        return response_400
 
     if response.status_code == 401:
         response_401 = GenericResponse.from_dict(response.json())
@@ -68,7 +79,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[GenericResponse, LockdownValues]]:
+) -> Response[Union[FsyncMessage, GenericResponse]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -81,28 +92,34 @@ def sync_detailed(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    bundle_id: Union[Unset, str] = UNSET,
+    path: str,
+    recursive: Union[Unset, bool] = UNSET,
+) -> Response[Union[FsyncMessage, GenericResponse]]:
+    """Remove a file or directory over AFC
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Remove a file or directory over AFC (CLI: `ios fsync rm`). Pass
+    `recursive=true` to delete a non-empty directory.
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        bundle_id (Union[Unset, str]):
+        path (str):
+        recursive (Union[Unset, bool]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[Union[FsyncMessage, GenericResponse]]
     """
 
     kwargs = _get_kwargs(
         udid=udid,
-        domain=domain,
+        bundle_id=bundle_id,
+        path=path,
+        recursive=recursive,
     )
 
     response = client.get_httpx_client().request(
@@ -116,29 +133,35 @@ def sync(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    bundle_id: Union[Unset, str] = UNSET,
+    path: str,
+    recursive: Union[Unset, bool] = UNSET,
+) -> Optional[Union[FsyncMessage, GenericResponse]]:
+    """Remove a file or directory over AFC
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Remove a file or directory over AFC (CLI: `ios fsync rm`). Pass
+    `recursive=true` to delete a non-empty directory.
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        bundle_id (Union[Unset, str]):
+        path (str):
+        recursive (Union[Unset, bool]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        Union[FsyncMessage, GenericResponse]
     """
 
     return sync_detailed(
         udid=udid,
         client=client,
-        domain=domain,
+        bundle_id=bundle_id,
+        path=path,
+        recursive=recursive,
     ).parsed
 
 
@@ -146,28 +169,34 @@ async def asyncio_detailed(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Response[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    bundle_id: Union[Unset, str] = UNSET,
+    path: str,
+    recursive: Union[Unset, bool] = UNSET,
+) -> Response[Union[FsyncMessage, GenericResponse]]:
+    """Remove a file or directory over AFC
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Remove a file or directory over AFC (CLI: `ios fsync rm`). Pass
+    `recursive=true` to delete a non-empty directory.
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        bundle_id (Union[Unset, str]):
+        path (str):
+        recursive (Union[Unset, bool]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[GenericResponse, LockdownValues]]
+        Response[Union[FsyncMessage, GenericResponse]]
     """
 
     kwargs = _get_kwargs(
         udid=udid,
-        domain=domain,
+        bundle_id=bundle_id,
+        path=path,
+        recursive=recursive,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -179,29 +208,35 @@ async def asyncio(
     udid: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    domain: Union[Unset, str] = UNSET,
-) -> Optional[Union[GenericResponse, LockdownValues]]:
-    """Get lockdown values
+    bundle_id: Union[Unset, str] = UNSET,
+    path: str,
+    recursive: Union[Unset, bool] = UNSET,
+) -> Optional[Union[FsyncMessage, GenericResponse]]:
+    """Remove a file or directory over AFC
 
-     Get lockdown values (CLI: `ios lockdown get`). Without `domain` the full set
-    is returned; with `domain` the values are scoped to that lockdown domain.
+     Remove a file or directory over AFC (CLI: `ios fsync rm`). Pass
+    `recursive=true` to delete a non-empty directory.
 
     Args:
         udid (str):
-        domain (Union[Unset, str]):
+        bundle_id (Union[Unset, str]):
+        path (str):
+        recursive (Union[Unset, bool]):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[GenericResponse, LockdownValues]
+        Union[FsyncMessage, GenericResponse]
     """
 
     return (
         await asyncio_detailed(
             udid=udid,
             client=client,
-            domain=domain,
+            bundle_id=bundle_id,
+            path=path,
+            recursive=recursive,
         )
     ).parsed
