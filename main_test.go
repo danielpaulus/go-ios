@@ -82,6 +82,20 @@ func TestHelp_SubcommandExplicitImplicitAndGlobalFlagOrdering(t *testing.T) {
 	assertGolden(t, "apps.golden", explicit)
 }
 
+func TestHelp_InstrumentsSubcommands(t *testing.T) {
+	fps, fpsErr, fpsCode := runCLI(t, "help", "instruments", "fps")
+	if fpsCode != 0 || fpsErr != "" {
+		t.Fatalf("help instruments fps failed: code=%d stderr=%q", fpsCode, fpsErr)
+	}
+	assertGolden(t, "instruments_fps.golden", fps)
+
+	network, networkErr, networkCode := runCLI(t, "help", "instruments", "network")
+	if networkCode != 0 || networkErr != "" {
+		t.Fatalf("help instruments network failed: code=%d stderr=%q", networkCode, networkErr)
+	}
+	assertGolden(t, "instruments_network.golden", network)
+}
+
 func TestHelp_NestedSubcommandAndUnknown(t *testing.T) {
 	explicit, explicitErr, explicitCode := runCLI(t, "help", "tunnel", "start")
 	if explicitCode != 0 || explicitErr != "" {

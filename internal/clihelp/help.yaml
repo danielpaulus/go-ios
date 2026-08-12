@@ -129,6 +129,12 @@ commands:
   - path: install
     usage: ios install --path=<ipaOrAppFolder> [options]
     summary: Install app bundle or IPA.
+  - path: instruments fps
+    usage: ios instruments fps [--duration=<seconds>] [options]
+    summary: Stream frames-per-second samples.
+  - path: instruments network
+    usage: ios instruments network [--duration=<seconds>] [options]
+    summary: Stream network activity samples.
   - path: instruments notifications
     usage: ios instruments notifications [options]
     summary: Stream app state notifications.

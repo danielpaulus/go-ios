@@ -1,0 +1,21 @@
+go-ios local-build
+
+Command: instruments fps
+Stream frames-per-second samples.
+
+Usage:
+  ios instruments fps [--duration=<seconds>] [options]
+
+Global options:
+  -h, --help                 Show help.
+  -v, --verbose              Enable debug logging.
+  -t, --trace                Enable trace logging.
+  --nojson                   Disable JSON output.
+  --pretty                   Pretty-print JSON output.
+  --udid=<udid>              Target a specific device.
+  --tunnel-info-port=<port>  Tunnel info API port (default 28100).
+  --tunnel-info-host=<host>  Tunnel info API host (default 127.0.0.1 or GO_IOS_AGENT_HOST).
+  --address=<ipv6addr>       Device tunnel address.
+  --rsd-port=<port>          Device tunnel RSD port.
+  --proxyurl=<url>           Outbound HTTP proxy URL.
+  --userspace-port=<port>    Userspace tunnel port.
