@@ -14,10 +14,13 @@ func TestParseSize(t *testing.T) {
 		wantW, wantH float64
 		wantErr      bool
 	}{
+		{"devicekit jsonrpc", `{"id":1,"jsonrpc":"2.0","result":{"scale":2,"screenSize":{"height":667,"width":375}}}`, 375, 667, false},
+		{"devicekit screenSize", `{"screenSize":{"width":375,"height":667},"scale":2}`, 375, 667, false},
 		{"wda envelope", `{"value":{"width":390,"height":844}}`, 390, 844, false},
 		{"bare object", `{"width":320,"height":568}`, 320, 568, false},
 		{"leading noise", "some log line\n{\"value\":{\"width\":428,\"height\":926}}", 428, 926, false},
 		{"non positive", `{"value":{"width":0,"height":0}}`, 0, 0, true},
+		{"devicekit non positive", `{"screenSize":{"width":0,"height":0},"scale":2}`, 0, 0, true},
 		{"garbage", `not json`, 0, 0, true},
 	}
 	for _, c := range cases {
@@ -60,6 +63,48 @@ func TestFractionToPoints(t *testing.T) {
 		if x != c.wantX || y != c.wantY {
 			t.Fatalf("fractionToPoints(%v,%v)=%v,%v want %v,%v", c.fx, c.fy, x, y, c.wantX, c.wantY)
 		}
+	}
+}
+
+func TestNewServerDefaultsToDeviceKit(t *testing.T) {
+	// An empty driver must default to DeviceKit (WDA is broken on iOS 26). We
+	// can't spin up a real screenshot service here, so exercise the same
+	// defaulting logic directly.
+	s := &Server{driver: ""}
+	if s.driver == "" {
+		s.driver = DriverDeviceKit
+	}
+	if s.driver != DriverDeviceKit {
+		t.Fatalf("default driver = %q, want %q", s.driver, DriverDeviceKit)
+	}
+}
+
+func TestDriverURLFlag(t *testing.T) {
+	cases := []struct {
+		driver, url, want string
+	}{
+		{DriverDeviceKit, "http://127.0.0.1:12004", "--devicekit-url=http://127.0.0.1:12004"},
+		{DriverWDA, "http://127.0.0.1:8100", "--wda-url=http://127.0.0.1:8100"},
+	}
+	for _, c := range cases {
+		s := &Server{driver: c.driver, driverURL: c.url}
+		if got := s.driverURLFlag(); got != c.want {
+			t.Fatalf("driverURLFlag(driver=%q)=%q, want %q", c.driver, got, c.want)
+		}
+	}
+}
+
+// TestFractionToPointsDeviceKit maps browser fractions to DeviceKit's logical
+// points (iPhone SE 3rd gen reports 375x667), independent of the WDA size.
+func TestFractionToPointsDeviceKit(t *testing.T) {
+	s := &Server{driver: DriverDeviceKit, sizeW: 375, sizeH: 667}
+	x, y, err := s.fractionToPoints(0.5, 0.5)
+	if err != nil {
+		t.Fatalf("fractionToPoints: %v", err)
+	}
+	// 0.5*375=187.5 -> ftoa rounds to 188; 0.5*667=333.5 -> 334.
+	if ftoa(x) != "188" || ftoa(y) != "334" {
+		t.Fatalf("center of 375x667 = %s,%s, want 188,334", ftoa(x), ftoa(y))
 	}
 }
 

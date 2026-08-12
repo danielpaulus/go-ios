@@ -7,12 +7,14 @@
 //     (ios/instruments) and streams JPEG frames as an MJPEG
 //     (multipart/x-mixed-replace) response at GET /screen. This needs the
 //     tunnel + a mounted developer disk image, but no WebDriverAgent.
-//   - Input goes through WDA, because go-ios has no native touch injection on
-//     main. Rather than re-implement the WDA client, the handlers shell out to
-//     the SAME `ios` binary (located via os.Executable) and reuse the proven
-//     `ios ui …` commands, targeting the device udid and the configured
-//     --wda-url. So the screen works with no WDA running; taps/swipes/typing
-//     need a reachable WDA.
+//   - Input goes through a UI automation driver — DeviceKit by default (WDA is
+//     broken on iOS 26; DeviceKit works there). go-ios has no native touch
+//     injection here, so rather than re-implement the driver client the handlers
+//     shell out to the SAME `ios` binary (located via os.Executable) and reuse
+//     the proven `ios ui …` commands, targeting the device udid and the
+//     configured driver/URL. So the screen works with no driver running;
+//     taps/swipes/typing need a reachable driver (DeviceKit at --devicekit-url,
+//     or WDA at --wda-url when --driver=wda).
 package remote
 
 import (
@@ -39,40 +41,64 @@ import (
 
 const logModule = "go-ios/remote"
 
-// DefaultWDAURL is the WebDriverAgent base URL used when none is supplied.
-const DefaultWDAURL = "http://127.0.0.1:8100"
+const (
+	// DriverDeviceKit and DriverWDA are the supported input drivers. DeviceKit
+	// is the default because WDA is broken on iOS 26 while DeviceKit works.
+	DriverDeviceKit = "devicekit"
+	DriverWDA       = "wda"
+
+	// DefaultWDAURL is the WebDriverAgent base URL used when none is supplied.
+	DefaultWDAURL = "http://127.0.0.1:8100"
+	// DefaultDeviceKitURL is the DeviceKit base URL used when none is supplied.
+	DefaultDeviceKitURL = "http://127.0.0.1:12004"
+)
+
+// DeviceResolver re-resolves the device (including fresh tunnel/RSD info). It is
+// called on every screen-service reconnect so a changed tunnel address (CI run
+// ended, replug, tunnel daemon restart) is picked up instead of dialing the
+// stale cached address forever. Returning an error keeps the previous device.
+type DeviceResolver func() (ios.DeviceEntry, error)
 
 // Server is a minimal browser remote-control for a single device.
 type Server struct {
 	device ios.DeviceEntry
 	udid   string
-	wdaURL string
 
-	// iosBinary is the path to the `ios` CLI used to drive input via WDA.
+	// driver is the input backend ("devicekit" or "wda") and driverURL is its
+	// base URL, passed through to `ios ui … --driver=… --{devicekit,wda}-url=…`.
+	driver    string
+	driverURL string
+
+	// iosBinary is the path to the `ios` CLI used to drive input.
 	iosBinary string
 
 	// screen is the shared latest-JPEG-frame broadcaster fed by the
-	// instruments screenshot loop. It is WDA-free.
+	// instruments screenshot loop. It is driver-free.
 	screen *screenBroadcaster
 
-	// logical device size in WDA points, resolved lazily and cached.
+	// logical device size in the driver's points, resolved lazily and cached.
 	sizeMu sync.Mutex
 	sizeW  float64
 	sizeH  float64
 }
 
-// NewServer wires up a remote-control server for the given device. wdaURL is
-// already resolved by the caller (default applied upstream). The screen half
-// connects to the instruments screenshot service immediately so a failure
-// (e.g. missing developer disk image) surfaces before we start listening.
-func NewServer(device ios.DeviceEntry, wdaURL string) (*Server, error) {
+// NewServer wires up a remote-control server for the given device. driver is
+// "devicekit" (default) or "wda"; driverURL is that driver's base URL (defaults
+// applied upstream). resolver re-fetches fresh tunnel info on screen reconnect;
+// pass nil to disable refresh. The screen half connects to the instruments
+// screenshot service immediately so a failure (e.g. missing developer disk
+// image) surfaces before we start listening.
+func NewServer(device ios.DeviceEntry, driver, driverURL string, resolver DeviceResolver) (*Server, error) {
 	iosBinary, err := os.Executable()
 	if err != nil {
 		return nil, fmt.Errorf("locating ios binary: %w", err)
 	}
+	if driver == "" {
+		driver = DriverDeviceKit
+	}
 	udid := device.Properties.SerialNumber
 
-	bc, err := newScreenBroadcaster(device)
+	bc, err := newScreenBroadcaster(device, resolver)
 	if err != nil {
 		return nil, fmt.Errorf("starting screenshot service: %w", err)
 	}
@@ -80,10 +106,20 @@ func NewServer(device ios.DeviceEntry, wdaURL string) (*Server, error) {
 	return &Server{
 		device:    device,
 		udid:      udid,
-		wdaURL:    wdaURL,
+		driver:    driver,
+		driverURL: driverURL,
 		iosBinary: iosBinary,
 		screen:    bc,
 	}, nil
+}
+
+// driverURLFlag returns the `ios ui` flag that carries driverURL for the
+// configured driver (--devicekit-url for DeviceKit, --wda-url for WDA).
+func (s *Server) driverURLFlag() string {
+	if s.driver == DriverWDA {
+		return "--wda-url=" + s.driverURL
+	}
+	return "--devicekit-url=" + s.driverURL
 }
 
 // ListenAndServe binds 0.0.0.0:<port> (reachable over Tailscale) and serves the
@@ -92,7 +128,7 @@ func (s *Server) ListenAndServe(port string) error {
 	location := "0.0.0.0:" + port
 	golog.Info("starting remote-control server, open your browser here",
 		"module", logModule, "udid", s.udid, "host", "0.0.0.0", "port", port,
-		"wdaURL", s.wdaURL, "url", fmt.Sprintf("http://%s/", location))
+		"driver", s.driver, "driverURL", s.driverURL, "url", fmt.Sprintf("http://%s/", location))
 	return http.ListenAndServe(location, s.Handler())
 }
 
@@ -232,14 +268,13 @@ func (s *Server) handleButton(w http.ResponseWriter, r *http.Request) {
 	s.runUI(w, "button", req.Name)
 }
 
-// runUI shells out to `ios ui <args…>` for the configured device and WDA URL,
-// returning the combined output to the browser. Input is WDA-backed; a
-// non-reachable WDA surfaces here as a non-zero exit + stderr in the response.
+// runUI shells out to `ios ui <args…>` for the configured device and driver,
+// returning the combined output to the browser. A non-reachable driver surfaces
+// here as a non-zero exit + stderr in the response.
 func (s *Server) runUI(w http.ResponseWriter, args ...string) {
 	full := append([]string{"ui"}, args...)
-	// Always drive WDA: input is WDA-backed and we pass --wda-url, so pin the
-	// driver rather than let `ios ui` auto-detect (which prefers DeviceKit).
-	full = append(full, "--driver=wda", "--udid="+s.udid, "--wda-url="+s.wdaURL)
+	// Pin the driver + its URL rather than let `ios ui` auto-detect.
+	full = append(full, "--driver="+s.driver, "--udid="+s.udid, s.driverURLFlag())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -261,10 +296,11 @@ func (s *Server) runUI(w http.ResponseWriter, args ...string) {
 }
 
 // fractionToPoints is the single place where the browser's 0..1 fraction is
-// mapped to WDA logical points. WDA taps take logical points, and its
-// window/size endpoint reports the same logical point space, so a fraction of
-// the screen maps linearly: point = fraction * logicalSize. The logical size is
-// fetched once (via `ios ui size`) and cached.
+// mapped to the driver's logical points. Both WDA and DeviceKit take taps in
+// logical points and report their size in the same logical point space, so a
+// fraction of the screen maps linearly: point = fraction * logicalSize. The
+// logical size is fetched once (via `ios ui size` on the same driver) and
+// cached — never a hardcoded/WDA size.
 func (s *Server) fractionToPoints(fx, fy float64) (float64, float64, error) {
 	w, h, err := s.logicalSize()
 	if err != nil {
@@ -289,10 +325,9 @@ func ftoa(v float64) string {
 	return strconv.FormatInt(int64(math.Round(v)), 10)
 }
 
-// logicalSize returns the device's WDA logical window size in points, caching
-// the first successful lookup. It calls `ios ui size` and parses the WDA
-// window/size response shape ({"value":{"width":W,"height":H}} or a bare
-// {"width":W,"height":H}).
+// logicalSize returns the device's logical window size in the driver's points,
+// caching the first successful lookup. It calls `ios ui size` on the configured
+// driver and parses that driver's response shape.
 func (s *Server) logicalSize() (float64, float64, error) {
 	s.sizeMu.Lock()
 	defer s.sizeMu.Unlock()
@@ -302,10 +337,10 @@ func (s *Server) logicalSize() (float64, float64, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, s.iosBinary, "ui", "size", "--driver=wda", "--udid="+s.udid, "--wda-url="+s.wdaURL)
+	cmd := exec.CommandContext(ctx, s.iosBinary, "ui", "size", "--driver="+s.driver, "--udid="+s.udid, s.driverURLFlag())
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return 0, 0, fmt.Errorf("ui size failed (is WDA reachable at %s?): %v: %s", s.wdaURL, err, out)
+		return 0, 0, fmt.Errorf("ui size failed (is the %s driver reachable at %s?): %v: %s", s.driver, s.driverURL, err, out)
 	}
 	w, h, err := parseSize(out)
 	if err != nil {
@@ -315,28 +350,50 @@ func (s *Server) logicalSize() (float64, float64, error) {
 	return w, h, nil
 }
 
-// parseSize extracts width/height from the JSON emitted by `ios ui size`. It
-// accepts both the WDA envelope ({"value":{"width":…,"height":…}}) and a bare
-// object, and tolerates surrounding whitespace/log noise by scanning for the
-// first '{'.
+// parseSize extracts logical width/height from the JSON emitted by `ios ui
+// size`. It accepts:
+//   - DeviceKit, which wraps a device.info result in a JSON-RPC envelope:
+//     {"result":{"screenSize":{"width":W,"height":H},"scale":S}} — the logical
+//     points are screenSize (the MJPEG frames are points × scale pixels).
+//   - the same {"screenSize":{…}} object unwrapped.
+//   - WDA: {"value":{"width":W,"height":H}} envelope.
+//   - a bare {"width":W,"height":H} object.
+//
+// It tolerates surrounding whitespace/log noise by scanning for the first '{'.
 func parseSize(out []byte) (float64, float64, error) {
 	trimmed := bytes.TrimSpace(out)
 	if i := bytes.IndexByte(trimmed, '{'); i > 0 {
 		trimmed = trimmed[i:]
 	}
-	var envelope struct {
+	type screenSize struct {
 		Width  float64 `json:"width"`
 		Height float64 `json:"height"`
-		Value  struct {
-			Width  float64 `json:"width"`
-			Height float64 `json:"height"`
-		} `json:"value"`
+	}
+	var envelope struct {
+		Width      float64    `json:"width"`
+		Height     float64    `json:"height"`
+		ScreenSize screenSize `json:"screenSize"`
+		// DeviceKit JSON-RPC envelope: {"result":{"screenSize":{…}}}.
+		Result struct {
+			ScreenSize screenSize `json:"screenSize"`
+			Width      float64    `json:"width"`
+			Height     float64    `json:"height"`
+		} `json:"result"`
+		// WDA envelope: {"value":{"width":…,"height":…}}.
+		Value screenSize `json:"value"`
 	}
 	if err := json.Unmarshal(trimmed, &envelope); err != nil {
 		return 0, 0, fmt.Errorf("parsing ui size output %q: %w", out, err)
 	}
 	w, h := envelope.Width, envelope.Height
-	if envelope.Value.Width > 0 {
+	switch {
+	case envelope.Result.ScreenSize.Width > 0:
+		w, h = envelope.Result.ScreenSize.Width, envelope.Result.ScreenSize.Height
+	case envelope.ScreenSize.Width > 0:
+		w, h = envelope.ScreenSize.Width, envelope.ScreenSize.Height
+	case envelope.Result.Width > 0:
+		w, h = envelope.Result.Width, envelope.Result.Height
+	case envelope.Value.Width > 0:
 		w, h = envelope.Value.Width, envelope.Value.Height
 	}
 	if w <= 0 || h <= 0 {
@@ -376,8 +433,9 @@ const (
 // helper in ios/instruments it holds no global state, so multiple servers /
 // tests don't collide.
 type screenBroadcaster struct {
-	device ios.DeviceEntry
-	udid   string
+	device   ios.DeviceEntry
+	udid     string
+	resolver DeviceResolver
 
 	svcMu sync.Mutex
 	svc   *instruments.ScreenshotService
@@ -386,15 +444,16 @@ type screenBroadcaster struct {
 	consumers map[chan []byte]struct{}
 }
 
-func newScreenBroadcaster(device ios.DeviceEntry) (*screenBroadcaster, error) {
+func newScreenBroadcaster(device ios.DeviceEntry, resolver DeviceResolver) (*screenBroadcaster, error) {
 	svc, err := instruments.NewScreenshotService(device)
 	if err != nil {
 		return nil, err
 	}
 	bc := &screenBroadcaster{
 		device:    device,
-		svc:       svc,
 		udid:      device.Properties.SerialNumber,
+		resolver:  resolver,
+		svc:       svc,
 		consumers: make(map[chan []byte]struct{}),
 	}
 	go bc.loop()
@@ -480,6 +539,13 @@ func (bc *screenBroadcaster) currentService() *instruments.ScreenshotService {
 // reconnect closes the wedged screenshot service and dials a fresh one. It
 // retries until it succeeds so a transient tunnel/DVT hiccup doesn't kill the
 // mirror permanently.
+//
+// Crucially it RE-FETCHES fresh tunnel/RSD info via the resolver on every
+// attempt. The device address is otherwise cached for the process lifetime, so
+// when the tunnel changes (CI run ends, replug, tunnel daemon restart) the old
+// address stops answering and every reconnect would dial it forever ("dial …
+// i/o timeout"), leaving the stream blank. Re-resolving mirrors what a fresh
+// `ios screenshot` does — it works precisely because it re-fetches each call.
 func (bc *screenBroadcaster) reconnect() {
 	bc.svcMu.Lock()
 	if bc.svc != nil {
@@ -489,6 +555,14 @@ func (bc *screenBroadcaster) reconnect() {
 	bc.svcMu.Unlock()
 
 	for {
+		if bc.resolver != nil {
+			if fresh, err := bc.resolver(); err == nil {
+				bc.device = fresh
+				golog.Info("refreshed tunnel info for screen reconnect", "module", logModule, "udid", bc.udid)
+			} else {
+				golog.Warn("tunnel-info refresh failed, reusing last known address", "module", logModule, "udid", bc.udid, "error", err)
+			}
+		}
 		svc, err := instruments.NewScreenshotService(bc.device)
 		if err == nil {
 			bc.svcMu.Lock()
