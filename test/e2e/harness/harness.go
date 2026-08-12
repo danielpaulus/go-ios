@@ -91,6 +91,18 @@ func repoRoot() (string, error) {
 	return filepath.Dir(strings.TrimSpace(string(out))), nil
 }
 
+// RepoRoot returns the repository root (the directory containing go.mod), so
+// tests can locate checked-in fixtures under testdata/. Fails the test if it
+// cannot be resolved.
+func RepoRoot(t *testing.T) string {
+	t.Helper()
+	root, err := repoRoot()
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+	return root
+}
+
 // RunIOS executes the ios binary with the given args and returns stdout.
 // On non-zero exit it fails the test with stderr + stdout for debugging.
 func RunIOS(t *testing.T, args ...string) []byte {

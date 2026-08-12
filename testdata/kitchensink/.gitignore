@@ -1,0 +1,6 @@
+# Xcode build output. The runner is checked in prebuilt as
+# testdata/kitchensink-runner.zip; rebuild locally per README.md.
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
