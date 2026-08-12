@@ -8,7 +8,11 @@
 package preios17_test
 
 import (
+	"bufio"
+	"encoding/json"
 	"strconv"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -48,15 +52,38 @@ func TestInstrumentsFPS(t *testing.T) {
 	})
 }
 
-// TestInstrumentsNetwork streams network-monitoring samples and asserts the
-// command self-terminates and emits well-formed {"type": <number>, "data": ...}
-// envelopes.
+// networkStreamSeconds bounds the network stream. The instruments
+// network-monitoring service only emits samples when there is actual network
+// activity (an idle device produces none), so we stream for a longer window
+// while generating traffic (launch/kill churn) and assert well-formed
+// {"type": <number>, "data": ...} envelopes arrived before the command
+// self-terminated via --duration.
+const networkStreamSeconds = 20
+
+// TestInstrumentsNetwork streams network-monitoring samples while generating
+// traffic on the device and asserts the command self-terminates and emits
+// well-formed {"type": <number>, "data": ...} envelopes.
 func TestInstrumentsNetwork(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		samples := streamNDJSON(t, udid, instrumentsSampleWindow,
-			"instruments", "network", "--duration="+strconv.Itoa(instrSampleDurationSeconds))
+		output, stop := startBackground(t, udid, syscall.SIGTERM,
+			"instruments", "network", "--duration="+strconv.Itoa(networkStreamSeconds))
+		defer stop()
+
+		// Generate network traffic for most of the streaming window by churning
+		// app launches (Settings phones home on launch on these OS versions).
+		deadline := time.Now().Add(time.Duration(networkStreamSeconds-3) * time.Second)
+		for time.Now().Before(deadline) {
+			runIOSForDevice(t, udid, "launch", "com.apple.Preferences")
+			runIOSForDevice(t, udid, "launch", "com.apple.mobilesafari")
+			time.Sleep(2 * time.Second)
+		}
+
+		// Let the --duration-bounded command reach its deadline and flush.
+		time.Sleep(6 * time.Second)
+
+		samples := parseNetworkSamples(t, output())
 		if len(samples) == 0 {
-			t.Fatalf("instruments network: no samples in %ds window", instrSampleDurationSeconds)
+			t.Fatalf("instruments network: no samples in %ds window even with generated traffic", networkStreamSeconds)
 		}
 		for i, s := range samples {
 			if _, ok := s["type"].(float64); !ok {
@@ -70,6 +97,29 @@ func TestInstrumentsNetwork(t *testing.T) {
 		}
 		logInstrumentsSamples(t, "network", udid, samples)
 	})
+}
+
+// parseNetworkSamples decodes the JSON-object lines the streaming command wrote,
+// ignoring any interleaved non-JSON log noise from the background runner.
+func parseNetworkSamples(t *testing.T, out string) []map[string]any {
+	t.Helper()
+	var samples []map[string]any
+	sc := bufio.NewScanner(strings.NewReader(out))
+	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if !strings.HasPrefix(line, "{") {
+			continue
+		}
+		var m map[string]any
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			continue
+		}
+		if _, ok := m["type"]; ok {
+			samples = append(samples, m)
+		}
+	}
+	return samples
 }
 
 func logInstrumentsSamples(t *testing.T, kind, udid string, samples []map[string]any) {
