@@ -1484,10 +1484,11 @@ func outputDetailedList(deviceList ios.DeviceList) {
 		udid := device.Properties.SerialNumber
 		allValues, err := ios.GetValues(device)
 		exitIfError("failed getting values", err)
+		var translatedProductType = translateAppleMachineID(allValues.Value.ProductType)
 		result[i] = detailsEntry{
 			Udid:           udid,
 			ProductName:    allValues.Value.ProductName,
-			ProductType:    allValues.Value.ProductType,
+			ProductType:    translatedProductType,
 			ProductVersion: allValues.Value.ProductVersion,
 			DeviceName:     allValues.Value.DeviceName,
 			ConnectionType: device.ConnectionTypeLabel(),
@@ -1502,8 +1503,9 @@ func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 	for _, device := range deviceList.DeviceList {
 		udid := device.Properties.SerialNumber
 		allValues, err := ios.GetValues(device)
+		var translatedProductType = translateAppleMachineID(allValues.Value.ProductType)
 		exitIfError("failed getting values", err)
-		fmt.Printf("%s;%s;%s;%s;%s;%s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion, allValues.Value.DeviceName, device.ConnectionTypeLabel())
+		fmt.Printf("%s;%s;%s;%s;%s;%s\n", udid, allValues.Value.ProductName, translatedProductType, allValues.Value.ProductVersion, allValues.Value.DeviceName, device.ConnectionTypeLabel())
 	}
 }
 
@@ -1579,6 +1581,140 @@ func startListening() {
 	c := make(chan os.Signal, syscall.SIGTERM)
 	signal.Notify(c, os.Interrupt)
 	<-c
+}
+
+/*
+	Translate Apple internal machine id to marketing name e.g. iPhone17,3 -> iPhone 16
+	this step is needed since the internal machine id does not make sense to users.
+	The large raw JSON string is needed as mapping from internal ID to user facing model
+	is not consistent. e.g. iPhone14,x contains members from both the iPhone 13 and iPhone 14
+	families.
+*/
+func translateAppleMachineID(productType string) string {
+   AppleMachineIDS := `
+   {
+		"iPhone10,1": "iPhone 8",
+		"iPhone10,2": "iPhone 8 Plus",
+		"iPhone10,3": "iPhone X ",
+		"iPhone10,4": "iPhone 8",
+		"iPhone10,5": "iPhone 8 Plus",
+		"iPhone10,6": "iPhone X ",
+		"iPhone11,2": "iPhone XS",
+		"iPhone11,4": "iPhone XS Max",
+		"iPhone11,6": "iPhone XS Max",
+		"iPhone11,8": "iPhone XR",
+		"iPhone12,1": "iPhone 11",
+		"iPhone12,3": "iPhone 11 Pro",
+		"iPhone12,5": "iPhone 11 Pro Max",
+		"iPhone12,8": "iPhone SE",
+		"iPhone13,1": "iPhone 12 Mini",
+		"iPhone13,2": "iPhone 12",
+		"iPhone13,3": "iPhone 12 Pro",
+		"iPhone13,4": "iPhone 12 Pro Max",
+		"iPhone14,2": "iPhone 13 Pro",
+		"iPhone14,3": "iPhone 13 Pro Max",
+		"iPhone14,4": "iPhone 13 Mini",
+		"iPhone14,5": "iPhone 13",
+		"iPhone14,6": "iPhone SE",
+		"iPhone14,7": "iPhone 14",
+		"iPhone14,8": "iPhone 14 Plus",
+		"iPhone15,2": "iPhone 14 Pro",
+		"iPhone15,3": "iPhone 14 Pro Max",
+		"iPhone15,4": "iPhone 15",
+		"iPhone15,5": "iPhone 15 Plus",
+		"iPhone16,1": "iPhone 15 Pro",
+		"iPhone16,2": "iPhone 15 Pro Max",
+		"iPhone17,1": "iPhone 16 Pro",
+		"iPhone17,2": "iPhone 16 Pro Max",
+		"iPhone17,3": "iPhone 16",
+		"iPhone17,4": "iPhone 16 Plus",
+		"iPhone17,5": "iPhone 16e",
+		"iPhone18,1": "iPhone 17 Pro",
+		"iPhone18,2": "iPhone 17 Pro Max",
+		"iPhone18,3": "iPhone 17",
+		"iPhone18,4": "iPhone Air",
+		"iPad4,7": "iPad mini 3",
+		"iPad4,8": "iPad mini 3",
+		"iPad4,9": "iPad Mini 3",
+		"iPad5,1": "iPad mini 4",
+		"iPad5,2": "iPad mini 4",
+		"iPad6,3": "iPad Pro",
+		"iPad6,4": "iPad Pro",
+		"iPad6,7": "iPad Pro",
+		"iPad6,8": "iPad Pro",
+		"iPad6,11": "iPad (2017)",
+		"iPad6,12": "iPad (2017)",
+		"iPad7,1": "iPad Pro",
+		"iPad7,2": "iPad Pro",
+		"iPad7,3": "iPad Pro 10.5-inch",
+		"iPad7,4": "iPad Pro 10.5-inch",
+		"iPad7,5": "iPad 6th Gen",
+		"iPad7,6": "iPad 6th Gen",
+		"iPad7,11": "iPad 7th Gen",
+		"iPad7,12": "iPad 7th Gen",
+		"iPad8,1": "iPad Pro 11 inch",
+		"iPad8,2": "iPad Pro 11 inch",
+		"iPad8,3": "iPad Pro 11 inch",
+		"iPad8,4": "iPad Pro 11 inch",
+		"iPad8,5": "iPad Pro 12.9 inch",
+		"iPad8,6": "iPad Pro 12.9 inch",
+		"iPad8,7": "iPad Pro 12.9 inch",
+		"iPad8,8": "iPad Pro 12.9 inch",
+		"iPad8,9": "iPad Pro 11 inch",
+		"iPad8,10": "iPad Pro 11 inch",
+		"iPad8,11": "iPad Pro 12.9 inch",
+		"iPad8,12": "iPad Pro 12.9 inch",
+		"iPad11,1": "iPad mini",
+		"iPad11,2": "iPad mini",
+		"iPad11,3": "iPad Air",
+		"iPad11,4": "iPad Air",
+		"iPad11,6": "iPad 8th Gen",
+		"iPad11,7": "iPad 8th Gen",
+		"iPad12,1": "iPad 9th Gen",
+		"iPad12,2": "iPad 9th Gen",
+		"iPad14,1": "iPad mini",
+		"iPad14,2": "iPad mini",
+		"iPad13,1": "iPad Air",
+		"iPad13,2": "iPad Air",
+		"iPad13,4": "iPad Pro 11 inch",
+		"iPad13,5": "iPad Pro 11 inch",
+		"iPad13,6": "iPad Pro 11 inch",
+		"iPad13,7": "iPad Pro 11 inch",
+		"iPad13,8": "iPad Pro 12.9 inch",
+		"iPad13,9": "iPad Pro 12.9 inch",
+		"iPad13,10": "iPad Pro 12.9 inch",
+		"iPad13,11": "iPad Pro 12.9 inch",
+		"iPad13,16": "iPad Air",
+		"iPad13,17": "iPad Air",
+		"iPad13,18": "iPad 10th Gen",
+		"iPad13,19": "iPad 10th Gen",
+		"iPad14,3": "iPad Pro 11 inch",
+		"iPad14,4": "iPad Pro 11 inch",
+		"iPad14,5": "iPad Pro 12.9 inch",
+		"iPad14,6": "iPad Pro 12.9 inch",
+		"iPad14,8": "iPad Air 11 inch",
+		"iPad14,9": "iPad Air 11 inch",
+		"iPad14,10": "iPad Air 13 inch",
+		"iPad14,11": "iPad Air 13 inch",
+		"iPad15,3": "iPad Air 11-inch",
+		"iPad15,4": "iPad Air 11-inch",
+		"iPad15,5": "iPad Air 13-inch",
+		"iPad15,6": "iPad Air 13-inch",
+		"iPad15,7": "iPad 11th Gen",
+		"iPad15,8": "iPad 11th Gen",
+		"iPad16,1": "iPad mini",
+		"iPad16,2": "iPad mini",
+		"iPad16,3": "iPad Pro 11 inch",
+		"iPad16,4": "iPad Pro 11 inch",
+		"iPad16,5": "iPad Pro 12.9 inch",
+		"iPad16,6": "iPad Pro 12.9 inch"
+	}`
+	var machine_ids map[string]string
+	err := json.Unmarshal([]byte(AppleMachineIDS), &machine_ids)
+	if err != nil {
+		slog.Error("Error during json.Unmarshal", err)
+	}
+	return machine_ids[productType]
 }
 
 func printDeviceInfo(device ios.DeviceEntry) {
