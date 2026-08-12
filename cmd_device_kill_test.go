@@ -65,3 +65,44 @@ func TestMatchesKillTarget(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldWatchKill(t *testing.T) {
+	processNames := map[string]string{
+		"Preferences": "com.apple.Preferences",
+		"MobilePhone": "com.apple.mobilephone",
+	}
+
+	tests := []struct {
+		name         string
+		event        instruments.AppStateEvent
+		wantBundleID string
+		wantOK       bool
+	}{
+		{
+			name:         "blocked app launching",
+			event:        instruments.AppStateEvent{ProcessName: "Preferences", Pid: 1079, State: "Running"},
+			wantBundleID: "com.apple.Preferences",
+			wantOK:       true,
+		},
+		{
+			name:  "not a watched app",
+			event: instruments.AppStateEvent{ProcessName: "MobileSafari", Pid: 1036, State: "Running"},
+		},
+		{
+			name:  "watched app but only backgrounded",
+			event: instruments.AppStateEvent{ProcessName: "Preferences", Pid: 1079, State: "Suspended"},
+		},
+		{
+			name:  "watched app terminating",
+			event: instruments.AppStateEvent{ProcessName: "Preferences", Pid: 1079, State: "Terminated"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bundleID, ok := shouldWatchKill(tt.event, processNames)
+			assert.Equal(t, tt.wantOK, ok)
+			assert.Equal(t, tt.wantBundleID, bundleID)
+		})
+	}
+}

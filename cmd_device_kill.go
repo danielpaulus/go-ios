@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -147,14 +146,18 @@ func matchesKillTarget(p instruments.ProcessInfo, processNames map[string]string
 
 // runKillWatch stays resident, killing any of processNames the instant it's
 // observed launching (state transitions to "Running"), via the push-based
-// application-state notification channel (instruments.WatchKill) rather than
-// polling — the device notifies us on launch instead of us catching it in a
-// poll interval, so the launch->kill window is wire latency, not a poll
+// application-state notification channel (instruments.ListenAndKill) rather
+// than polling — the device notifies us on launch instead of us catching it
+// in a poll interval, so the launch->kill window is wire latency, not a poll
 // period. Runs until interrupted (CTRL+C), printing one JSON line per kill.
+//
+// ListenAndKill itself is policy-free (just a shared connection exposing a
+// notification stream and a kill func); the blocklist decision
+// (shouldWatchKill) lives here, since which processes to watch for and what
+// to do about them is specific to this command, not a general-purpose
+// instruments capability.
 func runKillWatch(ctx commandContext, processNames map[string]string) {
-	names := make([]string, 0, len(processNames))
 	for name, bundleID := range processNames {
-		names = append(names, name)
 		if bundleID != "" {
 			slog.Info("watching", "bundleID", bundleID, "process", name)
 		} else {
@@ -162,22 +165,28 @@ func runKillWatch(ctx commandContext, processNames map[string]string) {
 		}
 	}
 
-	watchCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	events, err := instruments.WatchKill(watchCtx, ctx.Device, names)
+	receive, kill, closeFunc, err := instruments.ListenAndKill(ctx.Device)
 	exitIfError("failed starting watch", err)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-c
-		cancel()
+		if err := closeFunc(); err != nil {
+			slog.Debug("closing watch", "error", err)
+		}
 	}()
 
-	for event := range events {
-		if event.Err != nil {
-			slog.Error("failed killing blocked app", "process", event.ProcessName, "pid", event.Pid, "error", event.Err)
+	for {
+		event, err := receive()
+		if err != nil {
+			return
+		}
+		if _, ok := shouldWatchKill(event, processNames); !ok {
+			continue
+		}
+		if err := kill(event.Pid); err != nil {
+			slog.Error("failed killing blocked app", "process", event.ProcessName, "pid", event.Pid, "error", err)
 			continue
 		}
 		s, _ := json.Marshal(map[string]interface{}{
@@ -187,4 +196,15 @@ func runKillWatch(ctx commandContext, processNames map[string]string) {
 		})
 		fmt.Println(string(s))
 	}
+}
+
+// shouldWatchKill reports whether event is one of processNames entering the
+// running state — the pure decision at the core of --watch, split out so it
+// can be unit-tested without a device connection.
+func shouldWatchKill(event instruments.AppStateEvent, processNames map[string]string) (bundleID string, ok bool) {
+	if event.State != "Running" {
+		return "", false
+	}
+	bundleID, ok = processNames[event.ProcessName]
+	return bundleID, ok
 }
