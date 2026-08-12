@@ -222,6 +222,52 @@ func StreamSmoke(t *testing.T, udid string, window time.Duration, args ...string
 	return b
 }
 
+// StreamNDJSON runs a self-terminating streaming ios command (one that stops on
+// its own, e.g. via --duration) and returns each non-empty stdout line decoded
+// as a JSON object. Unlike StreamSmoke it does not kill the process — the
+// command must exit on its own within timeout, which is asserted (a command that
+// hangs past its --duration is a real bug, not something to paper over by
+// killing it). Fails the test if the command errors, does not terminate, or
+// emits a stdout line that is not a well-formed JSON object.
+func StreamNDJSON(t *testing.T, udid string, timeout time.Duration, args ...string) []map[string]any {
+	t.Helper()
+	var out, stderr bytes.Buffer
+	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("ios %v: start: %v", args, err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("ios %v: %v\nstderr: %s\nstdout: %s", args, err, stderr.String(), snippet(out.Bytes()))
+		}
+	case <-time.After(timeout):
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		<-done
+		t.Fatalf("ios %v: did not terminate within %s (command should self-stop via --duration)\nstdout so far: %s", args, timeout, snippet(out.Bytes()))
+	}
+
+	var samples []map[string]any
+	for _, line := range bytes.Split(out.Bytes(), []byte("\n")) {
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+		var m map[string]any
+		if err := json.Unmarshal(line, &m); err != nil {
+			t.Fatalf("ios %v: stdout line is not a JSON object: %v\nline: %s", args, err, snippet(line))
+		}
+		samples = append(samples, m)
+	}
+	return samples
+}
+
 // StreamInTempDir runs a streaming ios command in a fresh temp directory for
 // window, then kills its process group, and returns the directory so the caller
 // can inspect files the command wrote there (e.g. pcap's dump-*.pcap).
