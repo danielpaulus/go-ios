@@ -117,6 +117,22 @@ const indexHTML = `<!doctype html>
     setStatus('screen stream error, retrying…');
     setTimeout(function () { img.src = '/screen?t=' + Date.now(); }, 1000);
   });
+
+  // Poll the input-runner lifecycle so the user sees when input is (re)starting
+  // instead of taps silently failing. /status returns 503 until the runner is
+  // ready; the input endpoints likewise 503 while it recovers.
+  function pollStatus() {
+    fetch('/status').then(function (res) {
+      return res.json().then(function (j) {
+        if (j.runnerState && j.runnerState !== 'ready') {
+          setStatus('input runner ' + j.runnerState + '…');
+        }
+      });
+    }).catch(function () {}).then(function () {
+      setTimeout(pollStatus, 2000);
+    });
+  }
+  pollStatus();
 })();
 </script>
 </body>

@@ -72,6 +72,12 @@ type Server struct {
 	// iosBinary is the path to the `ios` CLI used to drive input.
 	iosBinary string
 
+	// supervisor spawns and auto-respawns the input runner (`ios ui run
+	// devicekit`) when --manage-runner is on. nil when the runner is externally
+	// managed (--manage-runner=false or --driver=wda), in which case input
+	// endpoints assume the driver is always reachable.
+	supervisor *runnerSupervisor
+
 	// screen is the shared latest-JPEG-frame broadcaster fed by the
 	// instruments screenshot loop. It is driver-free.
 	screen *screenBroadcaster
@@ -82,35 +88,63 @@ type Server struct {
 	sizeH  float64
 }
 
-// NewServer wires up a remote-control server for the given device. driver is
-// "devicekit" (default) or "wda"; driverURL is that driver's base URL (defaults
-// applied upstream). resolver re-fetches fresh tunnel info on screen reconnect;
-// pass nil to disable refresh. The screen half connects to the instruments
-// screenshot service immediately so a failure (e.g. missing developer disk
-// image) surfaces before we start listening.
-func NewServer(device ios.DeviceEntry, driver, driverURL string, resolver DeviceResolver) (*Server, error) {
+// Config configures a remote-control Server.
+type Config struct {
+	// Driver is the input backend: "devicekit" (default) or "wda". DriverURL is
+	// that driver's base URL (defaults applied upstream).
+	Driver    string
+	DriverURL string
+	// Resolver re-fetches fresh tunnel info on screen reconnect; nil disables
+	// refresh.
+	Resolver DeviceResolver
+	// ManageRunner, when true and Driver is DeviceKit, makes the Server spawn and
+	// supervise the input runner (`ios ui run devicekit`) itself, auto-respawning
+	// it across the intermittent testmanagerd DTX EOF disconnects. When false the
+	// runner is assumed to be started externally at DriverURL (today's behavior).
+	ManageRunner bool
+}
+
+// NewServer wires up a remote-control server for the given device from cfg. The
+// screen half connects to the instruments screenshot service immediately so a
+// failure (e.g. missing developer disk image) surfaces before we start
+// listening. When cfg.ManageRunner is set and the driver is DeviceKit, the
+// Server also supervises the input runner (started by Run).
+func NewServer(device ios.DeviceEntry, cfg Config) (*Server, error) {
 	iosBinary, err := os.Executable()
 	if err != nil {
 		return nil, fmt.Errorf("locating ios binary: %w", err)
 	}
+	driver := cfg.Driver
 	if driver == "" {
 		driver = DriverDeviceKit
 	}
 	udid := device.Properties.SerialNumber
 
-	bc, err := newScreenBroadcaster(device, resolver)
+	bc, err := newScreenBroadcaster(device, cfg.Resolver)
 	if err != nil {
 		return nil, fmt.Errorf("starting screenshot service: %w", err)
 	}
 
-	return &Server{
+	s := &Server{
 		device:    device,
 		udid:      udid,
 		driver:    driver,
-		driverURL: driverURL,
+		driverURL: cfg.DriverURL,
 		iosBinary: iosBinary,
 		screen:    bc,
-	}, nil
+	}
+
+	// Supervision only makes sense for the DeviceKit runner we know how to spawn.
+	if cfg.ManageRunner && driver == DriverDeviceKit {
+		s.supervisor = newRunnerSupervisor(udid, &execRunnerSpawner{
+			iosBinary: iosBinary,
+			udid:      udid,
+			healthURL: cfg.DriverURL + "/health",
+			stdout:    os.Stdout,
+			stderr:    os.Stderr,
+		})
+	}
+	return s, nil
 }
 
 // driverURLFlag returns the `ios ui` flag that carries driverURL for the
@@ -122,14 +156,43 @@ func (s *Server) driverURLFlag() string {
 	return "--devicekit-url=" + s.driverURL
 }
 
-// ListenAndServe binds 0.0.0.0:<port> (reachable over Tailscale) and serves the
-// UI until the process is stopped.
-func (s *Server) ListenAndServe(port string) error {
+// Run binds 0.0.0.0:<port> (reachable over Tailscale), supervises the input
+// runner (when managed), and serves the UI until ctx is cancelled (SIGINT/
+// SIGTERM). On shutdown it stops the HTTP server and terminates the supervised
+// runner so no `ios ui run devicekit` child is orphaned.
+func (s *Server) Run(ctx context.Context, port string) error {
 	location := "0.0.0.0:" + port
 	golog.Info("starting remote-control server, open your browser here",
 		"module", logModule, "udid", s.udid, "host", "0.0.0.0", "port", port,
-		"driver", s.driver, "driverURL", s.driverURL, "url", fmt.Sprintf("http://%s/", location))
-	return http.ListenAndServe(location, s.Handler())
+		"driver", s.driver, "driverURL", s.driverURL, "manageRunner", s.supervisor != nil,
+		"url", fmt.Sprintf("http://%s/", location))
+
+	// Supervise the input runner in the background; run() returns when ctx is
+	// cancelled, having stopped the child.
+	var wg sync.WaitGroup
+	if s.supervisor != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.supervisor.run(ctx)
+		}()
+	}
+
+	srv := &http.Server{Addr: location, Handler: s.Handler()}
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.ListenAndServe() }()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		golog.Info("remote-control server shutting down", "module", logModule, "udid", s.udid)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+		wg.Wait() // wait for the runner to be terminated before returning
+		return nil
+	}
 }
 
 // Handler returns the HTTP handler for the remote-control UI and endpoints.
@@ -137,12 +200,54 @@ func (s *Server) ListenAndServe(port string) error {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handleIndex)
+	mux.HandleFunc("/status", s.handleStatus)
+	mux.HandleFunc("/healthz", s.handleStatus)
 	mux.HandleFunc("/screen", s.handleScreen)
 	mux.HandleFunc("/tap", s.handleTap)
 	mux.HandleFunc("/swipe", s.handleSwipe)
 	mux.HandleFunc("/type", s.handleType)
 	mux.HandleFunc("/button", s.handleButton)
 	return mux
+}
+
+// runnerStateString returns the current input-runner lifecycle state. When the
+// runner is externally managed (no supervisor) input is always assumed usable,
+// reported as "ready".
+func (s *Server) runnerStateString() runnerState {
+	if s.supervisor == nil {
+		return runnerReady
+	}
+	return s.supervisor.State()
+}
+
+// handleStatus reports the input-runner lifecycle so the UI can show
+// "reconnecting…" and health checks can gate on readiness.
+func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
+	state := s.runnerStateString()
+	w.Header().Set("Content-Type", "application/json")
+	if state != runnerReady {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"runnerState":  string(state),
+		"manageRunner": s.supervisor != nil,
+		"driver":       s.driver,
+	})
+}
+
+// inputReady reports whether input can be dispatched; when not, it writes a 503
+// with a clear JSON body and returns false so the handler stops.
+func (s *Server) inputReady(w http.ResponseWriter) bool {
+	if state := s.runnerStateString(); state != runnerReady {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":       "input runner starting, retry shortly",
+			"runnerState": string(state),
+		})
+		return false
+	}
+	return true
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -218,6 +323,9 @@ func (s *Server) handleTap(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	if !s.inputReady(w) {
+		return
+	}
 	x, y, err := s.fractionToPoints(req.X, req.Y)
 	if err != nil {
 		httpError(w, err)
@@ -229,6 +337,9 @@ func (s *Server) handleTap(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSwipe(w http.ResponseWriter, r *http.Request) {
 	var req swipeRequest
 	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if !s.inputReady(w) {
 		return
 	}
 	fx, fy, err := s.fractionToPoints(req.FromX, req.FromY)
@@ -251,6 +362,9 @@ func (s *Server) handleType(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	if !s.inputReady(w) {
+		return
+	}
 	s.runUI(w, "type", "--text="+req.Text)
 }
 
@@ -263,6 +377,9 @@ func (s *Server) handleButton(w http.ResponseWriter, r *http.Request) {
 	case "home", "lock", "volumeup", "volumedown":
 	default:
 		httpError(w, fmt.Errorf("unknown button %q", req.Name))
+		return
+	}
+	if !s.inputReady(w) {
 		return
 	}
 	s.runUI(w, "button", req.Name)

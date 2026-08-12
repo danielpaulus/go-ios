@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/remote"
@@ -16,6 +19,11 @@ import (
 // works), selectable with --driver=<wda|devicekit>. The driver's base URL comes
 // from --devicekit-url (default remote.DefaultDeviceKitURL / GO_IOS_DEVICEKIT_URL)
 // or, for --driver=wda, --wda-url (default remote.DefaultWDAURL / GO_IOS_WDA_URL).
+//
+// By default (DeviceKit driver) `ios remote` also spawns and supervises the input
+// runner (`ios ui run devicekit`), auto-respawning it when the on-device XCTest
+// automation channel drops — so input self-heals instead of silently breaking.
+// Pass --no-manage-runner to connect to an externally-started runner instead.
 func runRemoteCommand(ctx commandContext) {
 	port := portArg(ctx.Args)
 	if port == "" {
@@ -29,6 +37,13 @@ func runRemoteCommand(ctx commandContext) {
 	case remote.DriverDeviceKit, remote.DriverWDA:
 	default:
 		exitIfError("invalid --driver for ios remote (use devicekit or wda)", fmt.Errorf("%q", driver))
+	}
+
+	// The runner we supervise is the input driver by default; --runner-driver lets
+	// it be overridden, but only DeviceKit is a runner we know how to spawn.
+	runnerDriver, _ := ctx.Args.String("--runner-driver")
+	if runnerDriver == "" {
+		runnerDriver = driver
 	}
 
 	var driverURL string
@@ -50,6 +65,10 @@ func runRemoteCommand(ctx commandContext) {
 		}
 	}
 
+	// Manage the runner by default; --no-manage-runner opts out. Supervision only
+	// applies to the DeviceKit runner (the one we can spawn), matched to driver.
+	manageRunner := !boolArg(ctx.Args, "--no-manage-runner") && runnerDriver == remote.DriverDeviceKit
+
 	// resolver re-fetches fresh tunnel/RSD info so the screen stream self-heals
 	// when the device's tunnel address changes. Non-fatal: on failure the screen
 	// service keeps using the last known address and retries.
@@ -59,11 +78,21 @@ func runRemoteCommand(ctx commandContext) {
 		return refreshDeviceTunnelInfo(ctx.Device, udid, tunnelInfo)
 	}
 
-	server, err := remote.NewServer(ctx.Device, driver, driverURL, resolver)
+	server, err := remote.NewServer(ctx.Device, remote.Config{
+		Driver:       driver,
+		DriverURL:    driverURL,
+		Resolver:     resolver,
+		ManageRunner: manageRunner,
+	})
 	exitIfError("failed starting remote server (developer disk image mounted?)", err)
 	defer server.Close()
 
-	exitIfError("remote server stopped", server.ListenAndServe(port))
+	// Cancel on SIGINT/SIGTERM so the supervised runner is terminated cleanly
+	// (no orphaned `ios ui run devicekit`) before we exit.
+	runCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	exitIfError("remote server stopped", server.Run(runCtx, port))
 }
 
 // refreshDeviceTunnelInfo re-reads the device's tunnel info from the tunnel
