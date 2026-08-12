@@ -376,8 +376,11 @@ const (
 // helper in ios/instruments it holds no global state, so multiple servers /
 // tests don't collide.
 type screenBroadcaster struct {
-	svc  *instruments.ScreenshotService
-	udid string
+	device ios.DeviceEntry
+	udid   string
+
+	svcMu sync.Mutex
+	svc   *instruments.ScreenshotService
 
 	mu        sync.Mutex
 	consumers map[chan []byte]struct{}
@@ -389,6 +392,7 @@ func newScreenBroadcaster(device ios.DeviceEntry) (*screenBroadcaster, error) {
 		return nil, err
 	}
 	bc := &screenBroadcaster{
+		device:    device,
 		svc:       svc,
 		udid:      device.Properties.SerialNumber,
 		consumers: make(map[chan []byte]struct{}),
@@ -433,17 +437,27 @@ func (bc *screenBroadcaster) broadcast(jpg []byte) {
 // loop captures screenshots (~12 fps) and broadcasts them as JPEG. The
 // instruments service returns PNG on some devices and JPEG on others; we
 // transcode PNG to JPEG and pass JPEG through untouched.
+//
+// The screenshot service can wedge (e.g. a takeScreenshot timeout while a WDA
+// XCUITest session contends for the same DVT channel). Rather than stopping the
+// stream for good — this server is meant to run unattended — the loop tears the
+// service down and reconnects, so the mirror recovers on its own.
 func (bc *screenBroadcaster) loop() {
 	var opt jpeg.Options
 	opt.Quality = 80
-	const targetInterval = 80 * time.Millisecond // ~12 fps
+	const (
+		targetInterval = 80 * time.Millisecond // ~12 fps
+		reconnectDelay = 2 * time.Second
+	)
 
 	for {
 		start := time.Now()
-		raw, err := bc.svc.TakeScreenshot()
+		raw, err := bc.currentService().TakeScreenshot()
 		if err != nil {
-			golog.Error("screenshot failed, stopping screen loop", "module", logModule, "udid", bc.udid, "error", err)
-			return
+			golog.Error("screenshot failed, reconnecting screen service", "module", logModule, "udid", bc.udid, "error", err)
+			bc.reconnect()
+			time.Sleep(reconnectDelay)
+			continue
 		}
 		jpg, err := toJPEG(raw, &opt)
 		if err != nil {
@@ -454,6 +468,37 @@ func (bc *screenBroadcaster) loop() {
 		if d := targetInterval - time.Since(start); d > 0 {
 			time.Sleep(d)
 		}
+	}
+}
+
+func (bc *screenBroadcaster) currentService() *instruments.ScreenshotService {
+	bc.svcMu.Lock()
+	defer bc.svcMu.Unlock()
+	return bc.svc
+}
+
+// reconnect closes the wedged screenshot service and dials a fresh one. It
+// retries until it succeeds so a transient tunnel/DVT hiccup doesn't kill the
+// mirror permanently.
+func (bc *screenBroadcaster) reconnect() {
+	bc.svcMu.Lock()
+	if bc.svc != nil {
+		bc.svc.Close()
+		bc.svc = nil
+	}
+	bc.svcMu.Unlock()
+
+	for {
+		svc, err := instruments.NewScreenshotService(bc.device)
+		if err == nil {
+			bc.svcMu.Lock()
+			bc.svc = svc
+			bc.svcMu.Unlock()
+			golog.Info("screen service reconnected", "module", logModule, "udid", bc.udid)
+			return
+		}
+		golog.Warn("screen service reconnect failed, retrying", "module", logModule, "udid", bc.udid, "error", err)
+		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -481,7 +526,13 @@ func toJPEG(raw []byte, opt *jpeg.Options) ([]byte, error) {
 
 // Close releases the screenshot service.
 func (s *Server) Close() {
-	if s.screen != nil && s.screen.svc != nil {
+	if s.screen == nil {
+		return
+	}
+	s.screen.svcMu.Lock()
+	defer s.screen.svcMu.Unlock()
+	if s.screen.svc != nil {
 		s.screen.svc.Close()
+		s.screen.svc = nil
 	}
 }
