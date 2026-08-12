@@ -2,6 +2,14 @@ on:
   pull_request:
 
 name: Unit tests
+
+# Least-privilege default token scope for this pure-CI workflow. Every job here
+# (lint / build / unit tests on GitHub-hosted runners) only reads the checked-out
+# code, so read-only access is sufficient. Jobs needing more grant it narrowly at
+# the job level (see the real-device job's own permissions block).
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
