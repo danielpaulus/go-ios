@@ -60,6 +60,10 @@ func streamSmoke(t *testing.T, udid string, window time.Duration, args ...string
 	return harness.StreamSmoke(t, udid, window, args...)
 }
 
+func streamNDJSON(t *testing.T, udid string, timeout time.Duration, args ...string) []map[string]any {
+	return harness.StreamNDJSON(t, udid, timeout, args...)
+}
+
 func startBackground(t *testing.T, udid string, stopSig syscall.Signal, args ...string) (output func() string, stop func()) {
 	return harness.StartBackground(t, udid, stopSig, args...)
 }

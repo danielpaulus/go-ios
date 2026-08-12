@@ -10,6 +10,7 @@ package tunnel_test
 import (
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/danielpaulus/go-ios/test/e2e/harness"
 )
@@ -40,6 +41,10 @@ func runIOSForDevice(t *testing.T, udid string, args ...string) []byte {
 
 func startBackground(t *testing.T, udid string, stopSig syscall.Signal, args ...string) (output func() string, stop func()) {
 	return harness.StartBackground(t, udid, stopSig, args...)
+}
+
+func streamNDJSON(t *testing.T, udid string, timeout time.Duration, args ...string) []map[string]any {
+	return harness.StreamNDJSON(t, udid, timeout, args...)
 }
 
 func forEachDevice(t *testing.T, fn func(t *testing.T, udid string)) {
