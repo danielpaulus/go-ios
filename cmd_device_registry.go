@@ -35,7 +35,16 @@ var deviceCommands = []command{
 	commandByBool("info", runInfoCommand),
 	commandByBool("syslog", runSyslogCommand),
 	commandByBool("ostrace", runOSTraceCommand),
-	commandByBool("screenshot", runScreenshotCommand),
+	{
+		// "screenshot" is also a subcommand literal of `ios ui screenshot`
+		// (dispatched as a global ui command), so only match the top-level
+		// `ios screenshot`.
+		name: "screenshot",
+		match: func(args docopt.Opts) bool {
+			return boolArg(args, "screenshot") && !boolArg(args, "ui")
+		},
+		run: runScreenshotCommand,
+	},
 	commandByBool("resetlocation", runResetLocationCommand),
 	commandByBool("devicename", runDeviceNameCommand),
 	commandByBool("apps", runAppsCommand),
@@ -64,7 +73,15 @@ var deviceCommands = []command{
 	commandByBool("assistivetouch", runAssistiveTouchCommand),
 	commandByBool("voiceover", runVoiceOverCommand),
 	commandByBool("zoom", runZoomCommand),
-	commandByBool("lockdown", runLockdownCommand),
+	{
+		// "lockdown" is also a subcommand literal of `ios info lockdown`, so only
+		// match the top-level `ios lockdown get [<key>]`.
+		name: "lockdown",
+		match: func(args docopt.Opts) bool {
+			return boolArg(args, "lockdown") && !boolArg(args, "info")
+		},
+		run: runLockdownCommand,
+	},
 	commandByBool("setlocation", runSetLocationCommand),
 	commandByBool("setlocationgpx", runSetLocationGPXCommand),
 	commandByBool("timeformat", runTimeFormatCommand),
@@ -72,7 +89,16 @@ var deviceCommands = []command{
 	commandByBool("mdm", runMdmCommand),
 	commandByBool("profile", runProfileCommand),
 	commandByBool("forward", runForwardCommand),
-	commandByBool("launch", runLaunchCommand),
+	{
+		// "launch" is also a subcommand literal of `ios webinspector launch <url>`
+		// and `ios ui app launch <bundleID>` (the latter is dispatched as a global
+		// ui command), so only match the top-level `ios launch <bundleID>`.
+		name: "launch",
+		match: func(args docopt.Opts) bool {
+			return boolArg(args, "launch") && !boolArg(args, "webinspector") && !boolArg(args, "ui")
+		},
+		run: runLaunchCommand,
+	},
 	commandByBool("sysmontap", runSysmontapCommand),
 	commandByBool("memlimitoff", runMemlimitOffCommand),
 	commandByBool("kill", runKillCommand),

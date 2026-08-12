@@ -73,7 +73,11 @@ func verifyCorrectArchiver(nsKeyedArchiverData map[string]interface{}) error {
 	if val, ok := nsKeyedArchiverData[archiverKey]; !ok {
 		return fmt.Errorf("Invalid NSKeyedAchiverObject, missing key '%s'", archiverKey)
 	} else {
-		if stringValue := val.(string); stringValue != NsKeyedArchiver {
+		stringValue, ok := val.(string)
+		if !ok {
+			return fmt.Errorf("Invalid value for key '%s': expected a string, got %T", archiverKey, val)
+		}
+		if stringValue != NsKeyedArchiver {
 			return fmt.Errorf("Invalid value: %s for key '%s', expected: '%s'", stringValue, archiverKey, NsKeyedArchiver)
 		}
 	}
@@ -88,8 +92,12 @@ func verifyCorrectArchiver(nsKeyedArchiverData map[string]interface{}) error {
 	if val, ok := nsKeyedArchiverData[versionKey]; !ok {
 		return fmt.Errorf("Invalid NSKeyedAchiverObject, missing key '%s'", versionKey)
 	} else {
-		if stringValue := val.(uint64); stringValue != versionValue {
-			return fmt.Errorf("Invalid value: %d for key '%s', expected: '%d'", stringValue, versionKey, versionValue)
+		uintValue, ok := val.(uint64)
+		if !ok {
+			return fmt.Errorf("Invalid value for key '%s': expected a uint64, got %T", versionKey, val)
+		}
+		if uintValue != versionValue {
+			return fmt.Errorf("Invalid value: %d for key '%s', expected: '%d'", uintValue, versionKey, versionValue)
 		}
 	}
 

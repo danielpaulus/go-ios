@@ -35,7 +35,14 @@ func (f *FragmentDecoder) AddFragment(fragment Message) bool {
 	if !f.firstFragment.MessageIsFirstFragmentFor(fragment) {
 		return false
 	}
-	f.fragments[fragment.FragmentIndex-1] = fragment
+	// FragmentIndex is an attacker-controlled uint16. MessageIsFirstFragmentFor
+	// only guarantees it is > 0, not that it fits inside the fragments slice, so
+	// guard the index to avoid an out-of-range write on a malformed fragment.
+	idx := int(fragment.FragmentIndex) - 1
+	if idx < 0 || idx >= len(f.fragments) {
+		return false
+	}
+	f.fragments[idx] = fragment
 	if fragment.IsLastFragment() {
 		f.finished = true
 	}
@@ -51,6 +58,11 @@ func (f FragmentDecoder) HasFinished() bool {
 func (f FragmentDecoder) Extract() []byte {
 	if !f.finished {
 		panic("illegal state")
+	}
+	// MessageLength comes from the attacker-controlled first-fragment header.
+	// Clamp it so a hostile value cannot drive a huge or negative allocation.
+	if f.firstFragment.MessageLength < 0 || f.firstFragment.MessageLength > maxMessageSize {
+		return nil
 	}
 	assembledMessage := make([]byte, f.firstFragment.MessageLength+32)
 	copy(assembledMessage, f.firstFragment.fragmentBytes)

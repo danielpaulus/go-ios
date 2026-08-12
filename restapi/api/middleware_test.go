@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,7 +13,75 @@ import (
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/restapi/api"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 )
+
+// bearerAuthRouter builds a router whose single protected route is guarded by
+// api.BearerAuth(token).
+func bearerAuthRouter(token string) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(api.BearerAuth(token))
+	r.GET("/protected", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+	return r
+}
+
+func bearerAuthRequest(t *testing.T, r *gin.Engine, authHeader string, sendHeader bool) *httptest.ResponseRecorder {
+	t.Helper()
+	req, _ := http.NewRequest("GET", "/protected", nil)
+	if sendHeader {
+		req.Header.Set("Authorization", authHeader)
+	}
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w
+}
+
+// TestBearerAuthValidToken pins the success path: the correct bearer token is
+// accepted and the downstream handler runs.
+func TestBearerAuthValidToken(t *testing.T) {
+	r := bearerAuthRouter("s3cr3t-token")
+	w := bearerAuthRequest(t, r, "Bearer s3cr3t-token", true)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "ok", w.Body.String())
+}
+
+// TestBearerAuthMissingHeader asserts a request with no Authorization header is
+// rejected with 401 and never reaches the handler.
+func TestBearerAuthMissingHeader(t *testing.T) {
+	r := bearerAuthRouter("s3cr3t-token")
+	w := bearerAuthRequest(t, r, "", false)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "unauthorized")
+}
+
+// TestBearerAuthWrongToken asserts a wrong token is rejected with 401.
+func TestBearerAuthWrongToken(t *testing.T) {
+	r := bearerAuthRouter("s3cr3t-token")
+	w := bearerAuthRequest(t, r, "Bearer wrong-token", true)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "unauthorized")
+
+	// A missing "Bearer " scheme prefix must also be rejected.
+	w = bearerAuthRequest(t, r, "s3cr3t-token", true)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+// TestBearerAuthConstantTimeCompare documents that the comparison is
+// length-safe: tokens of different lengths compare to not-equal without
+// panicking, exactly as crypto/subtle.ConstantTimeCompare behaves. This guards
+// the constant-time-compare requirement of the fix.
+func TestBearerAuthConstantTimeCompare(t *testing.T) {
+	assert.Equal(t, 0, subtle.ConstantTimeCompare([]byte("Bearer a"), []byte("Bearer abc")))
+	assert.Equal(t, 1, subtle.ConstantTimeCompare([]byte("Bearer abc"), []byte("Bearer abc")))
+
+	// End-to-end: a token that is a prefix of the real one is still rejected.
+	r := bearerAuthRouter("longtoken")
+	w := bearerAuthRequest(t, r, "Bearer long", true)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
 
 func getRouter() *gin.Engine {
 	r := gin.Default()

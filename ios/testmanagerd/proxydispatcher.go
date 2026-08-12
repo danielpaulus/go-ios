@@ -23,7 +23,12 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 	defer func() {
 		if r := recover(); r != nil {
 			stacktrace := string(debug.Stack())
-			dispatcher.testListener.err = fmt.Errorf("Dispatch: %s\n%s", r, stacktrace)
+			err := fmt.Errorf("Dispatch: %s\n%s", r, stacktrace)
+			if dispatcher.testListener != nil {
+				dispatcher.testListener.err = err
+			} else {
+				golog.Error("recovered from panic in Dispatch without a test listener", "module", logModule, "id", dispatcher.id, "error", err)
+			}
 		}
 	}()
 
@@ -38,7 +43,13 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 
 		switch method {
 		case "_XCT_testBundleReadyWithProtocolVersion:minimumVersion:":
-			p.testBundleReadyChannel <- m
+			if p.testBundleReadyChannel != nil {
+				select {
+				case p.testBundleReadyChannel <- m:
+				default:
+					golog.Warn("dropping duplicate testBundleReady message", "module", logModule, "id", p.id)
+				}
+			}
 			return
 		case "_XCT_testRunnerReadyWithCapabilities:":
 			shouldAck = false
@@ -510,7 +521,11 @@ func (p proxyDispatcher) Dispatch(m dtx.Message) {
 	}
 
 	if decoderErr != nil {
-		dispatcher.testListener.err = decoderErr
+		if dispatcher.testListener != nil {
+			dispatcher.testListener.err = decoderErr
+		} else {
+			golog.Error("decoder error in Dispatch without a test listener", "module", logModule, "id", dispatcher.id, "error", decoderErr)
+		}
 	}
 
 	if shouldAck {

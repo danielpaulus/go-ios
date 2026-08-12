@@ -1,10 +1,12 @@
 package api_test
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -30,6 +32,78 @@ func hardeningDeviceMiddleware() gin.HandlerFunc {
 		})
 		c.Next()
 	}
+}
+
+// installImageRouter wires the InstallImage handler behind the hardening
+// device middleware so the traversal/upload-limit checks run without a device.
+func installImageRouter() *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(hardeningDeviceMiddleware())
+	r.PUT("/image", api.InstallImage)
+	return r
+}
+
+// TestInstallImageRejectsBasedirTraversal is the MED-8 regression. A
+// caller-supplied basedir flows into os.MkdirAll+path.Join in the image
+// mounter, so absolute paths and `..` traversal must be rejected with 400
+// before the mounter is ever reached (which would otherwise create dirs / try
+// to talk to a device). Without the validation these requests would not return
+// 400.
+func TestInstallImageRejectsBasedirTraversal(t *testing.T) {
+	hostileBasedirs := []string{
+		"../../../../etc",
+		"foo/../../bar",
+		"/etc/go-ios",
+		"..",
+	}
+	for _, basedir := range hostileBasedirs {
+		t.Run(basedir, func(t *testing.T) {
+			r := installImageRouter()
+			req, _ := http.NewRequest("PUT", "/image?auto=true&basedir="+url.QueryEscape(basedir), nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			assert.Equal(t, http.StatusBadRequest, w.Code, "hostile basedir %q must be rejected with 400", basedir)
+			assert.Contains(t, w.Body.String(), "invalid basedir")
+		})
+	}
+}
+
+// TestInstallImageAllowsRelativeBasedir pins that a normal relative basedir
+// passes the validation. It cannot fully succeed without a device, so we assert
+// only that it is NOT rejected as an invalid basedir (i.e. it got past the
+// validation into the mounter, which then fails for other reasons).
+func TestInstallImageAllowsRelativeBasedir(t *testing.T) {
+	allowed := []string{"devimages", "./devimages", "some/nested/dir"}
+	for _, basedir := range allowed {
+		t.Run(basedir, func(t *testing.T) {
+			r := installImageRouter()
+			req, _ := http.NewRequest("PUT", "/image?auto=true&basedir="+url.QueryEscape(basedir), nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			assert.NotEqual(t, http.StatusBadRequest, w.Code, "relative basedir %q must be allowed past validation", basedir)
+			assert.NotContains(t, w.Body.String(), "invalid basedir")
+		})
+	}
+}
+
+// TestInstallImageRejectsOversizedUpload is the MED-7 regression. The manual
+// (non-auto) upload path io.Copy'd the request body with no size cap; the fix
+// wraps it in http.MaxBytesReader(2 GiB). We can't stream 2 GiB in a unit test,
+// so we drive the same MaxBytesReader guard directly to prove an over-limit
+// body errors out (which the handler surfaces as a failure) while an
+// at/under-limit body copies cleanly.
+func TestInstallImageRejectsOversizedUpload(t *testing.T) {
+	const limit = 8
+
+	over := http.MaxBytesReader(nil, io.NopCloser(bytes.NewReader(make([]byte, limit+1))), limit)
+	_, err := io.Copy(io.Discard, over)
+	require.Error(t, err, "a body larger than the limit must cause io.Copy to fail")
+
+	under := http.MaxBytesReader(nil, io.NopCloser(bytes.NewReader(make([]byte, limit))), limit)
+	n, err := io.Copy(io.Discard, under)
+	require.NoError(t, err, "a body at the limit must copy without error")
+	assert.Equal(t, int64(limit), n)
 }
 
 // TestNotificationsDoesNotExitOnError is the CRIT-1 (restapi-01) regression.
