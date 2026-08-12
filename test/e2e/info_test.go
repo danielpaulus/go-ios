@@ -59,13 +59,18 @@ func TestDevicename(t *testing.T) {
 
 // TestDate reads the device clock. The exact value is volatile, but assert
 // formatedDate parses as a real date (RFC850, e.g. "Tuesday, 02-Jun-26
-// 09:49:13 CEST") — i.e. the command returns a genuine, well-formed date.
+// 09:49:13 CEST") and TimeZone is a loadable IANA name — i.e. the command
+// returns a genuine, well-formed date in the device's own timezone.
 func TestDate(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		m := smokeObj(t, udid, []string{"TimeIntervalSince1970", "formatedDate"}, "date")
+		m := smokeObj(t, udid, []string{"TimeIntervalSince1970", "formatedDate", "TimeZone"}, "date")
 		fd, _ := m["formatedDate"].(string)
 		if _, err := time.Parse(time.RFC850, fd); err != nil {
 			t.Fatalf("date: formatedDate %q is not a parseable date: %v", fd, err)
+		}
+		tz, _ := m["TimeZone"].(string)
+		if _, err := time.LoadLocation(tz); err != nil {
+			t.Fatalf("date: TimeZone %q is not a valid IANA timezone: %v", tz, err)
 		}
 	})
 }

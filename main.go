@@ -60,18 +60,11 @@ func main() {
 
 const version = "local-build"
 
-// Main Exports main for testing
-func Main() {
-	helpCatalog, err := clihelp.Load()
-	exitIfError("failed loading help definitions", err)
-	if handled, exitCode := helpCatalog.WriteHelp(os.Args[1:], version, os.Stdout, os.Stderr); handled {
-		if exitCode != 0 {
-			os.Exit(exitCode)
-		}
-		return
-	}
-
-	usage := fmt.Sprintf(`go-ios %s
+// cliUsage returns the docopt usage string that drives command dispatch.
+// It is a function (not inlined in Main) so tests can parse real command
+// lines against the exact usage the CLI ships.
+func cliUsage() string {
+	return fmt.Sprintf(`go-ios %s
 
 Usage:
   ios --version | version [options]
@@ -129,7 +122,7 @@ Usage:
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pasteboard (set [<text>] | get) [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
-  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale=<locale>] [--lang=<lang>] [options]
+  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale=<locale>] [--lang=<lang>] [--timezone=<tz>] [options]
   ios prepare cloudconfig [options]
   ios prepare create-cert
   ios prepare printskip
@@ -143,9 +136,9 @@ Usage:
   ios resetax [options]
   ios resetlocation [options]
   ios rsd ls [options]
-  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
+  ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testrunnerbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--junit-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
   ios runwda [--bundleid=<bundleid>] [--testrunnerbundleid=<testbundleid>] [--xctestconfig=<xctestconfig>] [--log-output=<file>] [--arg=<a>]... [--env=<e>]... [options]
-  ios runxctest [--xctestrun-file-path=<xctestrunFilePath>] [--log-output=<file>] [options]
+  ios runxctest [--xctestrun-file-path=<xctestrunFilePath>] [--log-output=<file>] [--junit-output=<file>] [options]
   ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
   ios sign certificate appstoreconnect --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> [--p12-output=<p12file>] [--p12password=<password>] [--revoke-existing] [options]
   ios sign provision appstoreconnect --bundleid=<bundleid> --asc-key-id=<keyid> --asc-issuer-id=<issuerid> --asc-private-key=<p8file> --profile-output=<mobileprovision> [--p12-output=<p12file>] [--certificate-id=<id>] [--revoke-existing] [--p12password=<password>] [--bundle-name=<name>] [--profile-name=<name>] [--device-name=<name>] [options]
@@ -262,7 +255,7 @@ The commands work as following:
                                                   or use a pattern like 'ios crash ls "*ips*"' to filter
 
     ios crash rm <cwd> <pattern> [options]        Remove file pattern from dir. Ex.: 'ios crash rm "." "*"' to delete everything
-    ios date [options]                            Prints the device date
+    ios date [options]                            Prints the device date in the device's own timezone
     ios debug [--stop-at-entry] <app_path>        Start debug with lldb
     ios devicename [options]                      Prints the devicename
 
@@ -414,7 +407,7 @@ The commands work as following:
 
     ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
 
-    ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [options]
+    ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [--timezone=<tz>] [options]
                                                                        Prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
                                                                        You can use 'ios prepare printskip' to get a list of all options to skip.
                                                                        Use certfile and orgname if you want to supervise the device.
@@ -423,6 +416,7 @@ The commands work as following:
                                                                        If you need certificates to supervise,
                                                                        run 'ios prepare create-cert' and go-ios will generate one you can use.
                                                                        --locale and --lang are optional, the default is en_US and en.
+                                                                       --timezone is an optional IANA timezone name (e.g. America/Chicago). Defaults to the host timezone.
                                                                        Run 'ios lang' to see a list of all supported locales and languages.
 
     ios prepare cloudconfig                                            Print the cloud configuration of the device as JSON.
@@ -455,10 +449,11 @@ The commands work as following:
     ios resetlocation [options]       Resets the location of the device to the actual one
     ios rsd ls [options]              List RSD services and their port.
 
-    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
+    ios runtest [--bundle-id=<bundleid>] [--test-runner-bundle-id=<testbundleid>] [--xctest-config=<xctestconfig>] [--log-output=<file>] [--junit-output=<file>] [--xctest] [--test-to-run=<tests>]... [--test-to-skip=<tests>]... [--env=<e>]... [options]
                                                                     Run a XCUITest.
                                                                     If you provide only bundle-id go-ios will try to dynamically create test-runner-bundle-id and xctest-config.
                                                                     If you provide '-' as log output, it prints resuts to stdout.
+                                                                    With --junit-output the test results are additionally written to the given file as JUnit XML.
                                                                     To be able to filter for tests to run or skip, use one argument per test selector.
                                                                     Ex.: runtest --test-to-run=(TestTarget.)TestClass/testMethod (the value for 'TestTarget' is optional)
                                                                     The method name can also be omitted and in this case all tests of the specified class are run
@@ -467,10 +462,11 @@ The commands work as following:
                                                                     Runs WebDriverAgents
                                                                     Specify runtime args and env vars like --env ENV_1=something --env ENV_2=else  and --arg ARG1 --arg ARG2
 
-    ios runxctest [--xctestrun-file-path=<xctestrunFilePath>]  [--log-output=<file>] [options]
+    ios runxctest [--xctestrun-file-path=<xctestrunFilePath>]  [--log-output=<file>] [--junit-output=<file>] [options]
                                                                     Run a XCTest.
                                                                     The --xctestrun-file-path specifies the path to the .xctestrun file to configure the test execution.
                                                                     If you provide '-' as log output, it prints resuts to stdout.
+                                                                    With --junit-output the test results are additionally written to the given file as JUnit XML.
 
     ios screenshot [options] [--output=<outfile>] [--stream] [--port=<port>]
                                                                     Takes a screenshot and writes it to the current dir or to <outfile>
@@ -614,7 +610,20 @@ The commands work as following:
                                                                     iOS 11+ only (Use --force to try on older versions).
 
   `, version)
-	arguments, err := docopt.ParseDoc(usage)
+}
+
+// Main Exports main for testing
+func Main() {
+	helpCatalog, err := clihelp.Load()
+	exitIfError("failed loading help definitions", err)
+	if handled, exitCode := helpCatalog.WriteHelp(os.Args[1:], version, os.Stdout, os.Stderr); handled {
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+		return
+	}
+
+	arguments, err := docopt.ParseDoc(cliUsage())
 	exitIfError("failed parsing args", err)
 	configureCLI(arguments)
 	if dispatchCommand(commandContext{Args: arguments}, preProxyCommands) {
@@ -1279,11 +1288,24 @@ func printDeviceDate(device ios.DeviceEntry) {
 	allValues, err := ios.GetValues(device)
 	exitIfError("failed getting values", err)
 
-	formatedDate := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).Format(time.RFC850)
-	if JSONdisabled {
-		fmt.Println(formatedDate)
+	tz := allValues.Value.TimeZone
+	deviceTime := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0)
+	// Devices normally report a valid IANA name here, but don't fail a read-only
+	// command over it - fall back to the host timezone.
+	if loc, err := time.LoadLocation(tz); err == nil {
+		deviceTime = deviceTime.In(loc)
 	} else {
-		fmt.Println(convertToJSONString(map[string]interface{}{"formatedDate": formatedDate, "TimeIntervalSince1970": allValues.Value.TimeIntervalSince1970}))
+		slog.Warn("failed loading device timezone, printing date in host timezone", "timezone", tz, "error", err)
+	}
+
+	if JSONdisabled {
+		fmt.Println(deviceTime.Format(time.RFC3339))
+	} else {
+		fmt.Println(convertToJSONString(map[string]interface{}{
+			"TimeIntervalSince1970": allValues.Value.TimeIntervalSince1970,
+			"TimeZone":              tz,
+			"formatedDate":          deviceTime.Format(time.RFC850),
+		}))
 	}
 }
 

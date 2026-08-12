@@ -14,6 +14,7 @@ import (
 	"io"
 	"math/big"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -175,12 +176,15 @@ func connectToTunnel(ctx context.Context, info tunnelListener, addr string, devi
 	}, nil
 }
 
+// runCmd runs an interface-configuration command (ifconfig, netsh, ...) and
+// captures its combined stdout and stderr. Some tools (netsh on Windows) write
+// their error messages to stdout, so capturing only stderr would surface an
+// empty error.
 func runCmd(cmd *exec.Cmd) error {
-	buf := new(bytes.Buffer)
-	cmd.Stderr = buf
-	err := cmd.Run()
+	golog.Debug("running interface setup command", "module", logModule, "cmd", cmd.String())
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("runCmd: failed to exeute command (stderr: %s): %w", buf.String(), err)
+		return fmt.Errorf("runCmd: failed to execute command '%s' (output: '%s'): %w", cmd.String(), strings.TrimSpace(string(out)), err)
 	}
 	return nil
 }

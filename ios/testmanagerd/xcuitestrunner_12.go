@@ -71,7 +71,7 @@ func runXUITestWithBundleIdsXcode12Ctx(ctx context.Context, config TestConfig, v
 	}
 	golog.Debug("Runner started, waiting for testBundleReady", "module", logModule, "udid", config.Device.Properties.SerialNumber, "pid", pid)
 
-	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(proxyDispatcher{id: "emty"})
+	ideInterfaceChannel := ideDaemonProxy2.dtxConnection.ForChannelRequest(proxyDispatcher{id: "emty", testListener: noopTestListener()})
 
 	time.Sleep(time.Second)
 

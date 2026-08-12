@@ -171,6 +171,10 @@ commands:
   - path: pcap
     usage: ios pcap [options] [--pid=<processID>] [--process=<processName>]
     summary: Capture network packets.
+    examples:
+      - "ios pcap                             # stream all traffic to stdout"
+      - "ios pcap --process=myapp             # capture one process only"
+      - "ios pcap --pid=1234 > capture.pcap   # save for Wireshark / mitmproxy analysis"
   - path: prepare
     usage: ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale=<locale>] [--lang=<lang>] [options]
     summary: Prepare device for automation.
