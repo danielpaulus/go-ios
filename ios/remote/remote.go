@@ -24,6 +24,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -282,8 +283,10 @@ func clamp01(v float64) float64 {
 	return v
 }
 
+// ftoa formats a coordinate for `ios ui tap/swipe`, which parse --x/--y as
+// integers and reject decimals ("--x is required"). Round to the nearest point.
 func ftoa(v float64) string {
-	return strconv.FormatFloat(v, 'f', 2, 64)
+	return strconv.FormatInt(int64(math.Round(v)), 10)
 }
 
 // logicalSize returns the device's WDA logical window size in points, caching

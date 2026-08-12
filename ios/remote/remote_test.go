@@ -64,11 +64,18 @@ func TestFractionToPoints(t *testing.T) {
 }
 
 func TestFtoa(t *testing.T) {
-	if got := ftoa(195); got != "195.00" {
-		t.Fatalf("ftoa(195)=%q", got)
+	// `ios ui tap` parses --x/--y as integers, so coordinates must be integer
+	// strings (decimals are rejected).
+	cases := map[float64]string{
+		195:   "195",
+		422.4: "422",
+		422.5: "423", // rounds to nearest
+		0:     "0",
 	}
-	if got := ftoa(422.5); got != "422.50" {
-		t.Fatalf("ftoa(422.5)=%q", got)
+	for in, want := range cases {
+		if got := ftoa(in); got != want {
+			t.Fatalf("ftoa(%v)=%q, want %q", in, got, want)
+		}
 	}
 }
 
