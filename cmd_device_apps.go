@@ -216,7 +216,7 @@ func matchesKillTarget(p instruments.ProcessInfo, processNames map[string]string
 
 // runKillWatch stays resident, killing any of processNames the instant it's
 // observed launching (state transitions to "Running"), via the push-based
-// application-state notification channel (instruments.Guard) rather than
+// application-state notification channel (instruments.WatchKill) rather than
 // polling — the device notifies us on launch instead of us catching it in a
 // poll interval, so the launch->kill window is wire latency, not a poll
 // period. Runs until interrupted (CTRL+C), printing one JSON line per kill.
@@ -234,7 +234,7 @@ func runKillWatch(ctx commandContext, processNames map[string]string) {
 	watchCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	events, err := instruments.Guard(watchCtx, ctx.Device, names)
+	events, err := instruments.WatchKill(watchCtx, ctx.Device, names)
 	exitIfError("failed starting watch", err)
 
 	c := make(chan os.Signal, 1)
