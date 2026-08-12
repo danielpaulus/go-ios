@@ -107,7 +107,7 @@ Usage:
   ios instruments network [--duration=<seconds>] [options]
   ios instruments notifications [options]
   ios ip [options]
-  ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
+  ios kill (<bundleIDs>... | --pid=<processID> | --process=<processName>) [--watch] [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
   ios launch <bundleID> [--wait] [--kill-existing] [--arg=<a>]... [--env=<e>]... [options]
   ios list [options] [--details]
@@ -342,8 +342,21 @@ The commands work as following:
                                                     If you wanna speed it up, open apple maps or similar to force network traffic.
                                                     Ex.: "ios launch com.apple.Maps"
 
-    ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
-                                                                       Kill app with the specified bundleID, process id, or process name on the device.
+    ios kill (<bundleIDs>... | --pid=<processID> | --process=<processName>) [--watch] [options]
+                                                                       Kill one or more apps by bundleID (multiple allowed), or a single
+                                                                       process by pid/name, on the device.
+                                                                       --watch stays resident and kills each bundleID/--process the instant
+                                                                       it's next launched, instead of killing whatever's running right now.
+                                                                       Reacts to the push-based application-state notification channel (same
+                                                                       one "ios instruments notifications" prints), so the kill fires on wire
+                                                                       latency rather than a poll interval — not combinable with --pid, since
+                                                                       a future launch's pid isn't known yet. Intended for apps an MDM
+                                                                       restrictions profile can't block outright (notably Settings and Phone,
+                                                                       which iOS exempts from blockedAppBundleIDs/allowListedAppBundleIDs) —
+                                                                       for every other app, blocking it via a supervised MDM profile is the
+                                                                       sounder fix; --watch is the fallback for the two apps that can't be
+                                                                       blocked that way. Runs until CTRL+C, printing one JSON line per kill.
+                                                                       Ex.: "ios kill --watch com.apple.Preferences com.apple.mobilephone"
 
     ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]    Sets or gets the Device language. ios lang will print the current language and locale,
                                                                        as well as a list of all supported langs and locales.

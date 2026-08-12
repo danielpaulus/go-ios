@@ -59,7 +59,7 @@ Commands:
   instruments network             Stream network activity samples.
   instruments notifications       Stream app state notifications.
   ip                              Detect device IP from packet capture.
-  kill                            Kill app by bundle ID, PID, or process.
+  kill                            Kill one or more apps by bundle ID, or a process by PID/name.
   lang                            Read or set device language and locale.
   launch                          Launch app by bundle ID.
   list                            List connected devices.

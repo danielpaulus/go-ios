@@ -15,14 +15,29 @@ type channelDispatcher struct {
 	closeChannel   chan struct{}
 }
 
+// notificationBacklog buffers messageChannel so the device's initial burst of
+// applicationStateNotification: pushes (one per already-running process, sent
+// as soon as setApplicationStateNotificationsEnabled: takes effect) doesn't
+// block the connection's single reader goroutine before the caller has even
+// gotten the Receive func back to start draining it. An unbuffered channel
+// here deadlocks setApplicationStateNotificationsEnabled/
+// setMemoryNotificationsEnabled's own reply, since the reader can't process it
+// while stuck delivering the backlog to a channel nobody is reading yet.
+const notificationBacklog = 256
+
 func ListenAppStateNotifications(device ios.DeviceEntry) (func() (map[string]interface{}, error), func() error, error) {
-	conn, err := connectInstruments(device)
+	dispatcher := channelDispatcher{messageChannel: make(chan dtx.Message, notificationBacklog), closeChannel: make(chan struct{})}
+	// applicationStateNotification:/memoryLevelNotification: arrive as
+	// unsolicited pushes on the global channel (channel code 0), not on the
+	// channel requested below — AddDefaultChannelReceiver binds channel code
+	// -1/4294967295, which these never use, so it never actually delivers
+	// them. Registering as the connection's MessageDispatcher is what
+	// GlobalDispatcher.Dispatch forwards global-channel pushes to.
+	conn, err := connectInstrumentsWithMsgDispatcher(device, dispatcher)
 	if err != nil {
 		return nil, nil, err
 	}
-	dispatcher := channelDispatcher{messageChannel: make(chan dtx.Message), closeChannel: make(chan struct{})}
-	conn.AddDefaultChannelReceiver(dispatcher)
-	channel := conn.RequestChannelIdentifier(mobileNotificationsChannel, channelDispatcher{})
+	channel := conn.RequestChannelIdentifier(mobileNotificationsChannel, loggingDispatcher{conn})
 	resp, err := channel.MethodCall("setApplicationStateNotificationsEnabled:", true)
 	if err != nil {
 		golog.Error("setApplicationStateNotificationsEnabled failed", "module", logModule, "udid", device.Properties.SerialNumber, "response", resp)
