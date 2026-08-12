@@ -236,7 +236,9 @@ func (s *Server) handleButton(w http.ResponseWriter, r *http.Request) {
 // non-reachable WDA surfaces here as a non-zero exit + stderr in the response.
 func (s *Server) runUI(w http.ResponseWriter, args ...string) {
 	full := append([]string{"ui"}, args...)
-	full = append(full, "--udid="+s.udid, "--wda-url="+s.wdaURL)
+	// Always drive WDA: input is WDA-backed and we pass --wda-url, so pin the
+	// driver rather than let `ios ui` auto-detect (which prefers DeviceKit).
+	full = append(full, "--driver=wda", "--udid="+s.udid, "--wda-url="+s.wdaURL)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -297,7 +299,7 @@ func (s *Server) logicalSize() (float64, float64, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, s.iosBinary, "ui", "size", "--udid="+s.udid, "--wda-url="+s.wdaURL)
+	cmd := exec.CommandContext(ctx, s.iosBinary, "ui", "size", "--driver=wda", "--udid="+s.udid, "--wda-url="+s.wdaURL)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return 0, 0, fmt.Errorf("ui size failed (is WDA reachable at %s?): %v: %s", s.wdaURL, err, out)
