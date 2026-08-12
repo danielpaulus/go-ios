@@ -204,8 +204,10 @@ func readEntry(auxBytes []byte) (uint32, interface{}, []byte, error) {
 			return 0, nil, auxBytes, fmt.Errorf("insufficient bytes for length field: need 8, got %d", len(auxBytes))
 		}
 		length := binary.LittleEndian.Uint32(auxBytes[4:])
-		if len(auxBytes) < int(8+length) {
-			return 0, nil, auxBytes, fmt.Errorf("insufficient bytes for data: need %d, got %d", 8+length, len(auxBytes))
+		// Compute the required length in uint64 so a large length (e.g. 0xFFFFFFFF)
+		// cannot wrap 8+length around in uint32 and pass the bounds check.
+		if uint64(len(auxBytes)) < 8+uint64(length) {
+			return 0, nil, auxBytes, fmt.Errorf("insufficient bytes for data: need %d, got %d", 8+uint64(length), len(auxBytes))
 		}
 		data := auxBytes[8 : 8+length]
 		if readType == t_string {

@@ -10,6 +10,13 @@ import (
 	"github.com/danielpaulus/go-ios/ios/nskeyedarchiver"
 )
 
+// maxMessageSize caps how many bytes ReadMessage will allocate for any single
+// length field (message length, auxiliary size, payload length). These fields
+// come straight from an attacker-controlled uint32 in the DTX header, so an
+// unbounded make() would let a tiny hostile frame request a ~4GiB allocation.
+// 256 MiB is far above any legitimate DTX message.
+const maxMessageSize = 256 * 1024 * 1024
+
 // ReadMessage uses the reader to fully read a Message from it in blocking mode.
 func ReadMessage(reader io.Reader) (Message, error) {
 	header := make([]byte, 32)
@@ -31,6 +38,9 @@ func ReadMessage(reader io.Reader) (Message, error) {
 			return result, nil
 		}
 		// 32 offset is correct, the binary starts with a payload header
+		if result.MessageLength < 0 || result.MessageLength > maxMessageSize {
+			return Message{}, fmt.Errorf("dtx fragment message length %d out of range (max %d)", result.MessageLength, maxMessageSize)
+		}
 		messageBytes := make([]byte, result.MessageLength)
 		_, err := io.ReadFull(reader, messageBytes)
 		if err != nil {
@@ -64,6 +74,9 @@ func ReadMessage(reader io.Reader) (Message, error) {
 			return Message{}, err
 		}
 		result.AuxiliaryHeader = header
+		if result.AuxiliaryHeader.AuxiliarySize > maxMessageSize {
+			return Message{}, fmt.Errorf("dtx auxiliary size %d out of range (max %d)", result.AuxiliaryHeader.AuxiliarySize, maxMessageSize)
+		}
 		auxBytes := make([]byte, result.AuxiliaryHeader.AuxiliarySize)
 		_, err = io.ReadFull(reader, auxBytes)
 		if err != nil {
@@ -74,6 +87,9 @@ func ReadMessage(reader io.Reader) (Message, error) {
 
 	result.RawBytes = make([]byte, 0)
 	if result.HasPayload() {
+		if result.PayloadLength() > maxMessageSize {
+			return Message{}, fmt.Errorf("dtx payload length %d out of range (max %d)", result.PayloadLength(), maxMessageSize)
+		}
 		payloadBytes := make([]byte, result.PayloadLength())
 		_, err := io.ReadFull(reader, payloadBytes)
 		if err != nil {
@@ -224,8 +240,13 @@ func (d Message) parsePayloadBytes(messageBytes []byte) ([]interface{}, error) {
 	return nskeyedarchiver.Unarchive(messageBytes[offset:])
 }
 
-// PayloadLength equals PayloadHeader.TotalPayloadLength - d.PayloadHeader.AuxiliaryLength so it is the Payload without the Auxiliary
+// PayloadLength equals PayloadHeader.TotalPayloadLength - d.PayloadHeader.AuxiliaryLength so it is the Payload without the Auxiliary.
+// When AuxiliaryLength exceeds TotalPayloadLength (a malformed/hostile header) the subtraction would underflow the uint32
+// into a huge value used for an allocation, so we clamp it to 0 instead.
 func (d Message) PayloadLength() uint32 {
+	if d.PayloadHeader.AuxiliaryLength > d.PayloadHeader.TotalPayloadLength {
+		return 0
+	}
 	return d.PayloadHeader.TotalPayloadLength - d.PayloadHeader.AuxiliaryLength
 }
 

@@ -60,18 +60,11 @@ func main() {
 
 const version = "local-build"
 
-// Main Exports main for testing
-func Main() {
-	helpCatalog, err := clihelp.Load()
-	exitIfError("failed loading help definitions", err)
-	if handled, exitCode := helpCatalog.WriteHelp(os.Args[1:], version, os.Stdout, os.Stderr); handled {
-		if exitCode != 0 {
-			os.Exit(exitCode)
-		}
-		return
-	}
-
-	usage := fmt.Sprintf(`go-ios %s
+// cliUsage returns the docopt usage string that drives command dispatch.
+// It is a function (not inlined in Main) so tests can parse real command
+// lines against the exact usage the CLI ships.
+func cliUsage() string {
+	return fmt.Sprintf(`go-ios %s
 
 Usage:
   ios --version | version [options]
@@ -127,7 +120,7 @@ Usage:
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pasteboard (set [<text>] | get) [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
-  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale=<locale>] [--lang=<lang>] [options]
+  ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale=<locale>] [--lang=<lang>] [--timezone=<tz>] [options]
   ios prepare cloudconfig [options]
   ios prepare create-cert
   ios prepare printskip
@@ -260,7 +253,7 @@ The commands work as following:
                                                   or use a pattern like 'ios crash ls "*ips*"' to filter
 
     ios crash rm <cwd> <pattern> [options]        Remove file pattern from dir. Ex.: 'ios crash rm "." "*"' to delete everything
-    ios date [options]                            Prints the device date
+    ios date [options]                            Prints the device date in the device's own timezone
     ios debug [--stop-at-entry] <app_path>        Start debug with lldb
     ios devicename [options]                      Prints the devicename
 
@@ -404,7 +397,7 @@ The commands work as following:
 
     ios pcap [options] [--pid=<processID>] [--process=<processName>]   Starts a pcap dump of network traffic, use --pid or --process to filter specific processes.
 
-    ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [options]
+    ios prepare [--skip-all] [--skip=<option>]... [--certfile=<cert_file_path>] [--orgname=<org_name>] [--p12password=<p12password>] [--locale] [--lang] [--timezone=<tz>] [options]
                                                                        Prepare a device. Use skip-all to skip everything multiple --skip args to skip only a subset.
                                                                        You can use 'ios prepare printskip' to get a list of all options to skip.
                                                                        Use certfile and orgname if you want to supervise the device.
@@ -413,6 +406,7 @@ The commands work as following:
                                                                        If you need certificates to supervise,
                                                                        run 'ios prepare create-cert' and go-ios will generate one you can use.
                                                                        --locale and --lang are optional, the default is en_US and en.
+                                                                       --timezone is an optional IANA timezone name (e.g. America/Chicago). Defaults to the host timezone.
                                                                        Run 'ios lang' to see a list of all supported locales and languages.
 
     ios prepare cloudconfig                                            Print the cloud configuration of the device as JSON.
@@ -606,7 +600,20 @@ The commands work as following:
                                                                     iOS 11+ only (Use --force to try on older versions).
 
   `, version)
-	arguments, err := docopt.ParseDoc(usage)
+}
+
+// Main Exports main for testing
+func Main() {
+	helpCatalog, err := clihelp.Load()
+	exitIfError("failed loading help definitions", err)
+	if handled, exitCode := helpCatalog.WriteHelp(os.Args[1:], version, os.Stdout, os.Stderr); handled {
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+		return
+	}
+
+	arguments, err := docopt.ParseDoc(cliUsage())
 	exitIfError("failed parsing args", err)
 	configureCLI(arguments)
 	if dispatchCommand(commandContext{Args: arguments}, preProxyCommands) {
@@ -1271,11 +1278,24 @@ func printDeviceDate(device ios.DeviceEntry) {
 	allValues, err := ios.GetValues(device)
 	exitIfError("failed getting values", err)
 
-	formatedDate := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0).Format(time.RFC850)
-	if JSONdisabled {
-		fmt.Println(formatedDate)
+	tz := allValues.Value.TimeZone
+	deviceTime := time.Unix(int64(allValues.Value.TimeIntervalSince1970), 0)
+	// Devices normally report a valid IANA name here, but don't fail a read-only
+	// command over it - fall back to the host timezone.
+	if loc, err := time.LoadLocation(tz); err == nil {
+		deviceTime = deviceTime.In(loc)
 	} else {
-		fmt.Println(convertToJSONString(map[string]interface{}{"formatedDate": formatedDate, "TimeIntervalSince1970": allValues.Value.TimeIntervalSince1970}))
+		slog.Warn("failed loading device timezone, printing date in host timezone", "timezone", tz, "error", err)
+	}
+
+	if JSONdisabled {
+		fmt.Println(deviceTime.Format(time.RFC3339))
+	} else {
+		fmt.Println(convertToJSONString(map[string]interface{}{
+			"TimeIntervalSince1970": allValues.Value.TimeIntervalSince1970,
+			"TimeZone":              tz,
+			"formatedDate":          deviceTime.Format(time.RFC850),
+		}))
 	}
 }
 

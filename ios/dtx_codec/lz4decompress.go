@@ -9,6 +9,13 @@ import (
 
 const bv41 = 0x62763431
 
+// maxUncompressedSize caps the buffer we allocate for an lz4-decompressed DTX
+// message. totalUncompressedSize is an attacker-controlled uint32 from the
+// device, so without a cap a hostile frame could request a ~4GiB allocation
+// from only a few bytes of input. 256 MiB is far above any legitimate DTX
+// message while keeping a malformed frame from exhausting memory.
+const maxUncompressedSize = 256 * 1024 * 1024
+
 // https://discuss.appium.io/t/how-to-parse-trace-file-to-get-cpu-performance-usage-data-for-ios-apps/35334/2
 func Decompress(data []byte) ([]byte, error) {
 	// no idea what the first four bytes mean
@@ -44,7 +51,14 @@ func Decompress(data []byte) ([]byte, error) {
 		}
 		magic = binary.BigEndian.Uint32(data)
 	}
-	uncompressedData := make([]byte, totalUncompressedSize+100)
+	// Do the +100 slack in uint64 so a totalUncompressedSize near 0xFFFFFFFF
+	// cannot wrap around, and reject anything above the sane maximum before
+	// allocating.
+	allocSize := uint64(totalUncompressedSize) + 100
+	if allocSize > maxUncompressedSize {
+		return nil, fmt.Errorf("lz4 decompress: uncompressed size %d exceeds maximum %d", totalUncompressedSize, maxUncompressedSize)
+	}
+	uncompressedData := make([]byte, allocSize)
 	n, err := lz4.UncompressBlock(compressedAgg, uncompressedData)
 	if err != nil {
 		return []byte{}, err

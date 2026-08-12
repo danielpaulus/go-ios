@@ -1,11 +1,26 @@
 package imagemounter
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// TestTssClientVerifiesTLS guards against re-introducing InsecureSkipVerify:
+// getSignature reuses the client from newTssClient to POST to gs.apple.com,
+// which serves a valid public certificate, so TLS verification must stay on.
+func TestTssClientVerifiesTLS(t *testing.T) {
+	c := newTssClient()
+	transport, ok := c.h.Transport.(*http.Transport)
+	require.True(t, ok, "expected *http.Transport")
+	if transport.TLSClientConfig != nil {
+		assert.False(t, transport.TLSClientConfig.InsecureSkipVerify,
+			"TLS certificate verification must not be disabled")
+	}
+}
 
 func TestParseResponse(t *testing.T) {
 	tests := []struct {

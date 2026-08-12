@@ -25,34 +25,70 @@ func Unarchive(xml []byte) (result []interface{}, err error) {
 	if err != nil {
 		return nil, err
 	}
-	nsKeyedArchiverData := plist.(map[string]interface{})
+	nsKeyedArchiverData, ok := plist.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid NSKeyedArchiver plist: root is not a dictionary, got %T", plist)
+	}
 
 	err = verifyCorrectArchiver(nsKeyedArchiverData)
 	if err != nil {
 		return nil, err
 	}
-	return extractObjectsFromTop(nsKeyedArchiverData[topKey].(map[string]interface{}), nsKeyedArchiverData[objectsKey].([]interface{}))
+	top, ok := nsKeyedArchiverData[topKey].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid NSKeyedArchiver plist: '%s' is not a dictionary, got %T", topKey, nsKeyedArchiverData[topKey])
+	}
+	objects, ok := nsKeyedArchiverData[objectsKey].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid NSKeyedArchiver plist: '%s' is not an array, got %T", objectsKey, nsKeyedArchiverData[objectsKey])
+	}
+	return extractObjectsFromTop(top, objects)
 }
+
+// maxUnarchiveDepth bounds how deeply extractObjects will recurse into nested
+// NSArray/NSSet/NSDictionary containers. A hostile archive whose NS.objects UIDs
+// form a cycle would otherwise recurse forever and trigger an uncatchable Go
+// "fatal error: stack overflow" that the recover() above cannot backstop. The
+// bound is far above anything a well-formed archive produces, so valid archives
+// decode identically.
+const maxUnarchiveDepth = 1000
 
 func extractObjectsFromTop(top map[string]interface{}, objects []interface{}) ([]interface{}, error) {
 	objectCount := len(top)
 	if root, ok := top["root"]; ok {
-		return extractObjects([]plist.UID{root.(plist.UID)}, objects)
+		rootUID, ok := root.(plist.UID)
+		if !ok {
+			return nil, fmt.Errorf("invalid NSKeyedArchiver plist: 'root' is not a UID, got %T", root)
+		}
+		return extractObjects([]plist.UID{rootUID}, objects, 0)
 	}
 	objectRefs := make([]plist.UID, objectCount)
 	// convert the Dictionary with the objectReferences into a flat list of UIDs, so we can reuse the extractObjects function later
 	for i := 0; i < objectCount; i++ {
-		objectIndex := top[fmt.Sprintf("$%d", i)].(plist.UID)
+		objectIndex, ok := top[fmt.Sprintf("$%d", i)].(plist.UID)
+		if !ok {
+			return nil, fmt.Errorf("invalid NSKeyedArchiver plist: '$top' entry $%d is not a UID, got %T", i, top[fmt.Sprintf("$%d", i)])
+		}
 		objectRefs[i] = objectIndex
 	}
-	return extractObjects(objectRefs, objects)
+	return extractObjects(objectRefs, objects, 0)
 }
 
-func extractObjects(objectRefs []plist.UID, objects []interface{}) ([]interface{}, error) {
+// extractObjects resolves a list of object UIDs into Go values. depth tracks how
+// deep we have recursed into nested containers; it is bounded by
+// maxUnarchiveDepth to make a cyclic/self-referential archive fail with an error
+// instead of an uncatchable stack overflow (see CRIT-2).
+func extractObjects(objectRefs []plist.UID, objects []interface{}, depth int) ([]interface{}, error) {
+	if depth > maxUnarchiveDepth {
+		return nil, fmt.Errorf("max unarchive depth %d exceeded, aborting to avoid stack overflow (possibly a cyclic or maliciously nested archive)", maxUnarchiveDepth)
+	}
 	objectCount := len(objectRefs)
 	returnValue := make([]interface{}, objectCount)
 	for i := 0; i < objectCount; i++ {
 		objectIndex := objectRefs[i]
+		if int(objectIndex) < 0 || int(objectIndex) >= len(objects) {
+			return nil, fmt.Errorf("object UID %d out of range for $objects of length %d", objectIndex, len(objects))
+		}
 		objectRef := objects[objectIndex]
 		if object, ok := isPrimitiveObject(objectRef); ok {
 			returnValue[i] = object
@@ -64,7 +100,11 @@ func extractObjects(objectRefs []plist.UID, objects []interface{}) ([]interface{
 			return []interface{}{}, fmt.Errorf("object not a dictionary: %+v", objectRef)
 		}
 		if object, ok := isArrayObject(nonPrimitiveObjectRef, objects); ok {
-			extractObjects, err := extractObjects(toUidList(object[nsObjects].([]interface{})), objects)
+			nestedRefs, ok := object[nsObjects].([]interface{})
+			if !ok {
+				return nil, fmt.Errorf("NS.objects is not an array, got %T", object[nsObjects])
+			}
+			extractObjects, err := extractObjects(toUidList(nestedRefs), objects, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -73,7 +113,7 @@ func extractObjects(objectRefs []plist.UID, objects []interface{}) ([]interface{
 		}
 
 		if object, ok := isDictionaryObject(nonPrimitiveObjectRef, objects); ok {
-			dictionary, err := extractDictionary(object, objects)
+			dictionary, err := extractDictionary(object, objects, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -157,15 +197,26 @@ func isNSMutableString(object map[string]interface{}, objects []interface{}) (ma
 	return object, false
 }
 
-func extractDictionary(object map[string]interface{}, objects []interface{}) (map[string]interface{}, error) {
-	keyRefs := toUidList(object[nsKeys].([]interface{}))
-	keys, err := extractObjects(keyRefs, objects)
+func extractDictionary(object map[string]interface{}, objects []interface{}, depth int) (map[string]interface{}, error) {
+	if depth > maxUnarchiveDepth {
+		return nil, fmt.Errorf("max unarchive depth %d exceeded, aborting to avoid stack overflow (possibly a cyclic or maliciously nested archive)", maxUnarchiveDepth)
+	}
+	nsKeysList, ok := object[nsKeys].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("NS.keys is not an array, got %T", object[nsKeys])
+	}
+	keyRefs := toUidList(nsKeysList)
+	keys, err := extractObjects(keyRefs, objects, depth+1)
 	if err != nil {
 		return nil, err
 	}
 
-	valueRefs := toUidList(object[nsObjects].([]interface{}))
-	values, err := extractObjects(valueRefs, objects)
+	nsObjectsList, ok := object[nsObjects].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("NS.objects is not an array, got %T", object[nsObjects])
+	}
+	valueRefs := toUidList(nsObjectsList)
+	values, err := extractObjects(valueRefs, objects, depth+1)
 	if err != nil {
 		return nil, err
 	}

@@ -333,7 +333,7 @@ func NewXCTAttachment(object map[string]interface{}, objects []interface{}) inte
 	fileNameOverride := objects[object["fileNameOverride"].(plist.UID)].(string)
 	timestamp := objects[object["timestamp"].(plist.UID)].(float64)
 	name := objects[object["name"].(plist.UID)].(string)
-	userInfo, _ := extractDictionary(objects[object["userInfo"].(plist.UID)].(map[string]interface{}), objects)
+	userInfo, _ := extractDictionary(objects[object["userInfo"].(plist.UID)].(map[string]interface{}), objects, 0)
 
 	payloadRaw := objects[object["payload"].(plist.UID)]
 	payload := extractAttachmentPayload(payloadRaw, objects)
@@ -450,7 +450,7 @@ type DTActivityTraceTapMessage struct {
 
 func NewDTActivityTraceTapMessage(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["DTTapMessagePlist"].(plist.UID)
-	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects, 0)
 	return DTActivityTraceTapMessage{DTTapMessagePlist: plist}
 }
 
@@ -460,7 +460,7 @@ type DTKTraceTapMessage struct {
 
 func NewDTKTraceTapMessage(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["DTTapMessagePlist"].(plist.UID)
-	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects, 0)
 	return DTKTraceTapMessage{DTTapMessagePlist: plist}
 }
 
@@ -516,7 +516,7 @@ func NewNSArray(object map[string]interface{}, objects []interface{}) interface{
 	objectRefs := object["NS.objects"].([]interface{})
 
 	uidList := toUidList(objectRefs)
-	extractObjects, _ := extractObjects(uidList, objects)
+	extractObjects, _ := extractObjects(uidList, objects, 0)
 
 	return NSArray{Values: extractObjects}
 }
@@ -539,7 +539,7 @@ func NewXCTTestIdentifier(object map[string]interface{}, objects []interface{}) 
 	ref := object["c"].(plist.UID)
 	// plist, _ := extractObjects(objects[ref].(map[string]interface{}), objects)
 	fd := objects[ref].(map[string]interface{})
-	extractObjects, _ := extractObjects(toUidList(fd[nsObjects].([]interface{})), objects)
+	extractObjects, _ := extractObjects(toUidList(fd[nsObjects].([]interface{})), objects, 0)
 	stringarray := make([]string, len(extractObjects))
 	for i, v := range extractObjects {
 		stringarray[i] = v.(string)
@@ -626,7 +626,7 @@ func NewNSError(object map[string]interface{}, objects []interface{}) interface{
 	userInfo_ref := object["NSUserInfo"].(plist.UID)
 	domain_ref := object["NSDomain"].(plist.UID)
 	domain := objects[domain_ref].(string)
-	userinfo, _ := extractDictionary(objects[userInfo_ref].(map[string]interface{}), objects)
+	userinfo, _ := extractDictionary(objects[userInfo_ref].(map[string]interface{}), objects, 0)
 
 	return NSError{ErrorCode: errorCode, Domain: domain, UserInfo: userinfo}
 }
@@ -660,19 +660,19 @@ type XCTCapabilities struct {
 
 func NewXCTCapabilities(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["capabilities-dictionary"].(plist.UID)
-	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects, 0)
 	return XCTCapabilities{CapabilitiesDictionary: plist}
 }
 
 func NewDTTapHeartbeatMessage(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["DTTapMessagePlist"].(plist.UID)
-	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects, 0)
 	return DTTapHeartbeatMessage{DTTapMessagePlist: plist}
 }
 
 func NewDTTapMessage(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["DTTapMessagePlist"].(plist.UID)
-	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects, 0)
 	return DTTapMessage{DTTapMessagePlist: plist}
 }
 
@@ -682,7 +682,7 @@ type DTTapStatusMessage struct {
 
 func NewDTTapStatusMessage(object map[string]interface{}, objects []interface{}) interface{} {
 	ref := object["DTTapMessagePlist"].(plist.UID)
-	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects)
+	plist, _ := extractDictionary(objects[ref].(map[string]interface{}), objects, 0)
 	return DTTapStatusMessage{DTTapMessagePlist: plist}
 }
 
