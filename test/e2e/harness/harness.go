@@ -178,6 +178,184 @@ func RunForDevice(t *testing.T, udid string, args ...string) []byte {
 	return RunIOS(t, append(args, "--udid="+udid)...)
 }
 
+// transientTransportSignatures are the stderr fragments (matched
+// case-insensitively) that identify a *transient* usbmuxd / USB-transport drop
+// on the flaky pre-iOS17 CI device (udid 5b98c87e…, iOS 12.5.7). That device
+// intermittently falls off usbmuxd mid-suite; when it does, an otherwise-good
+// command fails with one of these transport-layer errors — never with an
+// assertion or a genuine command error. Retrying ONLY on these signatures lets a
+// single infra hiccup self-heal without masking real bugs. Keep this list here,
+// in one place; do not broaden it to cover anything but known transport drops.
+var transientTransportSignatures = []string{
+	"broken pipe",                    // write unix @->/var/run/usbmuxd: write: broken pipe
+	"sent: 0",                        // DeviceConnection failed writing all bytes ... sent: 0
+	"sent:0",                         // same, no space
+	"could not connect to rsd",       // got RST frame with error code: STREAM_CLOSED
+	"failed to get tunnel info",      // tunnel/RSD info lost when the device drops
+	"stream_closed",                  // HTTP/2 RST frame after the connection resets
+	"connection reset",               // generic peer/USB reset
+	"timed out waiting for response", // dtx: Timed out waiting for response for message:N channel:0
+}
+
+// matchTransientTransport reports the first transient-transport signature found
+// in stderr (case-insensitive), or "" if none matched. A non-empty result means
+// the failure looks like a transport drop worth retrying.
+func matchTransientTransport(stderr []byte) string {
+	lower := strings.ToLower(string(stderr))
+	for _, sig := range transientTransportSignatures {
+		if strings.Contains(lower, sig) {
+			return sig
+		}
+	}
+	return ""
+}
+
+const (
+	// transientRetryAttempts bounds how many times a device-touching command is
+	// retried when it fails with a transient-transport signature.
+	transientRetryAttempts = 3
+	// transientRetryBackoff is the pause between those attempts (~2s), giving
+	// usbmuxd time to re-enumerate the device after a drop.
+	transientRetryBackoff = 2 * time.Second
+)
+
+// RunForDeviceResilient runs `ios <args> --udid=<udid>` under the standard bounded
+// runner and returns stdout. On success it returns immediately. On failure it
+// retries ONLY when stderr matches a transient-transport signature (see
+// transientTransportSignatures) — a genuine command error or a wedge fails the
+// test straight away, so real bugs are never masked. Each retry is logged with
+// the matched signature; after transientRetryAttempts it fails with the last
+// error. Use it for the pre-iOS17 device commands that a mid-suite usbmuxd drop
+// would otherwise red-wall.
+func RunForDeviceResilient(t *testing.T, udid string, args ...string) []byte {
+	t.Helper()
+	var (
+		out, stderr []byte
+		err         error
+	)
+	for attempt := 1; attempt <= transientRetryAttempts; attempt++ {
+		out, stderr, err = runBounded(commandTimeout, nil, append(args, "--udid="+udid)...)
+		if err == nil {
+			return out
+		}
+		sig := matchTransientTransport(stderr)
+		if sig == "" {
+			// Not a known transient transport drop — fail fast, do not mask.
+			t.Fatalf("ios %v: %v\nstderr: %s\nstdout: %s", args, err, stderr, out)
+		}
+		if attempt < transientRetryAttempts {
+			t.Logf("ios %v: transient transport drop (matched %q), retry %d/%d after %s",
+				args, sig, attempt, transientRetryAttempts-1, transientRetryBackoff)
+			time.Sleep(transientRetryBackoff)
+		}
+	}
+	t.Fatalf("ios %v: still failing after %d attempts (transient transport drops): %v\nstderr: %s\nstdout: %s",
+		args, transientRetryAttempts, err, stderr, out)
+	return nil
+}
+
+// SmokeArrResilient is SmokeJSONArray wrapped in the transient-transport retry
+// (see RunForDeviceResilient): it re-runs the command on a usbmuxd drop, then
+// applies the identical non-empty-array + element-key assertions. Assertions are
+// unchanged — only transport drops are retried.
+func SmokeArrResilient(t *testing.T, udid string, elemKeys []string, args ...string) []any {
+	t.Helper()
+	out := RunForDeviceResilient(t, udid, args...)
+	if len(bytes.TrimSpace(out)) == 0 {
+		t.Fatalf("ios %v: empty output", args)
+	}
+	var a []any
+	if err := json.Unmarshal(out, &a); err != nil {
+		t.Fatalf("ios %v: not a JSON array: %v\n%s", args, err, snippet(out))
+	}
+	if len(a) == 0 {
+		t.Fatalf("ios %v: empty array", args)
+	}
+	if first, ok := a[0].(map[string]any); ok {
+		for _, k := range elemKeys {
+			if _, ok := first[k]; !ok {
+				t.Fatalf("ios %v: array element missing key %q (got %v)", args, k, keysOf(first))
+			}
+		}
+	}
+	return a
+}
+
+// AuditAfterLaunchResilient is AuditAfterLaunch with the launch run through the
+// transient-transport retry so a usbmuxd drop on the flaky pre-iOS17 device does
+// not red-wall the audit. The audit poll below already tolerates transient
+// failures (it retries until issues appear or it times out), so only the launch
+// needs the resilient runner. Assertions are unchanged.
+func AuditAfterLaunchResilient(t *testing.T, udid, bundleID string) {
+	t.Helper()
+	RunForDeviceResilient(t, udid, "launch", bundleID)
+
+	var issues []any
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		out, _, err := TryRun(t, "ax", "audit", "--udid="+udid)
+		if err == nil && json.Unmarshal(out, &issues) == nil && len(issues) > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("ax audit reported no issues within 30s for %s after launching %s", udid, bundleID)
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	for i, raw := range issues {
+		m, _ := raw.(map[string]any)
+		if _, ok := m["issueType"]; !ok {
+			t.Fatalf("ax audit issue %d missing issueType: %v", i, m)
+		}
+	}
+}
+
+// StreamSmokeResilient is StreamSmoke wrapped in the transient-transport retry:
+// if the stream produces no output AND its stderr shows a transient usbmuxd drop,
+// it restarts the stream (up to transientRetryAttempts) instead of failing. A
+// stream that produces output, or that fails without a transient signature, is
+// handled exactly as StreamSmoke would — assertions are unchanged.
+func StreamSmokeResilient(t *testing.T, udid string, window time.Duration, args ...string) []byte {
+	t.Helper()
+	for attempt := 1; attempt <= transientRetryAttempts; attempt++ {
+		out, stderr := streamOnce(t, udid, window, args...)
+		if len(bytes.TrimSpace(out)) != 0 {
+			return out
+		}
+		sig := matchTransientTransport(stderr)
+		if sig == "" || attempt == transientRetryAttempts {
+			t.Fatalf("ios %v: no streamed output within %s\nstderr: %s", args, window, stderr)
+		}
+		t.Logf("ios %v: transient transport drop (matched %q), retry %d/%d after %s",
+			args, sig, attempt, transientRetryAttempts-1, transientRetryBackoff)
+		time.Sleep(transientRetryBackoff)
+	}
+	return nil
+}
+
+// streamOnce runs a streaming ios command for window, killing its process group
+// afterwards, and returns whatever it wrote to stdout and stderr. It makes no
+// assertions — callers (StreamSmoke, StreamSmokeResilient) decide what non-empty
+// output means.
+func streamOnce(t *testing.T, udid string, window time.Duration, args ...string) (stdout, stderr []byte) {
+	t.Helper()
+	var out, errBuf bytes.Buffer
+	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
+	cmd.Stdout = &out
+	cmd.Stderr = &errBuf
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true} // own group so we can kill children too
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("ios %v: start: %v", args, err)
+	}
+
+	time.Sleep(window)
+	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	_ = cmd.Wait() // returns the kill signal error; ignored
+
+	return out.Bytes(), errBuf.Bytes()
+}
+
 // Devices returns the parsed GO_IOS_E2E_DEVICES list.
 func Devices() []string { return append([]string(nil), devices...) }
 
@@ -258,19 +436,7 @@ func Smoke(t *testing.T, udid string, args ...string) []byte {
 // to inspect. Use this for commands that run until killed.
 func StreamSmoke(t *testing.T, udid string, window time.Duration, args ...string) []byte {
 	t.Helper()
-	var out bytes.Buffer
-	cmd := exec.Command(iosBin, append(args, "--udid="+udid)...)
-	cmd.Stdout = &out
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true} // own group so we can kill children too
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("ios %v: start: %v", args, err)
-	}
-
-	time.Sleep(window)
-	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	_ = cmd.Wait() // returns the kill signal error; ignored
-
-	b := out.Bytes()
+	b, _ := streamOnce(t, udid, window, args...)
 	if len(bytes.TrimSpace(b)) == 0 {
 		t.Fatalf("ios %v: no streamed output within %s", args, window)
 	}

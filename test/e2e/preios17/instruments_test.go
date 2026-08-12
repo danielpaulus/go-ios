@@ -15,7 +15,7 @@ import (
 // TestPs lists running processes via the instruments device-info service.
 func TestPs(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		smokeArr(t, udid, []string{"Name", "Pid"}, "ps")
+		smokeArrResilient(t, udid, []string{"Name", "Pid"}, "ps")
 	})
 }
 
@@ -24,7 +24,7 @@ func TestPs(t *testing.T) {
 func TestScreenshot(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
 		out := filepath.Join(t.TempDir(), "shot.png")
-		runIOSForDevice(t, udid, "screenshot", "--output="+out)
+		runIOSForDeviceResilient(t, udid, "screenshot", "--output="+out)
 
 		b, err := os.ReadFile(out)
 		if err != nil {
@@ -43,7 +43,7 @@ func TestScreenshot(t *testing.T) {
 // service and then kills it. Both report success (non-zero exit fails the test).
 func TestLaunchKill(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		runIOSForDevice(t, udid, "launch", knownSystemApp)
-		runIOSForDevice(t, udid, "kill", knownSystemApp)
+		runIOSForDeviceResilient(t, udid, "launch", knownSystemApp)
+		runIOSForDeviceResilient(t, udid, "kill", knownSystemApp)
 	})
 }

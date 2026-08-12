@@ -36,6 +36,23 @@ func runIOSForDevice(t *testing.T, udid string, args ...string) []byte {
 	return harness.RunForDevice(t, udid, args...)
 }
 
+// The *Resilient helpers retry ONLY on a transient usbmuxd / USB-transport drop
+// on the flaky pre-iOS17 device (see the harness comment on
+// transientTransportSignatures) — never on assertion or genuine command errors.
+// The DTX/instruments and syslog tests use them so one infra hiccup mid-suite
+// self-heals instead of red-walling the whole PR fleet.
+func runIOSForDeviceResilient(t *testing.T, udid string, args ...string) []byte {
+	return harness.RunForDeviceResilient(t, udid, args...)
+}
+
+func smokeArrResilient(t *testing.T, udid string, elemKeys []string, args ...string) []any {
+	return harness.SmokeArrResilient(t, udid, elemKeys, args...)
+}
+
+func streamSmokeResilient(t *testing.T, udid string, window time.Duration, args ...string) []byte {
+	return harness.StreamSmokeResilient(t, udid, window, args...)
+}
+
 func smoke(t *testing.T, udid string, args ...string) []byte {
 	return harness.Smoke(t, udid, args...)
 }

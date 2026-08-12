@@ -14,6 +14,6 @@ import (
 // (named case IDs via deviceBeginAuditCaseIDs:).
 func TestAccessibilityAudit(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		harness.AuditAfterLaunch(t, udid, knownSystemApp)
+		harness.AuditAfterLaunchResilient(t, udid, knownSystemApp)
 	})
 }

@@ -8,10 +8,12 @@ import (
 )
 
 // TestSyslog streams the device syslog (lockdown syslog_relay, no tunnel) and
-// asserts output is produced within the window.
+// asserts output is produced within the window. It uses the resilient stream
+// helper because a transient usbmuxd drop on the flaky pre-iOS17 device
+// otherwise leaves the stream empty and red-walls the run.
 func TestSyslog(t *testing.T) {
 	forEachDevice(t, func(t *testing.T, udid string) {
-		streamSmoke(t, udid, 8*time.Second, "syslog")
+		streamSmokeResilient(t, udid, 8*time.Second, "syslog")
 	})
 }
 
