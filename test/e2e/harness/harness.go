@@ -103,18 +103,73 @@ func RepoRoot(t *testing.T) string {
 	return root
 }
 
+// commandTimeout bounds any single ios invocation in the e2e suites. It is far
+// above any legitimate command (even an 8 MiB tunnel file round-trip under load)
+// but well below go test's global timeout, so one wedged command fails its own
+// test — with a captured stack — instead of hanging until the whole suite
+// panics and takes every other test's result down with it.
+const commandTimeout = 3 * time.Minute
+
 // RunIOS executes the ios binary with the given args and returns stdout.
 // On non-zero exit it fails the test with stderr + stdout for debugging.
+// If the command exceeds commandTimeout it is treated as wedged (see
+// runBounded): the child is SIGQUIT'd so Go prints every goroutine's stack,
+// pinpointing where it blocked, and the test fails with that stack.
 func RunIOS(t *testing.T, args ...string) []byte {
 	t.Helper()
-	var stderr bytes.Buffer
-	cmd := exec.Command(iosBin, args...)
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	out, stderr, err := runBounded(commandTimeout, nil, args...)
 	if err != nil {
-		t.Fatalf("ios %v: %v\nstderr: %s\nstdout: %s", args, err, stderr.String(), out)
+		t.Fatalf("ios %v: %v\nstderr: %s\nstdout: %s", args, err, stderr, out)
 	}
 	return out
+}
+
+// runBounded runs the ios binary with the given args under a timeout. On a clean
+// finish it returns (stdout, stderr, exitErr) — exitErr nil only on exit 0. On
+// timeout the child is assumed wedged: it is sent SIGQUIT first, which makes the
+// Go runtime dump all goroutine stacks to stderr (GOTRACEBACK=all guarantees the
+// full dump), then SIGKILL, and it returns a timeout error with that stack still
+// in the returned stderr. The child runs in its own process group so the signal
+// reaches any grandchildren too.
+func runBounded(timeout time.Duration, stdin io.Reader, args ...string) (stdout, stderr []byte, err error) {
+	var o, e bytes.Buffer
+	cmd := exec.Command(iosBin, args...)
+	cmd.Stdin = stdin
+	cmd.Stdout = &o
+	cmd.Stderr = &e
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Env = append(os.Environ(), "GOTRACEBACK=all")
+	if err = cmd.Start(); err != nil {
+		return nil, nil, fmt.Errorf("start: %w", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case err = <-done:
+		return o.Bytes(), e.Bytes(), err
+	case <-time.After(timeout):
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGQUIT) // dump goroutine stacks
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			<-done
+		}
+		return o.Bytes(), e.Bytes(), fmt.Errorf("timed out after %s (wedged)", timeout)
+	}
+}
+
+// TryRunForDeviceBounded runs `ios <args> --udid=<udid>` under a timeout WITHOUT
+// failing the test, returning stdout, stderr and the run error (nil on exit 0).
+// On timeout the child is SIGQUIT-dumped then killed (see runBounded), so the
+// returned stderr carries the wedged child's goroutine stacks. Use it where the
+// caller wants to retry a command that can transiently wedge under load rather
+// than fail the whole test on the first stall.
+func TryRunForDeviceBounded(t *testing.T, udid string, timeout time.Duration, args ...string) (stdout, stderr []byte, err error) {
+	t.Helper()
+	return runBounded(timeout, nil, append(args, "--udid="+udid)...)
 }
 
 // RunForDevice runs ios with --udid=<udid> appended.
