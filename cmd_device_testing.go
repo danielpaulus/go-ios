@@ -9,8 +9,18 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/danielpaulus/go-ios/ios/junit"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 )
+
+// writeJUnitReport serializes test results as JUnit XML to the file at path,
+// used by the --junit-output flag of runtest and runxctest.
+func writeJUnitReport(path string, testResults []testmanagerd.TestSuite) {
+	file, err := os.Create(path)
+	exitIfError("Cannot open file "+path, err)
+	defer file.Close()
+	exitIfError("Cannot write JUnit report to "+path, junit.Write(file, testResults))
+}
 
 func runTestCommand(ctx commandContext) {
 	bundleID, _ := ctx.Args.String("--bundle-id")
@@ -54,21 +64,19 @@ func runTestCommand(ctx commandContext) {
 		defer writer.Close()
 
 		config.Listener = testmanagerd.NewTestListener(writer, writer, os.TempDir())
-
-		testResults, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
-		if err != nil {
-			slog.Info("Failed running Xcuitest", "error", err)
-		}
-
-		fmt.Println(convertToJSONString(testResults))
 	} else {
 		config.Listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
-		testResults, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
-		if err != nil {
-			slog.Info("Failed running Xcuitest", "error", err)
-		}
+	}
 
-		fmt.Println(convertToJSONString(testResults))
+	testResults, err := testmanagerd.RunTestWithConfig(context.TODO(), config)
+	if err != nil {
+		slog.Info("Failed running Xcuitest", "error", err)
+	}
+
+	fmt.Println(convertToJSONString(testResults))
+
+	if junitOutput, junitOutputErr := ctx.Args.String("--junit-output"); junitOutputErr == nil {
+		writeJUnitReport(junitOutput, testResults)
 	}
 }
 
@@ -77,6 +85,7 @@ func runXCTestCommand(ctx commandContext) {
 
 	rawTestlog, rawTestlogErr := ctx.Args.String("--log-output")
 
+	var listener *testmanagerd.TestListener
 	if rawTestlogErr == nil {
 		var writer *os.File = os.Stdout
 		if rawTestlog != "-" {
@@ -85,22 +94,20 @@ func runXCTestCommand(ctx commandContext) {
 			writer = file
 		}
 		defer writer.Close()
-		listener := testmanagerd.NewTestListener(writer, writer, os.TempDir())
-
-		testResults, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, ctx.Device, listener)
-		if err != nil {
-			slog.Info("Failed running Xctest", "error", err)
-		}
-
-		fmt.Println(convertToJSONString(testResults))
+		listener = testmanagerd.NewTestListener(writer, writer, os.TempDir())
 	} else {
-		listener := testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
-		testResults, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, ctx.Device, listener)
-		if err != nil {
-			slog.Info("Failed running Xctest", "error", err)
-		}
+		listener = testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir())
+	}
 
-		fmt.Println(convertToJSONString(testResults))
+	testResults, err := testmanagerd.StartXCTestWithConfig(context.TODO(), xctestrunFilePath, ctx.Device, listener)
+	if err != nil {
+		slog.Info("Failed running Xctest", "error", err)
+	}
+
+	fmt.Println(convertToJSONString(testResults))
+
+	if junitOutput, junitOutputErr := ctx.Args.String("--junit-output"); junitOutputErr == nil {
+		writeJUnitReport(junitOutput, testResults)
 	}
 }
 
