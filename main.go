@@ -179,6 +179,7 @@ Usage:
   ios ui app terminate <bundleID> [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
   ios ui app foreground [--driver=<driver>] [--devicekit-url=<url>] [options]
   ios ui stream (mjpeg | h264) [--fps=<fps>] [--quality=<quality>] [--scale=<scale>] [--bitrate=<bitrate>] [--driver=<driver>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios remote [--port=<port>] [--wda-url=<url>] [options]
   ios uninstall <bundleID> [options]
   ios webinspector list [--timeout=<seconds>] [options]
   ios webinspector launch <url> [--bundle-id=<bundleID>] [--timeout=<seconds>] [options]
@@ -517,6 +518,10 @@ The commands work as following:
     ios ui app (launch | terminate) <bundleID>                       Launches or terminates an app.
     ios ui app foreground                                            Prints the foreground app through DeviceKit.
     ios ui stream (mjpeg | h264)                                     Streams video to stdout. H264 requires DeviceKit; WDA supports MJPEG.
+
+    ios remote [--port=<port>] [--wda-url=<url>]                     Serves a minimal, self-contained browser remote-control at 0.0.0.0:<port> (default 8080).
+                                                                    The live screen is WDA-free (instruments screenshot service, needs a mounted developer disk image);
+                                                                    taps/swipes/typing/buttons are routed through a reachable WebDriverAgent (--wda-url, default http://127.0.0.1:8100 or GO_IOS_WDA_URL).
 
     ios setlocation [options] [--lat=<lat>] [--lon=<lon>]           Updates the location of the device to the provided by latitude and longitude coordinates.
                                                                     Ex.: setlocation --lat=40.730610 --lon=-73.935242
