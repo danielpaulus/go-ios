@@ -1474,6 +1474,7 @@ type detailsEntry struct {
 	ProductName    string
 	ProductType    string
 	ProductVersion string
+	DeviceName     string
 	ConnectionType string
 }
 
@@ -1488,6 +1489,7 @@ func outputDetailedList(deviceList ios.DeviceList) {
 			ProductName:    allValues.Value.ProductName,
 			ProductType:    allValues.Value.ProductType,
 			ProductVersion: allValues.Value.ProductVersion,
+			DeviceName:     allValues.Value.DeviceName,
 			ConnectionType: device.ConnectionTypeLabel(),
 		}
 	}
@@ -1501,7 +1503,7 @@ func outputDetailedListNoJSON(deviceList ios.DeviceList) {
 		udid := device.Properties.SerialNumber
 		allValues, err := ios.GetValues(device)
 		exitIfError("failed getting values", err)
-		fmt.Printf("%s  %s  %s  %s  %s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion, device.ConnectionTypeLabel())
+		fmt.Printf("%s;%s;%s;%s;%s;%s\n", udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion, allValues.Value.DeviceName, device.ConnectionTypeLabel())
 	}
 }
 
