@@ -67,13 +67,37 @@ func loadFileRoundTrip(t *testing.T, udid string) {
 	}
 	const remote = "go-ios-e2e-perf.bin" // fixed name: overwritten each run, no accumulation
 
-	pushStart := time.Now()
-	runIOSForDevice(t, udid, "file", "push", "--temp", "--local="+local, "--remote="+remote)
-	pushDur := time.Since(pushStart)
+	// The file transfer contends with the two syslog streams and the screenshot
+	// loop for the tunnel. Like the screenshots strand, a transfer can transiently
+	// stall when iOS resets a connection under that concurrent load, so bound each
+	// attempt (a healthy 8 MiB round-trip is seconds, not minutes) and retry. On a
+	// bounded timeout the child is SIGQUIT-dumped, so its goroutine stacks land in
+	// stderr — logged on every failed attempt so a genuine wedge (e.g. an AFC read
+	// with no deadline) is always captured even when a later attempt recovers.
+	const attemptTimeout = 90 * time.Second
+	transfer := func(op string, args ...string) {
+		full := append([]string{"file", op, "--temp"}, args...)
+		var lastErr error
+		for attempt := 0; attempt < 3; attempt++ {
+			_, stderr, err := harness.TryRunForDeviceBounded(t, udid, attemptTimeout, full...)
+			if err == nil {
+				return
+			}
+			lastErr = err
+			t.Logf("file %s attempt %d failed (retrying): %v\nchild stderr:\n%s", op, attempt, err, stderr)
+			time.Sleep(1 * time.Second)
+		}
+		t.Fatalf("file %s failed after retries: %v", op, lastErr)
+	}
 
 	back := filepath.Join(t.TempDir(), "perf-download.bin")
+
+	pushStart := time.Now()
+	transfer("push", "--local="+local, "--remote="+remote)
+	pushDur := time.Since(pushStart)
+
 	pullStart := time.Now()
-	runIOSForDevice(t, udid, "file", "pull", "--temp", "--remote="+remote, "--local="+back)
+	transfer("pull", "--remote="+remote, "--local="+back)
 	pullDur := time.Since(pullStart)
 
 	got, err := os.ReadFile(back)
