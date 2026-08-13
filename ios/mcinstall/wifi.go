@@ -126,7 +126,11 @@ func isSupervised(conn *Connection) bool {
 	if err != nil {
 		return false
 	}
-	s, _ := cfg["IsSupervised"].(bool)
+	cloudCfg, ok := cfg["CloudConfiguration"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	s, _ := cloudCfg["IsSupervised"].(bool)
 	return s
 }
 
