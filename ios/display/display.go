@@ -171,15 +171,20 @@ func (s *Service) StartVideoStream(ctx context.Context, req VideoStreamRequest) 
 	return StreamAnswer{ClientSessionID: clientSessionID, Output: output}, nil
 }
 
-// StopMediaStream stops a running stream.
+// StopMediaStream stops the streams this client has running.
 //
-// The device usually tears the channel down while processing the stop, so a
-// closed connection here means the stop was carried out, not that it failed.
-// Errors are therefore worth logging but not acting on, and this Service should
-// be closed afterwards either way.
+// The request carries both the session id and stopAll. Verified against iOS 27:
+// omitting stopAll is rejected while decoding ("Expected to find key stopAll"),
+// and sending it as false is rejected as an invalid request - only true is
+// accepted. That is no loss of control here, since a client only ever holds the
+// one stream it started.
+//
+// The device sometimes tears the channel down while processing the stop, so a
+// closed connection means the stop was carried out rather than that it failed.
 func (s *Service) StopMediaStream(ctx context.Context, clientSessionID uuid.UUID) error {
 	input := map[string]interface{}{
 		"avcMediaStreamOptionClientSessionID": map[string]interface{}{"uuid": clientSessionID},
+		"stopAll":                             true,
 	}
 	_, err := s.invoke(ctx, featureStopMediaStream, actionMediaStreamStop, input)
 	return err

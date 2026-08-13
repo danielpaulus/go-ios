@@ -448,12 +448,13 @@ func (s *Session) teardownStream() {
 	if s.displayService != nil {
 		if s.streamAnswer.ClientSessionID != uuid.Nil {
 			stopCtx, cancel := context.WithTimeout(context.Background(), streamStopTimeout)
-			// The device routinely drops the channel while processing the stop,
-			// which surfaces as an error even though the stop took effect. The
-			// receiver is still draining here, so the device is not throttled
-			// while it works through it.
+			// The receiver is still draining here, so the device is not
+			// throttled while it works through the stop. An error is worth
+			// surfacing: a stream left running is what wedges the device's
+			// mediastream daemon, though the device dropping the channel
+			// mid-stop is normal and means the stop took effect.
 			if err := s.displayService.StopMediaStream(stopCtx, s.streamAnswer.ClientSessionID); err != nil {
-				golog.Debug("stopping the media stream reported an error, which is expected when the device closes the channel first",
+				golog.Warn("stopping the media stream failed; if this repeats, the device may need a reboot",
 					"module", logModule, "error", err)
 			}
 			cancel()
