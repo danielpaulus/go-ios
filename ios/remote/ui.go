@@ -4,13 +4,21 @@ package remote
 // HTML, CSS and JS are inlined so `ios remote` serves it standalone.
 //
 // The screen is rendered two ways, chosen automatically:
-//   - Primary: the DeviceKit runner's hardware H.264 (GET /video.h264, an
-//     Annex-B elementary stream) is fetched as a stream, parsed into NAL units,
-//     and decoded with the WebCodecs VideoDecoder into a <canvas>. This is the
-//     efficient path (a few KB/s, delta-compressed).
-//   - Fallback: if WebCodecs is unavailable or the decoder errors, an
-//     <img src="/screen"> shows the runner's MJPEG instead. The switch is
+//   - Primary ("h264/canvas"): the DeviceKit runner's hardware H.264 (GET
+//     /video.h264, an Annex-B elementary stream) is fetched as a stream, parsed
+//     into NAL units, GROUPED INTO ACCESS UNITS (all NALs for one picture), and
+//     decoded with the WebCodecs VideoDecoder. Decode is decoupled from paint: a
+//     requestAnimationFrame loop draws only the freshest decoded VideoFrame to
+//     the <canvas> (older undrawn frames are dropped), which is what keeps the
+//     mirror smooth and low-latency.
+//   - Fallback ("mjpeg/img"): if WebCodecs is unavailable or the decoder errors,
+//     an <img src="/screen"> shows the runner's MJPEG instead. The switch is
 //     automatic.
+//
+// A diagnostic HUD (toggle with the 'd' key) overlays the current mode, the
+// measured rendered fps, decoder state + decodeQueueSize, dropped-frame count,
+// and the last decoder error — so a maintainer can tell at a glance whether the
+// H.264 path is live or it fell back, and where any stall is.
 //
 // Clicks/drags are translated to 0..1 fractions against the visible screen
 // element (canvas or img, whichever is active) and POSTed to the input
@@ -28,7 +36,7 @@ const indexHTML = `<!doctype html>
     font: 14px/1.4 -apple-system, system-ui, sans-serif; }
   #app { display: flex; flex-direction: column; height: 100%; }
   #stage { flex: 1; display: flex; align-items: center; justify-content: center;
-    overflow: hidden; padding: 8px; }
+    overflow: hidden; padding: 8px; position: relative; }
   #canvas, #fallback { max-width: 100%; max-height: 100%; touch-action: none;
     border-radius: 14px; box-shadow: 0 0 0 1px #333, 0 8px 30px rgba(0,0,0,.6);
     cursor: crosshair; user-select: none; -webkit-user-drag: none; }
@@ -44,6 +52,14 @@ const indexHTML = `<!doctype html>
   #status { margin-left: auto; font-size: 12px; color: #9a9a9a;
     max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sep { width: 1px; height: 24px; background: #333; margin: 0 2px; }
+  /* Diagnostic HUD: fixed top-left overlay, toggled with 'd'. */
+  #hud { position: absolute; top: 14px; left: 14px; z-index: 10;
+    background: rgba(0,0,0,.72); color: #d7ffd7; border: 1px solid #2f5f2f;
+    border-radius: 8px; padding: 8px 10px; font: 11px/1.5 ui-monospace, Menlo, Consolas, monospace;
+    white-space: pre; pointer-events: none; min-width: 210px; }
+  #hud .err { color: #ff9a9a; }
+  #hud .hint { color: #7a7a7a; }
+  #hud.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -51,6 +67,7 @@ const indexHTML = `<!doctype html>
   <div id="stage">
     <canvas id="canvas" width="390" height="844"></canvas>
     <img id="fallback" src="" alt="device screen" draggable="false">
+    <div id="hud" class="hidden"></div>
   </div>
   <div id="bar">
     <button data-btn="home">Home</button>
@@ -69,10 +86,60 @@ const indexHTML = `<!doctype html>
   var fallback = document.getElementById('fallback');
   var status = document.getElementById('status');
   var textbox = document.getElementById('text');
+  var hud = document.getElementById('hud');
   var DRAG_THRESHOLD = 0.02; // fraction of the screen; below this = tap
   var runnerNotReady = false;
 
   function setStatus(s) { status.textContent = s; }
+
+  // --- diagnostics ---------------------------------------------------------
+  // Shared HUD state, updated by the decode/paint paths and rendered on a timer.
+  var diag = {
+    mode: 'starting',        // 'h264/canvas' | 'mjpeg/img fallback'
+    codec: '',
+    decoderState: '-',       // VideoDecoder.state
+    queue: 0,                // decoder.decodeQueueSize
+    dropped: 0,              // frames decoded but never painted (superseded)
+    auDropped: 0,            // access units dropped for backpressure
+    lastError: '',
+    painted: 0               // rAF paints since last fps sample
+  };
+  var renderedFps = 0;
+  var hudVisible = false;
+
+  function renderHUD() {
+    if (!hudVisible) return;
+    var lines = [
+      'MODE     ' + diag.mode + (diag.codec ? ' (' + diag.codec + ')' : ''),
+      'RENDER   ' + renderedFps.toFixed(1) + ' fps',
+      'DECODER  ' + diag.decoderState + '  queue=' + diag.queue,
+      'DROPPED  ' + diag.dropped + ' late, ' + diag.auDropped + ' AU (backpressure)'
+    ];
+    hud.textContent = lines.join('\n');
+    if (diag.lastError) {
+      var e = document.createElement('span');
+      e.className = 'err';
+      e.textContent = '\nERROR    ' + diag.lastError;
+      hud.appendChild(e);
+    }
+    var hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.textContent = "\n('d' hides)";
+    hud.appendChild(hint);
+  }
+  // fps = paints per second, sampled once a second.
+  setInterval(function () {
+    renderedFps = diag.painted;
+    diag.painted = 0;
+    renderHUD();
+  }, 1000);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'd' || e.key === 'D') {
+      hudVisible = !hudVisible;
+      hud.classList.toggle('hidden', !hudVisible);
+      renderHUD();
+    }
+  });
 
   // activeScreen is whichever element is currently visible; input fractions are
   // measured against its rendered rect so taps map identically for canvas/img.
@@ -143,6 +210,9 @@ const indexHTML = `<!doctype html>
   function useFallback(reason) {
     if (usingFallback) return;
     usingFallback = true;
+    diag.mode = 'mjpeg/img fallback';
+    diag.codec = '';
+    diag.lastError = reason;
     canvas.style.display = 'none';
     fallback.style.display = 'block';
     setStatus('screen: MJPEG fallback (' + reason + ')');
@@ -168,7 +238,7 @@ const indexHTML = `<!doctype html>
   function splitNALs(buf) {
     var nals = [];
     var i = 0, n = buf.length;
-    // find first start code
+    // is there a start code at p? returns its length (3 or 4) or 0.
     function startAt(p) {
       if (p + 3 < n && buf[p] === 0 && buf[p+1] === 0 && buf[p+2] === 0 && buf[p+3] === 1) return 4;
       if (p + 2 < n && buf[p] === 0 && buf[p+1] === 0 && buf[p+2] === 1) return 3;
@@ -200,43 +270,71 @@ const indexHTML = `<!doctype html>
       useFallback('WebCodecs unavailable');
       return;
     }
+    diag.mode = 'h264/canvas';
     var ctx = canvas.getContext('2d');
     var decoder = null;
     var configured = false;
     var sps = null, pps = null;
+    var codec = '';
     var sawKey = false;
     var reconnectTimer = null;
 
-    function scheduleReconnect() {
-      if (usingFallback) return;
-      if (reconnectTimer) return;
-      reconnectTimer = setTimeout(function () { reconnectTimer = null; connect(); }, 800);
+    // 1-slot holder: only the freshest decoded frame is kept for the next paint;
+    // any older undrawn frame is closed (dropped). This decouples decode from
+    // paint and is the core smoothness fix.
+    var latestFrame = null;
+    var rafPending = false;
+
+    function paintLoop() {
+      rafPending = false;
+      if (latestFrame) {
+        var frame = latestFrame;
+        latestFrame = null;
+        if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
+          canvas.width = frame.displayWidth;
+          canvas.height = frame.displayHeight;
+        }
+        try { ctx.drawImage(frame, 0, 0); } catch (e) { /* frame may be closed on teardown */ }
+        frame.close();
+        diag.painted++;
+      }
+      // Keep the loop alive so a newly-arrived frame is drawn next vsync.
+      schedulePaint();
+    }
+    function schedulePaint() {
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(paintLoop);
     }
 
     function ensureDecoder() {
       if (configured || !sps || !pps) return;
-      var codec = codecFromSPS(sps);
+      codec = codecFromSPS(sps);
       try {
         decoder = new VideoDecoder({
           output: function (frame) {
-            if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
-              canvas.width = frame.displayWidth;
-              canvas.height = frame.displayHeight;
-            }
-            ctx.drawImage(frame, 0, 0);
-            frame.close();
+            // Never paint here: stash the freshest frame and let rAF draw it.
+            if (latestFrame) { latestFrame.close(); diag.dropped++; }
+            latestFrame = frame;
+            schedulePaint();
           },
-          error: function (e) { useFallback('decoder error: ' + e.message); }
+          error: function (e) {
+            diag.lastError = e.message;
+            useFallback('decoder error: ' + e.message);
+          }
         });
+        // annexb: SPS/PPS travel in-band, so no description is needed.
         decoder.configure({ codec: codec, optimizeForLatency: true });
         configured = true;
+        diag.codec = codec;
         if (!runnerNotReady) setStatus('screen: H.264 (' + codec + ')');
       } catch (e) {
+        diag.lastError = e.message;
         useFallback('configure failed: ' + e.message);
       }
     }
 
-    // Wrap one or more NALs (with 4-byte start codes) into an EncodedVideoChunk.
+    // Wrap one or more NALs (with 4-byte start codes) into an Annex-B buffer.
     function wrapAnnexB(nals) {
       var len = 0, k;
       for (k = 0; k < nals.length; k++) len += 4 + nals[k].length;
@@ -250,35 +348,94 @@ const indexHTML = `<!doctype html>
       return out;
     }
 
+    // Access-unit assembler: NALs stream in; a new AU starts at each VCL NAL
+    // (type 1 or 5). Leading non-VCL NALs (SPS/PPS/SEI/AUD) accumulate and are
+    // emitted together with the following VCL slice as ONE EncodedVideoChunk.
+    var pendingAU = [];       // NALs accumulated for the current (not-yet-VCL-terminated) AU
+    var pendingHasKey = false;
     var ts = 0;
+
+    function isVCL(type) { return type === 1 || type === 5; }
+
+    function emitAU(nals, isKey) {
+      if (!configured || !decoder) return;
+      // The first chunk fed MUST be a keyframe; drop deltas until we've seen one.
+      if (!sawKey && !isKey) return;
+      if (isKey) sawKey = true;
+
+      // Backpressure: if the decoder is falling behind, drop delta AUs until the
+      // next keyframe rather than queueing (low latency > completeness for a live
+      // mirror).
+      diag.queue = decoder.decodeQueueSize;
+      if (!isKey && diag.queue > 2) { diag.auDropped++; return; }
+
+      // A keyframe AU must carry SPS+PPS in-band (annexb). Non-key AUs go as-is.
+      var data;
+      if (isKey) {
+        var withParamSets = [sps, pps];
+        for (var m = 0; m < nals.length; m++) withParamSets.push(nals[m]);
+        data = wrapAnnexB(withParamSets);
+      } else {
+        data = wrapAnnexB(nals);
+      }
+      try {
+        decoder.decode(new EncodedVideoChunk({
+          type: isKey ? 'key' : 'delta',
+          timestamp: ts,
+          data: data
+        }));
+        ts += 16666; // ~60fps nominal; timestamps only need to be monotonic
+        diag.queue = decoder.decodeQueueSize;
+      } catch (e) {
+        diag.lastError = e.message;
+        useFallback('decode failed: ' + e.message);
+      }
+    }
+
+    function flushPendingAU() {
+      if (pendingAU.length === 0) return;
+      emitAU(pendingAU, pendingHasKey);
+      pendingAU = [];
+      pendingHasKey = false;
+    }
+
     function feed(nals) {
-      // Collect a set of NALs into one access unit and decode. SPS/PPS are cached
-      // for the decoder config and prepended to the first IDR.
-      var au = [];
       for (var k = 0; k < nals.length; k++) {
         var nal = nals[k];
         if (nal.length === 0) continue;
         var type = nal[0] & 0x1f;
-        if (type === 7) { sps = nal; ensureDecoder(); continue; }
-        if (type === 8) { pps = nal; ensureDecoder(); continue; }
-        au.push(nal);
-        var isKey = (type === 5);
-        if (isKey) sawKey = true;
-        if (!configured || !sawKey || !decoder) { au = []; continue; }
-        var data = isKey ? wrapAnnexB([sps, pps, nal]) : wrapAnnexB([nal]);
-        try {
-          decoder.decode(new EncodedVideoChunk({
-            type: isKey ? 'key' : 'delta',
-            timestamp: ts,
-            data: data
-          }));
-          ts += 33333; // ~30fps nominal; timestamps only need to be monotonic
-        } catch (e) {
-          useFallback('decode failed: ' + e.message);
-          return;
+        // Cache parameter sets for the decoder config; they are (re)inserted into
+        // key AUs, so they are not accumulated into pendingAU here.
+        if (type === 7) {
+          sps = nal; ensureDecoder();
+          continue;
         }
-        au = [];
+        if (type === 8) {
+          pps = nal; ensureDecoder();
+          continue;
+        }
+        if (isVCL(type)) {
+          // The VCL slice completes the current access unit. Any non-VCL NALs
+          // accumulated (SEI/AUD) belong with it.
+          pendingAU.push(nal);
+          if (type === 5) pendingHasKey = true;
+          flushPendingAU();
+        } else {
+          // Leading non-VCL NAL (SEI type 6, AUD type 9, …): hold for the AU.
+          pendingAU.push(nal);
+        }
       }
+    }
+
+    function scheduleReconnect() {
+      if (usingFallback) return;
+      if (reconnectTimer) return;
+      // A dropped stream means the runner restarted; the next AU will be a fresh
+      // keyframe, so require a keyframe again before feeding deltas.
+      sawKey = false;
+      pendingAU = [];
+      pendingHasKey = false;
+      reconnectTimer = setTimeout(function () { reconnectTimer = null; connect(); }, 800);
     }
 
     function connect() {
@@ -290,15 +447,13 @@ const indexHTML = `<!doctype html>
         function pump() {
           reader.read().then(function (r) {
             if (r.done) { scheduleReconnect(); return; }
-            // append to pending
             var merged = new Uint8Array(pending.length + r.value.length);
             merged.set(pending, 0);
             merged.set(r.value, pending.length);
             var split = splitNALs(merged);
             if (split.nals.length) feed(split.nals);
-            pending = merged.subarray(split.consumed);
-            // keep pending as its own buffer so it doesn't retain the big merged one
-            pending = pending.slice();
+            // keep the leftover as its own buffer so it doesn't retain merged.
+            pending = merged.subarray(split.consumed).slice();
             pump();
           }).catch(function () { scheduleReconnect(); });
         }
@@ -306,6 +461,12 @@ const indexHTML = `<!doctype html>
       }).catch(function () { scheduleReconnect(); });
     }
 
+    // Keep the decoder-state line in the HUD fresh even when idle.
+    setInterval(function () {
+      if (decoder) { diag.decoderState = decoder.state; diag.queue = decoder.decodeQueueSize; }
+    }, 250);
+
+    schedulePaint();
     connect();
   }
 

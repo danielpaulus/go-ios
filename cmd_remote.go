@@ -85,11 +85,19 @@ func runRemoteCommand(ctx commandContext) {
 	// applies to the DeviceKit runner (the one we can spawn), matched to driver.
 	manageRunner := !boolArg(ctx.Args, "--no-manage-runner") && runnerDriver == remote.DriverDeviceKit
 
+	// --fps/--bitrate tune the DeviceKit /h264 stream the browser decodes. They
+	// default to remote.DefaultFPS / remote.DefaultBitrate (well above the
+	// runner's own low defaults, for a smoother mirror).
+	fps := intArgDefault(ctx.Args, "--fps", remote.DefaultFPS)
+	bitrate := intArgDefault(ctx.Args, "--bitrate", remote.DefaultBitrate)
+
 	server, err := remote.NewServer(ctx.Device, remote.Config{
 		Driver:       driver,
 		DriverURL:    driverURL,
 		DeviceKitURL: deviceKitURL,
 		ManageRunner: manageRunner,
+		FPS:          fps,
+		Bitrate:      bitrate,
 	})
 	exitIfError("failed starting remote server", err)
 	defer server.Close()

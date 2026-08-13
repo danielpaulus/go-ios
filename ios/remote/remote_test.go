@@ -211,6 +211,48 @@ func TestVideoH264ProxySetsContentTypeAndStreams(t *testing.T) {
 	}
 }
 
+// TestVideoH264ProxyForwardsFPSAndBitrate verifies /video.h264 requests the
+// runner's /h264 with the configured fps/bitrate query params so the runner
+// raises the frame rate above its low default.
+func TestVideoH264ProxyForwardsFPSAndBitrate(t *testing.T) {
+	gotQuery := make(chan string, 1)
+	runner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/h264" {
+			http.NotFound(w, r)
+			return
+		}
+		select {
+		case gotQuery <- r.URL.RawQuery:
+		default:
+		}
+		w.Header().Set("Content-Type", "video/h264")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte{0x00, 0x00, 0x00, 0x01, 0x67})
+	}))
+	defer runner.Close()
+
+	s := &Server{udid: "u", driver: DriverDeviceKit, deviceKitURL: runner.URL, fps: 60, bitrate: 8000000}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/video.h264", nil).WithContext(ctx)
+	done := make(chan struct{})
+	go func() { s.handleVideoH264(rec, req); close(done) }()
+
+	select {
+	case q := <-gotQuery:
+		cancel()
+		<-done
+		if !strings.Contains(q, "fps=60") || !strings.Contains(q, "bitrate=8000000") {
+			t.Fatalf("runner query = %q, want fps=60 and bitrate=8000000", q)
+		}
+	case <-time.After(2 * time.Second):
+		cancel()
+		<-done
+		t.Fatal("runner /h264 was never requested")
+	}
+}
+
 // TestScreenProxyPassesThroughMJPEGContentType verifies /screen proxies the
 // runner's /mjpeg and passes its multipart content-type through unchanged.
 func TestScreenProxyPassesThroughMJPEGContentType(t *testing.T) {

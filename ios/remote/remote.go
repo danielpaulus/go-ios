@@ -48,6 +48,13 @@ const (
 	DefaultWDAURL = "http://127.0.0.1:8100"
 	// DefaultDeviceKitURL is the DeviceKit base URL used when none is supplied.
 	DefaultDeviceKitURL = "http://127.0.0.1:12004"
+
+	// DefaultFPS and DefaultBitrate are the frame rate and bitrate requested from
+	// the DeviceKit runner's /h264 endpoint. The runner's own default is ~27fps;
+	// asking for 60 (the runner clamps to what the hardware encoder delivers,
+	// ~45-50fps in practice) makes the browser mirror noticeably smoother.
+	DefaultFPS     = 60
+	DefaultBitrate = 8000000
 )
 
 // Server is a minimal browser remote-control for a single device.
@@ -63,6 +70,11 @@ type Server struct {
 	// deviceKitURL is the DeviceKit runner base URL the screen video is proxied
 	// from (its /h264 and /mjpeg endpoints), independent of the input driver.
 	deviceKitURL string
+
+	// fps and bitrate are passed through to the runner's /h264 as query params to
+	// raise the frame rate/quality above the runner's low defaults.
+	fps     int
+	bitrate int
 
 	// iosBinary is the path to the `ios` CLI used to drive input.
 	iosBinary string
@@ -94,6 +106,11 @@ type Config struct {
 	// it across the intermittent testmanagerd DTX EOF disconnects. When false the
 	// runner is assumed to be started externally at DriverURL (today's behavior).
 	ManageRunner bool
+
+	// FPS and Bitrate are forwarded to the DeviceKit runner's /h264 endpoint as
+	// query params. Zero values fall back to DefaultFPS / DefaultBitrate.
+	FPS     int
+	Bitrate int
 }
 
 // NewServer wires up a remote-control server for the given device from cfg.
@@ -121,12 +138,23 @@ func NewServer(device ios.DeviceEntry, cfg Config) (*Server, error) {
 		}
 	}
 
+	fps := cfg.FPS
+	if fps <= 0 {
+		fps = DefaultFPS
+	}
+	bitrate := cfg.Bitrate
+	if bitrate <= 0 {
+		bitrate = DefaultBitrate
+	}
+
 	s := &Server{
 		device:       device,
 		udid:         udid,
 		driver:       driver,
 		driverURL:    cfg.DriverURL,
 		deviceKitURL: deviceKitURL,
+		fps:          fps,
+		bitrate:      bitrate,
 		iosBinary:    iosBinary,
 	}
 
@@ -259,9 +287,12 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 // handleVideoH264 streams the DeviceKit runner's hardware H.264 elementary
 // stream (Annex-B) to the browser, which decodes it via WebCodecs. It is the
-// primary, efficient screen source.
+// primary, efficient screen source. The runner's low default frame rate is
+// raised by forwarding the configured fps/bitrate as query params (the runner
+// honors them; the hardware encoder clamps to what it can actually deliver).
 func (s *Server) handleVideoH264(w http.ResponseWriter, r *http.Request) {
-	s.proxyRunnerStream(w, r, "/h264", "video/h264")
+	path := "/h264?fps=" + strconv.Itoa(s.fps) + "&bitrate=" + strconv.Itoa(s.bitrate)
+	s.proxyRunnerStream(w, r, path, "video/h264")
 }
 
 // handleScreen streams the DeviceKit runner's MJPEG to the browser as the
