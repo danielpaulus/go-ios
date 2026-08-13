@@ -47,6 +47,7 @@ Commands:
   file push                       Push file to device.
   forward                         Forward host port to device.
   fsync                           App container file sync operations.
+  hid                             Inject touch, hardware button and keyboard input (iOS 17+, kernel tunnel).
   httpproxy                       Install global HTTP proxy profile.
   httpproxy remove                Remove go-ios HTTP proxy profile.
   image auto                      Auto-download and mount developer image.
