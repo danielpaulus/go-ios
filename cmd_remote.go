@@ -7,23 +7,25 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/remote"
-	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/docopt/docopt-go"
 )
 
-// runRemoteCommand serves the `ios remote` browser remote-control. The live
-// screen is WDA-free (instruments screenshot service). Input is routed through a
-// UI automation driver — DeviceKit by default (WDA is broken on iOS 26; DeviceKit
-// works), selectable with --driver=<wda|devicekit>. The driver's base URL comes
-// from --devicekit-url (default remote.DefaultDeviceKitURL / GO_IOS_DEVICEKIT_URL)
-// or, for --driver=wda, --wda-url (default remote.DefaultWDAURL / GO_IOS_WDA_URL).
+// runRemoteCommand serves the `ios remote` browser remote-control. Both the live
+// screen and input come from a single supervised DeviceKit runner: the screen is
+// a passthrough of the runner's hardware video (H.264 at /video.h264, MJPEG at
+// /screen as a fallback) and input is routed through a UI automation driver —
+// DeviceKit by default (WDA is broken on iOS 26; DeviceKit works), selectable
+// with --driver=<wda|devicekit>. The driver's base URL comes from --devicekit-url
+// (default remote.DefaultDeviceKitURL / GO_IOS_DEVICEKIT_URL) or, for
+// --driver=wda, --wda-url (default remote.DefaultWDAURL / GO_IOS_WDA_URL); the
+// video is always proxied from the DeviceKit URL.
 //
 // By default (DeviceKit driver) `ios remote` also spawns and supervises the input
 // runner (`ios ui run devicekit`), auto-respawning it when the on-device XCTest
-// automation channel drops — so input self-heals instead of silently breaking.
-// Pass --no-manage-runner to connect to an externally-started runner instead.
+// automation channel drops — so both screen and input self-heal instead of
+// silently breaking. Pass --no-manage-runner to connect to an externally-started
+// runner instead.
 func runRemoteCommand(ctx commandContext) {
 	port := portArg(ctx.Args)
 	if port == "" {
@@ -65,26 +67,31 @@ func runRemoteCommand(ctx commandContext) {
 		}
 	}
 
+	// The video is proxied from the DeviceKit runner regardless of the input
+	// driver. When the input driver is DeviceKit it shares driverURL; otherwise
+	// (WDA input) resolve the DeviceKit URL independently.
+	deviceKitURL := driverURL
+	if driver != remote.DriverDeviceKit {
+		deviceKitURL, _ = ctx.Args.String("--devicekit-url")
+		if deviceKitURL == "" {
+			deviceKitURL = os.Getenv("GO_IOS_DEVICEKIT_URL")
+		}
+		if deviceKitURL == "" {
+			deviceKitURL = remote.DefaultDeviceKitURL
+		}
+	}
+
 	// Manage the runner by default; --no-manage-runner opts out. Supervision only
 	// applies to the DeviceKit runner (the one we can spawn), matched to driver.
 	manageRunner := !boolArg(ctx.Args, "--no-manage-runner") && runnerDriver == remote.DriverDeviceKit
 
-	// resolver re-fetches fresh tunnel/RSD info so the screen stream self-heals
-	// when the device's tunnel address changes. Non-fatal: on failure the screen
-	// service keeps using the last known address and retries.
-	tunnelInfo := tunnelInfoConfigFromArgs(ctx.Args)
-	udid := ctx.Device.Properties.SerialNumber
-	resolver := func() (ios.DeviceEntry, error) {
-		return refreshDeviceTunnelInfo(ctx.Device, udid, tunnelInfo)
-	}
-
 	server, err := remote.NewServer(ctx.Device, remote.Config{
 		Driver:       driver,
 		DriverURL:    driverURL,
-		Resolver:     resolver,
+		DeviceKitURL: deviceKitURL,
 		ManageRunner: manageRunner,
 	})
-	exitIfError("failed starting remote server (developer disk image mounted?)", err)
+	exitIfError("failed starting remote server", err)
 	defer server.Close()
 
 	// Cancel on SIGINT/SIGTERM so the supervised runner is terminated cleanly
@@ -93,50 +100,6 @@ func runRemoteCommand(ctx commandContext) {
 	defer stop()
 
 	exitIfError("remote server stopped", server.Run(runCtx, port))
-}
-
-// refreshDeviceTunnelInfo re-reads the device's tunnel info from the tunnel
-// daemon and attaches a fresh RSD provider, mirroring resolveDevice's automatic
-// path but WITHOUT exiting the process on failure — a transient tunnel gap must
-// not kill a long-running `ios remote`. On any error the previous device entry
-// is returned unchanged so the caller keeps using the last known address.
-func refreshDeviceTunnelInfo(device ios.DeviceEntry, udid string, tunnelInfo tunnelInfoConfig) (ios.DeviceEntry, error) {
-	info, err := tunnel.TunnelInfoForDevice(udid, tunnelInfo.Host, tunnelInfo.Port)
-	if err != nil {
-		return device, err
-	}
-	fresh, err := deviceWithTunnelInfo(udid, info)
-	if err != nil {
-		return device, err
-	}
-	return fresh, nil
-}
-
-// deviceWithTunnelInfo builds a DeviceEntry with an RSD provider for the given
-// tunnel, the non-fatal counterpart to deviceWithRsdProvider (which exits on
-// error).
-func deviceWithTunnelInfo(udid string, info tunnel.Tunnel) (ios.DeviceEntry, error) {
-	device, err := ios.GetDevice(udid)
-	if err != nil {
-		return device, err
-	}
-	rsdService, err := ios.NewWithAddrPortDevice(info.Address, info.RsdPort, device)
-	if err != nil {
-		return device, fmt.Errorf("connecting to RSD at %s:%d: %w", info.Address, info.RsdPort, err)
-	}
-	defer rsdService.Close()
-	rsdProvider, err := rsdService.Handshake()
-	if err != nil {
-		return device, fmt.Errorf("RSD handshake at %s:%d: %w", info.Address, info.RsdPort, err)
-	}
-	device1, err := ios.GetDeviceWithAddress(udid, info.Address, rsdProvider)
-	if err != nil {
-		return device, err
-	}
-	device1.UserspaceTUN = info.UserspaceTUN
-	device1.UserspaceTUNHost = ios.HttpApiHost()
-	device1.UserspaceTUNPort = info.UserspaceTUNPort
-	return device1, nil
 }
 
 // portArg reads --port. The global usage declares `ios forward … [--port=<mapping>]…`

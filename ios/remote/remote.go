@@ -1,30 +1,28 @@
 // Package remote implements `ios remote`: a tiny, self-contained browser
 // remote-control for an iOS device.
 //
-// Architecture (two independent halves):
+// Architecture: ONE supervised DeviceKit runner backs BOTH the screen and
+// input, so `ios remote` needs no WebDriverAgent and no instruments DTX
+// channel.
 //
-//   - Live screen is WDA-FREE. It reuses the instruments screenshot service
-//     (ios/instruments) and streams JPEG frames as an MJPEG
-//     (multipart/x-mixed-replace) response at GET /screen. This needs the
-//     tunnel + a mounted developer disk image, but no WebDriverAgent.
-//   - Input goes through a UI automation driver — DeviceKit by default (WDA is
-//     broken on iOS 26; DeviceKit works there). go-ios has no native touch
+//   - Live screen is a passthrough of the DeviceKit runner's hardware video:
+//     GET /video.h264 proxies the runner's /h264 (an H.264 Annex-B elementary
+//     stream, hardware-encoded and delta-compressed — a few KB/s), and GET
+//     /screen proxies the runner's /mjpeg as a browser-native fallback. Bytes
+//     are flushed through as they arrive; the proxy reconnects with backoff so
+//     the screen self-heals when the supervised runner respawns.
+//   - Input goes through the same DeviceKit runner. go-ios has no native touch
 //     injection here, so rather than re-implement the driver client the handlers
 //     shell out to the SAME `ios` binary (located via os.Executable) and reuse
 //     the proven `ios ui …` commands, targeting the device udid and the
-//     configured driver/URL. So the screen works with no driver running;
-//     taps/swipes/typing need a reachable driver (DeviceKit at --devicekit-url,
-//     or WDA at --wda-url when --driver=wda).
+//     configured driver/URL. (WDA is still selectable with --driver=wda for
+//     input; the video proxy always targets the DeviceKit URL.)
 package remote
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"image/jpeg"
-	"image/png"
 	"io"
 	"math"
 	"net/http"
@@ -36,7 +34,6 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/golog"
-	"github.com/danielpaulus/go-ios/ios/instruments"
 )
 
 const logModule = "go-ios/remote"
@@ -53,12 +50,6 @@ const (
 	DefaultDeviceKitURL = "http://127.0.0.1:12004"
 )
 
-// DeviceResolver re-resolves the device (including fresh tunnel/RSD info). It is
-// called on every screen-service reconnect so a changed tunnel address (CI run
-// ended, replug, tunnel daemon restart) is picked up instead of dialing the
-// stale cached address forever. Returning an error keeps the previous device.
-type DeviceResolver func() (ios.DeviceEntry, error)
-
 // Server is a minimal browser remote-control for a single device.
 type Server struct {
 	device ios.DeviceEntry
@@ -69,6 +60,10 @@ type Server struct {
 	driver    string
 	driverURL string
 
+	// deviceKitURL is the DeviceKit runner base URL the screen video is proxied
+	// from (its /h264 and /mjpeg endpoints), independent of the input driver.
+	deviceKitURL string
+
 	// iosBinary is the path to the `ios` CLI used to drive input.
 	iosBinary string
 
@@ -77,10 +72,6 @@ type Server struct {
 	// managed (--manage-runner=false or --driver=wda), in which case input
 	// endpoints assume the driver is always reachable.
 	supervisor *runnerSupervisor
-
-	// screen is the shared latest-JPEG-frame broadcaster fed by the
-	// instruments screenshot loop. It is driver-free.
-	screen *screenBroadcaster
 
 	// logical device size in the driver's points, resolved lazily and cached.
 	sizeMu sync.Mutex
@@ -94,9 +85,10 @@ type Config struct {
 	// that driver's base URL (defaults applied upstream).
 	Driver    string
 	DriverURL string
-	// Resolver re-fetches fresh tunnel info on screen reconnect; nil disables
-	// refresh.
-	Resolver DeviceResolver
+	// DeviceKitURL is the DeviceKit runner base URL the screen video is proxied
+	// from. Defaults to DriverURL when the driver is DeviceKit, otherwise to
+	// DefaultDeviceKitURL.
+	DeviceKitURL string
 	// ManageRunner, when true and Driver is DeviceKit, makes the Server spawn and
 	// supervise the input runner (`ios ui run devicekit`) itself, auto-respawning
 	// it across the intermittent testmanagerd DTX EOF disconnects. When false the
@@ -104,11 +96,10 @@ type Config struct {
 	ManageRunner bool
 }
 
-// NewServer wires up a remote-control server for the given device from cfg. The
-// screen half connects to the instruments screenshot service immediately so a
-// failure (e.g. missing developer disk image) surfaces before we start
-// listening. When cfg.ManageRunner is set and the driver is DeviceKit, the
-// Server also supervises the input runner (started by Run).
+// NewServer wires up a remote-control server for the given device from cfg.
+// Screen and input are both served by the DeviceKit runner; when
+// cfg.ManageRunner is set (and the driver is DeviceKit) the Server supervises
+// that runner (started by Run) and the video proxy reconnects as it respawns.
 func NewServer(device ios.DeviceEntry, cfg Config) (*Server, error) {
 	iosBinary, err := os.Executable()
 	if err != nil {
@@ -120,18 +111,23 @@ func NewServer(device ios.DeviceEntry, cfg Config) (*Server, error) {
 	}
 	udid := device.Properties.SerialNumber
 
-	bc, err := newScreenBroadcaster(device, cfg.Resolver)
-	if err != nil {
-		return nil, fmt.Errorf("starting screenshot service: %w", err)
+	deviceKitURL := cfg.DeviceKitURL
+	if deviceKitURL == "" {
+		if driver == DriverDeviceKit {
+			deviceKitURL = cfg.DriverURL
+		}
+		if deviceKitURL == "" {
+			deviceKitURL = DefaultDeviceKitURL
+		}
 	}
 
 	s := &Server{
-		device:    device,
-		udid:      udid,
-		driver:    driver,
-		driverURL: cfg.DriverURL,
-		iosBinary: iosBinary,
-		screen:    bc,
+		device:       device,
+		udid:         udid,
+		driver:       driver,
+		driverURL:    cfg.DriverURL,
+		deviceKitURL: deviceKitURL,
+		iosBinary:    iosBinary,
 	}
 
 	// Supervision only makes sense for the DeviceKit runner we know how to spawn.
@@ -164,8 +160,8 @@ func (s *Server) Run(ctx context.Context, port string) error {
 	location := "0.0.0.0:" + port
 	golog.Info("starting remote-control server, open your browser here",
 		"module", logModule, "udid", s.udid, "host", "0.0.0.0", "port", port,
-		"driver", s.driver, "driverURL", s.driverURL, "manageRunner", s.supervisor != nil,
-		"url", fmt.Sprintf("http://%s/", location))
+		"driver", s.driver, "driverURL", s.driverURL, "deviceKitURL", s.deviceKitURL,
+		"manageRunner", s.supervisor != nil, "url", fmt.Sprintf("http://%s/", location))
 
 	// Supervise the input runner in the background; run() returns when ctx is
 	// cancelled, having stopped the child.
@@ -202,6 +198,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/status", s.handleStatus)
 	mux.HandleFunc("/healthz", s.handleStatus)
+	mux.HandleFunc("/video.h264", s.handleVideoH264)
 	mux.HandleFunc("/screen", s.handleScreen)
 	mux.HandleFunc("/tap", s.handleTap)
 	mux.HandleFunc("/swipe", s.handleSwipe)
@@ -260,39 +257,145 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, indexHTML)
 }
 
-func (s *Server) handleScreen(w http.ResponseWriter, r *http.Request) {
-	golog.Info("new screen stream client", "module", logModule, "udid", s.udid, "remote", r.RemoteAddr)
-	frames, unsubscribe := s.screen.subscribe()
-	defer unsubscribe()
+// handleVideoH264 streams the DeviceKit runner's hardware H.264 elementary
+// stream (Annex-B) to the browser, which decodes it via WebCodecs. It is the
+// primary, efficient screen source.
+func (s *Server) handleVideoH264(w http.ResponseWriter, r *http.Request) {
+	s.proxyRunnerStream(w, r, "/h264", "video/h264")
+}
 
-	w.Header().Set("Server", "go-ios-remote")
-	w.Header().Set("Connection", "close")
-	w.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary="+mjpegBoundary)
-	w.Header().Set("Cache-Control", "no-cache, private")
-	w.Header().Set("Pragma", "no-cache")
-	w.WriteHeader(http.StatusOK)
+// handleScreen streams the DeviceKit runner's MJPEG to the browser as the
+// WebCodecs-less fallback screen source.
+func (s *Server) handleScreen(w http.ResponseWriter, r *http.Request) {
+	s.proxyRunnerStream(w, r, "/mjpeg", "")
+}
+
+// proxyRunnerStream passthrough-proxies one of the DeviceKit runner's streaming
+// endpoints (path) to the browser, flushing bytes as they arrive (never
+// buffering the whole stream). It reconnects to the runner with a small backoff
+// so the screen self-heals when the supervised runner respawns, and stops when
+// the browser disconnects. contentType, when non-empty, overrides the runner's
+// (H.264 needs an explicit video/h264); otherwise the runner's is passed
+// through (MJPEG carries its own multipart boundary).
+func (s *Server) proxyRunnerStream(w http.ResponseWriter, r *http.Request, path, contentType string) {
+	target := s.deviceKitURL + path
+	golog.Info("new screen stream client", "module", logModule, "udid", s.udid,
+		"remote", r.RemoteAddr, "path", path, "target", target)
 
 	flusher, _ := w.(http.Flusher)
+	wroteHeader := false
+	backoff := 250 * time.Millisecond
+	const backoffMax = 2 * time.Second
+
 	for {
-		select {
-		case <-r.Context().Done():
-			golog.Info("screen stream client disconnected", "module", logModule, "udid", s.udid, "remote", r.RemoteAddr)
+		if r.Context().Err() != nil {
 			return
-		case jpg := <-frames:
-			if _, err := io.WriteString(w, fmt.Sprintf(mjpegFrameHeader, len(jpg))); err != nil {
+		}
+		// Only attempt to stream when the runner is ready; otherwise wait so the
+		// screen "reconnects" in lockstep with the supervised runner respawning.
+		if s.runnerStateString() != runnerReady {
+			if !sleepCtx(r.Context(), backoff) {
 				return
 			}
-			if _, err := w.Write(jpg); err != nil {
-				return
+			continue
+		}
+
+		n, err := s.pipeRunnerStream(w, r, target, contentType, &wroteHeader, flusher)
+		if r.Context().Err() != nil {
+			return
+		}
+		// A stream that carried data then dropped is a runner restart: reconnect
+		// promptly. A stream that never connected backs off so we don't spin.
+		if n > 0 {
+			backoff = 250 * time.Millisecond
+		}
+		golog.Info("screen stream reconnecting", "module", logModule, "udid", s.udid,
+			"path", path, "bytes", n, "error", errString(err))
+		if !sleepCtx(r.Context(), backoff) {
+			return
+		}
+		if backoff *= 2; backoff > backoffMax {
+			backoff = backoffMax
+		}
+	}
+}
+
+// pipeRunnerStream opens one connection to the runner and copies its body to w,
+// flushing per read. It writes the response header (once, on the first
+// successful connect) via wroteHeader. It returns the number of bytes copied and
+// the error that ended the copy (nil on a clean EOF).
+func (s *Server) pipeRunnerStream(w http.ResponseWriter, r *http.Request, target, contentType string, wroteHeader *bool, flusher http.Flusher) (int64, error) {
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, target, nil)
+	if err != nil {
+		return 0, err
+	}
+	// No client timeout: these are long-lived streams. The request context
+	// (browser disconnect / server shutdown) is the only lifetime bound.
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("runner %s returned %d", target, resp.StatusCode)
+	}
+
+	if !*wroteHeader {
+		ct := contentType
+		if ct == "" {
+			ct = resp.Header.Get("Content-Type")
+		}
+		if ct != "" {
+			w.Header().Set("Content-Type", ct)
+		}
+		w.Header().Set("Server", "go-ios-remote")
+		w.Header().Set("Cache-Control", "no-cache, private")
+		w.Header().Set("Pragma", "no-cache")
+		w.WriteHeader(http.StatusOK)
+		*wroteHeader = true
+	}
+
+	// Copy chunk-by-chunk, flushing each so bytes reach the browser immediately.
+	buf := make([]byte, 32*1024)
+	var total int64
+	for {
+		nr, rerr := resp.Body.Read(buf)
+		if nr > 0 {
+			if _, werr := w.Write(buf[:nr]); werr != nil {
+				return total, werr
 			}
-			if _, err := io.WriteString(w, mjpegFrameFooter); err != nil {
-				return
-			}
+			total += int64(nr)
 			if flusher != nil {
 				flusher.Flush()
 			}
 		}
+		if rerr != nil {
+			if rerr == io.EOF {
+				return total, nil
+			}
+			return total, rerr
+		}
 	}
+}
+
+// sleepCtx sleeps for d unless ctx is cancelled first; it returns false if the
+// context was cancelled (so the caller should stop).
+func sleepCtx(ctx context.Context, d time.Duration) bool {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-t.C:
+		return true
+	}
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 // tapRequest is the fraction-based coordinate the browser sends. x and y are
@@ -478,10 +581,7 @@ func (s *Server) logicalSize() (float64, float64, error) {
 //
 // It tolerates surrounding whitespace/log noise by scanning for the first '{'.
 func parseSize(out []byte) (float64, float64, error) {
-	trimmed := bytes.TrimSpace(out)
-	if i := bytes.IndexByte(trimmed, '{'); i > 0 {
-		trimmed = trimmed[i:]
-	}
+	trimmed := trimToJSON(out)
 	type screenSize struct {
 		Width  float64 `json:"width"`
 		Height float64 `json:"height"`
@@ -519,6 +619,16 @@ func parseSize(out []byte) (float64, float64, error) {
 	return w, h, nil
 }
 
+// trimToJSON strips leading log noise before the first '{'.
+func trimToJSON(out []byte) []byte {
+	for i := 0; i < len(out); i++ {
+		if out[i] == '{' {
+			return out[i:]
+		}
+	}
+	return out
+}
+
 func decodeJSON(w http.ResponseWriter, r *http.Request, v interface{}) bool {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -536,194 +646,7 @@ func httpError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusBadRequest)
 }
 
-// --- MJPEG plumbing (WDA-free screen) ---
-
-const mjpegBoundary = "goiosremoteframe"
-
-const (
-	mjpegFrameHeader = "--" + mjpegBoundary + "\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n"
-	mjpegFrameFooter = "\r\n"
-)
-
-// screenBroadcaster runs the instruments screenshot loop once and fans the
-// latest JPEG frame out to all connected /screen clients. Unlike the package
-// helper in ios/instruments it holds no global state, so multiple servers /
-// tests don't collide.
-type screenBroadcaster struct {
-	device   ios.DeviceEntry
-	udid     string
-	resolver DeviceResolver
-
-	svcMu sync.Mutex
-	svc   *instruments.ScreenshotService
-
-	mu        sync.Mutex
-	consumers map[chan []byte]struct{}
-}
-
-func newScreenBroadcaster(device ios.DeviceEntry, resolver DeviceResolver) (*screenBroadcaster, error) {
-	svc, err := instruments.NewScreenshotService(device)
-	if err != nil {
-		return nil, err
-	}
-	bc := &screenBroadcaster{
-		device:    device,
-		udid:      device.Properties.SerialNumber,
-		resolver:  resolver,
-		svc:       svc,
-		consumers: make(map[chan []byte]struct{}),
-	}
-	go bc.loop()
-	return bc, nil
-}
-
-func (bc *screenBroadcaster) subscribe() (<-chan []byte, func()) {
-	ch := make(chan []byte, 1)
-	bc.mu.Lock()
-	bc.consumers[ch] = struct{}{}
-	bc.mu.Unlock()
-	return ch, func() {
-		bc.mu.Lock()
-		delete(bc.consumers, ch)
-		bc.mu.Unlock()
-	}
-}
-
-func (bc *screenBroadcaster) broadcast(jpg []byte) {
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
-	for ch := range bc.consumers {
-		// Drop the oldest frame for slow consumers so a stalled client can
-		// never back-pressure the capture loop.
-		select {
-		case ch <- jpg:
-		default:
-			select {
-			case <-ch:
-			default:
-			}
-			select {
-			case ch <- jpg:
-			default:
-			}
-		}
-	}
-}
-
-// loop captures screenshots (~12 fps) and broadcasts them as JPEG. The
-// instruments service returns PNG on some devices and JPEG on others; we
-// transcode PNG to JPEG and pass JPEG through untouched.
-//
-// The screenshot service can wedge (e.g. a takeScreenshot timeout while a WDA
-// XCUITest session contends for the same DVT channel). Rather than stopping the
-// stream for good — this server is meant to run unattended — the loop tears the
-// service down and reconnects, so the mirror recovers on its own.
-func (bc *screenBroadcaster) loop() {
-	var opt jpeg.Options
-	opt.Quality = 80
-	const (
-		targetInterval = 80 * time.Millisecond // ~12 fps
-		reconnectDelay = 2 * time.Second
-	)
-
-	for {
-		start := time.Now()
-		raw, err := bc.currentService().TakeScreenshot()
-		if err != nil {
-			golog.Error("screenshot failed, reconnecting screen service", "module", logModule, "udid", bc.udid, "error", err)
-			bc.reconnect()
-			time.Sleep(reconnectDelay)
-			continue
-		}
-		jpg, err := toJPEG(raw, &opt)
-		if err != nil {
-			golog.Warn("failed converting frame to jpeg", "module", logModule, "udid", bc.udid, "error", err)
-			continue
-		}
-		bc.broadcast(jpg)
-		if d := targetInterval - time.Since(start); d > 0 {
-			time.Sleep(d)
-		}
-	}
-}
-
-func (bc *screenBroadcaster) currentService() *instruments.ScreenshotService {
-	bc.svcMu.Lock()
-	defer bc.svcMu.Unlock()
-	return bc.svc
-}
-
-// reconnect closes the wedged screenshot service and dials a fresh one. It
-// retries until it succeeds so a transient tunnel/DVT hiccup doesn't kill the
-// mirror permanently.
-//
-// Crucially it RE-FETCHES fresh tunnel/RSD info via the resolver on every
-// attempt. The device address is otherwise cached for the process lifetime, so
-// when the tunnel changes (CI run ends, replug, tunnel daemon restart) the old
-// address stops answering and every reconnect would dial it forever ("dial …
-// i/o timeout"), leaving the stream blank. Re-resolving mirrors what a fresh
-// `ios screenshot` does — it works precisely because it re-fetches each call.
-func (bc *screenBroadcaster) reconnect() {
-	bc.svcMu.Lock()
-	if bc.svc != nil {
-		bc.svc.Close()
-		bc.svc = nil
-	}
-	bc.svcMu.Unlock()
-
-	for {
-		if bc.resolver != nil {
-			if fresh, err := bc.resolver(); err == nil {
-				bc.device = fresh
-				golog.Info("refreshed tunnel info for screen reconnect", "module", logModule, "udid", bc.udid)
-			} else {
-				golog.Warn("tunnel-info refresh failed, reusing last known address", "module", logModule, "udid", bc.udid, "error", err)
-			}
-		}
-		svc, err := instruments.NewScreenshotService(bc.device)
-		if err == nil {
-			bc.svcMu.Lock()
-			bc.svc = svc
-			bc.svcMu.Unlock()
-			golog.Info("screen service reconnected", "module", logModule, "udid", bc.udid)
-			return
-		}
-		golog.Warn("screen service reconnect failed, retrying", "module", logModule, "udid", bc.udid, "error", err)
-		time.Sleep(2 * time.Second)
-	}
-}
-
-// toJPEG returns JPEG bytes for a raw screenshot payload. If the payload is
-// already JPEG (SOI marker 0xFFD8) it is returned as-is; otherwise it is
-// decoded as PNG and re-encoded.
-func toJPEG(raw []byte, opt *jpeg.Options) ([]byte, error) {
-	if len(raw) >= 2 && raw[0] == 0xFF && raw[1] == 0xD8 {
-		return raw, nil
-	}
-	img, err := png.Decode(bytes.NewReader(raw))
-	if err != nil {
-		return nil, err
-	}
-	var b bytes.Buffer
-	bw := bufio.NewWriter(&b)
-	if err := jpeg.Encode(bw, img, opt); err != nil {
-		return nil, err
-	}
-	if err := bw.Flush(); err != nil {
-		return nil, err
-	}
-	return b.Bytes(), nil
-}
-
-// Close releases the screenshot service.
-func (s *Server) Close() {
-	if s.screen == nil {
-		return
-	}
-	s.screen.svcMu.Lock()
-	defer s.screen.svcMu.Unlock()
-	if s.screen.svc != nil {
-		s.screen.svc.Close()
-		s.screen.svc = nil
-	}
-}
+// Close releases server resources. The screen is now a stateless proxy of the
+// DeviceKit runner, so there is nothing to tear down here; the supervised runner
+// is stopped by Run on ctx cancellation.
+func (s *Server) Close() {}

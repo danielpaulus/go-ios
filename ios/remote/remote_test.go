@@ -1,10 +1,14 @@
 package remote
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestParseSize(t *testing.T) {
@@ -137,7 +141,7 @@ func TestIndexServesHTML(t *testing.T) {
 		t.Fatalf("content-type = %q, want text/html", ct)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "<html") || !strings.Contains(body, `src="/screen"`) {
+	if !strings.Contains(body, "<html") || !strings.Contains(body, "/video.h264") || !strings.Contains(body, "/screen") {
 		t.Fatalf("body does not look like the remote UI: %.120q", body)
 	}
 }
@@ -149,5 +153,155 @@ func TestButtonRejectsUnknown(t *testing.T) {
 	s.handleButton(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400 for unknown button", rec.Code)
+	}
+}
+
+// TestVideoH264ProxySetsContentTypeAndStreams verifies /video.h264 proxies the
+// DeviceKit runner's /h264, forcing Content-Type video/h264 and flushing the
+// runner's bytes through as they arrive.
+func TestVideoH264ProxySetsContentTypeAndStreams(t *testing.T) {
+	// H.264 Annex-B: an SPS NAL prefixed with a 4-byte start code.
+	payload := []byte{0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x00, 0x1f}
+	runner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/h264" {
+			http.NotFound(w, r)
+			return
+		}
+		// The runner labels the elementary stream video/h264 too, but the proxy
+		// must set it regardless (this is why we override).
+		w.Header().Set("Content-Type", "video/h264")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(payload)
+	}))
+	defer runner.Close()
+
+	// No supervisor -> runner always "ready"; the proxy connects once, streams,
+	// then loops. Cancel the request context after we've read the body so the
+	// handler returns instead of reconnecting forever.
+	s := &Server{udid: "u", driver: DriverDeviceKit, deviceKitURL: runner.URL}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/video.h264", nil).WithContext(ctx)
+
+	done := make(chan struct{})
+	go func() { s.handleVideoH264(rec, req); close(done) }()
+
+	// Give the proxy time to connect and stream the first payload, then stop it.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if len(rec.Body.Bytes()) >= len(payload) {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel()
+	<-done
+
+	if ct := rec.Header().Get("Content-Type"); ct != "video/h264" {
+		t.Fatalf("content-type = %q, want video/h264", ct)
+	}
+	got := rec.Body.Bytes()
+	if len(got) < len(payload) || string(got[:len(payload)]) != string(payload) {
+		t.Fatalf("body = %x, want it to start with the runner payload %x", got, payload)
+	}
+	// Sanity: the streamed bytes carry an Annex-B start code.
+	if !(got[0] == 0 && got[1] == 0 && got[2] == 0 && got[3] == 1) {
+		t.Fatalf("body does not start with an Annex-B start code: %x", got[:4])
+	}
+}
+
+// TestScreenProxyPassesThroughMJPEGContentType verifies /screen proxies the
+// runner's /mjpeg and passes its multipart content-type through unchanged.
+func TestScreenProxyPassesThroughMJPEGContentType(t *testing.T) {
+	const mjpegCT = "multipart/x-mixed-replace; boundary=frame"
+	frame := []byte("--frame\r\nContent-Type: image/jpeg\r\n\r\n\xff\xd8\xff\xd9\r\n")
+	runner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/mjpeg" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", mjpegCT)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(frame)
+	}))
+	defer runner.Close()
+
+	s := &Server{udid: "u", driver: DriverDeviceKit, deviceKitURL: runner.URL}
+	ctx, cancel := context.WithCancel(context.Background())
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/screen", nil).WithContext(ctx)
+
+	done := make(chan struct{})
+	go func() { s.handleScreen(rec, req); close(done) }()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if len(rec.Body.Bytes()) >= len(frame) {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel()
+	<-done
+
+	if ct := rec.Header().Get("Content-Type"); ct != mjpegCT {
+		t.Fatalf("content-type = %q, want passthrough %q", ct, mjpegCT)
+	}
+}
+
+// TestVideoProxyReconnectsWhileRunnerNotReady verifies the proxy does not dial
+// the runner while it is not ready (so it "reconnects" in lockstep with the
+// supervised runner) and stops cleanly on client disconnect.
+func TestVideoProxyReconnectsWhileRunnerNotReady(t *testing.T) {
+	// A runner that records every dial; while state != ready the proxy must not
+	// call it.
+	var dials int32
+	runner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&dials, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer runner.Close()
+
+	sp := newFakeSpawner() // state starts as "starting" (not ready)
+	s := &Server{udid: "u", driver: DriverDeviceKit, deviceKitURL: runner.URL,
+		supervisor: newRunnerSupervisor("u", sp)}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/video.h264", nil).WithContext(ctx)
+	done := make(chan struct{})
+	go func() { s.handleVideoH264(rec, req); close(done) }()
+
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	<-done
+
+	if got := atomic.LoadInt32(&dials); got != 0 {
+		t.Fatalf("proxy dialed runner %d times while not ready, want 0", got)
+	}
+}
+
+// TestPipeRunnerStreamNon200 verifies a non-200 runner response is surfaced as
+// an error and no body header is written (so the caller can retry).
+func TestPipeRunnerStreamNon200(t *testing.T) {
+	runner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	}))
+	defer runner.Close()
+	s := &Server{udid: "u", deviceKitURL: runner.URL}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/video.h264", nil)
+	wrote := false
+	// flusher is nil: it isn't reached on the error path (no body is copied).
+	n, err := s.pipeRunnerStream(rec, req, runner.URL+"/h264", "video/h264", &wrote, nil)
+	if err == nil {
+		t.Fatalf("expected error for non-200 runner, got nil (n=%d)", n)
+	}
+	if wrote {
+		t.Fatalf("wrote response header for a failed connect; want header deferred")
+	}
+	if !strings.Contains(err.Error(), fmt.Sprint(http.StatusInternalServerError)) {
+		t.Fatalf("error %q should mention the status code", err)
 	}
 }
