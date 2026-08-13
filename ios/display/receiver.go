@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/golog"
 )
 
 // ErrUserspaceTunnelUnsupported is returned when a media stream is requested on
@@ -49,9 +50,10 @@ func OpenReceiver(device ios.DeviceEntry) (*Receiver, error) {
 		return nil, fmt.Errorf("OpenReceiver: failed to bind a UDP socket on %s: %w", hostIP, err)
 	}
 	if err := conn.SetReadBuffer(receiverReadBuffer); err != nil {
-		// Not fatal: an undersized buffer only risks dropped frames, and the
-		// frames are discarded anyway.
-		conn.SetReadBuffer(0)
+		// Not fatal: a smaller buffer only risks dropping frames we discard
+		// anyway. Keep the default rather than failing the stream.
+		golog.Debug("could not enlarge the RTP receive buffer, keeping the default",
+			"module", logModule, "error", err)
 	}
 	local, ok := conn.LocalAddr().(*net.UDPAddr)
 	if !ok {

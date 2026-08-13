@@ -29,6 +29,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const logModule = "go-ios/display"
+
 const (
 	serviceName = "com.apple.coredevice.displayservice"
 
