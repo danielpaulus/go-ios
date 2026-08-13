@@ -18,8 +18,11 @@ const logModule = "go-ios/hid"
 const (
 	// streamStartTimeout bounds the media-stream negotiation. A wedged
 	// mediastream daemon never answers at all, so failing fast with an
-	// actionable error beats hanging.
-	streamStartTimeout = 10 * time.Second
+	// actionable error beats hanging. It is deliberately longer than the
+	// deadline the device applies to its own side (display's
+	// negotiationTimeoutSeconds): the device gives up first and tells us, rather
+	// than us abandoning a negotiation it goes on to complete.
+	streamStartTimeout = 15 * time.Second
 
 	// streamStopTimeout bounds the best-effort stop during Close.
 	streamStopTimeout = 5 * time.Second
