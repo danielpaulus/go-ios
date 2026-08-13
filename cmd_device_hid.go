@@ -171,7 +171,8 @@ type hidGesture struct {
 // everything after a '#' are ignored.
 //
 //	tap   X Y
-//	drag  X Y TOX TOY [STEPS [DURATION_SECONDS]]
+//	drag   X Y TOX TOY [STEPS [DURATION_SECONDS]]
+//	stroke SECONDS X1 Y1 X2 Y2 ...   (one contact through every point)
 //	move  X Y
 //	type  TEXT...   (whitespace is collapsed and '#' cannot appear in the text)
 //	button USAGEPAGE USAGECODE
@@ -245,6 +246,29 @@ func parseHIDGesture(lineNo int, fields []string) (hidGesture, error) {
 		}
 		g.run = func(ctx context.Context, s *hid.Session) error {
 			return s.Drag(ctx, from, to, steps, duration)
+		}
+	case "stroke":
+		// stroke SECONDS X1 Y1 X2 Y2 ... - the duration comes first so the
+		// point list can be any length.
+		if len(args) < 3 || len(args)%2 == 0 {
+			return g, fmt.Errorf("stroke wants SECONDS then at least one X Y pair")
+		}
+		seconds, err := strconv.ParseFloat(args[0], 64)
+		if err != nil {
+			return g, fmt.Errorf("invalid SECONDS %q: %w", args[0], err)
+		}
+		coords := args[1:]
+		points := make([]hid.Point, 0, len(coords)/2)
+		for i := 0; i < len(coords); i += 2 {
+			p, err := parsePoint(coords[i:i+2], 2)
+			if err != nil {
+				return g, err
+			}
+			points = append(points, p)
+		}
+		duration := time.Duration(seconds * float64(time.Second))
+		g.run = func(ctx context.Context, s *hid.Session) error {
+			return s.Stroke(ctx, points, duration)
 		}
 	case "move":
 		if len(args) != 2 {

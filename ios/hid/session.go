@@ -169,42 +169,81 @@ func (s *Session) Drag(ctx context.Context, from, to Point, steps int, duration 
 	if steps < 1 {
 		steps = 1
 	}
+	// steps is the number of moves, so steps+1 samples are sent: the touch-down
+	// at from, which is what UIKit hit-tests, then one per step up to to.
+	points := make([]Point, 0, steps+1)
+	for i := 0; i <= steps; i++ {
+		points = append(points, Point{
+			X: interpolate(from.X, to.X, i, steps),
+			Y: interpolate(from.Y, to.Y, i, steps),
+		})
+	}
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if err := s.beginGatedGesture(ctx); err != nil {
 		return err
 	}
+	if err := s.stroke(ctx, points, duration); err != nil {
+		return fmt.Errorf("Drag: %w", err)
+	}
+	return nil
+}
 
-	// Once a contact is down the device believes a finger is on the screen until
-	// it is lifted, so the release has to happen even if a sample or the context
-	// fails part way through - otherwise every later gesture, in this session or
-	// the next, lands on a device that still thinks it is being touched.
+// Stroke drags a single contact through every point in order and releases at the
+// last one, which is how any path that is not a straight line - an arc, a
+// circle, a hand-drawn shape - is drawn. Drag is the two-point case.
+//
+// duration is spread evenly across the path, so it sets the speed the device's
+// gesture recogniser reads from the report timestamps. A path of one point is a
+// tap.
+func (s *Session) Stroke(ctx context.Context, points []Point, duration time.Duration) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if err := s.beginGatedGesture(ctx); err != nil {
+		return err
+	}
+	if err := s.stroke(ctx, points, duration); err != nil {
+		return fmt.Errorf("Stroke: %w", err)
+	}
+	return nil
+}
+
+// stroke sends the contact samples for a path. Call with the mutex held and the
+// stream already ensured.
+//
+// Once a contact is down the device believes a finger is on the screen until it
+// is lifted, so the release has to happen even if a sample or the context fails
+// part way through - otherwise every later gesture, in this session or the next,
+// lands on a device that still thinks it is being touched.
+func (s *Session) stroke(ctx context.Context, points []Point, duration time.Duration) error {
+	if len(points) == 0 {
+		return fmt.Errorf("a stroke needs at least one point")
+	}
+
 	contactDown := false
+	last := points[len(points)-1]
 	defer func() {
 		if !contactDown {
 			return
 		}
-		if err := s.hid.SendTouchscreen(TouchRelease, to.X, to.Y, SurfaceMainTouchscreen); err != nil {
-			golog.Warn("failed to lift the contact after a drag, the device may still consider the screen touched",
+		if err := s.hid.SendTouchscreen(TouchRelease, last.X, last.Y, SurfaceMainTouchscreen); err != nil {
+			golog.Warn("failed to lift the contact after a gesture, the device may still consider the screen touched",
 				"module", logModule, "error", err)
 		}
 	}()
 
 	var interval time.Duration
-	if duration > 0 {
-		interval = duration / time.Duration(steps)
+	if duration > 0 && len(points) > 1 {
+		interval = duration / time.Duration(len(points)-1)
 	}
-	// steps is the number of moves, so steps+1 samples are sent: the touch-down
-	// at from, which is what UIKit hit-tests, then one per step up to to.
-	for i := 0; i <= steps; i++ {
-		x := interpolate(from.X, to.X, i, steps)
-		y := interpolate(from.Y, to.Y, i, steps)
-		if err := s.hid.SendTouchscreen(TouchContact, x, y, SurfaceMainTouchscreen); err != nil {
-			return fmt.Errorf("Drag: contact sample %d/%d: %w", i, steps, err)
+	for i, p := range points {
+		if err := s.hid.SendTouchscreen(TouchContact, p.X, p.Y, SurfaceMainTouchscreen); err != nil {
+			return fmt.Errorf("contact sample %d/%d: %w", i+1, len(points), err)
 		}
 		contactDown = true
 		if err := sleepCtx(ctx, interval); err != nil {
-			return fmt.Errorf("Drag: %w", err)
+			return err
 		}
 	}
 	return nil

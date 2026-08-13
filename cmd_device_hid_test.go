@@ -18,24 +18,25 @@ move -50 50
 type hello world
 button 12 64
 sleep 0.5
+stroke 0.5 100 100 200 200 300 100
 tap 1 1   # trailing comment
 `
 
 	gestures, err := parseHIDGestures(strings.NewReader(script))
 	require.NoError(t, err)
-	require.Len(t, gestures, 8)
+	require.Len(t, gestures, 9)
 
 	ops := make([]string, 0, len(gestures))
 	for _, g := range gestures {
 		ops = append(ops, g.op)
 		assert.NotNil(t, g.run, "every parsed gesture must be runnable")
 	}
-	assert.Equal(t, []string{"tap", "drag", "drag", "move", "type", "button", "sleep", "tap"}, ops)
+	assert.Equal(t, []string{"tap", "drag", "drag", "move", "type", "button", "sleep", "stroke", "tap"}, ops)
 
 	// Line numbers are reported for error messages, so they must survive
 	// comments and blank lines.
 	assert.Equal(t, 3, gestures[0].line)
-	assert.Equal(t, 10, gestures[7].line)
+	assert.Equal(t, 11, gestures[8].line)
 }
 
 func TestParseHIDGesturesRejectsBadInput(t *testing.T) {
@@ -53,6 +54,10 @@ func TestParseHIDGesturesRejectsBadInput(t *testing.T) {
 		{name: "drag zero steps", script: "drag 1 2 3 4 0", wantMessage: "at least 1 step"},
 		{name: "drag too many steps", script: "drag 1 2 3 4 100000", wantMessage: "limited to 1000 steps"},
 		{name: "drag bad duration", script: "drag 1 2 3 4 8 soon", wantMessage: "invalid DURATION"},
+		{name: "stroke without points", script: "stroke 1.0", wantMessage: "stroke wants SECONDS"},
+		{name: "stroke odd coordinate count", script: "stroke 1.0 10 20 30", wantMessage: "stroke wants SECONDS"},
+		{name: "stroke bad seconds", script: "stroke soon 10 20", wantMessage: "invalid SECONDS"},
+		{name: "stroke bad coordinate", script: "stroke 1.0 10 nope", wantMessage: "invalid coordinate"},
 		{name: "move missing arg", script: "move 1", wantMessage: "move wants X Y"},
 		{name: "type without text", script: "type", wantMessage: "type wants TEXT"},
 		{name: "button missing code", script: "button 12", wantMessage: "button wants USAGEPAGE USAGECODE"},
