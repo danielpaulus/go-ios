@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -61,12 +62,19 @@ type Session struct {
 	mutex sync.Mutex
 	hid   *UniversalConnection
 
+	// indigo is created on the first button press and reused afterwards, so a
+	// script full of button presses does not redial the service each time.
+	indigo *IndigoConnection
+
 	// Stream state, all guarded by mutex and populated by ensureStream.
 	displayService *display.Service
 	receiver       *display.Receiver
 	streamAnswer   display.StreamAnswer
-	drainCancel    context.CancelFunc
 	drainDone      chan struct{}
+	// streamLost is set by the drain goroutine when the host stops receiving the
+	// stream. Reports would still be accepted and silently dropped from that
+	// point on, so the next gesture re-negotiates instead.
+	streamLost atomic.Bool
 
 	// keyboardServiceID is the surface registered on first use by Type.
 	keyboardServiceID uint64
@@ -164,39 +172,55 @@ func (s *Session) Drag(ctx context.Context, from, to Point, steps int, duration 
 		return err
 	}
 
+	// Once a contact is down the device believes a finger is on the screen until
+	// it is lifted, so the release has to happen even if a sample or the context
+	// fails part way through - otherwise every later gesture, in this session or
+	// the next, lands on a device that still thinks it is being touched.
+	contactDown := false
+	defer func() {
+		if !contactDown {
+			return
+		}
+		if err := s.hid.SendTouchscreen(TouchRelease, to.X, to.Y, SurfaceMainTouchscreen); err != nil {
+			golog.Warn("failed to lift the contact after a drag, the device may still consider the screen touched",
+				"module", logModule, "error", err)
+		}
+	}()
+
 	var interval time.Duration
 	if duration > 0 {
 		interval = duration / time.Duration(steps)
 	}
-	for i := 1; i <= steps; i++ {
+	// steps is the number of moves, so steps+1 samples are sent: the touch-down
+	// at from, which is what UIKit hit-tests, then one per step up to to.
+	for i := 0; i <= steps; i++ {
 		x := interpolate(from.X, to.X, i, steps)
 		y := interpolate(from.Y, to.Y, i, steps)
 		if err := s.hid.SendTouchscreen(TouchContact, x, y, SurfaceMainTouchscreen); err != nil {
 			return fmt.Errorf("Drag: contact sample %d/%d: %w", i, steps, err)
 		}
-		if interval > 0 && i < steps {
-			if err := sleepCtx(ctx, interval); err != nil {
-				return fmt.Errorf("Drag: %w", err)
-			}
+		contactDown = true
+		if err := sleepCtx(ctx, interval); err != nil {
+			return fmt.Errorf("Drag: %w", err)
 		}
-	}
-	if err := s.hid.SendTouchscreen(TouchRelease, to.X, to.Y, SurfaceMainTouchscreen); err != nil {
-		return fmt.Errorf("Drag: release: %w", err)
 	}
 	return nil
 }
 
-// Move posts a single pointer sample on the gesture surface. It moves the
-// pointer a mirroring host draws without putting a contact on the screen, so it
-// does not by itself produce a touch.
-func (s *Session) Move(ctx context.Context, x, y int32) error {
+// MoveDigitizer posts a single pointer sample on the trackpad-style gesture
+// surface. It moves the pointer a mirroring host draws without putting a contact
+// on the screen, so it does not by itself produce a touch.
+//
+// Unlike Tap and Drag, which take normalised Points, the coordinates here are
+// the gesture surface's own digitizer units.
+func (s *Session) MoveDigitizer(ctx context.Context, x, y int32) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if err := s.beginGatedGesture(ctx); err != nil {
 		return err
 	}
 	if err := s.hid.SendDigitizer(x, y, SurfaceTouchscreenGesture); err != nil {
-		return fmt.Errorf("Move: %w", err)
+		return fmt.Errorf("MoveDigitizer: %w", err)
 	}
 	return nil
 }
@@ -217,6 +241,15 @@ func (s *Session) Type(ctx context.Context, text string) error {
 		s.keyboardServiceID = id
 		s.keyboardCreated = true
 	}
+
+	// A key stays held on the device until a report without it arrives, so make
+	// sure everything is released even if we stop mid-word.
+	defer func() {
+		if err := s.hid.SendKeyboard(s.keyboardServiceID); err != nil {
+			golog.Warn("failed to release the keyboard, the device may still consider a key held",
+				"module", logModule, "error", err)
+		}
+	}()
 
 	for _, ch := range text {
 		key, ok := KeyForRune(ch)
@@ -255,16 +288,24 @@ func (s *Session) PressButton(ctx context.Context, usagePage, usageCode uint64) 
 		return err
 	}
 
-	indigo, err := NewIndigo(s.device)
-	if err != nil {
-		return fmt.Errorf("PressButton: %w", err)
+	if s.indigo == nil {
+		indigo, err := NewIndigo(s.device)
+		if err != nil {
+			return fmt.Errorf("PressButton: %w", err)
+		}
+		s.indigo = indigo
 	}
-	defer indigo.Close()
 
-	if err := indigo.SendButton(usagePage, usageCode, ButtonDown); err != nil {
+	if err := s.indigo.SendButton(usagePage, usageCode, ButtonDown); err != nil {
 		return fmt.Errorf("PressButton: %w", err)
 	}
-	if err := indigo.SendButton(usagePage, usageCode, ButtonUp); err != nil {
+	if err := s.indigo.SendButton(usagePage, usageCode, ButtonUp); err != nil {
+		// The device considers the button held until it hears otherwise; cancel
+		// the press so it does not stay down.
+		if cancelErr := s.indigo.SendButton(usagePage, usageCode, ButtonCanceled); cancelErr != nil {
+			golog.Warn("failed to cancel a button press, the device may still consider it held",
+				"module", logModule, "error", cancelErr)
+		}
 		return fmt.Errorf("PressButton: %w", err)
 	}
 	return nil
@@ -272,6 +313,9 @@ func (s *Session) PressButton(ctx context.Context, usagePage, usageCode uint64) 
 
 // Close stops the media stream if one is running and closes every connection.
 // It is idempotent.
+//
+// Close waits for any gesture in flight, including a media-stream negotiation,
+// so it can block for as long as that negotiation is allowed to take.
 func (s *Session) Close() error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -282,6 +326,13 @@ func (s *Session) Close() error {
 
 	s.teardownStream()
 
+	if s.indigo != nil {
+		if err := s.indigo.Close(); err != nil {
+			golog.Debug("closing the Indigo connection failed", "module", logModule, "error", err)
+		}
+		s.indigo = nil
+	}
+
 	if s.hid != nil {
 		if err := s.hid.Close(); err != nil {
 			return fmt.Errorf("Session.Close: %w", err)
@@ -291,12 +342,13 @@ func (s *Session) Close() error {
 	return nil
 }
 
-// StreamActive reports whether the media stream that gates touch input is
-// currently running. Exposed for diagnostics and tests.
+// StreamActive reports whether a media stream is currently holding the touch
+// auth gate open. It turns false again if the host stops receiving the stream.
+// Exposed for diagnostics and tests.
 func (s *Session) StreamActive() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	return s.displayService != nil
+	return s.displayService != nil && !s.streamLost.Load()
 }
 
 // beginGatedGesture is the common preamble for gestures that need the auth gate
@@ -316,13 +368,21 @@ func (s *Session) checkOpen() error {
 }
 
 // ensureStream starts the media stream that authenticates the touch surfaces,
-// unless it is already running. Call with the mutex held.
+// unless one is already running. Call with the mutex held.
+//
+// A stream the host has stopped receiving is torn down and re-negotiated: the
+// device would keep accepting reports and silently dropping them, which is the
+// failure this package exists to prevent.
 //
 // On any failure it tears down whatever was already set up, so a failed gesture
 // leaves no half-open stream behind and the next attempt starts clean.
 func (s *Session) ensureStream(ctx context.Context) error {
 	if s.displayService != nil {
-		return nil
+		if !s.streamLost.Load() {
+			return nil
+		}
+		golog.Warn("the media stream stopped, re-negotiating before continuing", "module", logModule)
+		s.teardownStream()
 	}
 
 	receiver, err := display.OpenReceiver(s.device)
@@ -338,52 +398,57 @@ func (s *Session) ensureStream(ctx context.Context) error {
 	}
 	s.displayService = svc
 
+	// Start draining before the stream is negotiated: the device begins sending
+	// as soon as it answers, and an unread socket makes it throttle its encoder.
+	s.streamLost.Store(false)
+	s.drainDone = make(chan struct{})
+	go func(done chan struct{}) {
+		defer close(done)
+		if err := receiver.Drain(); err != nil {
+			golog.Warn("the media stream that gates touch input stopped",
+				"module", logModule, "error", err)
+			s.streamLost.Store(true)
+		}
+	}(s.drainDone)
+
 	startCtx, cancel := context.WithTimeout(ctx, streamStartTimeout)
 	defer cancel()
 
+	// The answer carries the session id even on failure, because the device may
+	// have brought the stream up anyway; keep it so teardown can stop it.
 	answer, err := svc.StartVideoStream(startCtx, display.VideoStreamRequest{
 		ReceiverIP:   receiver.IP(),
 		ReceiverPort: receiver.Port(),
 		SenderIP:     s.device.Address,
 		DisplayID:    s.displayID,
 	})
+	s.streamAnswer = answer
 	if err != nil {
 		s.teardownStream()
 		return fmt.Errorf("failed to start the media stream touch input requires: %w", err)
 	}
-	s.streamAnswer = answer
-
-	drainCtx, drainCancel := context.WithCancel(context.Background())
-	s.drainCancel = drainCancel
-	s.drainDone = make(chan struct{})
-	go func(done chan struct{}) {
-		defer close(done)
-		receiver.Drain(drainCtx)
-	}(s.drainDone)
 
 	golog.Debug("media stream started, touch surfaces authenticated", "module", logModule,
 		"receiver", receiver.IP(), "port", receiver.Port())
 
-	if err := sleepCtx(ctx, surfaceSettleDelay); err != nil {
-		s.teardownStream()
-		return err
-	}
+	// Give backboardd a moment to re-match the surfaces against the new stream.
+	// This is deliberately not tied to ctx: the stream is already negotiated, and
+	// discarding it here would mean re-negotiating on the next gesture, which is
+	// the churn that wedges the device's mediastream daemon.
+	time.Sleep(surfaceSettleDelay)
 	return nil
 }
 
 // teardownStream reverses ensureStream. Call with the mutex held. Safe to call
 // at any point of a partially completed setup.
 func (s *Session) teardownStream() {
-	if s.drainCancel != nil {
-		s.drainCancel()
-		s.drainCancel = nil
-	}
-
 	if s.displayService != nil {
 		if s.streamAnswer.ClientSessionID != uuid.Nil {
 			stopCtx, cancel := context.WithTimeout(context.Background(), streamStopTimeout)
 			// The device routinely drops the channel while processing the stop,
-			// which surfaces as an error even though the stop took effect.
+			// which surfaces as an error even though the stop took effect. The
+			// receiver is still draining here, so the device is not throttled
+			// while it works through it.
 			if err := s.displayService.StopMediaStream(stopCtx, s.streamAnswer.ClientSessionID); err != nil {
 				golog.Debug("stopping the media stream reported an error, which is expected when the device closes the channel first",
 					"module", logModule, "error", err)
@@ -396,32 +461,36 @@ func (s *Session) teardownStream() {
 		s.displayService = nil
 	}
 
+	// Closing the socket is what unblocks Drain: a blocked read is not
+	// interrupted by anything else, so this has to happen before the wait below.
 	if s.receiver != nil {
 		if err := s.receiver.Close(); err != nil {
 			golog.Debug("closing the RTP receiver failed", "module", logModule, "error", err)
 		}
 		s.receiver = nil
 	}
-
-	// The drain goroutine exits once the socket is closed; wait so Close does
-	// not leave it running.
 	if s.drainDone != nil {
 		<-s.drainDone
 		s.drainDone = nil
 	}
 
 	s.streamAnswer = display.StreamAnswer{}
+	s.streamLost.Store(false)
 }
 
+// interpolate returns the coordinate at step of steps between from and to.
+// The arithmetic is 64-bit: the product reaches 65535*steps, which overflows a
+// 32-bit int on the platforms go-ios builds for.
 func interpolate(from, to uint16, step, steps int) uint16 {
-	delta := (int(to) - int(from)) * step / steps
-	return uint16(int(from) + delta)
+	delta := (int64(to) - int64(from)) * int64(step) / int64(steps)
+	return uint16(int64(from) + delta)
 }
 
-// sleepCtx sleeps for d unless ctx is cancelled first.
+// sleepCtx sleeps for d unless ctx is cancelled first. A non-positive d does not
+// sleep and does not report the context: callers check ctx where it matters.
 func sleepCtx(ctx context.Context, d time.Duration) error {
 	if d <= 0 {
-		return ctx.Err()
+		return nil
 	}
 	timer := time.NewTimer(d)
 	defer timer.Stop()

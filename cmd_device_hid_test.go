@@ -50,6 +50,8 @@ func TestParseHIDGesturesRejectsBadInput(t *testing.T) {
 		{name: "tap non numeric", script: "tap a b", wantMessage: "invalid coordinate"},
 		{name: "drag too few args", script: "drag 1 2 3", wantMessage: "drag wants X Y TOX TOY"},
 		{name: "drag bad steps", script: "drag 1 2 3 4 many", wantMessage: "invalid STEPS"},
+		{name: "drag zero steps", script: "drag 1 2 3 4 0", wantMessage: "at least 1 step"},
+		{name: "drag too many steps", script: "drag 1 2 3 4 100000", wantMessage: "limited to 1000 steps"},
 		{name: "drag bad duration", script: "drag 1 2 3 4 8 soon", wantMessage: "invalid DURATION"},
 		{name: "move missing arg", script: "move 1", wantMessage: "move wants X Y"},
 		{name: "type without text", script: "type", wantMessage: "type wants TEXT"},

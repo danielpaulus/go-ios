@@ -38,10 +38,34 @@ func TestInterpolate(t *testing.T) {
 	}
 }
 
+// TestInterpolateCoversTheWholeGesture pins the sampling contract Drag relies
+// on: step 0 is the touch-down at the start point, which is what UIKit
+// hit-tests, and the last step lands exactly on the target.
+func TestInterpolateCoversTheWholeGesture(t *testing.T) {
+	from, to := uint16(1000), uint16(5000)
+	steps := 4
+
+	assert.Equal(t, from, interpolate(from, to, 0, steps), "step 0 must be the start point")
+	assert.Equal(t, to, interpolate(from, to, steps, steps), "the last step must be the target")
+
+	previous := interpolate(from, to, 0, steps)
+	for i := 1; i <= steps; i++ {
+		current := interpolate(from, to, i, steps)
+		assert.Greater(t, current, previous, "samples must advance monotonically")
+		previous = current
+	}
+}
+
 func TestSleepCtxReturnsAfterDuration(t *testing.T) {
 	start := time.Now()
 	require.NoError(t, sleepCtx(context.Background(), 10*time.Millisecond))
 	assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond)
+}
+
+func TestSleepCtxDoesNotSleepForNonPositiveDurations(t *testing.T) {
+	// A zero interval means "no pacing", not "report the context".
+	assert.NoError(t, sleepCtx(context.Background(), 0))
+	assert.NoError(t, sleepCtx(context.Background(), -time.Second))
 }
 
 func TestSleepCtxHonoursCancellation(t *testing.T) {
@@ -60,7 +84,7 @@ func TestClosedSessionRejectsGestures(t *testing.T) {
 	ctx := context.Background()
 	assert.Error(t, s.Tap(ctx, Point{X: 1, Y: 1}))
 	assert.Error(t, s.Drag(ctx, Point{}, Point{X: 1, Y: 1}, 2, 0))
-	assert.Error(t, s.Move(ctx, 1, 1))
+	assert.Error(t, s.MoveDigitizer(ctx, 1, 1))
 	assert.Error(t, s.Type(ctx, "hello"))
 	assert.Error(t, s.PressButton(ctx, 12, 64))
 	_, err := s.ListServices()

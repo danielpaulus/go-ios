@@ -1,7 +1,6 @@
 package display
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -21,9 +20,10 @@ import (
 // touch input.
 var ErrUserspaceTunnelUnsupported = errors.New("media streams require a kernel tunnel: start the tunnel without --userspace")
 
-// receiverReadBuffer sizes the kernel receive buffer for the RTP socket. The
-// payload is discarded, but a small buffer makes the device's sender see drops
-// and back off, which has shown up as encoder stalls in captured sessions.
+// receiverReadBuffer sizes the kernel receive buffer for the RTP socket at 1MB,
+// enough to absorb a burst of frames while the reader is between reads. The
+// payload is discarded, but letting the socket overflow makes the device see
+// packet loss and throttle its encoder, which has shown up as stream stalls.
 const receiverReadBuffer = 1024 * 1024
 
 // Receiver is the UDP sink the device streams RTP to. go-ios does not decode the
@@ -69,19 +69,22 @@ func (r *Receiver) IP() string { return r.ip }
 // Port is the UDP port the device should send RTP to.
 func (r *Receiver) Port() int { return r.port }
 
-// Drain reads and discards packets until ctx is cancelled or the socket is
-// closed. Run it in its own goroutine for the lifetime of the stream: without a
-// reader the socket buffer fills and the device's encoder can stall.
-func (r *Receiver) Drain(ctx context.Context) {
+// Drain reads and discards packets until the socket is closed, and reports why
+// it stopped: nil once Close has been called, otherwise the read error that
+// ended it, which means the host is no longer receiving the stream.
+//
+// Run it in its own goroutine for the lifetime of the stream. Without a reader
+// the socket buffer fills, the device sees packet loss and throttles its
+// encoder. Closing the Receiver is the only way to stop it: a blocked read is
+// not interrupted by anything else.
+func (r *Receiver) Drain() error {
 	buf := make([]byte, 65535)
 	for {
-		if ctx.Err() != nil {
-			return
-		}
 		if _, _, err := r.conn.ReadFromUDP(buf); err != nil {
-			// A closed socket or a cancelled context both end the stream; any
-			// other read error would repeat, so stop either way.
-			return
+			if errors.Is(err, net.ErrClosed) {
+				return nil
+			}
+			return fmt.Errorf("the RTP stream stopped being received: %w", err)
 		}
 	}
 }

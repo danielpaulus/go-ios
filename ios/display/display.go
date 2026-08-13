@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sync"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/coredevice"
@@ -52,17 +53,31 @@ const (
 	transportProtocolType = int64(2)
 
 	// negotiationTimeoutSeconds is the timeout the device applies to its side of
-	// the negotiation.
-	negotiationTimeoutSeconds = uint64(20)
+	// the negotiation. Keep it below the caller's own deadline (see
+	// hid.streamStartTimeout) so the device gives up first: if the host gave up
+	// first the device could still bring a stream up that the host never learned
+	// the session id of, and so could never stop.
+	negotiationTimeoutSeconds = uint64(10)
 
 	// DefaultDisplayID is the main display.
 	DefaultDisplayID = 1
 )
 
 // Service is a connection to the device's display service.
+//
+// One request is in flight at a time: the XPC connection carries no request
+// identifiers, so concurrent callers would be handed each other's responses.
+// Calls are serialised internally, and a call abandoned by its context poisons
+// the Service - see invoke.
 type Service struct {
 	conn     *xpc.Connection
 	deviceID string
+
+	mutex sync.Mutex
+	// poisoned is set when a request is abandoned mid-exchange. The response
+	// that eventually arrives would be mis-attributed to the next request, so
+	// the Service refuses further calls instead.
+	poisoned bool
 }
 
 // New connects to the display service. Requires iOS 17+ with the Developer Disk
@@ -149,7 +164,9 @@ func (s *Service) StartVideoStream(ctx context.Context, req VideoStreamRequest) 
 
 	output, err := s.invoke(ctx, featureStartMediaStream, actionMediaStreamStart, input)
 	if err != nil {
-		return StreamAnswer{}, err
+		// The id is returned even on failure: the device may have started the
+		// stream regardless (or be about to), and stopping it needs this id.
+		return StreamAnswer{ClientSessionID: clientSessionID}, err
 	}
 	return StreamAnswer{ClientSessionID: clientSessionID, Output: output}, nil
 }
@@ -181,6 +198,12 @@ func (s *Service) GetMediaSupportInfo(ctx context.Context) (map[string]interface
 // and ctx cancellation abandons it. An abandoned exchange leaves the connection
 // unusable, which is why callers close the Service after a timeout.
 func (s *Service) invoke(ctx context.Context, feature, action string, input map[string]interface{}) (map[string]interface{}, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.poisoned {
+		return nil, fmt.Errorf("display: connection is unusable after an abandoned request, reconnect the service")
+	}
+
 	type result struct {
 		output map[string]interface{}
 		err    error
@@ -213,6 +236,10 @@ func (s *Service) invoke(ctx context.Context, feature, action string, input map[
 		}
 		return r.output, nil
 	case <-ctx.Done():
+		// The goroutine is still parked reading the response. It ends when the
+		// connection is closed; until then any late response would be handed to
+		// the next caller, so refuse to reuse this Service.
+		s.poisoned = true
 		return nil, fmt.Errorf("display: %s did not complete: %w (the device's mediastream daemon may be wedged; rebooting the device clears it)", feature, ctx.Err())
 	}
 }

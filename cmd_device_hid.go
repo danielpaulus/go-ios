@@ -74,6 +74,7 @@ func runHIDDrag(ctx commandContext) {
 	from := hidPoint(ctx, "<x>", "<y>")
 	to := hidPoint(ctx, "<tox>", "<toy>")
 	steps := hidOptionalInt(ctx, "--steps", defaultDragSteps)
+	exitIfError("invalid --steps", validateDragSteps(steps))
 	duration := hidOptionalDuration(ctx, "--duration", defaultDragDuration)
 
 	withHIDSession(ctx, func(session *hid.Session) error {
@@ -172,7 +173,7 @@ type hidGesture struct {
 //	tap   X Y
 //	drag  X Y TOX TOY [STEPS [DURATION_SECONDS]]
 //	move  X Y
-//	type  TEXT...
+//	type  TEXT...   (whitespace is collapsed and '#' cannot appear in the text)
 //	button USAGEPAGE USAGECODE
 //	sleep SECONDS
 func parseHIDGestures(r io.Reader) ([]hidGesture, error) {
@@ -230,6 +231,9 @@ func parseHIDGesture(lineNo int, fields []string) (hidGesture, error) {
 			if steps, err = strconv.Atoi(args[4]); err != nil {
 				return g, fmt.Errorf("invalid STEPS %q: %w", args[4], err)
 			}
+			if err := validateDragSteps(steps); err != nil {
+				return g, err
+			}
 		}
 		duration := defaultDragDuration
 		if len(args) > 5 {
@@ -255,7 +259,7 @@ func parseHIDGesture(lineNo int, fields []string) (hidGesture, error) {
 			return g, fmt.Errorf("invalid Y %q: %w", args[1], err)
 		}
 		g.run = func(ctx context.Context, s *hid.Session) error {
-			return s.Move(ctx, int32(x), int32(y))
+			return s.MoveDigitizer(ctx, int32(x), int32(y))
 		}
 	case "type":
 		if len(args) == 0 {
@@ -299,6 +303,20 @@ func parseHIDGesture(lineNo int, fields []string) (hidGesture, error) {
 		return g, fmt.Errorf("unknown gesture %q", op)
 	}
 	return g, nil
+}
+
+// maxDragSteps caps the samples one drag may send. The limit is arbitrary but
+// generous: it exists so a typo cannot flood the device with reports.
+const maxDragSteps = 1000
+
+func validateDragSteps(steps int) error {
+	if steps < 1 {
+		return fmt.Errorf("a drag needs at least 1 step, got %d", steps)
+	}
+	if steps > maxDragSteps {
+		return fmt.Errorf("a drag is limited to %d steps, got %d", maxDragSteps, steps)
+	}
+	return nil
 }
 
 func parsePoint(args []string, want int) (hid.Point, error) {
