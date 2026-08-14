@@ -6,7 +6,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 )
 
@@ -77,63 +76,4 @@ func runMemlimitOffCommand(ctx commandContext) {
 		exitIfError("DisableMemoryLimit failed", err)
 		slog.Info("memory limit is off", "process", process.Name, "pid", process.Pid, "disabled", disabled)
 	}
-}
-
-func runKillCommand(ctx commandContext) {
-	var response []installationproxy.AppInfo
-	bundleID, _ := ctx.Args.String("<bundleID>")
-	processIDint, _ := ctx.Args.Int("--pid")
-	processName, _ := ctx.Args.String("--process")
-
-	processID := uint64(processIDint)
-
-	if bundleID == "" && processID == 0 && processName == "" {
-		logFatal("please provide a bundleID")
-	}
-	pControl, err := instruments.NewProcessControl(ctx.Device)
-	exitIfError("processcontrol failed", err)
-	svc, err := installationproxy.New(ctx.Device)
-	exitIfError("failed creating installationproxy", err)
-
-	if bundleID != "" {
-		response, err = svc.BrowseAllApps()
-		exitIfError("browsing apps failed", err)
-
-		for _, app := range response {
-			if app.CFBundleIdentifier() == bundleID {
-				processName = app.CFBundleExecutable()
-				break
-			}
-		}
-		if processName == "" {
-			slog.Error("not installed", "bundleID", bundleID)
-			os.Exit(1)
-			return
-		}
-	}
-
-	service, err := instruments.NewDeviceInfoService(ctx.Device)
-	exitIfError("failed opening deviceInfoService for getting process list", err)
-	defer service.Close()
-	processList, _ := service.ProcessList()
-	for _, p := range processList {
-		if (processID > 0 && p.Pid == processID) || (processName != "" && p.Name == processName) {
-			err = pControl.KillProcess(p.Pid)
-			exitIfError("kill process failed ", err)
-			if bundleID != "" {
-				slog.Info("killed", "bundleID", bundleID, "pid", p.Pid)
-			} else {
-				slog.Info("killed", "process", p.Name, "pid", p.Pid)
-			}
-			return
-		}
-	}
-	if bundleID != "" {
-		slog.Error("process not found", "bundleID", bundleID)
-	} else if processName != "" {
-		slog.Error("process not found", "process", processName)
-	} else {
-		slog.Error("process not found", "pid", processID)
-	}
-	os.Exit(1)
 }

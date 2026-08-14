@@ -142,8 +142,11 @@ commands:
     usage: ios ip [options]
     summary: Detect device IP from packet capture.
   - path: kill
-    usage: ios kill (<bundleID> | --pid=<processID> | --process=<processName>) [options]
-    summary: Kill app by bundle ID, PID, or process.
+    usage: ios kill (<bundleIDs>... | --pid=<processID> | --process=<processName>) [--watch] [options]
+    summary: Kill one or more apps by bundle ID, or a process by PID/name.
+    examples:
+      - "ios kill com.apple.mobilesafari com.apple.mobilemail        # kill whatever's running right now"
+      - "ios kill --watch com.apple.Preferences com.apple.mobilephone # stay resident, kill each the instant it next launches"
   - path: lang
     usage: ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
     summary: Read or set device language and locale.
