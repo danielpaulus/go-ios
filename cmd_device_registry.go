@@ -110,6 +110,7 @@ var deviceCommands = []command{
 	commandByBool("debug", runDebugCommand),
 	commandByBool("file", runFileCommand),
 	commandByBool("pasteboard", runPasteboardCommand),
+	commandByBool("hid", runHIDCommand),
 	commandByBool("fsync", runFsyncCommand),
 	commandByBool("devmode", runDevModeCommand),
 	commandByBool("webinspector", runWebInspectorCommand),

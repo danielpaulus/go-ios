@@ -95,6 +95,7 @@ func needsAutomaticTunnelInfo(args docopt.Opts) bool {
 		"instruments",
 		"kill",
 		"launch",
+		"hid",
 		"memlimitoff",
 		"ostrace",
 		"pasteboard",
