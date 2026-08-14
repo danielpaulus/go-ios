@@ -1,0 +1,349 @@
+name: Release-SDKs
+
+# Consolidated, dispatch-only release pipeline for all five go-ios SDKs
+# (typescript, python, java, csharp, mcp). They are generated from ONE OpenAPI
+# spec, so they ship in lockstep: a single `version` input is stamped into every
+# package manifest and published to every registry together.
+#
+# Safety model (mirrors the CLI release.yml):
+#   * Dispatch only. There is no tag/push trigger, so nothing here ever runs off
+#     a merge. `dry_run` defaults to true.
+#   * All build/test happens BEFORE any upload. If a single package fails to
+#     build or test, no publish job runs, so a bad build ships nothing.
+#   * Every real upload is gated twice:
+#       1. `if: ${{ !inputs.dry_run }}` — a dry run does a real dry-run instead
+#          (npm --dry-run, twine check, mvn verify, dotnet pack) with NO upload.
+#       2. a secret/trust-presence guard — even a non-dry run SKIPS the upload,
+#          with a clear log line, when the registry isn't armed yet. This makes
+#          the first real run safe to do before the registries exist.
+#   * The git tag + GitHub release are created only after every publish job
+#     succeeds AND it was not a dry run.
+#
+# Auth (see sdks/docs/RELEASING.md for the registry prerequisites):
+#   * npm       — OIDC trusted publishing (id-token: write, provenance). NO token.
+#   * PyPI      — trusted publishing via pypa/gh-action-pypi-publish (id-token).
+#   * Maven     — central-publishing-maven-plugin + GPG (MAVEN_GPG_PRIVATE_KEY,
+#                 MAVEN_GPG_PASSPHRASE, CENTRAL_TOKEN_USERNAME, CENTRAL_TOKEN_PASSWORD).
+#   * NuGet     — dotnet nuget push with NUGET_API_KEY.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "SDK version to release (semver, e.g. 0.1.0). Stamped into all five package manifests."
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run: build/test + real dry-run of every publish, but upload nothing and create no tag/release."
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  # --- Stamp the version into every manifest and hand the tree to build jobs ---
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.setv.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Stamp version into all package manifests
+        id: setv
+        run: |
+          set -euo pipefail
+          bash sdks/scripts/set-version.sh "${{ inputs.version }}"
+          echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload version-stamped sdks tree
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdks-stamped
+          path: sdks/
+          include-hidden-files: true
+          retention-days: 1
+
+  # ----------------------------- BUILD + TEST -------------------------------
+  # Mirrors sdks.yml. All five must pass before any publish job starts.
+  build-typescript:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: sdks-stamped, path: sdks }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: build + test (typescript)
+        working-directory: sdks/packages/typescript
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npm run build
+          npm test
+
+  build-mcp:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: sdks-stamped, path: sdks }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: build + test (mcp)
+        working-directory: sdks/packages/mcp
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npm run build
+          npm test
+
+  build-python:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: sdks-stamped, path: sdks }
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: build + test (python)
+        working-directory: sdks/packages/python
+        run: |
+          uv python install 3.13
+          uv sync --all-extras --dev
+          uv run pytest
+          uv run mypy src/go_ios_sdk --exclude '_generated'
+
+  build-csharp:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: sdks-stamped, path: sdks }
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: "8.0.x" }
+      - name: build + test (csharp)
+        working-directory: sdks/packages/csharp
+        run: |
+          dotnet build -c Release
+          dotnet test -c Release --no-build
+
+  build-java:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: sdks-stamped, path: sdks }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - name: build + test (java)
+        working-directory: sdks/packages/java
+        run: bash scripts/verify.sh
+
+  # ------------------------------- PUBLISH ----------------------------------
+  # Each ecosystem publishes independently, but only after ALL builds pass.
+  # dry_run -> real dry-run (no upload). Non-dry -> real upload, still guarded
+  # by a registry-armed check so it self-skips until the registry is configured.
+
+  publish-npm:
+    needs: [prepare, build-typescript, build-mcp, build-python, build-csharp, build-java]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC trusted publishing / provenance. NO token.
+    env:
+      NPM_CONFIG_PROVENANCE: "true"
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: sdks-stamped, path: sdks }
+      # OIDC trusted publishing needs Node >= 22.14 and npm >= 11.5.1.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+      - name: Prepare npm + build (typescript)
+        working-directory: sdks/packages/typescript
+        run: |
+          npm install -g npm@latest
+          npm ci
+          npm run build
+      # Dry run: exercises packing/publish end to end without uploading.
+      - name: npm publish --dry-run (dry_run)
+        if: ${{ inputs.dry_run }}
+        working-directory: sdks/packages/typescript
+        run: npm publish --dry-run --access public
+      # Real publish. OIDC is only available when id-token is issued for this
+      # run (ACTIONS_ID_TOKEN_REQUEST_URL is set). If it isn't — e.g. the org /
+      # trusted publisher isn't configured yet — skip loudly instead of failing.
+      - name: npm publish (OIDC)
+        if: ${{ !inputs.dry_run }}
+        working-directory: sdks/packages/typescript
+        run: |
+          set -euo pipefail
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::warning::npm OIDC context not available — skipping real npm publish. Configure the @go-ios org + OIDC trusted publisher first (see sdks/docs/RELEASING.md)."
+            exit 0
+          fi
+          # No NODE_AUTH_TOKEN / .npmrc auth line: npm authenticates via OIDC
+          # trusted publishing. Any (even empty) token would break OIDC.
+          npm publish --access public
+      # @go-ios/mcp ships to npm alongside the TypeScript SDK (same OIDC trusted
+      # publishing + provenance). Guarded identically to the TS publish above.
+      - name: Prepare + build (mcp)
+        working-directory: sdks/packages/mcp
+        run: |
+          npm ci
+          npm run build
+      - name: npm publish --dry-run (mcp, dry_run)
+        if: ${{ inputs.dry_run }}
+        working-directory: sdks/packages/mcp
+        run: npm publish --dry-run --access public
+      - name: npm publish (mcp, OIDC)
+        if: ${{ !inputs.dry_run }}
+        working-directory: sdks/packages/mcp
+        run: |
+          set -euo pipefail
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::warning::npm OIDC context not available — skipping real @go-ios/mcp publish. Configure the @go-ios org + OIDC trusted publisher first (see sdks/docs/RELEASING.md)."
+            exit 0
+          fi
+          # No NODE_AUTH_TOKEN / .npmrc auth line: OIDC trusted publishing only.
+          npm publish --access public
+
+  publish-pypi:
+    needs: [prepare, build-typescript, build-mcp, build-python, build-csharp, build-java]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write # PyPI trusted publishing. NO token.
+    # `secrets` cannot be used in an `if:` expression, so map the trust-armed
+    # flag into env once and gate on env.* instead.
+    env:
+      PYPI_ARMED: ${{ secrets.PYPI_TRUSTED_PUBLISHER_CONFIGURED }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: sdks-stamped, path: sdks }
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Build sdist + wheel
+        working-directory: sdks/packages/python
+        run: |
+          uv python install 3.12
+          uv build --sdist --wheel
+      # Dry run: build + metadata validation, no upload.
+      - name: twine check (dry_run)
+        if: ${{ inputs.dry_run }}
+        working-directory: sdks/packages/python
+        run: uvx twine check dist/*
+      # Real publish via trusted publishing. Only reached when the
+      # PYPI_TRUSTED_PUBLISHER_CONFIGURED repo secret is set, so the first real
+      # run before the trusted publisher exists self-skips.
+      - name: Publish to PyPI (trusted publishing)
+        if: ${{ !inputs.dry_run && env.PYPI_ARMED != '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdks/packages/python/dist
+      - name: Note if PyPI publish skipped
+        if: ${{ !inputs.dry_run && env.PYPI_ARMED == '' }}
+        run: echo "::warning::PYPI_TRUSTED_PUBLISHER_CONFIGURED not set — skipping real PyPI publish. Create the PyPI project + trusted publisher, then set that repo secret (see sdks/docs/RELEASING.md)."
+
+  publish-maven:
+    needs: [prepare, build-typescript, build-mcp, build-python, build-csharp, build-java]
+    runs-on: ubuntu-latest
+    # `secrets` cannot be used in an `if:` expression; map the arm-check into env.
+    # MAVEN_ARMED is non-empty only when all three required secrets are present.
+    env:
+      MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+      CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+      CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+      MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+      MAVEN_ARMED: ${{ (secrets.MAVEN_GPG_PRIVATE_KEY != '' && secrets.CENTRAL_TOKEN_USERNAME != '' && secrets.CENTRAL_TOKEN_PASSWORD != '') && 'yes' || '' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: sdks-stamped, path: sdks }
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          # Configure ~/.m2/settings.xml server "central" from these env-var
+          # secrets so the central-publishing-maven-plugin can authenticate.
+          server-id: central
+          server-username: CENTRAL_TOKEN_USERNAME
+          server-password: CENTRAL_TOKEN_PASSWORD
+          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+      # Dry run: full verify (compile, test, package) with NO deploy.
+      - name: mvn verify (dry_run — no deploy)
+        if: ${{ inputs.dry_run }}
+        working-directory: sdks/packages/java
+        run: mvn -B -ntp verify
+      # Real deploy — only when the Central token + GPG key secrets all exist.
+      - name: mvn deploy to Maven Central
+        if: ${{ !inputs.dry_run && env.MAVEN_ARMED != '' }}
+        working-directory: sdks/packages/java
+        run: mvn -B -ntp -Prelease clean deploy
+      - name: Note if Maven publish skipped
+        if: ${{ !inputs.dry_run && env.MAVEN_ARMED == '' }}
+        run: echo "::warning::Maven Central secrets not set (need MAVEN_GPG_PRIVATE_KEY + CENTRAL_TOKEN_USERNAME/PASSWORD) — skipping real Maven deploy (see sdks/docs/RELEASING.md)."
+
+  publish-nuget:
+    needs: [prepare, build-typescript, build-mcp, build-python, build-csharp, build-java]
+    runs-on: ubuntu-latest
+    # `secrets` cannot be used in an `if:` expression; map the key into env.
+    env:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: sdks-stamped, path: sdks }
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: "8.0.x" }
+      - name: Pack (Release)
+        working-directory: sdks/packages/csharp
+        run: dotnet pack src/GoIos.Sdk/GoIos.Sdk.csproj --configuration Release --output ../../artifacts
+      # dotnet pack above IS the dry-run artifact build; nothing to upload on dry.
+      - name: Note (dry_run — packed, not pushed)
+        if: ${{ inputs.dry_run }}
+        run: 'echo "dry_run: packed nupkg but not pushing to NuGet."'
+      - name: Push to NuGet
+        if: ${{ !inputs.dry_run && env.NUGET_API_KEY != '' }}
+        run: |
+          dotnet nuget push "sdks/artifacts/*.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+      - name: Note if NuGet publish skipped
+        if: ${{ !inputs.dry_run && env.NUGET_API_KEY == '' }}
+        run: echo "::warning::NUGET_API_KEY not set — skipping real NuGet push. Create the package id + NUGET_API_KEY secret (see sdks/docs/RELEASING.md)."
+
+  # ------------------------- TAG + GITHUB RELEASE ---------------------------
+  # Only after every publish job succeeds AND this was not a dry run. This is the
+  # single mutating step against the repo, so an earlier failure leaves no tag.
+  tag-and-release:
+    needs: [prepare, publish-npm, publish-pypi, publish-maven, publish-nuget]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create SDK tag + GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "sdk-v${VERSION}"
+          git push origin "sdk-v${VERSION}"
+          gh release create "sdk-v${VERSION}" \
+            --title "SDKs v${VERSION}" \
+            --notes "go-ios SDKs v${VERSION} (typescript, python, java, csharp; mcp bundled). Lockstep release generated from sdks/spec/openapi/openapi.yaml."
