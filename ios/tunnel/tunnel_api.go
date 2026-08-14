@@ -16,6 +16,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/discovery"
 	"github.com/danielpaulus/go-ios/ios/golog"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -204,6 +205,17 @@ func tunnelInfoMux(tm *TunnelManager) *http.ServeMux {
 			return
 		}
 	})
+	mux.HandleFunc("/devices", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			writer.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		devices := tm.cachedDevices()
+		writer.Header().Add("Content-Type", "application/json")
+		if err := json.NewEncoder(writer).Encode(devices); err != nil {
+			golog.Error("failed to encode devices", "module", logModule, "error", err)
+		}
+	})
 	return mux
 }
 
@@ -339,6 +351,10 @@ type TunnelManager struct {
 	// basePort is the base for derived userspace listener ports (the agent's own
 	// tunnel-info port), so per-device agents on different ports don't collide.
 	basePort int
+	// deviceCache holds the most recent warm device-discovery snapshot served
+	// over GET /devices, refreshed periodically by the background discoverer.
+	deviceCacheMux sync.Mutex
+	deviceCache    []discovery.Device
 }
 
 // NewTunnelManager creates a new TunnelManager instance for setting up device tunnels for all connected devices
@@ -399,6 +415,64 @@ func (m *TunnelManager) FirstUpdateCompleted() bool {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	return m.firstUpdateCompleted
+}
+
+// cachedDevices returns a copy of the most recent warm device-discovery
+// snapshot. It never returns nil so the /devices handler can always encode a
+// JSON array (an empty cache serializes as []).
+func (m *TunnelManager) cachedDevices() []discovery.Device {
+	m.deviceCacheMux.Lock()
+	defer m.deviceCacheMux.Unlock()
+	devices := make([]discovery.Device, len(m.deviceCache))
+	copy(devices, m.deviceCache)
+	return devices
+}
+
+// tunnelInfos maps the agent's own running tunnels to the plain TunnelInfo
+// input discovery expects (so discovery needn't import this package).
+func (m *TunnelManager) tunnelInfos() []discovery.TunnelInfo {
+	tunnels, err := m.ListTunnels()
+	if err != nil {
+		golog.Debug("failed to list tunnels for discovery, continuing", "module", logModule, "error", err)
+		return nil
+	}
+	infos := make([]discovery.TunnelInfo, 0, len(tunnels))
+	for _, t := range tunnels {
+		infos = append(infos, discovery.TunnelInfo{
+			Udid:                t.Udid,
+			Address:             t.Address,
+			RsdPort:             t.RsdPort,
+			UserspaceTunnelPort: t.UserspaceTUNPort,
+		})
+	}
+	return infos
+}
+
+// RunDeviceDiscovery periodically refreshes the warm device cache served over
+// GET /devices. Every ~5s it runs discovery.Discover with a ~2s bounded ctx,
+// folding in the agent's own running tunnels, and stores the result under a
+// mutex. It runs until ctx is cancelled.
+func (m *TunnelManager) RunDeviceDiscovery(ctx context.Context) {
+	refresh := func() {
+		discoverCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		devices := discovery.Discover(discoverCtx, m.tunnelInfos(), false)
+		m.deviceCacheMux.Lock()
+		m.deviceCache = devices
+		m.deviceCacheMux.Unlock()
+	}
+
+	refresh()
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			refresh()
+		}
+	}
 }
 
 // UpdateTunnels checks for connected devices and starts a new tunnel if needed
