@@ -10,7 +10,32 @@ import (
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/time/rate"
 )
+
+// RateLimitUDID returns a gin middleware that rate-limits requests per device
+// UDID with a token bucket: perSecond sustained requests, allowing short bursts
+// up to burst. Requests over the limit are rejected with 429. perSecond <= 0
+// disables limiting. Each UDID gets its own limiter, so one device's traffic
+// never throttles another's.
+func RateLimitUDID(perSecond float64, burst int) gin.HandlerFunc {
+	if perSecond <= 0 {
+		return func(c *gin.Context) { c.Next() }
+	}
+	if burst < 1 {
+		burst = 1
+	}
+	var limiters sync.Map // udid -> *rate.Limiter
+	return func(c *gin.Context) {
+		udid := c.MustGet(IOS_KEY).(ios.DeviceEntry).Properties.SerialNumber
+		l, _ := limiters.LoadOrStore(udid, rate.NewLimiter(rate.Limit(perSecond), burst))
+		if !l.(*rate.Limiter).Allow() {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded for device " + udid})
+			return
+		}
+		c.Next()
+	}
+}
 
 // BearerAuth returns a gin middleware that requires callers to present the
 // configured token in an `Authorization: Bearer <token>` header. The comparison
