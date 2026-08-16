@@ -99,6 +99,7 @@ func needsAutomaticTunnelInfo(args docopt.Opts) bool {
 		"ostrace",
 		"pasteboard",
 		"ps",
+		"remote",
 		"resetlocation",
 		"runwda",
 		"runxctest",
