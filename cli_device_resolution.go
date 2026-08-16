@@ -77,7 +77,7 @@ func resolveDevice(arguments docopt.Opts, tunnelInfo tunnelInfoConfig) ios.Devic
 }
 
 func needsAutomaticTunnelInfo(args docopt.Opts) bool {
-	if boolArg(args, "rsd") || boolArg(args, "file") || boolArg(args, "webinspector") {
+	if boolArg(args, "rsd") || boolArg(args, "file") || boolArg(args, "fetchsymbols") || boolArg(args, "webinspector") {
 		return true
 	}
 	if boolArg(args, "info") && boolArg(args, "display") {
