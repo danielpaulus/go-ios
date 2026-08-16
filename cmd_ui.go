@@ -1,44 +1,36 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/danielpaulus/go-ios/ios/uidriver"
 	"github.com/docopt/docopt-go"
 )
 
 const (
-	defaultUIDriver      = "devicekit"
-	defaultWDAURL        = "http://127.0.0.1:8100"
-	defaultDeviceKitURL  = "http://127.0.0.1:12004"
-	uiDriverWDA          = "wda"
-	uiDriverDeviceKit    = "devicekit"
-	uiDriverAuto         = "auto"
-	deviceKitRPCProtocol = "2.0"
+	defaultUIDriver     = "devicekit"
+	defaultWDAURL       = uidriver.DefaultWDAURL
+	defaultDeviceKitURL = uidriver.DefaultDeviceKitURL
+	uiDriverWDA         = "wda"
+	uiDriverDeviceKit   = "devicekit"
+	uiDriverAuto        = "auto"
 )
 
+// uiClient wires the CLI arguments to a reusable uidriver.Driver. Argument
+// parsing, backend resolution and output formatting live here; all HTTP work
+// is delegated to the ios/uidriver package.
 type uiClient struct {
 	driver       string
 	wdaURL       string
 	deviceKitURL string
-	httpClient   *http.Client
 	sessionID    string
-}
-
-type uiHTTPResponse struct {
-	StatusCode int
-	Header     http.Header
-	Body       []byte
 }
 
 func runUICommand(ctx commandContext) {
@@ -51,26 +43,26 @@ func runUICommand(ctx commandContext) {
 
 	switch {
 	case boolArg(ctx.Args, "status"):
-		client.printStatus()
+		printUIResponse(client.driverOrExit().Status())
 	case boolArg(ctx.Args, "api") || boolArg(ctx.Args, "raw"):
 		client.api(ctx)
 	case boolArg(ctx.Args, "tap"):
-		client.tap(requiredIntArg(ctx.Args, "--x"), requiredIntArg(ctx.Args, "--y"))
+		printUIResponse(client.driverOrExit().Tap(requiredIntArg(ctx.Args, "--x"), requiredIntArg(ctx.Args, "--y")))
 	case boolArg(ctx.Args, "swipe"):
-		client.swipe(
+		printUIResponse(client.driverOrExit().Swipe(
 			requiredIntArg(ctx.Args, "--from-x"),
 			requiredIntArg(ctx.Args, "--from-y"),
 			requiredIntArg(ctx.Args, "--to-x"),
 			requiredIntArg(ctx.Args, "--to-y"),
 			optionalFloatArg(ctx.Args, "--duration", 0),
-		)
+		))
 	case boolArg(ctx.Args, "longpress"):
-		client.longPress(requiredIntArg(ctx.Args, "--x"), requiredIntArg(ctx.Args, "--y"), optionalFloatArg(ctx.Args, "--duration", 1))
+		printUIResponse(client.driverOrExit().LongPress(requiredIntArg(ctx.Args, "--x"), requiredIntArg(ctx.Args, "--y"), optionalFloatArg(ctx.Args, "--duration", 1)))
 	case boolArg(ctx.Args, "type"):
-		client.typeText(requiredStringArg(ctx.Args, "--text"))
+		printUIResponse(client.driverOrExit().Type(requiredStringArg(ctx.Args, "--text")))
 	case boolArg(ctx.Args, "button"):
 		button, _ := ctx.Args.String("<button>")
-		client.button(button)
+		printUIResponse(client.driverOrExit().PressButton(button))
 	case boolArg(ctx.Args, "screenshot"):
 		output, _ := ctx.Args.String("--output")
 		client.screenshot(output)
@@ -78,7 +70,7 @@ func runUICommand(ctx commandContext) {
 		output, _ := ctx.Args.String("--output")
 		client.source(output)
 	case boolArg(ctx.Args, "size"):
-		client.size()
+		printUIResponse(client.driverOrExit().WindowSize())
 	case boolArg(ctx.Args, "orientation"):
 		client.orientation(ctx)
 	case boolArg(ctx.Args, "app"):
@@ -113,123 +105,70 @@ func newUIClient(args docopt.Opts) uiClient {
 		deviceKitURL = defaultDeviceKitURL
 	}
 	sessionID, _ := args.String("--session-id")
-	client := uiClient{
+	return uiClient{
 		driver:       driver,
 		wdaURL:       strings.TrimRight(wdaURL, "/"),
 		deviceKitURL: strings.TrimRight(deviceKitURL, "/"),
-		httpClient:   &http.Client{Timeout: 60 * time.Second},
 		sessionID:    sessionID,
 	}
-	client.resolveDriver()
-	return client
 }
 
-func (c *uiClient) resolveDriver() {
+// resolveBackend maps the CLI --driver value (wda/devicekit/auto) to a concrete
+// uidriver.Backend and its base URL, probing health for the auto mode.
+func (c uiClient) resolveBackend() (uidriver.Backend, string) {
 	switch c.driver {
-	case uiDriverWDA, uiDriverDeviceKit:
-		return
+	case uiDriverWDA:
+		return uidriver.BackendWDA, c.wdaURL
+	case uiDriverDeviceKit:
+		return uidriver.BackendDeviceKit, c.deviceKitURL
 	case uiDriverAuto:
-		if c.deviceKitHealthy() {
-			c.driver = uiDriverDeviceKit
-			return
+		if d, err := uidriver.New(uidriver.BackendDeviceKit, c.deviceKitURL); err == nil && d.Healthy() {
+			return uidriver.BackendDeviceKit, c.deviceKitURL
 		}
-		if c.wdaHealthy() {
-			c.driver = uiDriverWDA
-			return
+		if d, err := uidriver.New(uidriver.BackendWDA, c.wdaURL); err == nil && d.Healthy() {
+			return uidriver.BackendWDA, c.wdaURL
 		}
 		logFatal("no UI automation backend reachable; start DeviceKit on 127.0.0.1:12004 or WDA on 127.0.0.1:8100, or pass --driver and --*-url")
+		return "", ""
 	default:
 		logFatal("unknown --driver: " + c.driver)
+		return "", ""
 	}
 }
 
-func (c uiClient) printStatus() {
-	switch c.driver {
-	case uiDriverDeviceKit:
-		printUIResponse(c.deviceKitHTTP(http.MethodGet, "/health", nil))
-	case uiDriverWDA:
-		printUIResponse(c.wdaHTTP(http.MethodGet, "/status", nil))
+// driverOrExit builds a uidriver.Driver for the resolved backend or exits on error.
+func (c uiClient) driverOrExit() *uidriver.Driver {
+	backend, baseURL := c.resolveBackend()
+	opts := []uidriver.Option{uidriver.WithTimeout(60 * time.Second)}
+	if c.sessionID != "" {
+		opts = append(opts, uidriver.WithSessionID(c.sessionID))
 	}
+	d, err := uidriver.New(backend, baseURL, opts...)
+	exitIfError("failed creating ui driver", err)
+	return d
 }
 
-func (c *uiClient) api(ctx commandContext) {
-	switch c.driver {
-	case uiDriverDeviceKit:
-		methodName := requiredStringArg(ctx.Args, "--rpc-method")
-		params := rawParamsFromArgs(ctx)
-		printUIResponse(c.deviceKitRPC(methodName, params))
-	case uiDriverWDA:
+func (c uiClient) api(ctx commandContext) {
+	d := c.driverOrExit()
+	switch d.Backend() {
+	case uidriver.BackendDeviceKit:
+		printUIResponse(d.API(uidriver.APIRequest{
+			RPCMethod: requiredStringArg(ctx.Args, "--rpc-method"),
+			RPCParams: rawParamsFromArgs(ctx),
+		}))
+	case uidriver.BackendWDA:
 		method, _ := ctx.Args.String("--method")
-		if method == "" {
-			method = http.MethodGet
-		}
-		httpPath := requiredStringArg(ctx.Args, "--http-path")
-		body := requestBodyFromArgs(ctx)
-		printUIResponse(c.wdaHTTP(strings.ToUpper(method), httpPath, body))
+		printUIResponse(d.API(uidriver.APIRequest{
+			Method: method,
+			Path:   requiredStringArg(ctx.Args, "--http-path"),
+			Body:   requestBodyFromArgs(ctx),
+		}))
 	}
 }
 
-func (c *uiClient) tap(x, y int) {
-	switch c.driver {
-	case uiDriverDeviceKit:
-		printUIResponse(c.deviceKitRPC("device.io.tap", map[string]interface{}{"x": x, "y": y}))
-	case uiDriverWDA:
-		printUIResponse(c.wdaHTTP(http.MethodPost, wdaPath("session", c.wdaSession(), "wda", "tap", strconv.Itoa(x), strconv.Itoa(y)), nil))
-	}
-}
-
-func (c *uiClient) swipe(fromX, fromY, toX, toY int, duration float64) {
-	switch c.driver {
-	case uiDriverDeviceKit:
-		printUIResponse(c.deviceKitRPC("device.io.swipe", map[string]interface{}{"fromX": fromX, "fromY": fromY, "toX": toX, "toY": toY, "duration": duration}))
-	case uiDriverWDA:
-		body := map[string]interface{}{"fromX": fromX, "fromY": fromY, "toX": toX, "toY": toY, "duration": duration}
-		printUIResponse(c.wdaHTTP(http.MethodPost, wdaPath("session", c.wdaSession(), "wda", "dragfromtoforduration"), mustJSON(body)))
-	}
-}
-
-func (c *uiClient) longPress(x, y int, duration float64) {
-	switch c.driver {
-	case uiDriverDeviceKit:
-		printUIResponse(c.deviceKitRPC("device.io.longpress", map[string]interface{}{"x": x, "y": y, "duration": duration}))
-	case uiDriverWDA:
-		body := map[string]interface{}{"x": x, "y": y, "duration": duration}
-		printUIResponse(c.wdaHTTP(http.MethodPost, wdaPath("session", c.wdaSession(), "wda", "touchAndHold"), mustJSON(body)))
-	}
-}
-
-func (c *uiClient) typeText(text string) {
-	switch c.driver {
-	case uiDriverDeviceKit:
-		printUIResponse(c.deviceKitRPC("device.io.text", map[string]interface{}{"text": text}))
-	case uiDriverWDA:
-		printUIResponse(c.wdaHTTP(http.MethodPost, wdaPath("session", c.wdaSession(), "keys"), mustJSON(textBody(text))))
-	}
-}
-
-func (c *uiClient) button(button string) {
-	switch c.driver {
-	case uiDriverDeviceKit:
-		printUIResponse(c.deviceKitRPC("device.io.button", map[string]interface{}{"button": button}))
-	case uiDriverWDA:
-		if strings.EqualFold(button, "home") {
-			printUIResponse(c.wdaHTTP(http.MethodPost, wdaPath("session", c.wdaSession(), "wda", "homescreen"), nil))
-			return
-		}
-		logFatal("WDA only supports the home button through this command; use --driver=devicekit for lock/volume buttons")
-	}
-}
-
-func (c *uiClient) screenshot(output string) {
-	var image []byte
-	switch c.driver {
-	case uiDriverDeviceKit:
-		resp := c.deviceKitRPC("device.screenshot", map[string]interface{}{})
-		image = decodeBase64Response(resp.Body)
-	case uiDriverWDA:
-		resp := c.wdaHTTP(http.MethodGet, wdaPath("session", c.wdaSession(), "screenshot"), nil)
-		image = decodeBase64Response(resp.Body)
-	}
+func (c uiClient) screenshot(output string) {
+	image, err := c.driverOrExit().Screenshot()
+	exitIfError("failed capturing screenshot", err)
 	if output == "" || output == "-" {
 		_, err := os.Stdout.Write(image)
 		exitIfError("failed writing screenshot", err)
@@ -238,56 +177,33 @@ func (c *uiClient) screenshot(output string) {
 	exitIfError("failed writing screenshot", os.WriteFile(output, image, 0644))
 }
 
-func (c *uiClient) source(output string) {
-	var resp uiHTTPResponse
-	switch c.driver {
-	case uiDriverDeviceKit:
-		resp = c.deviceKitRPC("device.dump.ui", map[string]interface{}{})
-	case uiDriverWDA:
-		resp = c.wdaHTTP(http.MethodGet, wdaPath("session", c.wdaSession(), "source"), nil)
-	}
-	writeOrPrintResponse(resp, output)
+func (c uiClient) source(output string) {
+	resp, err := c.driverOrExit().Source()
+	writeOrPrintResponse(resp, err, output)
 }
 
-func (c *uiClient) size() {
-	switch c.driver {
-	case uiDriverDeviceKit:
-		printUIResponse(c.deviceKitRPC("device.info", map[string]interface{}{}))
-	case uiDriverWDA:
-		printUIResponse(c.wdaHTTP(http.MethodGet, wdaPath("session", c.wdaSession(), "window", "size"), nil))
-	}
-}
-
-func (c *uiClient) orientation(ctx commandContext) {
-	switch {
-	case boolArg(ctx.Args, "set"):
+func (c uiClient) orientation(ctx commandContext) {
+	d := c.driverOrExit()
+	if boolArg(ctx.Args, "set") {
 		orientation, _ := ctx.Args.String("<orientation>")
 		if orientation == "" {
 			orientation = requiredStringArg(ctx.Args, "--orientation")
 		}
-		switch c.driver {
-		case uiDriverDeviceKit:
-			printUIResponse(c.deviceKitRPC("device.io.orientation.set", map[string]interface{}{"orientation": orientation}))
-		case uiDriverWDA:
-			printUIResponse(c.wdaHTTP(http.MethodPost, wdaPath("session", c.wdaSession(), "orientation"), mustJSON(map[string]string{"orientation": orientation})))
-		}
-	default:
-		switch c.driver {
-		case uiDriverDeviceKit:
-			printUIResponse(c.deviceKitRPC("device.io.orientation.get", map[string]interface{}{}))
-		case uiDriverWDA:
-			printUIResponse(c.wdaHTTP(http.MethodGet, wdaPath("session", c.wdaSession(), "orientation"), nil))
-		}
+		printUIResponse(d.SetOrientation(orientation))
+		return
 	}
+	printUIResponse(d.Orientation())
 }
 
-func (c *uiClient) app(ctx commandContext) {
+func (c uiClient) app(ctx commandContext) {
+	d := c.driverOrExit()
 	switch {
 	case boolArg(ctx.Args, "foreground"):
-		if c.driver != uiDriverDeviceKit {
+		resp, err := d.AppForeground()
+		if err == uidriver.ErrForegroundUnsupported {
 			logFatal("app foreground is only available with --driver=devicekit")
 		}
-		printUIResponse(c.deviceKitRPC("device.apps.foreground", map[string]interface{}{}))
+		printUIResponse(resp, err)
 	default:
 		bundleID, _ := ctx.Args.String("<bundleID>")
 		if bundleID == "" {
@@ -295,151 +211,50 @@ func (c *uiClient) app(ctx commandContext) {
 		}
 		switch {
 		case boolArg(ctx.Args, "launch"):
-			c.appWithBundleID("launch", bundleID)
+			printUIResponse(d.AppLaunch(bundleID))
 		case boolArg(ctx.Args, "terminate"):
-			c.appWithBundleID("terminate", bundleID)
+			printUIResponse(d.AppTerminate(bundleID))
 		default:
 			logFatal("unknown ui app command")
 		}
 	}
 }
 
-func (c *uiClient) appWithBundleID(action string, bundleID string) {
-	switch c.driver {
-	case uiDriverDeviceKit:
-		printUIResponse(c.deviceKitRPC("device.apps."+action, map[string]interface{}{"bundleId": bundleID}))
-	case uiDriverWDA:
-		printUIResponse(c.wdaHTTP(http.MethodPost, wdaPath("session", c.wdaSession(), "wda", "apps", action), mustJSON(map[string]string{"bundleId": bundleID})))
+func (c uiClient) stream(ctx commandContext) {
+	d := c.driverOrExit()
+	opts := uidriver.StreamOptions{H264: boolArg(ctx.Args, "h264")}
+	opts.FPS, _ = ctx.Args.String("--fps")
+	opts.Quality, _ = ctx.Args.String("--quality")
+	opts.Scale, _ = ctx.Args.String("--scale")
+	opts.Bitrate, _ = ctx.Args.String("--bitrate")
+	body, err := d.Stream(context.Background(), opts)
+	if err == uidriver.ErrStreamUnsupported {
+		logFatal("WDA stream supports mjpeg only; use --driver=devicekit for h264")
 	}
-}
-
-func (c *uiClient) stream(ctx commandContext) {
-	streamType := "mjpeg"
-	if boolArg(ctx.Args, "h264") {
-		streamType = "h264"
-	}
-	query := url.Values{}
-	addQueryArg(ctx.Args, query, "--fps", "fps")
-	addQueryArg(ctx.Args, query, "--quality", "quality")
-	addQueryArg(ctx.Args, query, "--scale", "scale")
-	addQueryArg(ctx.Args, query, "--bitrate", "bitrate")
-	endpoint := "/" + streamType
-	if encoded := query.Encode(); encoded != "" {
-		endpoint += "?" + encoded
-	}
-	switch c.driver {
-	case uiDriverDeviceKit:
-		c.pipeHTTP(c.deviceKitURL + endpoint)
-	case uiDriverWDA:
-		if streamType != "mjpeg" {
-			logFatal("WDA stream supports mjpeg only; use --driver=devicekit for h264")
-		}
-		c.pipeHTTP(c.wdaURL + endpoint)
-	}
-}
-
-func (c *uiClient) wdaSession() string {
-	if c.sessionID != "" {
-		return c.sessionID
-	}
-	resp := c.wdaHTTP(http.MethodPost, "/session", mustJSON(map[string]interface{}{
-		"capabilities":        map[string]interface{}{},
-		"desiredCapabilities": map[string]interface{}{},
-	}))
-	sessionID := extractSessionID(resp.Body)
-	if sessionID == "" {
-		logFatal("WDA did not return a session id")
-	}
-	c.sessionID = sessionID
-	return sessionID
-}
-
-func (c uiClient) deviceKitHealthy() bool {
-	resp, err := c.httpClient.Get(c.deviceKitURL + "/health")
-	if err != nil {
-		return false
-	}
-	defer func() { _ = resp.Body.Close() }()
-	return resp.StatusCode >= 200 && resp.StatusCode < 300
-}
-
-func (c uiClient) wdaHealthy() bool {
-	resp, err := c.httpClient.Get(c.wdaURL + "/status")
-	if err != nil {
-		return false
-	}
-	defer func() { _ = resp.Body.Close() }()
-	return resp.StatusCode >= 200 && resp.StatusCode < 300
-}
-
-func (c uiClient) deviceKitRPC(method string, params interface{}) uiHTTPResponse {
-	body := mustJSON(map[string]interface{}{
-		"jsonrpc": deviceKitRPCProtocol,
-		"method":  method,
-		"params":  params,
-		"id":      1,
-	})
-	return c.deviceKitHTTP(http.MethodPost, "/rpc", body)
-}
-
-func (c uiClient) deviceKitHTTP(method string, endpoint string, body []byte) uiHTTPResponse {
-	return c.doHTTP(method, c.deviceKitURL, endpoint, body)
-}
-
-func (c uiClient) wdaHTTP(method string, endpoint string, body []byte) uiHTTPResponse {
-	return c.doHTTP(method, c.wdaURL, endpoint, body)
-}
-
-func (c uiClient) doHTTP(method string, baseURL string, endpoint string, body []byte) uiHTTPResponse {
-	if !strings.HasPrefix(endpoint, "/") {
-		endpoint = "/" + endpoint
-	}
-	req, err := http.NewRequest(method, baseURL+endpoint, bytes.NewReader(body))
-	exitIfError("failed creating UI request", err)
-	req.Header.Set("Accept", "application/json")
-	if len(body) > 0 {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := c.httpClient.Do(req)
-	exitIfError("UI request failed", err)
-	defer func() { _ = resp.Body.Close() }()
-	respBody, err := io.ReadAll(resp.Body)
-	exitIfError("failed reading UI response", err)
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		fmt.Fprintln(os.Stderr, string(respBody))
-		os.Exit(1)
-	}
-	return uiHTTPResponse{StatusCode: resp.StatusCode, Header: resp.Header, Body: respBody}
-}
-
-func (c uiClient) pipeHTTP(rawURL string) {
-	resp, err := c.httpClient.Get(rawURL)
 	exitIfError("stream request failed", err)
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		body, _ := io.ReadAll(resp.Body)
-		fmt.Fprintln(os.Stderr, string(body))
-		os.Exit(1)
-	}
-	_, err = io.Copy(os.Stdout, resp.Body)
+	defer func() { _ = body.Close() }()
+	_, err = io.Copy(os.Stdout, body)
 	exitIfError("stream copy failed", err)
 }
 
-func printUIResponse(resp uiHTTPResponse) {
+// printUIResponse pretty-prints a driver response, exiting on a non-nil error.
+func printUIResponse(resp uidriver.Response, err error) {
+	exitIfError("ui request failed", err)
 	if len(resp.Body) == 0 {
 		return
 	}
 	var data interface{}
-	if err := json.Unmarshal(resp.Body, &data); err != nil {
+	if uerr := json.Unmarshal(resp.Body, &data); uerr != nil {
 		fmt.Print(string(resp.Body))
 		return
 	}
 	fmt.Println(convertToJSONString(data))
 }
 
-func writeOrPrintResponse(resp uiHTTPResponse, output string) {
+func writeOrPrintResponse(resp uidriver.Response, err error, output string) {
+	exitIfError("ui request failed", err)
 	if output == "" || output == "-" {
-		printUIResponse(resp)
+		printUIResponse(resp, nil)
 		return
 	}
 	exitIfError("failed writing output", os.WriteFile(output, resp.Body, 0644))
@@ -481,17 +296,6 @@ func rawParamsFromArgs(ctx commandContext) interface{} {
 	return decoded
 }
 
-func textBody(text string) map[string]interface{} {
-	return map[string]interface{}{
-		"text":  text,
-		"value": []string{text},
-	}
-}
-
-func wdaPath(parts ...string) string {
-	return "/" + path.Join(parts...)
-}
-
 func requiredStringArg(args docopt.Opts, name string) string {
 	value, _ := args.String(name)
 	if value == "" {
@@ -516,70 +320,4 @@ func optionalFloatArg(args docopt.Opts, name string, fallback float64) float64 {
 	floatValue, err := strconv.ParseFloat(value, 64)
 	exitIfError("failed parsing "+name, err)
 	return floatValue
-}
-
-func mustJSON(data interface{}) []byte {
-	body, err := json.Marshal(data)
-	exitIfError("failed encoding UI request body", err)
-	return body
-}
-
-func decodeBase64Response(body []byte) []byte {
-	encoded := findBase64Value(body)
-	if encoded == "" {
-		logFatal("response did not contain a base64 image")
-	}
-	image, err := base64.StdEncoding.DecodeString(encoded)
-	exitIfError("failed decoding base64 image", err)
-	return image
-}
-
-func findBase64Value(body []byte) string {
-	var decoded interface{}
-	if err := json.Unmarshal(body, &decoded); err != nil {
-		return ""
-	}
-	return findBase64String(decoded)
-}
-
-func findBase64String(value interface{}) string {
-	switch typed := value.(type) {
-	case string:
-		return typed
-	case map[string]interface{}:
-		for _, key := range []string{"value", "result", "image", "screenshot", "data"} {
-			if nested, ok := typed[key]; ok {
-				if result := findBase64String(nested); result != "" {
-					return result
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func extractSessionID(body []byte) string {
-	var decoded map[string]interface{}
-	if err := json.Unmarshal(body, &decoded); err != nil {
-		return ""
-	}
-	if sessionID, ok := decoded["sessionId"].(string); ok {
-		return sessionID
-	}
-	if value, ok := decoded["value"].(map[string]interface{}); ok {
-		if sessionID, ok := value["sessionId"].(string); ok {
-			return sessionID
-		}
-		if sessionID, ok := value["session_id"].(string); ok {
-			return sessionID
-		}
-	}
-	return ""
-}
-
-func addQueryArg(args docopt.Opts, query url.Values, argName string, queryName string) {
-	value, _ := args.String(argName)
-	if value != "" {
-		query.Set(queryName, value)
-	}
 }
