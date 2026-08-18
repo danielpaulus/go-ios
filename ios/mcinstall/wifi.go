@@ -144,12 +144,15 @@ func isSupervised(conn *Connection) bool {
 	if err != nil {
 		return false
 	}
-	cloudCfg, ok := cfg["CloudConfiguration"].(map[string]interface{})
-	if !ok {
-		return false
+	if cc, ok := cfg["CloudConfiguration"].(map[string]interface{}); ok {
+		if s, ok := cc["IsSupervised"].(bool); ok {
+			return s
+		}
 	}
-	s, _ := cloudCfg["IsSupervised"].(bool)
-	return s
+	if s, ok := cfg["IsSupervised"].(bool); ok {
+		return s
+	}
+	return false
 }
 
 // sanitizeIdentifier converts a string into an Apple-compatible PayloadIdentifier fragment.
