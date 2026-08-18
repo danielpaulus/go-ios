@@ -39,7 +39,7 @@ func PrepareWifi(device ios.DeviceEntry, ssid string, psw string, encType string
 	golog.Debug("flush response", "module", logModule, "udid", device.Properties.SerialNumber, "response", re)
 
 	supervised := isSupervised(conn)
-	golog.Info("PrepareWifi: device supervised: ", supervised)
+	golog.Info("PrepareWifi: device supervised: ", "module", logModule, "udid", device.Properties.SerialNumber, "IsSupervised", supervised)
 
 	err = conn.EscalateUnsupervised()
 	if err != nil {
@@ -72,14 +72,14 @@ func PrepareWifi(device ios.DeviceEntry, ssid string, psw string, encType string
 		if err != nil {
 			return fmt.Errorf("PrepareWifi: %w", err)
 		}
-		golog.Info("Successfully installed wifi profile")
+		golog.Info("Successfully installed wifi profile", "module", logModule, "udid", device.Properties.SerialNumber, "ssid", ssid)
 	} else {
 		if err := conn.AddProfile([]byte(profile)); err != nil {
 			return fmt.Errorf("PrepareWifi: %w", err)
 		}
 		if supervised {
-			golog.Warn("device is supervised, but supervision credentials were not given.",
-						   "The Wi-Fi profile must be approved manually on the device (Settings > General > VPN & Device Management) before it takes effect.")
+			golog.Warn("device is supervised, but supervision credentials were not given. The Wi-Fi profile must be approved manually on the device (Settings > General > VPN & Device Management) before it takes effect.",
+			"module", logModule, "udid", device.Properties.SerialNumber, "ssid", ssid)
 		} else {
 			golog.Warn("device is not supervised: the Wi-Fi profile was installed but must be approved manually on the device(Settings > General > VPN & Device Management) before it takes effect. Supervise the device for a silent install.",
 				"module", logModule, "udid", device.Properties.SerialNumber, "ssid", ssid)
