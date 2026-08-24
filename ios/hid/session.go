@@ -79,6 +79,12 @@ type Session struct {
 	// point on, so the next gesture re-negotiates instead.
 	streamLost atomic.Bool
 
+	// contactDown tracks a contact held by the streaming Touch* methods, so a
+	// session that is closed mid-gesture can lift it instead of leaving the
+	// device believing a finger is still on the screen.
+	contactDown bool
+	lastContact Point
+
 	// keyboardServiceID is the surface registered on first use by Type.
 	keyboardServiceID uint64
 	keyboardCreated   bool
@@ -318,6 +324,61 @@ func (s *Session) Type(ctx context.Context, text string) error {
 	return nil
 }
 
+// TouchDown puts a contact on the screen at p and leaves it there.
+//
+// TouchDown, TouchMove and TouchUp are the streaming counterpart to Tap and
+// Drag: they exist for live input, where each pointer sample arrives separately
+// (a user dragging a finger in a remote-control UI) rather than as a gesture
+// known up front. The device's model is absolute - every contact report says
+// "in contact at this position" - so a stream is TouchDown, any number of
+// TouchMove, then TouchUp.
+//
+// A contact left down is released by Close, but a caller that drops a stream
+// should send TouchUp itself: until then the device believes a finger is down
+// and interprets everything else in that light.
+func (s *Session) TouchDown(ctx context.Context, p Point) error {
+	return s.sendContact(ctx, p, "TouchDown")
+}
+
+// TouchMove moves a contact that is already down. It is equivalent to
+// TouchDown at the new position - the device tracks position, not transitions -
+// but the separate name keeps caller code honest about intent.
+func (s *Session) TouchMove(ctx context.Context, p Point) error {
+	return s.sendContact(ctx, p, "TouchMove")
+}
+
+// TouchUp lifts the contact at p. It is a no-op when nothing is down, so an
+// input stream that sends a stray release cannot desynchronise the device.
+func (s *Session) TouchUp(ctx context.Context, p Point) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if err := s.checkOpen(); err != nil {
+		return err
+	}
+	if !s.contactDown {
+		return nil
+	}
+	if err := s.hid.SendTouchscreen(TouchRelease, p.X, p.Y, SurfaceMainTouchscreen); err != nil {
+		return fmt.Errorf("TouchUp: %w", err)
+	}
+	s.contactDown = false
+	return nil
+}
+
+func (s *Session) sendContact(ctx context.Context, p Point, op string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if err := s.beginGatedGesture(ctx); err != nil {
+		return err
+	}
+	if err := s.hid.SendTouchscreen(TouchContact, p.X, p.Y, SurfaceMainTouchscreen); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	s.contactDown = true
+	s.lastContact = p
+	return nil
+}
+
 // PressButton presses and releases a hardware button, identified in HID terms:
 // usage page 0x0C (Consumer) covers the media buttons, 0x09 (Button) the generic
 // ones.
@@ -365,6 +426,16 @@ func (s *Session) Close() error {
 		return nil
 	}
 	s.closed = true
+
+	// Lift a contact left down by an interrupted input stream first: once the
+	// stream is gone the device would keep believing a finger is on the screen.
+	if s.contactDown {
+		if err := s.hid.SendTouchscreen(TouchRelease, s.lastContact.X, s.lastContact.Y, SurfaceMainTouchscreen); err != nil {
+			golog.Warn("failed to lift a held contact while closing, the device may still consider the screen touched",
+				"module", logModule, "error", err)
+		}
+		s.contactDown = false
+	}
 
 	s.teardownStream()
 

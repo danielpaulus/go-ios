@@ -134,6 +134,33 @@ func TestUserspaceTunnelIsRejectedForStreams(t *testing.T) {
 	assert.False(t, s.StreamActive(), "a rejected stream must leave no state behind")
 }
 
+// TestTouchUpWithoutDownIsNoop covers the stray-release case an input stream can
+// produce: it must not error and must not touch the device.
+func TestTouchUpWithoutDownIsNoop(t *testing.T) {
+	s := &Session{hid: &UniversalConnection{}}
+
+	require.NoError(t, s.TouchUp(context.Background(), Point{X: 1, Y: 2}))
+	assert.False(t, s.contactDown)
+}
+
+// TestClosedSessionRejectsStreamingTouches keeps the streaming methods behind
+// the same closed-session guard as the gesture methods.
+func TestClosedSessionRejectsStreamingTouches(t *testing.T) {
+	s := &Session{closed: true}
+	ctx := context.Background()
+
+	assert.Error(t, s.TouchDown(ctx, Point{}))
+	assert.Error(t, s.TouchMove(ctx, Point{}))
+	assert.Error(t, s.TouchUp(ctx, Point{}))
+}
+
+// TestCloseWithoutHeldContactDoesNotPanic guards the Close path that lifts a
+// held contact: with nothing down it must not dereference the connection.
+func TestCloseWithoutHeldContactDoesNotPanic(t *testing.T) {
+	s := &Session{}
+	require.NoError(t, s.Close())
+}
+
 func TestSessionOptions(t *testing.T) {
 	s := &Session{displayID: display.DefaultDisplayID, typingInterval: defaultTypingInterval}
 
