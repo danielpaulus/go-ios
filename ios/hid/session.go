@@ -541,7 +541,10 @@ func (s *Session) ensureStream(ctx context.Context) error {
 		return fmt.Errorf("failed to start the media stream touch input requires: %w", err)
 	}
 
-	golog.Debug("media stream started, touch surfaces authenticated", "module", logModule,
+	// Logged at info: it happens once per session, and it is the only positive
+	// evidence that touch reports will actually reach the app rather than being
+	// silently discarded.
+	golog.Info("media stream started, touch surfaces authenticated", "module", logModule,
 		"receiver", receiver.IP(), "port", receiver.Port())
 
 	// Give backboardd a moment to re-match the surfaces against the new stream.
