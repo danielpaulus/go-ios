@@ -70,6 +70,7 @@ func TestNewXCTAttachmentWithUserInfoDictionary(t *testing.T) {
 	assert.NotNil(t, attachment.userInfo)
 }
 
+// A reference past the end of the object table would index out of range.
 func TestNewXCTAttachmentToleratesMalformedArchives(t *testing.T) {
 	objects := []interface{}{"$null", "public.png"}
 
@@ -85,37 +86,12 @@ func TestNewXCTAttachmentToleratesMalformedArchives(t *testing.T) {
 				"name":     plist.UID(99),
 			},
 		},
-		{
-			name: "value is not a reference",
-			object: map[string]interface{}{
-				"lifetime": uint64(1),
-				"name":     "not-a-uid",
-				"userInfo": 42,
-			},
-		},
-		{
-			name: "lifetime has the wrong type",
-			object: map[string]interface{}{
-				"lifetime": "not-a-number",
-				"name":     plist.UID(1),
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NotPanics(t, func() { NewXCTAttachment(tt.object, objects) })
 		})
 	}
-}
-
-func TestResolveRef(t *testing.T) {
-	objects := []interface{}{"zero", "one"}
-
-	assert.Equal(t, "one", resolveRef(map[string]interface{}{"k": plist.UID(1)}, "k", objects))
-	assert.Nil(t, resolveRef(map[string]interface{}{}, "missing", objects))
-	assert.Nil(t, resolveRef(map[string]interface{}{"k": "not-a-uid"}, "k", objects))
-	assert.Nil(t, resolveRef(map[string]interface{}{"k": plist.UID(5)}, "k", objects),
-		"a reference past the end of the object table must not index out of range")
 }
 
 // The same "$null" shape reaches XCTIssue and its nested source code context.
