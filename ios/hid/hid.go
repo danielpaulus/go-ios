@@ -1,6 +1,12 @@
 // Package hid injects HID events - touch, hardware buttons and virtual keyboard -
-// into iOS 17+ devices through the CoreDevice HID services published by the
-// Developer Disk Image's dtuhidd daemon.
+// through the CoreDevice HID services published by the Developer Disk Image's
+// dtuhidd daemon.
+//
+// The services connect from iOS 17, but input only reaches the device on iOS 27
+// and later: the media stream that authenticates the HID surfaces cannot be
+// started on earlier versions. Verified on 26.3, where getMediaSupportInfo
+// reports no supported features and startmediastream fails with CoreDevice error
+// 9021, "Remote control requires iOS 27.0 or later on this device".
 //
 // Two RemoteXPC services are wrapped:
 //

@@ -54,9 +54,9 @@ type Point struct {
 // negotiating a stream per gesture both adds seconds of latency and has been
 // observed to wedge the device's mediastream daemon until it is rebooted.
 //
-// The stream is started lazily, on the first gesture that needs it: pressing
-// hardware buttons never starts one, because the button surface is authenticated
-// out of the box.
+// The stream is started lazily, on the first gesture that needs it. Pressing
+// hardware buttons never starts one: dtuhidd already reports that surface as
+// authenticated.
 //
 // A Session is safe for concurrent use; gestures are serialised.
 type Session struct {
@@ -114,10 +114,11 @@ func WithTypingInterval(d time.Duration) SessionOption {
 // NewSession connects to the HID service on the device. It does not start a
 // media stream: that happens on the first gesture that needs one.
 //
-// Requires iOS 17+ with the Developer Disk Image mounted, and - because touch
-// input needs the device to stream back to the host - a kernel tunnel. On a
-// userspace tunnel the session opens but the first touch fails with
-// display.ErrUserspaceTunnelUnsupported.
+// Requires the Developer Disk Image mounted, iOS 27 or later, and - because the
+// device streams back to the host - a kernel tunnel. The session still opens on
+// older versions and on a userspace tunnel; the first gesture needing a stream
+// is what fails, with CoreDevice error 9021 below iOS 27 and with
+// display.ErrUserspaceTunnelUnsupported on a userspace tunnel.
 func NewSession(device ios.DeviceEntry, opts ...SessionOption) (*Session, error) {
 	s := &Session{
 		device:         device,

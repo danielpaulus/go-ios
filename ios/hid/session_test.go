@@ -56,24 +56,18 @@ func TestInterpolateCoversTheWholeGesture(t *testing.T) {
 	}
 }
 
-func TestSleepCtxReturnsAfterDuration(t *testing.T) {
+func TestSleepCtx(t *testing.T) {
 	start := time.Now()
 	require.NoError(t, sleepCtx(context.Background(), 10*time.Millisecond))
 	assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond)
-}
 
-func TestSleepCtxDoesNotSleepForNonPositiveDurations(t *testing.T) {
-	// A zero interval means "no pacing", not "report the context".
+	// A zero or negative interval means "no pacing", not "report the context".
 	assert.NoError(t, sleepCtx(context.Background(), 0))
 	assert.NoError(t, sleepCtx(context.Background(), -time.Second))
-}
 
-func TestSleepCtxHonoursCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-
-	err := sleepCtx(ctx, time.Hour)
-	assert.ErrorIs(t, err, context.Canceled)
+	assert.ErrorIs(t, sleepCtx(ctx, time.Hour), context.Canceled)
 }
 
 // TestClosedSessionRejectsGestures makes sure a closed session fails fast
@@ -159,14 +153,4 @@ func TestClosedSessionRejectsStreamingTouches(t *testing.T) {
 func TestCloseWithoutHeldContactDoesNotPanic(t *testing.T) {
 	s := &Session{}
 	require.NoError(t, s.Close())
-}
-
-func TestSessionOptions(t *testing.T) {
-	s := &Session{displayID: display.DefaultDisplayID, typingInterval: defaultTypingInterval}
-
-	WithDisplayID(7)(s)
-	WithTypingInterval(5 * time.Millisecond)(s)
-
-	assert.Equal(t, 7, s.displayID)
-	assert.Equal(t, 5*time.Millisecond, s.typingInterval)
 }

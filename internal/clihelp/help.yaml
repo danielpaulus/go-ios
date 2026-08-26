@@ -297,7 +297,7 @@ commands:
     summary: Print version.
   - path: hid
     usage: ios hid (services | tap | drag | button | type | session) [options]
-    summary: Inject touch, hardware button and keyboard input (iOS 17+, kernel tunnel).
+    summary: Inject touch, hardware button and keyboard input (iOS 27+, kernel tunnel).
   - path: voiceover
     usage: ios voiceover (enable | disable | toggle | get) [--force] [options]
     summary: Manage VoiceOver state.

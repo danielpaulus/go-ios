@@ -1,6 +1,7 @@
 // Package display drives com.apple.coredevice.displayservice, the CoreDevice
-// service behind Xcode's device screen view, on iOS 17+ devices with a mounted
-// Developer Disk Image.
+// service behind Xcode's device screen view. The service is reachable from iOS
+// 17 with a mounted Developer Disk Image, but only iOS 27 and later will start a
+// stream; 26.3 reports no supported media features and refuses with error 9021.
 //
 // go-ios uses it for one purpose: dtuhidd publishes the HID digitizer surfaces
 // as unauthenticated until a media stream is running, and backboardd silently
