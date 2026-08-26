@@ -8,12 +8,9 @@ import (
 	"howett.net/plist"
 )
 
-// iOS 27 sends XCUITest attachments with no userInfo, which NSKeyedArchiver
-// encodes as the string "$null" rather than a dictionary. NewXCTAttachment used
-// to assert a dictionary there, so decoding panicked; Unarchive recovered it as
-// "Unarchive: interface conversion: interface {} is string, not
-// map[string]interface {}", which failed the whole XCUITest run and left devices
-// stuck in cleaning.
+// Attachments with no userInfo encode it as the string "$null". Asserting a
+// dictionary there panicked, and Unarchive turned that into an error that failed
+// the whole XCUITest run.
 func TestNewXCTAttachmentWithNullUserInfo(t *testing.T) {
 	objects := []interface{}{
 		"$null",              // 0
@@ -73,8 +70,6 @@ func TestNewXCTAttachmentWithUserInfoDictionary(t *testing.T) {
 	assert.NotNil(t, attachment.userInfo)
 }
 
-// Malformed archives must not panic either: missing keys, references that are
-// not references, and references past the end of the object table.
 func TestNewXCTAttachmentToleratesMalformedArchives(t *testing.T) {
 	objects := []interface{}{"$null", "public.png"}
 
@@ -123,9 +118,7 @@ func TestResolveRef(t *testing.T) {
 		"a reference past the end of the object table must not index out of range")
 }
 
-// The same "$null" shape reaches XCTIssue and its nested source code context:
-// an issue without a source-code context, or a context without a location,
-// panicked in the same way and accounted for the rest of the failures.
+// The same "$null" shape reaches XCTIssue and its nested source code context.
 func TestNewXCTIssueWithNullSourceCodeContext(t *testing.T) {
 	objects := []interface{}{"$null", "compact", "detailed"}
 	object := map[string]interface{}{

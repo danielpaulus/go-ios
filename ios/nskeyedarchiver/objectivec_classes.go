@@ -327,10 +327,9 @@ type XCTAttachment struct {
 	userInfo              map[string]interface{}
 }
 
-// resolveRef follows a keyed archive reference and returns what it points at, or
-// nil when the key is absent, is not a reference, or points outside the object
-// table. Callers type-assert the result with the comma ok form, so a field the
-// device omitted yields a zero value instead of a panic.
+// resolveRef follows a keyed archive reference, returning nil when the key is
+// absent, is not a reference, or points outside the object table. Callers
+// comma-ok assert the result, so an omitted field yields a zero value.
 func resolveRef(object map[string]interface{}, key string, objects []interface{}) interface{} {
 	uid, isRef := object[key].(plist.UID)
 	if !isRef || int(uid) >= len(objects) {
@@ -346,11 +345,7 @@ func NewXCTAttachment(object map[string]interface{}, objects []interface{}) inte
 	timestamp, _ := resolveRef(object, "timestamp", objects).(float64)
 	name, _ := resolveRef(object, "name", objects).(string)
 
-	// An attachment with no userInfo encodes it as the string "$null" rather
-	// than a dictionary, so decode it only when it really is one. Asserting a
-	// dictionary here used to panic on iOS 27 attachments, which surfaced as
-	// "Unarchive: interface conversion: interface {} is string, not
-	// map[string]interface {}" and failed the whole XCUITest run.
+	// An absent userInfo arrives as the string "$null", not a dictionary.
 	var userInfo map[string]interface{}
 	if raw, isDict := resolveRef(object, "userInfo", objects).(map[string]interface{}); isDict {
 		userInfo, _ = extractDictionary(raw, objects, 0)
@@ -796,8 +791,6 @@ func NewXCTIssue(object map[string]interface{}, objects []interface{}) interface
 	detailedDescription, _ := resolveRef(object, "detailed-description", objects).(string)
 	compactDescription, _ := resolveRef(object, "compact-description", objects).(string)
 
-	// An issue without a source-code context encodes it as "$null" rather than a
-	// dictionary, so decode it only when it really is one.
 	var sourceCodeContext XCTSourceCodeContext
 	if raw, isDict := resolveRef(object, "source-code-context", objects).(map[string]interface{}); isDict {
 		sourceCodeContext, _ = NewXCTSourceCodeContext(raw, objects).(XCTSourceCodeContext)
