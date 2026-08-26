@@ -90,25 +90,6 @@ type Session struct {
 	keyboardCreated   bool
 
 	closed bool
-
-	// displayID selects which display the stream mirrors.
-	displayID int
-	// typingInterval paces keyboard reports.
-	typingInterval time.Duration
-}
-
-// SessionOption configures a Session at open time.
-type SessionOption func(*Session)
-
-// WithDisplayID selects the display whose stream holds the auth gate open.
-// Defaults to the main display.
-func WithDisplayID(id int) SessionOption {
-	return func(s *Session) { s.displayID = id }
-}
-
-// WithTypingInterval sets the delay between keyboard reports sent by Type.
-func WithTypingInterval(d time.Duration) SessionOption {
-	return func(s *Session) { s.typingInterval = d }
 }
 
 // NewSession connects to the HID service on the device. It does not start a
@@ -119,15 +100,8 @@ func WithTypingInterval(d time.Duration) SessionOption {
 // older versions and on a userspace tunnel; the first gesture needing a stream
 // is what fails, with CoreDevice error 9021 below iOS 27 and with
 // display.ErrUserspaceTunnelUnsupported on a userspace tunnel.
-func NewSession(device ios.DeviceEntry, opts ...SessionOption) (*Session, error) {
-	s := &Session{
-		device:         device,
-		displayID:      display.DefaultDisplayID,
-		typingInterval: defaultTypingInterval,
-	}
-	for _, opt := range opts {
-		opt(s)
-	}
+func NewSession(device ios.DeviceEntry) (*Session, error) {
+	s := &Session{device: device}
 
 	conn, err := NewUniversal(device)
 	if err != nil {
@@ -318,7 +292,7 @@ func (s *Session) Type(ctx context.Context, text string) error {
 		if err := s.hid.SendKeyboard(s.keyboardServiceID); err != nil {
 			return fmt.Errorf("Type: failed to release %q: %w", string(ch), err)
 		}
-		if err := sleepCtx(ctx, s.typingInterval); err != nil {
+		if err := sleepCtx(ctx, defaultTypingInterval); err != nil {
 			return fmt.Errorf("Type: %w", err)
 		}
 	}
@@ -534,7 +508,7 @@ func (s *Session) ensureStream(ctx context.Context) error {
 		ReceiverIP:   receiver.IP(),
 		ReceiverPort: receiver.Port(),
 		SenderIP:     s.device.Address,
-		DisplayID:    s.displayID,
+		DisplayID:    display.DefaultDisplayID,
 	})
 	s.streamAnswer = answer
 	if err != nil {

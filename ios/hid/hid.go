@@ -30,16 +30,13 @@
 // as real UIEventTypeTouches; the stream's RTP payload can be discarded, it only
 // has to exist.
 //
-// Session handles this: it starts a stream through package ios/display the first
-// time a gesture needs one and holds it open for the session's lifetime. Prefer
-// Session over driving UniversalConnection directly, and reach for the raw
-// SendReport/SendTouchscreen/SendKeyboard primitives only when managing the
-// stream yourself.
-//
 // The gate is per client - a stream started by Xcode does not authenticate our
-// reports - and it covers the touchscreen, gesture and keyboard surfaces.
-// Hardware buttons are exempt: their surface is authenticated out of the box, so
-// Session.PressButton never starts a stream.
+// reports - and covers the touchscreen, gesture and keyboard surfaces. Hardware
+// buttons are exempt: dtuhidd already reports that surface as authenticated.
+//
+// Session handles all of this and is the intended entry point; the raw
+// SendReport/SendTouchscreen/SendKeyboard primitives are for callers managing the
+// stream themselves.
 package hid
 
 import (

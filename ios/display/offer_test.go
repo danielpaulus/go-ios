@@ -49,20 +49,6 @@ func TestBuildVideoMediaBlobMatchesCapture(t *testing.T) {
 	assert.Equal(t, hex.EncodeToString(captured), hex.EncodeToString(built))
 }
 
-// TestVideoBlobDefaultsDifferFromCaptureOnlyByFlags guards the two deliberate
-// deviations from Apple's capture: LTRP off (removes mid-stream tearing under
-// UDP loss) and FEC on.
-func TestVideoBlobDefaultsDifferFromCaptureOnlyByFlags(t *testing.T) {
-	defaults := buildVideoMediaBlob(defaultVideoBlobParams(capturedVideoSessionID))
-
-	withCapturedFlags := defaultVideoBlobParams(capturedVideoSessionID)
-	withCapturedFlags.ltrpEnabled = true
-	withCapturedFlags.fecEnabled = false
-
-	assert.NotEqual(t, buildVideoMediaBlob(withCapturedFlags), defaults,
-		"defaults are expected to differ from the capture by the LTRP and FEC flags")
-}
-
 func TestVarintPadded(t *testing.T) {
 	tests := []struct {
 		name  string

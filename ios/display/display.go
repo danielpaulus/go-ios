@@ -3,20 +3,14 @@
 // 17 with a mounted Developer Disk Image, but only iOS 27 and later will start a
 // stream; 26.3 reports no supported media features and refuses with error 9021.
 //
-// go-ios uses it for one purpose: dtuhidd publishes the HID digitizer surfaces
-// as unauthenticated until a media stream is running, and backboardd silently
-// discards touch reports aimed at an unauthenticated surface. Starting a video
-// stream flips the surfaces to authenticated and lets touch input through. The
-// RTP payload itself is discarded - see Receiver - so this package deliberately
+// go-ios uses it for one purpose: a running stream authenticates the HID
+// surfaces, without which touch reports are discarded (see package hid for the
+// gate). The RTP payload is thrown away - see Receiver - so this package
 // implements stream negotiation and nothing about decoding video.
 //
-// The gate is per client: a stream started by Xcode does not authenticate
-// go-ios' reports. Whoever sends the touches must own the stream.
-//
-// Streams are expensive to negotiate and the device's mediastream daemon has
-// been observed to wedge (until a reboot) when many streams are started and
-// stopped in quick succession, so hold one stream open for as long as input is
-// needed rather than one per gesture. hid.Session does this.
+// Negotiation is expensive, and the device's mediastream daemon has been observed
+// to wedge until rebooted when streams are started and stopped in quick
+// succession, so hold one open rather than one per gesture. hid.Session does.
 package display
 
 import (
@@ -36,13 +30,11 @@ const logModule = "go-ios/display"
 const (
 	serviceName = "com.apple.coredevice.displayservice"
 
-	featureStartMediaStream    = "com.apple.coredevice.feature.startmediastream"
-	featureStopMediaStream     = "com.apple.coredevice.feature.stopmediastream"
-	featureGetMediaSupportInfo = "com.apple.coredevice.feature.getmediasupportinfo"
+	featureStartMediaStream = "com.apple.coredevice.feature.startmediastream"
+	featureStopMediaStream  = "com.apple.coredevice.feature.stopmediastream"
 
-	actionMediaStreamStart      = "com.apple.coredevice.action.mediastreamstart"
-	actionMediaStreamStop       = "com.apple.coredevice.action.mediastreamstop"
-	actionMediaStreamGetSupport = "com.apple.coredevice.action.mediastreamgetsupportinfo"
+	actionMediaStreamStart = "com.apple.coredevice.action.mediastreamstart"
+	actionMediaStreamStop  = "com.apple.coredevice.action.mediastreamstop"
 
 	// clientSupportedFeatures is a bit mask captured from devicectl describing
 	// host-side feature support.
@@ -189,13 +181,6 @@ func (s *Service) StopMediaStream(ctx context.Context, clientSessionID uuid.UUID
 	}
 	_, err := s.invoke(ctx, featureStopMediaStream, actionMediaStreamStop, input)
 	return err
-}
-
-// GetMediaSupportInfo reports the media-stream features and AVC framework
-// version the device supports. Useful as a cheap liveness probe of the
-// mediastream daemon before negotiating a stream.
-func (s *Service) GetMediaSupportInfo(ctx context.Context) (map[string]interface{}, error) {
-	return s.invoke(ctx, featureGetMediaSupportInfo, actionMediaStreamGetSupport, map[string]interface{}{})
 }
 
 // invoke sends one CoreDevice request and waits for its response, honouring ctx.

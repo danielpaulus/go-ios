@@ -159,31 +159,3 @@ func KeyForRune(ch rune) (Key, bool) {
 	k, ok := asciiToHID[ch]
 	return k, ok
 }
-
-// TypeString sends ch by ch through the keyboard surface, pressing and releasing
-// each character in turn and holding Left-Shift for those that need it.
-//
-// Characters with no US-layout mapping are skipped. Because every report carries
-// the full pressed set, each character is two reports: one with the key (and
-// Shift) down, one releasing everything.
-func (c *UniversalConnection) TypeString(serviceID uint64, s string) error {
-	for _, ch := range s {
-		k, ok := KeyForRune(ch)
-		if !ok {
-			continue
-		}
-		usages := []uint8{k.Usage}
-		if k.Shift {
-			usages = append(usages, KeyLeftShift)
-		}
-		if err := c.SendKeyboard(serviceID, usages...); err != nil {
-			return err
-		}
-		// Release everything before the next character, otherwise a repeated
-		// character reads as one continuous press.
-		if err := c.SendKeyboard(serviceID); err != nil {
-			return err
-		}
-	}
-	return nil
-}
