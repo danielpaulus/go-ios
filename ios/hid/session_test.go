@@ -72,6 +72,7 @@ func TestClosedSessionRejectsEverything(t *testing.T) {
 	assert.Error(t, s.TouchDown(ctx, Point{}))
 	assert.Error(t, s.TouchMove(ctx, Point{}))
 	assert.Error(t, s.TouchUp(ctx, Point{}))
+	assert.Error(t, s.EnsureStream(ctx))
 	_, err := s.ListServices()
 	assert.Error(t, err)
 }
@@ -99,7 +100,9 @@ func TestUserspaceTunnelIsRejectedForStreams(t *testing.T) {
 		hid:    &UniversalConnection{},
 	}
 
-	err := s.ensureStream(context.Background())
+	// Through the exported entry point, so callers warming the stream up front
+	// see the same refusal a gesture would hit.
+	err := s.EnsureStream(context.Background())
 	assert.ErrorIs(t, err, display.ErrUserspaceTunnelUnsupported)
 	assert.False(t, s.StreamActive(), "a rejected stream must leave no state behind")
 }

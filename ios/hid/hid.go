@@ -36,7 +36,9 @@
 //
 // Session handles all of this and is the intended entry point; the raw
 // SendReport/SendTouchscreen/SendKeyboard primitives are for callers managing the
-// stream themselves.
+// stream themselves. Callers feeding touches from a live input stream should
+// call Session.EnsureStream once after opening, so the stream is up before the
+// first sample arrives rather than during it.
 package hid
 
 import (

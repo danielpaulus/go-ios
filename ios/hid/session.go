@@ -439,6 +439,24 @@ func (s *Session) StreamActive() bool {
 	return s.displayService != nil && !s.streamLost.Load()
 }
 
+// EnsureStream starts the media stream that gates touch input, unless one is
+// already running.
+//
+// Gestures start it on demand, so calling this is optional. It matters for
+// callers driving touches from a live input stream: on the first gesture the
+// negotiation and the surface settle delay land in the middle of that gesture,
+// and reports sent before the surfaces are authenticated are discarded without
+// error - so the first drag of a session can silently do nothing. Calling this
+// once after NewSession moves that cost, and any failure, to session setup.
+func (s *Session) EnsureStream(ctx context.Context) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if err := s.checkOpen(); err != nil {
+		return err
+	}
+	return s.ensureStream(ctx)
+}
+
 // beginGatedGesture is the common preamble for gestures that need the auth gate
 // open. Call with the mutex held.
 func (s *Session) beginGatedGesture(ctx context.Context) error {
