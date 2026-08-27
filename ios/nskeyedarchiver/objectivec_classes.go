@@ -327,16 +327,31 @@ type XCTAttachment struct {
 	userInfo              map[string]interface{}
 }
 
-func NewXCTAttachment(object map[string]interface{}, objects []interface{}) interface{} {
-	lifetime := object["lifetime"].(uint64)
-	uniformTypeIdentifier := objects[object["uniformTypeIdentifier"].(plist.UID)].(string)
-	fileNameOverride := objects[object["fileNameOverride"].(plist.UID)].(string)
-	timestamp := objects[object["timestamp"].(plist.UID)].(float64)
-	name := objects[object["name"].(plist.UID)].(string)
-	userInfo, _ := extractDictionary(objects[object["userInfo"].(plist.UID)].(map[string]interface{}), objects, 0)
+// resolveRef follows a keyed archive reference, returning nil when the key is
+// absent, is not a reference, or points outside the object table. Callers
+// comma-ok assert the result, so an omitted field yields a zero value.
+func resolveRef(object map[string]interface{}, key string, objects []interface{}) interface{} {
+	uid, isRef := object[key].(plist.UID)
+	if !isRef || int(uid) >= len(objects) {
+		return nil
+	}
+	return objects[uid]
+}
 
-	payloadRaw := objects[object["payload"].(plist.UID)]
-	payload := extractAttachmentPayload(payloadRaw, objects)
+func NewXCTAttachment(object map[string]interface{}, objects []interface{}) interface{} {
+	lifetime, _ := object["lifetime"].(uint64)
+	uniformTypeIdentifier, _ := resolveRef(object, "uniformTypeIdentifier", objects).(string)
+	fileNameOverride, _ := resolveRef(object, "fileNameOverride", objects).(string)
+	timestamp, _ := resolveRef(object, "timestamp", objects).(float64)
+	name, _ := resolveRef(object, "name", objects).(string)
+
+	// An absent userInfo arrives as the string "$null", not a dictionary.
+	var userInfo map[string]interface{}
+	if raw, isDict := resolveRef(object, "userInfo", objects).(map[string]interface{}); isDict {
+		userInfo, _ = extractDictionary(raw, objects, 0)
+	}
+
+	payload := extractAttachmentPayload(resolveRef(object, "payload", objects), objects)
 
 	return XCTAttachment{
 		lifetime:              lifetime,
@@ -354,7 +369,7 @@ func extractAttachmentPayload(payloadRaw interface{}, objects []interface{}) []u
 	if !byteSliceOk {
 		mapPayload, mapOk := payloadRaw.(map[string]interface{})
 		if mapOk {
-			payloadClassMap, classOk := objects[mapPayload["$class"].(plist.UID)].(map[string]interface{})
+			payloadClassMap, classOk := resolveRef(mapPayload, "$class", objects).(map[string]interface{})
 			if classOk {
 				payloadClass := payloadClassMap["$classname"]
 				if payloadClass == "NSMutableData" || payloadClass == "NSData" {
@@ -772,14 +787,14 @@ type XCTIssue struct {
 }
 
 func NewXCTIssue(object map[string]interface{}, objects []interface{}) interface{} {
-	runtimeIssueSeverity := object["runtimeIssueSeverity"].(uint64)
-	detailedDescriptionRef := object["detailed-description"].(plist.UID)
-	sourceCodeContextRef := object["source-code-context"].(plist.UID)
-	compactDescriptionRef := object["compact-description"].(plist.UID)
+	runtimeIssueSeverity, _ := object["runtimeIssueSeverity"].(uint64)
+	detailedDescription, _ := resolveRef(object, "detailed-description", objects).(string)
+	compactDescription, _ := resolveRef(object, "compact-description", objects).(string)
 
-	detailedDescription := objects[detailedDescriptionRef].(string)
-	compactDescription := objects[compactDescriptionRef].(string)
-	sourceCodeContext := NewXCTSourceCodeContext(objects[sourceCodeContextRef].(map[string]interface{}), objects).(XCTSourceCodeContext)
+	var sourceCodeContext XCTSourceCodeContext
+	if raw, isDict := resolveRef(object, "source-code-context", objects).(map[string]interface{}); isDict {
+		sourceCodeContext, _ = NewXCTSourceCodeContext(raw, objects).(XCTSourceCodeContext)
+	}
 
 	return XCTIssue{RuntimeIssueSeverity: runtimeIssueSeverity, DetailedDescription: detailedDescription, CompactDescription: compactDescription, SourceCodeContext: sourceCodeContext}
 }
@@ -798,8 +813,10 @@ type XCTSourceCodeContext struct {
 }
 
 func NewXCTSourceCodeContext(object map[string]interface{}, objects []interface{}) interface{} {
-	locationRef := object["location"].(plist.UID)
-	location := NewXCTSourceCodeLocation(objects[locationRef].(map[string]interface{}), objects).(XCTSourceCodeLocation)
+	var location XCTSourceCodeLocation
+	if raw, isDict := resolveRef(object, "location", objects).(map[string]interface{}); isDict {
+		location, _ = NewXCTSourceCodeLocation(raw, objects).(XCTSourceCodeLocation)
+	}
 
 	return XCTSourceCodeContext{Location: location}
 }
@@ -810,13 +827,13 @@ type XCTSourceCodeLocation struct {
 }
 
 func NewXCTSourceCodeLocation(object map[string]interface{}, objects []interface{}) interface{} {
-	fileUrlRef := object["file-url"].(plist.UID)
-	relativeRef := objects[fileUrlRef].(map[string]interface{})["NS.relative"].(plist.UID)
-	relativePath := objects[int(relativeRef)].(string)
-	fileUrl := NewNSURL(relativePath)
-	lineNumber := object["line-number"].(uint64)
+	var relativePath string
+	if fileURL, isDict := resolveRef(object, "file-url", objects).(map[string]interface{}); isDict {
+		relativePath, _ = resolveRef(fileURL, "NS.relative", objects).(string)
+	}
+	lineNumber, _ := object["line-number"].(uint64)
 
-	return XCTSourceCodeLocation{FileUrl: fileUrl, LineNumber: lineNumber}
+	return XCTSourceCodeLocation{FileUrl: NewNSURL(relativePath), LineNumber: lineNumber}
 }
 
 func toInterfaceSliceOfTests(testSlice []XCTTestIdentifier) []interface{} {

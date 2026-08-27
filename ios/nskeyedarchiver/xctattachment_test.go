@@ -1,0 +1,136 @@
+package nskeyedarchiver
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"howett.net/plist"
+)
+
+// Attachments with no userInfo encode it as the string "$null". Asserting a
+// dictionary there panicked, and Unarchive turned that into an error that failed
+// the whole XCUITest run.
+func TestNewXCTAttachmentWithNullUserInfo(t *testing.T) {
+	objects := []interface{}{
+		"$null",              // 0
+		"public.plain-text",  // 1 uniformTypeIdentifier
+		"override.txt",       // 2 fileNameOverride
+		float64(770474977.9), // 3 timestamp
+		"Screenshot",         // 4 name
+		[]uint8{0x61, 0x62},  // 5 payload
+	}
+	object := map[string]interface{}{
+		"lifetime":              uint64(1),
+		"uniformTypeIdentifier": plist.UID(1),
+		"fileNameOverride":      plist.UID(2),
+		"timestamp":             plist.UID(3),
+		"name":                  plist.UID(4),
+		"payload":               plist.UID(5),
+		"userInfo":              plist.UID(0), // points at "$null"
+	}
+
+	var decoded interface{}
+	require.NotPanics(t, func() { decoded = NewXCTAttachment(object, objects) })
+
+	attachment, ok := decoded.(XCTAttachment)
+	require.True(t, ok)
+	assert.Equal(t, "public.plain-text", attachment.UniformTypeIdentifier)
+	assert.Equal(t, "Screenshot", attachment.Name)
+	assert.Equal(t, []uint8{0x61, 0x62}, attachment.Payload)
+	assert.Nil(t, attachment.userInfo, "a missing userInfo should decode as empty, not panic")
+}
+
+// A real userInfo dictionary must still be decoded.
+func TestNewXCTAttachmentWithUserInfoDictionary(t *testing.T) {
+	objects := []interface{}{
+		"$null",
+		"public.png",
+		"shot.png",
+		float64(1),
+		"Shot",
+		[]uint8{0x01},
+		map[string]interface{}{"NS.keys": []interface{}{}, "NS.objects": []interface{}{}},
+	}
+	object := map[string]interface{}{
+		"lifetime":              uint64(2),
+		"uniformTypeIdentifier": plist.UID(1),
+		"fileNameOverride":      plist.UID(2),
+		"timestamp":             plist.UID(3),
+		"name":                  plist.UID(4),
+		"payload":               plist.UID(5),
+		"userInfo":              plist.UID(6),
+	}
+
+	var decoded interface{}
+	require.NotPanics(t, func() { decoded = NewXCTAttachment(object, objects) })
+	attachment, ok := decoded.(XCTAttachment)
+	require.True(t, ok)
+	assert.Equal(t, "public.png", attachment.UniformTypeIdentifier)
+	assert.NotNil(t, attachment.userInfo)
+}
+
+// A reference past the end of the object table would index out of range.
+func TestNewXCTAttachmentToleratesMalformedArchives(t *testing.T) {
+	objects := []interface{}{"$null", "public.png"}
+
+	tests := []struct {
+		name   string
+		object map[string]interface{}
+	}{
+		{name: "empty object", object: map[string]interface{}{}},
+		{
+			name: "reference out of range",
+			object: map[string]interface{}{
+				"lifetime": uint64(1),
+				"name":     plist.UID(99),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NotPanics(t, func() { NewXCTAttachment(tt.object, objects) })
+		})
+	}
+}
+
+// The same "$null" shape reaches XCTIssue and its nested source code context.
+func TestNewXCTIssueWithNullSourceCodeContext(t *testing.T) {
+	objects := []interface{}{"$null", "compact", "detailed"}
+	object := map[string]interface{}{
+		"runtimeIssueSeverity": uint64(1),
+		"compact-description":  plist.UID(1),
+		"detailed-description": plist.UID(2),
+		"source-code-context":  plist.UID(0), // "$null"
+	}
+
+	var decoded interface{}
+	require.NotPanics(t, func() { decoded = NewXCTIssue(object, objects) })
+
+	issue, ok := decoded.(XCTIssue)
+	require.True(t, ok)
+	assert.Equal(t, "compact", issue.CompactDescription)
+	assert.Equal(t, "detailed", issue.DetailedDescription)
+}
+
+func TestNewXCTSourceCodeContextWithNullLocation(t *testing.T) {
+	objects := []interface{}{"$null"}
+
+	require.NotPanics(t, func() {
+		NewXCTSourceCodeContext(map[string]interface{}{"location": plist.UID(0)}, objects)
+	})
+	require.NotPanics(t, func() {
+		NewXCTSourceCodeContext(map[string]interface{}{}, objects)
+	})
+}
+
+func TestNewXCTSourceCodeLocationToleratesMissingFileURL(t *testing.T) {
+	objects := []interface{}{"$null", map[string]interface{}{"NS.relative": plist.UID(0)}}
+
+	require.NotPanics(t, func() {
+		NewXCTSourceCodeLocation(map[string]interface{}{"file-url": plist.UID(0), "line-number": uint64(3)}, objects)
+	})
+	require.NotPanics(t, func() {
+		NewXCTSourceCodeLocation(map[string]interface{}{"file-url": plist.UID(1)}, objects)
+	})
+}
