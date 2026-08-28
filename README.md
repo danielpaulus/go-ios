@@ -24,6 +24,10 @@ If you miss something your Mac can do but go-iOS can't, just request a feature i
 
 Go-iOS is getting an experimental REST-API check it out [https://github.com/danielpaulus/go-ios/tree/main/restapi](https://github.com/danielpaulus/go-ios/tree/main/restapi)
 
+# SDKs & MCP
+
+Official client SDKs for the REST-API and an MCP server live in-tree under [`sdks/`](sdks/). They are generated from a TypeSpec source that emits an OpenAPI 3.1 spec ([`sdks/spec/`](sdks/spec/)), with client packages for Python, TypeScript, Java, and C#, plus an MCP server under [`sdks/packages/`](sdks/packages/). See [`sdks/README.md`](sdks/README.md) and [`sdks/PROJECT-STATUS.md`](sdks/PROJECT-STATUS.md) for details.
+
 # Design principles:
 
 1. Using golang to compile static, small and fast binaries for all platforms very easily.

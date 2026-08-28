@@ -1,0 +1,111 @@
+# Verify SDK examples against a real go-ios REST daemon + device.
+#
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ NOT YET ACTIVE. This workflow is dispatch-only (workflow_dispatch) and is   │
+# │ INERT until the full go-ios REST daemon is deployable on the self-hosted   │
+# │ farm. The feature-complete REST daemon is NOT on `main` yet — it lands with │
+# │ PRs #817 / #821 (restapi on `main` today is minimal). Do NOT try to build   │
+# │ or start the daemon from `main` here; the "Start go-ios REST daemon" step   │
+# │ below is a documented PLACEHOLDER describing the command to fill in once     │
+# │ #817 / #821 have merged and the daemon can run on office01 / ganjalf.       │
+# └───────────────────────────────────────────────────────────────────────────┘
+#
+# What it does once activated: given a reachable go-ios REST daemon
+# (GO_IOS_BASE_URL) authenticated with the GO_IOS_API_KEY secret, and a real
+# device attached to the runner, it runs every SDK's example RUNNER in sequence
+# and fails if any exits non-zero. This is the device-dependent counterpart to
+# the always-on, device-free MCP list-tools gate in sdks.yml.
+#
+# Shared env convention (see sdks/docs/EXAMPLES.md):
+#   GO_IOS_BASE_URL  origin of the daemon (default http://localhost:8080)
+#   GO_IOS_API_KEY   bearer token (repo secret)
+#   GO_IOS_UDID      optional; first attached device is used when unset
+#   RUN_UI           set to 1 to also run the mutating UI-automation examples
+#
+# Trigger: dispatch-only for now. Once the daemon can run on the farm, this can
+# also be wired as a `workflow_call` pre-release gate from release-sdks.yml.
+
+name: Verify SDK examples (device farm)
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_ui:
+        description: "Also run the mutating UI-automation examples (RUN_UI=1)"
+        type: boolean
+        default: false
+
+# Until the daemon lands on the farm this job has no self-hosted target to run
+# on and is expected to stay unused. Kept dispatch-only so it never blocks CI.
+jobs:
+  verify:
+    name: Run every SDK example runner against a live daemon
+    # Runs on the self-hosted device farm (office01 / ganjalf), reusing the same
+    # runner labels as real-device.yml. Until #817/#821 land and the daemon is
+    # deployable there, do not dispatch this.
+    runs-on: [self-hosted, macOS]
+    env:
+      GO_IOS_BASE_URL: ${{ vars.GO_IOS_BASE_URL || 'http://localhost:8080' }}
+      GO_IOS_API_KEY: ${{ secrets.GO_IOS_API_KEY }}
+      RUN_UI: ${{ inputs.run_ui && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # ─────────────────────────────────────────────────────────────────────
+      # PLACEHOLDER — activate once the full REST daemon is on main (#817/#821).
+      #
+      # The daemon does not exist on `main` yet, so we cannot build/start it
+      # here. When it lands, replace this step with something like:
+      #
+      #   - name: Build & start go-ios REST daemon
+      #     run: |
+      #       go build -o /tmp/ios ./
+      #       /tmp/ios api --api-key "$GO_IOS_API_KEY" --addr :8080 &
+      #       # wait until GET $GO_IOS_BASE_URL/health responds
+      #       for i in $(seq 1 30); do
+      #         curl -fsS -H "Authorization: Bearer $GO_IOS_API_KEY" \
+      #           "$GO_IOS_BASE_URL/api/v1/health" && break || sleep 1
+      #       done
+      #
+      # (Default bind address is :8080 — see restapi/api/server.go and
+      #  sdks/docs/EXAMPLES.md.)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Start go-ios REST daemon (PLACEHOLDER — see #817/#821)
+        run: |
+          echo "::error::verify-sdk-examples is inert until the full go-ios REST daemon lands on main (#817/#821)."
+          echo "Fill in the daemon-start step above and remove this guard once the daemon is deployable on the farm."
+          exit 1
+
+      # --- Language toolchains (kept ready for when the gate above is removed) ---
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # --- Run each SDK's example runner; any non-zero exit fails the job ---
+      - name: TypeScript examples
+        working-directory: sdks/packages/typescript
+        run: npm ci && npm run examples
+
+      - name: Python examples
+        working-directory: sdks/packages/python
+        run: uv sync --all-extras && uv run python examples/run_all.py
+
+      - name: Java examples
+        working-directory: sdks/packages/java
+        run: bash examples/run.sh
+
+      - name: C# examples
+        working-directory: sdks/packages/csharp
+        run: dotnet run --project examples/GoIos.Examples -- run-all
+
+      - name: MCP examples (list-tools + call-tool against the live daemon)
+        working-directory: sdks/packages/mcp
+        run: npm ci && npm run build && npm run examples

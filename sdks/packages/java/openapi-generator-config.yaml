@@ -1,0 +1,34 @@
+# openapi-generator config for the go-ios Java SDK low-level client.
+#
+# Generator: java (openapi-generator 7.11.0), pinned in scripts/generate.sh.
+# HTTP library: native (java.net.http.HttpClient), Java 17 baseline.
+#
+# Regenerate with: ./scripts/generate.sh
+# Generated sources land in generated/ and ARE committed (see README).
+generatorName: java
+library: native
+inputSpec: ../../spec/openapi/openapi.yaml
+outputDir: generated
+
+# Only emit the source tree we need; the hand-written facade + Maven build
+# own packaging, tests, and docs.
+globalProperties:
+  models: ""
+  apis: ""
+  supportingFiles: ""
+  modelDocs: "false"
+  apiDocs: "false"
+  modelTests: "false"
+  apiTests: "false"
+
+additionalProperties:
+  apiPackage: com.github.danielpaulus.goios.generated.api
+  modelPackage: com.github.danielpaulus.goios.generated.model
+  invokerPackage: com.github.danielpaulus.goios.generated.invoker
+  # We build the generated sources inside the parent Maven module, so skip the
+  # generator's own pom/gradle scaffolding.
+  hideGenerationTimestamp: true
+  openApiNullable: false
+  useJakartaEe: true
+  disallowAdditionalPropertiesIfNotPresent: false
+  sourceFolder: src/main/java
