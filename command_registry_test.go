@@ -146,6 +146,7 @@ func TestNeedsAutomaticTunnelInfo(t *testing.T) {
 		{name: "assistivetouch stays tunnel-free", args: docopt.Opts{"assistivetouch": true}, want: false},
 		{name: "timeformat stays tunnel-free", args: docopt.Opts{"timeformat": true}, want: false},
 		{name: "file needs tunnel", args: docopt.Opts{"file": true}, want: true},
+		{name: "fetchsymbols needs tunnel", args: docopt.Opts{"fetchsymbols": true}, want: true},
 		{name: "rsd needs tunnel", args: docopt.Opts{"rsd": true}, want: true},
 		{name: "display info needs tunnel", args: docopt.Opts{"info": true, "display": true}, want: true},
 		{name: "plain info stays tunnel-free", args: docopt.Opts{"info": true}, want: false},

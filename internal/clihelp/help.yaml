@@ -90,6 +90,9 @@ commands:
   - path: erase
     usage: ios erase [--force] [options]
     summary: Erase device.
+  - path: fetchsymbols
+    usage: ios fetchsymbols [--path=<dir>] [options]
+    summary: Download the dyld shared cache for local symbolication (multi-GB, iOS 17+).
   - path: file ls
     usage: ios file ls [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] [--path=<path>] [options]
     summary: List files in app/group/temp/crash container.
