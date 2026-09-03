@@ -184,6 +184,8 @@ func TestKeyForRune(t *testing.T) {
 		{')', Key0, true},
 		{' ', KeySpace, false},
 		{'\n', KeyEnter, false},
+		{'\b', KeyBackspace, false},
+		{'\x7f', KeyBackspace, false},
 		{',', KeyComma, false},
 		{'?', KeySlash, true},
 		{'~', KeyGrave, true},
