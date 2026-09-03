@@ -70,6 +70,7 @@ var deviceCommands = []command{
 	commandByBool("crash", runCrashCommand),
 	commandByBool("instruments", runInstrumentsCommand),
 	commandByBool("image", runImageCommand),
+	commandByBool("hid", runHIDCommand),
 	commandByBool("assistivetouch", runAssistiveTouchCommand),
 	commandByBool("voiceover", runVoiceOverCommand),
 	commandByBool("zoom", runZoomCommand),

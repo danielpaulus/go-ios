@@ -95,6 +95,12 @@ Usage:
   ios forward [options] [<hostPort> <targetPort>] [--port=<mapping>]...
   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
+  ios hid services [options]
+  ios hid tap <x> <y> [options]
+  ios hid drag <x> <y> <tox> <toy> [--steps=<steps>] [--duration=<seconds>] [options]
+  ios hid button <usagepage> <usagecode> [options]
+  ios hid type <text> [options]
+  ios hid session [--script=<file>] [options]
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
   ios httpproxy remove [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
@@ -304,6 +310,24 @@ The commands work as following:
     ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
                                                                   Remove | treeview | mkdir in target path.
                                                                   --r used alongside rm will recursively remove all files and directories from target path.
+
+    ios hid services [options]                                    List the HID surfaces registered on the device as JSON, with their _ServiceID.
+    ios hid tap <x> <y> [options]                                 Tap the touchscreen. Coordinates are normalised across the display:
+                                                                  0 is the left/top edge, 65535 the right/bottom. iOS 17+ and a kernel tunnel.
+    ios hid drag <x> <y> <tox> <toy> [--steps=<steps>] [--duration=<seconds>] [options]
+                                                                  Drag from one point to another with the contact held down. --steps sets how
+                                                                  many samples are sent and --duration how long the drag takes, which together
+                                                                  decide whether the device reads a flick or a slow drag. Defaults: 8 steps
+                                                                  over 0.1s, which reads as a flick.
+    ios hid button <usagepage> <usagecode> [options]              Press and release a hardware button, e.g. usage page 12 (Consumer) for the
+                                                                  media keys. Buttons need no media stream.
+    ios hid type <text> [options]                                 Register a virtual keyboard and type text through it.
+    ios hid session [--script=<file>] [options]                   Run a batch of gestures through ONE media stream, read from --script or
+                                                                  stdin. One gesture per line: 'tap X Y', 'drag X Y TOX TOY [STEPS [SECONDS]]',
+                                                                  'move X Y', 'type TEXT', 'button PAGE CODE', 'sleep SECONDS'. Prefer this
+                                                                  over repeating single-gesture commands: touch input requires a media stream,
+                                                                  each command negotiates its own, and rapid re-negotiation can wedge the
+                                                                  device's mediastream daemon until it is rebooted.
 
     ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>]
                                                                   Set global http proxy on supervised device.
