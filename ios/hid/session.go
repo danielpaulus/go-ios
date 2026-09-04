@@ -495,14 +495,7 @@ func (s *Session) ensureStream(ctx context.Context) error {
 func (s *Session) teardownStream() {
 	if s.displayService != nil {
 		if s.streamAnswer.ClientSessionID != uuid.Nil {
-			stopCtx, cancel := context.WithTimeout(context.Background(), streamStopTimeout)
-			// Worth surfacing: a stream left running is what wedges the daemon.
-			// The device dropping the channel mid-stop is normal, and means it worked.
-			if err := s.displayService.StopMediaStream(stopCtx, s.streamAnswer.ClientSessionID); err != nil {
-				golog.Warn("stopping the media stream failed; if this repeats, the device may need a reboot",
-					"module", logModule, "error", err)
-			}
-			cancel()
+			s.stopStream(s.displayService, s.streamAnswer.ClientSessionID)
 		}
 		if err := s.displayService.Close(); err != nil {
 			golog.Debug("closing the display service failed", "module", logModule, "error", err)
@@ -525,6 +518,43 @@ func (s *Session) teardownStream() {
 
 	s.streamAnswer = display.StreamAnswer{}
 	s.streamLost.Store(false)
+}
+
+// stopStream stops the stream, retrying on a new connection if the first attempt
+// fails. A negotiation that timed out closed its own connection, so the service
+// that started the stream cannot always be the one that stops it.
+func (s *Session) stopStream(svc *display.Service, sessionID uuid.UUID) {
+	stopCtx, cancel := context.WithTimeout(context.Background(), streamStopTimeout)
+	defer cancel()
+
+	// The device dropping the channel mid-stop is normal and means it worked.
+	err := svc.StopMediaStream(stopCtx, sessionID)
+	if err == nil {
+		return
+	}
+	golog.Warn("stopping the media stream failed, retrying on a new connection",
+		"module", logModule, "error", err)
+
+	// A stream left running is what wedges the daemon, so this is worth a second
+	// attempt even though the first one already logged.
+	retry, err := display.New(s.device)
+	if err != nil {
+		golog.Warn("could not reconnect to stop the media stream; the device may need a reboot",
+			"module", logModule, "error", err)
+		return
+	}
+	defer func() {
+		if err := retry.Close(); err != nil {
+			golog.Debug("closing the retry connection failed", "module", logModule, "error", err)
+		}
+	}()
+
+	retryCtx, cancelRetry := context.WithTimeout(context.Background(), streamStopTimeout)
+	defer cancelRetry()
+	if err := retry.StopMediaStream(retryCtx, sessionID); err != nil {
+		golog.Warn("stopping the media stream failed again; the device may need a reboot",
+			"module", logModule, "error", err)
+	}
 }
 
 // interpolate returns the coordinate at step of steps. The arithmetic is 64-bit
