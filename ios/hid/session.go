@@ -78,10 +78,6 @@ type Session struct {
 	// accepted and dropped from then on, so the next gesture re-negotiates.
 	streamLost atomic.Bool
 
-	// readFrames consumes the RTP stream when a caller wants the video; nil
-	// discards it.
-	readFrames func(*display.Receiver) error
-
 	// Tracks a contact held by the Touch* methods, so closing mid-gesture lifts it
 	// rather than leaving the device believing a finger is down.
 	contactDown bool
@@ -94,21 +90,10 @@ type Session struct {
 	closed bool
 }
 
-type Option func(*Session)
-
-// WithFrameReader replaces the default drain. read is handed the receiver and
-// must read until it errors: an unread socket makes the device throttle.
-func WithFrameReader(read func(*display.Receiver) error) Option {
-	return func(s *Session) { s.readFrames = read }
-}
-
 // NewSession connects to the HID service and starts no media stream. Touch needs
 // iOS 27+ and a kernel tunnel, but only the first gesture needing one fails.
-func NewSession(device ios.DeviceEntry, opts ...Option) (*Session, error) {
+func NewSession(device ios.DeviceEntry) (*Session, error) {
 	session := &Session{device: device}
-	for _, opt := range opts {
-		opt(session)
-	}
 
 	conn, err := NewUniversal(device)
 	if err != nil {
@@ -469,11 +454,7 @@ func (s *Session) ensureStream(ctx context.Context) error {
 	s.drainDone = make(chan struct{})
 	go func(done chan struct{}) {
 		defer close(done)
-		read := s.readFrames
-		if read == nil {
-			read = func(r *display.Receiver) error { return r.Drain() }
-		}
-		if err := read(receiver); err != nil {
+		if err := receiver.Drain(); err != nil {
 			golog.Warn("the media stream that gates touch input stopped",
 				"module", logModule, "error", err)
 			s.streamLost.Store(true)

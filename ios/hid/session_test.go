@@ -115,16 +115,3 @@ func TestTouchUpWithoutDownIsNoop(t *testing.T) {
 	require.NoError(t, s.TouchUp(context.Background(), Point{X: 1, Y: 2}))
 	assert.False(t, s.contactDown)
 }
-
-func TestWithFrameReaderReplacesTheDrain(t *testing.T) {
-	called := false
-	session := &Session{}
-	WithFrameReader(func(*display.Receiver) error {
-		called = true
-		return nil
-	})(session)
-
-	require.NotNil(t, session.readFrames)
-	require.NoError(t, session.readFrames(nil))
-	assert.True(t, called, "the frame reader should be used instead of the drain")
-}
