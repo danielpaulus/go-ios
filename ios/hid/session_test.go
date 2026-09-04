@@ -68,7 +68,6 @@ func TestClosedSessionRejectsEverything(t *testing.T) {
 	assert.Error(t, s.Drag(ctx, Point{}, Point{X: 1, Y: 1}, 2, 0))
 	assert.Error(t, s.MoveDigitizer(ctx, 1, 1))
 	assert.Error(t, s.Type(ctx, "hello"))
-	assert.Error(t, s.PressButton(ctx, 12, 64))
 	assert.Error(t, s.TouchDown(ctx, Point{}))
 	assert.Error(t, s.TouchMove(ctx, Point{}))
 	assert.Error(t, s.TouchUp(ctx, Point{}))

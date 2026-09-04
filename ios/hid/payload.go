@@ -39,19 +39,6 @@ var keyboardReportDescriptor = []byte{
 	0xC0, // End Collection
 }
 
-func buildButtonPayload(usagePage, usageCode uint64, state ButtonState) map[string]interface{} {
-	return map[string]interface{}{
-		"messageType": "IndigoButtonEvent",
-		"payload": map[string]interface{}{
-			"state":     uint64(state),
-			"usagePage": usagePage,
-			"usageCode": usageCode,
-		},
-		"featureIdentifier": buttonFeatureIdentifier,
-	}
-}
-
-// buildListServicesPayload builds the request enumerating registered HID surfaces.
 func buildListServicesPayload() map[string]interface{} {
 	return map[string]interface{}{
 		"featureIdentifier": universalFeatureIdentifier,

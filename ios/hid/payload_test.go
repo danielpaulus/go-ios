@@ -39,34 +39,6 @@ func dict(t *testing.T, m map[string]interface{}, key string) map[string]interfa
 	return v
 }
 
-func TestButtonPayload(t *testing.T) {
-	body := roundTrip(t, buildButtonPayload(0x0C, 0x40, ButtonDown))
-
-	if got := body["messageType"]; got != "IndigoButtonEvent" {
-		t.Errorf("messageType = %v, want IndigoButtonEvent", got)
-	}
-	if got := body["featureIdentifier"]; got != buttonFeatureIdentifier {
-		t.Errorf("featureIdentifier = %v, want %s", got, buttonFeatureIdentifier)
-	}
-
-	payload := dict(t, body, "payload")
-	// All three must survive as UInt64 - dtuhidd's decoder rejects Int64 here.
-	for key, want := range map[string]uint64{
-		"state":     uint64(ButtonDown),
-		"usagePage": 0x0C,
-		"usageCode": 0x40,
-	} {
-		got, ok := payload[key].(uint64)
-		if !ok {
-			t.Errorf("%s is %T, want uint64", key, payload[key])
-			continue
-		}
-		if got != want {
-			t.Errorf("%s = %d, want %d", key, got, want)
-		}
-	}
-}
-
 func TestListServicesPayload(t *testing.T) {
 	body := roundTrip(t, buildListServicesPayload())
 

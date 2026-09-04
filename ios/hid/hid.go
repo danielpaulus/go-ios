@@ -10,10 +10,8 @@ import (
 )
 
 const (
-	indigoServiceName    = "com.apple.coredevice.hid.indigo"
 	universalServiceName = "com.apple.coredevice.hid.universalhidservice"
 
-	buttonFeatureIdentifier    = "com.apple.coredevice.feature.remote.hid.button"
 	universalFeatureIdentifier = "com.apple.coredevice.feature.remote.universalhidservice"
 )
 
@@ -29,48 +27,6 @@ const (
 	// Unlike the touch surfaces it does not pre-exist, so the value is ours.
 	SurfaceKeyboardDefault uint64 = 0x100002001
 )
-
-// ButtonState is the state transition reported for a hardware button.
-type ButtonState uint64
-
-const (
-	// ButtonDown reports the button being pressed.
-	ButtonDown ButtonState = 1
-	// ButtonUp reports the button being released.
-	ButtonUp ButtonState = 2
-	// ButtonCanceled abandons an in-progress press.
-	ButtonCanceled ButtonState = 3
-)
-
-// IndigoConnection delivers hardware button events. Only buttons are
-// implemented; Indigo's other event kinds use a format we could not work out.
-type IndigoConnection struct {
-	conn *xpc.Connection
-}
-
-// NewIndigo connects to the Indigo HID service on the device. iOS 17+ only, and
-// the Developer Disk Image must be mounted so dtuhidd is running.
-func NewIndigo(device ios.DeviceEntry) (*IndigoConnection, error) {
-	conn, err := ios.ConnectToXpcServiceTunnelIface(device, indigoServiceName)
-	if err != nil {
-		return nil, fmt.Errorf("NewIndigo: %w", err)
-	}
-	return &IndigoConnection{conn: conn}, nil
-}
-
-// SendButton reports one hardware-button state change. Usage page 0x0C is the
-// media buttons, 0x09 the generic ones.
-func (c *IndigoConnection) SendButton(usagePage, usageCode uint64, state ButtonState) error {
-	if err := c.conn.Send(buildButtonPayload(usagePage, usageCode, state), xpc.HeartbeatRequestFlag); err != nil {
-		return fmt.Errorf("SendButton: failed to send button event: %w", err)
-	}
-	return nil
-}
-
-// Close closes the connection to the Indigo HID service.
-func (c *IndigoConnection) Close() error {
-	return c.conn.Close()
-}
 
 // UniversalConnection is a connection to the universalhidservice, which exposes
 // the device's registered HID surfaces and accepts raw HID reports for them.

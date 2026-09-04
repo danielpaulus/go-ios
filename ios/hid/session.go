@@ -64,10 +64,6 @@ type Session struct {
 	mutex sync.Mutex
 	hid   hidConn
 
-	// indigo is created on the first button press and reused afterwards, so a
-	// script full of button presses does not redial the service each time.
-	indigo *IndigoConnection
-
 	// Stream state, populated by ensureStream and guarded by mutex, except
 	// streamLost which the drain goroutine writes without it.
 	displayService streamStopper
@@ -318,39 +314,6 @@ func (s *Session) sendContact(ctx context.Context, point Point, op string) error
 	return nil
 }
 
-// PressButton presses and releases a hardware button. Usage page 0x0C is the
-// media buttons, 0x09 the generic ones. Buttons need no stream, so none starts,
-// and with no stream to negotiate there is nothing here for ctx to bound.
-func (s *Session) PressButton(_ context.Context, usagePage, usageCode uint64) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	if err := s.checkOpen(); err != nil {
-		return err
-	}
-
-	if s.indigo == nil {
-		indigo, err := NewIndigo(s.device)
-		if err != nil {
-			return fmt.Errorf("PressButton: %w", err)
-		}
-		s.indigo = indigo
-	}
-
-	if err := s.indigo.SendButton(usagePage, usageCode, ButtonDown); err != nil {
-		return fmt.Errorf("PressButton: %w", err)
-	}
-	if err := s.indigo.SendButton(usagePage, usageCode, ButtonUp); err != nil {
-		// The device considers the button held until it hears otherwise; cancel
-		// the press so it does not stay down.
-		if cancelErr := s.indigo.SendButton(usagePage, usageCode, ButtonCanceled); cancelErr != nil {
-			golog.Warn("failed to cancel a button press, the device may still consider it held",
-				"module", logModule, "error", cancelErr)
-		}
-		return fmt.Errorf("PressButton: %w", err)
-	}
-	return nil
-}
-
 // Close stops any media stream and closes every connection. It is idempotent,
 // and waits for a gesture in flight, including a negotiation.
 func (s *Session) Close() error {
@@ -372,13 +335,6 @@ func (s *Session) Close() error {
 	}
 
 	s.teardownStream()
-
-	if s.indigo != nil {
-		if err := s.indigo.Close(); err != nil {
-			golog.Debug("closing the Indigo connection failed", "module", logModule, "error", err)
-		}
-		s.indigo = nil
-	}
 
 	if s.hid != nil {
 		if err := s.hid.Close(); err != nil {

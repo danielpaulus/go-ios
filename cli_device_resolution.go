@@ -91,7 +91,6 @@ func needsAutomaticTunnelInfo(args docopt.Opts) bool {
 
 	for _, commandName := range []string{
 		"debug",
-		"hid",
 		"devicestate",
 		"instruments",
 		"kill",
