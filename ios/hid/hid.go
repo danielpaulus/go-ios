@@ -18,7 +18,6 @@ const (
 // _ServiceIDs of the surfaces the device registers. ListConnectedServices
 // enumerates them, and its values are the ones to prefer.
 const (
-	// SurfaceMainTouchscreen is the true digitizer, driven by 58-byte reports.
 	SurfaceMainTouchscreen uint64 = 257 // 0x101
 	// SurfaceTouchscreenGesture is the trackpad-style pointer surface. It moves a
 	// mirroring host's cursor without putting a contact on the screen.
@@ -28,8 +27,6 @@ const (
 	SurfaceKeyboardDefault uint64 = 0x100002001
 )
 
-// UniversalConnection is a connection to the universalhidservice, which exposes
-// the device's registered HID surfaces and accepts raw HID reports for them.
 type UniversalConnection struct {
 	conn *xpc.Connection
 }
@@ -44,8 +41,6 @@ func NewUniversal(device ios.DeviceEntry) (*UniversalConnection, error) {
 	return &UniversalConnection{conn: conn}, nil
 }
 
-// ListConnectedServices enumerates the HID surfaces currently registered on the
-// device. Each entry carries a _ServiceID usable as the target of SendReport.
 func (c *UniversalConnection) ListConnectedServices() (map[string]interface{}, error) {
 	if err := c.conn.Send(buildListServicesPayload(), xpc.HeartbeatRequestFlag); err != nil {
 		return nil, fmt.Errorf("ListConnectedServices: failed to send request: %w", err)
@@ -117,7 +112,6 @@ func (c *UniversalConnection) CreateKeyboardService(serviceID uint64, product, m
 	return serviceID, nil
 }
 
-// Close closes the connection to the universalhidservice.
 func (c *UniversalConnection) Close() error {
 	return c.conn.Close()
 }

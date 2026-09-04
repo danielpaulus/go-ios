@@ -49,8 +49,6 @@ func buildListServicesPayload() map[string]interface{} {
 	}
 }
 
-// buildSendReportPayload builds the request posting a raw HID report to a surface.
-// The report goes over the wire as an XPC data object and the surface ID as UInt64.
 func buildSendReportPayload(serviceID uint64, report []byte) map[string]interface{} {
 	return map[string]interface{}{
 		"featureIdentifier": universalFeatureIdentifier,

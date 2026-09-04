@@ -20,7 +20,6 @@ const (
 	// deadline the device applies so it gives up first and tells us.
 	streamStartTimeout = 15 * time.Second
 
-	// streamStopTimeout bounds the best-effort stop during Close.
 	streamStopTimeout = 5 * time.Second
 
 	// The gap between the stream starting and the surfaces being re-matched, when
@@ -79,7 +78,6 @@ type Session struct {
 	contactDown bool
 	lastContact Point
 
-	// keyboardServiceID is the surface registered on first use by Type.
 	keyboardServiceID uint64
 	keyboardCreated   bool
 
@@ -99,7 +97,6 @@ func NewSession(device ios.DeviceEntry) (*Session, error) {
 	return session, nil
 }
 
-// ListServices enumerates the HID surfaces registered on the device.
 func (s *Session) ListServices() (map[string]interface{}, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -109,8 +106,6 @@ func (s *Session) ListServices() (map[string]interface{}, error) {
 	return s.hid.ListConnectedServices()
 }
 
-// Tap taps once at p: one contact report followed by a release at the same
-// position.
 func (s *Session) Tap(ctx context.Context, point Point) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -153,8 +148,6 @@ func (s *Session) Drag(ctx context.Context, from, to Point, steps int, duration 
 	return nil
 }
 
-// Stroke drags a contact through every point and releases at the last, which is
-// how a curved path is drawn. duration is spread evenly across it.
 func (s *Session) Stroke(ctx context.Context, points []Point, duration time.Duration) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -345,8 +338,6 @@ func (s *Session) Close() error {
 	return nil
 }
 
-// StreamActive reports whether a stream is holding the touch gate open. It turns
-// false again if the host stops receiving.
 func (s *Session) StreamActive() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -434,8 +425,6 @@ func (s *Session) ensureStream(ctx context.Context) error {
 		return fmt.Errorf("failed to start the media stream touch input requires: %w", err)
 	}
 
-	// At info: once a session, and the only positive evidence that reports will
-	// reach the app rather than being discarded.
 	golog.Info("media stream started, touch surfaces authenticated", "module", logModule,
 		"receiver", receiver.IP(), "port", receiver.Port())
 
@@ -490,8 +479,6 @@ func (s *Session) stopStream(svc streamStopper, sessionID uuid.UUID) {
 	golog.Warn("stopping the media stream failed, retrying on a new connection",
 		"module", logModule, "error", err)
 
-	// A stream left running is what wedges the daemon, so this is worth a second
-	// attempt even though the first one already logged.
 	retry, err := display.New(s.device)
 	if err != nil {
 		golog.Warn("could not reconnect to stop the media stream; the device may need a reboot",

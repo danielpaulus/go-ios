@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// HID report IDs, carried in the first byte of every report.
 const (
 	reportIDKeyboard    = 0x01
 	reportIDTouchscreen = 0x09
@@ -14,32 +13,24 @@ const (
 
 // Report lengths. The device rejects reports of any other size for these surfaces.
 const (
-	// DigitizerReportLen is the length of a gesture/pointer report.
-	DigitizerReportLen = 19
-	// TouchscreenReportLen is the length of a mainTouchscreen report.
+	DigitizerReportLen   = 19
 	TouchscreenReportLen = 58
-	// KeyboardReportLen is the length of a virtual-keyboard report.
-	KeyboardReportLen = 39
+	KeyboardReportLen    = 39
 )
 
 // timestampBits is the width of the report timestamp field. Six bytes on the
 // wire, so values are masked to 48 bits.
 const timestampBits = 48
 
-// TouchState is the contact state carried in a mainTouchscreen report.
 type TouchState uint8
 
 const (
-	// TouchContact means "a contact is in progress at this position".
 	TouchContact TouchState = 0xC2
-	// TouchRelease lifts the contact.
 	TouchRelease TouchState = 0x02
 )
 
-// keyboardBitmapLen is the size of the pressed-usage bitmap in a keyboard report.
 const keyboardBitmapLen = 30
 
-// maxKeyboardUsage is one past the highest usage the bitmap can represent.
 const maxKeyboardUsage = keyboardBitmapLen * 8 // 240
 
 // processStart anchors Timestamp to a monotonic origin. time.Since reads Go's
@@ -52,8 +43,6 @@ func Timestamp() uint64 {
 	return uint64(time.Since(processStart).Nanoseconds()) & (1<<timestampBits - 1)
 }
 
-// putTimestamp writes the low 48 bits of ts little-endian into the first six
-// bytes of report.
 func putTimestamp(report []byte, ts uint64) {
 	var full [8]byte
 	binary.LittleEndian.PutUint64(full[:], ts&(1<<timestampBits-1))

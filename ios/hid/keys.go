@@ -88,8 +88,6 @@ const (
 	KeyRightGUI   uint8 = 0xE7
 )
 
-// Key is the usage code a character maps to, together with whether Shift must be
-// held to produce it on a US layout.
 type Key struct {
 	Usage uint8
 	Shift bool
@@ -111,7 +109,6 @@ var asciiToHID = func() map[rune]Key {
 	}
 	table['0'] = Key{Usage: Key0}
 
-	// Shifted digits.
 	for ch, usage := range map[rune]uint8{
 		'!': Key1, '@': Key2, '#': Key3, '$': Key4, '%': Key5,
 		'^': Key6, '&': Key7, '*': Key8, '(': Key9, ')': Key0,
@@ -154,8 +151,6 @@ var asciiToHID = func() map[rune]Key {
 	return table
 }()
 
-// KeyForRune returns the usage code and shift state that produce ch on a US
-// keyboard layout. The second result is false for characters with no mapping.
 func KeyForRune(ch rune) (Key, bool) {
 	key, ok := asciiToHID[ch]
 	return key, ok
