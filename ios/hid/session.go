@@ -41,11 +41,28 @@ type Point struct {
 
 // Session delivers HID input and owns the media stream touch needs. Open one and
 // reuse it: a stream per gesture is slow and has been seen to wedge the daemon.
+// hidConn and streamStopper are the parts of UniversalConnection and
+// display.Service this package uses, extracted so gestures can be exercised
+// without a device.
+type hidConn interface {
+	SendTouchscreen(state TouchState, x, y uint16, serviceID uint64) error
+	SendDigitizer(x, y int32, serviceID uint64) error
+	SendKeyboard(serviceID uint64, usages ...uint8) error
+	CreateKeyboardService(serviceID uint64, product, manufacturer string, vendorID, productID int64) (uint64, error)
+	ListConnectedServices() (map[string]interface{}, error)
+	Close() error
+}
+
+type streamStopper interface {
+	StopMediaStream(ctx context.Context, clientSessionID uuid.UUID) error
+	Close() error
+}
+
 type Session struct {
 	device ios.DeviceEntry
 
 	mutex sync.Mutex
-	hid   *UniversalConnection
+	hid   hidConn
 
 	// indigo is created on the first button press and reused afterwards, so a
 	// script full of button presses does not redial the service each time.
@@ -53,7 +70,7 @@ type Session struct {
 
 	// Stream state, populated by ensureStream and guarded by mutex, except
 	// streamLost which the drain goroutine writes without it.
-	displayService *display.Service
+	displayService streamStopper
 	receiver       *display.Receiver
 	streamAnswer   display.StreamAnswer
 	drainDone      chan struct{}
@@ -524,7 +541,7 @@ func (s *Session) teardownStream() {
 // stopStream stops the stream, retrying on a new connection if the first attempt
 // fails. A negotiation that timed out closed its own connection, so the service
 // that started the stream cannot always be the one that stops it.
-func (s *Session) stopStream(svc *display.Service, sessionID uuid.UUID) {
+func (s *Session) stopStream(svc streamStopper, sessionID uuid.UUID) {
 	stopCtx, cancel := context.WithTimeout(context.Background(), streamStopTimeout)
 	defer cancel()
 
