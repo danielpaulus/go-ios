@@ -317,8 +317,9 @@ func (s *Session) sendContact(ctx context.Context, point Point, op string) error
 }
 
 // PressButton presses and releases a hardware button. Usage page 0x0C is the
-// media buttons, 0x09 the generic ones. Buttons need no stream, so none starts.
-func (s *Session) PressButton(ctx context.Context, usagePage, usageCode uint64) error {
+// media buttons, 0x09 the generic ones. Buttons need no stream, so none starts,
+// and with no stream to negotiate there is nothing here for ctx to bound.
+func (s *Session) PressButton(_ context.Context, usagePage, usageCode uint64) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if err := s.checkOpen(); err != nil {
