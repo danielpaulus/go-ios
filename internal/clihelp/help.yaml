@@ -105,6 +105,9 @@ commands:
   - path: fsync
     usage: ios fsync [--app=bundleId] [options] (pull | push | rm [--r] | tree | mkdir) --srcPath=<srcPath> --dstPath=<dstPath> --path=<targetPath>
     summary: App container file sync operations.
+  - path: hid tap
+    usage: ios hid tap --x=<x> --y=<y> [--raw] [options]
+    summary: Native agent-free touch over RemoteXPC (iOS 17+).
   - path: httpproxy
     usage: ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
     summary: Install global HTTP proxy profile.

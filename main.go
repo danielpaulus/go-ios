@@ -119,6 +119,7 @@ Usage:
   ios mdm clear-screen-time-password --p12file=<p12file> [--password=<p12password>] [options]
   ios mdm security-info --p12file=<p12file> [--password=<p12password>] [options]
   ios mobilegestalt <key>... [--plist] [options]
+  ios hid tap --x=<x> --y=<y> [--raw] [options]
   ios pair [--p12file=<orgid>] [--password=<p12password>] [options]
   ios pasteboard (set [<text>] | get) [options]
   ios pcap [options] [--pid=<processID>] [--process=<processName>]
@@ -415,6 +416,9 @@ The commands work as following:
                                                                        to pair without a trust dialog. Specify the password either with the argument or
                                                                        by setting the environment variable 'P12_PASSWORD'
 
+    ios hid tap --x=<x> --y=<y> [--raw] [options]                     Native agent-free touch over RemoteXPC (iOS 17+, no WDA/DeviceKit/XCUITest). Requires tunnel + DDI.
+                                                                       tap sends a touch at normalized coordinates --x/--y (0-65535; 32768 = screen center).
+                                                                       By default a CoreDevice media stream briefly holds the HID auth gate open; --raw skips it.
     ios pasteboard (set [<text>] | get) [options]                     Read or write the device pasteboard (clipboard) over RemoteXPC (iOS 17+). Requires tunnel.
                                                                        set writes <text> (or stdin when omitted) to the pasteboard; get prints its text.
 
