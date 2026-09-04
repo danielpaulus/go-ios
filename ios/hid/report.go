@@ -52,6 +52,11 @@ func putTimestamp(report []byte, ts uint64) {
 // BuildDigitizerReport places the pointer at (x, y), signed 32-bit.
 // Layout: [0]=report ID, [1:5]=X int32 LE, [5:9]=Y int32 LE, [9:11] reserved,
 // [11:17]=timestamp, [17:19] reserved.
+//
+// x=100 y=200 with timestamp 0xa1b2c3d4:
+//
+//	13 64000000 c8000000 0000 d4c3b2a10000 0000
+//	ID x=100    y=200    res  timestamp    res
 func BuildDigitizerReport(x, y int32, ts uint64) []byte {
 	report := make([]byte, DigitizerReportLen)
 	report[0] = reportIDDigitizer
@@ -65,6 +70,11 @@ func BuildDigitizerReport(x, y int32, ts uint64) []byte {
 // Layout: [0]=report ID, [1:3]=constants 0x01 0x05, [3]=state, [4:6]=X uint16 LE,
 // [6:8]=Y uint16 LE, [8:40] reserved, [40:44]=constant 0x02 0x00 0x00 0x00,
 // [44:50]=timestamp, [50:58] reserved.
+//
+// A contact at x=0x1234 y=0x5678 with timestamp 0xa1b2c3d4:
+//
+//	09 0105 c2 3412 7856 00..00 02000000 d4c3b2a10000 00..00
+//	ID const st x    y    res    const    timestamp    res
 func BuildTouchscreenReport(state TouchState, x, y uint16, ts uint64) []byte {
 	report := make([]byte, TouchscreenReportLen)
 	report[0] = reportIDTouchscreen
@@ -79,8 +89,14 @@ func BuildTouchscreenReport(state TouchState, x, y uint16, ts uint64) []byte {
 }
 
 // BuildKeyboardReport takes the full set of usages held down, not a delta.
-// Usages at or above 240 are ignored. Layout: [0]=report ID, [1:31]=240-bit usage bitmap, [31:37]=timestamp,
-// [37:39] reserved.
+// Usages at or above 240 are ignored. Layout: [0]=report ID, [1:31]=240-bit usage
+// bitmap, [31:37]=timestamp, [37:39] reserved.
+//
+// Usage 4, the letter a, with timestamp 0xa1b2c3d4. Bit 4 lands in byte 1 of the
+// bitmap, which is why the second byte is 0x10:
+//
+//	01 10 00..00 d4c3b2a10000 0000
+//	ID bitmap    timestamp    res
 func BuildKeyboardReport(usages []uint8, ts uint64) []byte {
 	report := make([]byte, KeyboardReportLen)
 	report[0] = reportIDKeyboard
