@@ -179,6 +179,7 @@ Usage:
   ios ui app terminate <bundleID> [--driver=<driver>] [--session-id=<sessionid>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
   ios ui app foreground [--driver=<driver>] [--devicekit-url=<url>] [options]
   ios ui stream (mjpeg | h264) [--fps=<fps>] [--quality=<quality>] [--scale=<scale>] [--bitrate=<bitrate>] [--driver=<driver>] [--wda-url=<url>] [--devicekit-url=<url>] [options]
+  ios remote [--port=<port>] [--driver=<driver>] [--devicekit-url=<url>] [--wda-url=<url>] [--no-manage-runner] [--runner-driver=<driver>] [--fps=<fps>] [--bitrate=<bitrate>] [options]
   ios uninstall <bundleID> [options]
   ios webinspector list [--timeout=<seconds>] [options]
   ios webinspector launch <url> [--bundle-id=<bundleID>] [--timeout=<seconds>] [options]
@@ -530,6 +531,19 @@ The commands work as following:
     ios ui app (launch | terminate) <bundleID>                       Launches or terminates an app.
     ios ui app foreground                                            Prints the foreground app through DeviceKit.
     ios ui stream (mjpeg | h264)                                     Streams video to stdout. H264 requires DeviceKit; WDA supports MJPEG.
+
+    ios remote [--port=<port>] [--driver=<driver>]                  Serves a minimal, self-contained browser remote-control at 0.0.0.0:<port> (default 8080).
+                                                                    The live screen is WDA-free (instruments screenshot service, needs a mounted developer disk image).
+                                                                    Taps/swipes/typing/buttons are routed through a UI automation driver: DeviceKit by default
+                                                                    (--devicekit-url, default http://127.0.0.1:12004; WDA is broken on iOS 26, DeviceKit works),
+                                                                    or --driver=wda (--wda-url, default http://127.0.0.1:8100 or GO_IOS_WDA_URL).
+                                                                    With the DeviceKit driver ios remote spawns and supervises the input runner
+                                                                    (ios ui run devicekit), auto-respawning it when it drops so input self-heals;
+                                                                    pass --no-manage-runner to use an externally-started runner instead. While the
+                                                                    runner is (re)starting, input endpoints return HTTP 503 and /status shows state.
+                                                                    The H.264 screen stream is decoded in-browser via WebCodecs (MJPEG fallback);
+                                                                    --fps (default 60) and --bitrate (default 8000000) tune the DeviceKit /h264
+                                                                    source for a smoother mirror. Press 'd' in the browser to toggle a diagnostic HUD.
 
     ios setlocation [options] [--lat=<lat>] [--lon=<lon>]           Updates the location of the device to the provided by latitude and longitude coordinates.
                                                                     Ex.: setlocation --lat=40.730610 --lon=-73.935242

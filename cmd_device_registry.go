@@ -113,4 +113,5 @@ var deviceCommands = []command{
 	commandByBool("fsync", runFsyncCommand),
 	commandByBool("devmode", runDevModeCommand),
 	commandByBool("webinspector", runWebInspectorCommand),
+	commandByBool("remote", runRemoteCommand),
 }
