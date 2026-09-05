@@ -2,6 +2,9 @@ package imagemounter
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
+	_ "embed"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,15 +16,32 @@ import (
 	"howett.net/plist"
 )
 
+// appleRootCAPEM is Apple's Root CA, which anchors gs.apple.com's chain but
+// isn't in every OS's trust store (e.g. Debian's minimal ca-certificates
+// package) since Apple runs its own private root program.
+//
+//go:embed apple_root_ca.pem
+var appleRootCAPEM []byte
+
 // tssClient is used to talk to https://gs.apple.com/TSS for getting the personalized developer disk image signatures
 type tssClient struct {
 	h *http.Client
 }
 
 func newTssClient() tssClient {
+	pool, err := x509.SystemCertPool()
+	if err != nil || pool == nil {
+		pool = x509.NewCertPool()
+	}
+	pool.AppendCertsFromPEM(appleRootCAPEM)
+
 	c := &http.Client{
-		Timeout:   1 * time.Minute,
-		Transport: http.DefaultTransport,
+		Timeout: 1 * time.Minute,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: pool,
+			},
+		},
 	}
 
 	return tssClient{
