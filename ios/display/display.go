@@ -1,5 +1,5 @@
 // Package display starts RTP video streams over
-// com.apple.coredevice.displayservice. A stream also authenticates HID input.
+// com.apple.coredevice.displayservice. Touch input is discarded unless a stream is running.
 package display
 
 import (
@@ -83,23 +83,14 @@ type VideoStreamRequest struct {
 	DisplayID int
 }
 
-// StreamAnswer is the device's response to a stream start.
-type StreamAnswer struct {
-	// ClientSessionID identifies the stream and is required to stop it.
-	ClientSessionID uuid.UUID
-	// Output is the raw CoreDevice output, kept so callers can inspect the
-	// negotiated configuration without this package modelling the whole answer.
-	Output map[string]interface{}
-}
-
 // StartVideoStream starts an RTP video stream of one display. iOS 27+, earlier
 // fails 9021. Pass a deadline: the daemon can stop answering, so close on timeout.
-func (s *Service) StartVideoStream(ctx context.Context, req VideoStreamRequest) (StreamAnswer, error) {
+func (s *Service) StartVideoStream(ctx context.Context, req VideoStreamRequest) (uuid.UUID, error) {
 	if req.ReceiverIP == "" || req.ReceiverPort == 0 {
-		return StreamAnswer{}, fmt.Errorf("StartVideoStream: receiver address is required, bind a Receiver first")
+		return uuid.Nil, fmt.Errorf("StartVideoStream: receiver address is required, bind a Receiver first")
 	}
 	if req.SenderIP == "" {
-		return StreamAnswer{}, fmt.Errorf("StartVideoStream: sender address is required")
+		return uuid.Nil, fmt.Errorf("StartVideoStream: sender address is required")
 	}
 	displayID := req.DisplayID
 	if displayID == 0 {
@@ -109,7 +100,7 @@ func (s *Service) StartVideoStream(ctx context.Context, req VideoStreamRequest) 
 	clientSessionID := uuid.New()
 	offer, err := buildVideoNegotiatorOffer(uuid.New(), rand.Uint32())
 	if err != nil {
-		return StreamAnswer{}, err
+		return uuid.Nil, err
 	}
 
 	input := map[string]interface{}{
@@ -130,14 +121,13 @@ func (s *Service) StartVideoStream(ctx context.Context, req VideoStreamRequest) 
 		"type":         "video",
 	}
 
-	output, err := s.invoke(ctx, featureStartMediaStream, actionMediaStreamStart, input)
-	if err != nil {
+	if _, err := s.invoke(ctx, featureStartMediaStream, actionMediaStreamStart, input); err != nil {
 		// The id comes back even on failure: the device may have started the
 		// stream anyway, and stopping it needs this id. A failure closes this
 		// Service's connection, so the stop has to go out on a new one.
-		return StreamAnswer{ClientSessionID: clientSessionID}, err
+		return clientSessionID, err
 	}
-	return StreamAnswer{ClientSessionID: clientSessionID, Output: output}, nil
+	return clientSessionID, nil
 }
 
 // StopMediaStream stops this client's stream. stopAll is a key the payload is
