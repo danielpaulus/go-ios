@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/danielpaulus/go-ios/ios"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -146,4 +147,13 @@ func TestInvokeReportsSendFailures(t *testing.T) {
 	_, err := s.invoke(context.Background(), featureStopMediaStream, actionMediaStreamStop, map[string]interface{}{})
 	assert.ErrorContains(t, err, "channel gone")
 	assert.True(t, f.isClosed(), "a failed write may be half a frame, so the connection must go")
+}
+
+// A userspace tunnel registers TCP only, so the device has nowhere to send RTP.
+// Catching it when the receiver is opened means the caller finds out before it
+// negotiates a stream it could never receive.
+func TestUserspaceTunnelIsRejected(t *testing.T) {
+	_, err := OpenReceiver(ios.DeviceEntry{UserspaceTUN: true, Address: "fd00::1"})
+
+	assert.ErrorIs(t, err, ErrUserspaceTunnelUnsupported)
 }

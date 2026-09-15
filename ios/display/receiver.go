@@ -59,8 +59,9 @@ func (r *Receiver) IP() string { return r.ip }
 // Port is the UDP port the device should send RTP to.
 func (r *Receiver) Port() int { return r.port }
 
-// Read receives one RTP packet and returns its length. Callers that want the
-// video read here; callers that only need the stream to exist use Drain.
+// Read receives one RTP packet and returns its length. One call is one packet,
+// so a caller that wants the video keeps the boundaries by reading here rather
+// than treating the Receiver as a byte stream.
 func (r *Receiver) Read(packet []byte) (int, error) {
 	n, _, err := r.conn.ReadFromUDP(packet)
 	if err != nil {
@@ -72,21 +73,7 @@ func (r *Receiver) Read(packet []byte) (int, error) {
 	return n, nil
 }
 
-// Drain discards packets until the Receiver is closed, which is the only way to
-// stop it. Run it in a goroutine: unread, the socket fills and the device throttles.
-func (r *Receiver) Drain() error {
-	buf := make([]byte, 65535)
-	for {
-		if _, err := r.Read(buf); err != nil {
-			if errors.Is(err, net.ErrClosed) {
-				return nil
-			}
-			return err
-		}
-	}
-}
-
-// Close closes the socket, which also unblocks Drain.
+// Close closes the socket, which is the only thing that unblocks a Read.
 func (r *Receiver) Close() error {
 	return r.conn.Close()
 }
