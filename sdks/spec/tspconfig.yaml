@@ -1,0 +1,29 @@
+# TypeSpec compiler configuration for the go-ios REST API spec.
+# Emits OpenAPI 3.1 (both YAML and JSON) into spec/openapi/.
+#
+# Regenerate with:  npx tsp compile .    (run from the spec/ directory)
+
+emit:
+  - "@typespec/openapi3"
+
+options:
+  "@typespec/openapi3":
+    # Canonical spec is OpenAPI 3.1.0. We ALSO emit 3.2.0, which is the only
+    # version that carries the typed SSE event schema (`itemSchema`) on the
+    # streaming responses; downstream generators that want the typed event body
+    # can read the 3.2 file, everyone else uses the canonical 3.1 file.
+    openapi-versions:
+      - "3.1.0"
+      - "3.2.0"
+    # Emit both YAML and JSON side by side.
+    file-type:
+      - "yaml"
+      - "json"
+    # {openapi-version} -> 3.1.0 / 3.2.0, {file-type} -> yaml / json. Written
+    # directly into the committed spec/openapi/ directory. The regen script
+    # copies the 3.1 files to the stable openapi.yaml / openapi.json path that
+    # downstream generators hard-code.
+    output-file: "{project-root}/openapi/openapi.{openapi-version}.{file-type}"
+
+# Fail the build on warnings so the committed spec stays clean.
+warn-as-error: false
