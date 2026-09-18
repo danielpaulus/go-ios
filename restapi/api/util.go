@@ -27,10 +27,15 @@ func GetVersion() string {
 	return string(version)
 }
 
+// MustMarshal marshals v to a JSON string. It never panics: on the rare
+// marshal failure it returns an error envelope instead, so it is safe to call
+// from inside a request/stream handler (a panic there would otherwise abort the
+// response, or escape entirely in a streaming handler).
 func MustMarshal(v interface{}) string {
 	b, err := json.Marshal(v)
 	if err != nil {
-		panic(err)
+		safe, _ := json.Marshal(GenericResponse{Error: "failed to marshal response: " + err.Error()})
+		return string(safe)
 	}
 	return string(b)
 }

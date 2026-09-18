@@ -2,6 +2,7 @@ package pcap
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -55,28 +56,98 @@ func (iph *IOSPacketHeader) ToString() string {
 	return fmt.Sprintf("%v", *iph)
 }
 
+// Start captures network traffic from the device into a pcap file in the
+// current working directory and blocks until the connection fails. It is the
+// entry point used by the `ios pcap` CLI command and keeps its historical
+// behavior; it is implemented on top of the streaming capture core.
 func Start(device ios.DeviceEntry) error {
-	intf, err := ios.ConnectToService(device, "com.apple.pcapd")
-	if err != nil {
-		return err
-	}
-	defer intf.Close()
-	plistCodec := ios.NewPlistCodec()
 	fname := fmt.Sprintf("dump-%d.pcap", time.Now().Unix())
 	if Pid > 0 {
 		fname = fmt.Sprintf("dump-%d-%d.pcap", Pid, time.Now().Unix())
 	} else if ProcName != "" {
 		fname = fmt.Sprintf("dump-%s-%d.pcap", ProcName, time.Now().Unix())
 	}
-	f, err := createPcap(fname)
+	f, err := os.OpenFile(fname, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o755)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 	golog.Info("create pcap file", "module", logModule, "udid", device.Properties.SerialNumber, "path", fname)
+	// The CLI captures until the connection fails (or the process is killed),
+	// so there is no cancellation context to honor here.
+	return Stream(context.Background(), device, f)
+}
+
+// Stream captures network traffic from the device and writes a valid pcap
+// stream (global header followed by per-packet records) to w until ctx is
+// canceled or the connection fails. On cancellation the underlying device
+// connection is closed to unblock the pending read and Stream returns nil,
+// leaving w a valid, finalized pcap stream. It never leaks goroutines.
+func Stream(ctx context.Context, device ios.DeviceEntry, w io.Writer) error {
+	intf, err := ios.ConnectToService(device, "com.apple.pcapd")
+	if err != nil {
+		return err
+	}
+	defer intf.Close()
+	if err := writePcapHeader(w); err != nil {
+		return err
+	}
+	golog.Info("pcap capture started", "module", logModule, "udid", device.Properties.SerialNumber)
+	err = capture(ctx, intf, w)
+	if err != nil {
+		return err
+	}
+	golog.Info("pcap capture stopped", "module", logModule, "udid", device.Properties.SerialNumber)
+	return nil
+}
+
+// captureConn is the subset of ios.DeviceConnectionInterface the capture loop
+// needs. Keeping it small makes the capture core testable against an in-memory
+// fake connection.
+type captureConn interface {
+	Reader() io.Reader
+	Close() error
+}
+
+// capture reads packets from conn and streams pcap records to w until ctx is
+// done or reading fails. When ctx is done, the connection is closed to unblock
+// the pending read and capture returns nil, leaving w a valid pcap stream. A
+// read error that occurs while ctx is still active is surfaced to the caller.
+func capture(ctx context.Context, conn captureConn, w io.Writer) error {
+	done := make(chan struct{})
+	// closedByWatchdog is set (before watchdogDone is closed) only when the
+	// watchdog closed conn because ctx was canceled, so a read error caused by
+	// that close is classified as a clean shutdown rather than a failure.
+	var closedByWatchdog bool
+	watchdogDone := make(chan struct{})
+	go func() {
+		defer close(watchdogDone)
+		select {
+		case <-ctx.Done():
+			closedByWatchdog = true
+			conn.Close()
+		case <-done:
+		}
+	}()
+	// Wait for the watchdog to finish before returning so its conn.Close()
+	// never races the caller's own deferred close of the same connection.
+	defer func() {
+		close(done)
+		<-watchdogDone
+	}()
+	plistCodec := ios.NewPlistCodec()
 	for {
-		b, err := plistCodec.Decode(intf.Reader())
+		b, err := plistCodec.Decode(conn.Reader())
 		if err != nil {
+			// A read error after the watchdog closed conn is the expected way a
+			// canceled capture unblocks; report it as a clean stop. Block on
+			// watchdogDone first so closedByWatchdog is observed race-free.
+			if ctx.Err() != nil {
+				<-watchdogDone
+				if closedByWatchdog {
+					return nil
+				}
+			}
 			return err
 		}
 		decodedBytes, err := fromBytes(b)
@@ -88,7 +159,7 @@ func Start(device ios.DeviceEntry) error {
 			return err
 		}
 		if len(packet) > 0 {
-			err = writePacket(f, iph, packet)
+			err = writePacket(w, iph, packet)
 			if err != nil {
 				return err
 			}
@@ -127,21 +198,17 @@ type PcaprecHdrS struct {
 	OrigLen int `struc:"uint32,little"` /* actual length of packet */
 }
 
-func createPcap(name string) (*os.File, error) {
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o755)
-	if err != nil {
-		return nil, err
-	}
-	// Write `pcap_hdr_s` with little endin to file.
-	f.Write([]byte{
+// writePcapHeader writes the little endian `pcap_hdr_s` global header to w.
+func writePcapHeader(w io.Writer) error {
+	_, err := w.Write([]byte{
 		0xd4, 0xc3, 0xb2, 0xa1, 0x02, 0x00, 0x04, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0xff, 0xff, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
 	})
-	return f, nil
+	return err
 }
 
-func writePacket(f *os.File, iph IOSPacketHeader, packet []byte) error {
+func writePacket(w io.Writer, iph IOSPacketHeader, packet []byte) error {
 	phs := &PcaprecHdrS{
 		iph.TsSec,
 		iph.TsUsec,
@@ -153,9 +220,11 @@ func writePacket(f *os.File, iph IOSPacketHeader, packet []byte) error {
 	if err != nil {
 		return err
 	}
-	f.Write(buf.Bytes())
-	f.Write(packet)
-	return nil
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		return err
+	}
+	_, err = w.Write(packet)
+	return err
 }
 
 func getPacket(buf []byte) (iph IOSPacketHeader, packet []byte, err error) {
