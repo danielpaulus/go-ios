@@ -216,10 +216,20 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 		return Tunnel{}, fmt.Errorf("could not setup tunnel interface. %w", err)
 	}
 
+	// ifacePort == 0 asks the OS for an ephemeral port. This is the normal path:
+	// the userspace TUN listener has no fixed port requirement, so binding an
+	// ephemeral port lets multiple per-device agents run on one host without the
+	// listener ports colliding. A non-zero ifacePort is still honored for
+	// backward compatibility. Either way we read the actually-bound port back
+	// below and advertise it, so callers never guess a port that may be taken.
 	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", ifacePort))
 	if err != nil {
 		return Tunnel{}, fmt.Errorf("could not setup listener. %w", err)
 	}
+	// Report the port the OS actually assigned so the tunnel-info API advertises a
+	// real, reachable port rather than the requested (possibly 0) value.
+	boundPort := listener.Addr().(*net.TCPAddr).Port
+	golog.Info("userspace tunnel listening", "module", logModule, "udid", device.Properties.SerialNumber, "userspaceTunPort", boundPort)
 
 	go listenToConns(iface, listener)
 
@@ -264,10 +274,12 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 		return doClose()
 	}
 	return Tunnel{
-		Address: tunnelInfo.ServerAddress,
-		RsdPort: int(tunnelInfo.ServerRSDPort),
-		Udid:    device.Properties.SerialNumber,
-		closer:  closeFunc,
+		Address:          tunnelInfo.ServerAddress,
+		RsdPort:          int(tunnelInfo.ServerRSDPort),
+		Udid:             device.Properties.SerialNumber,
+		UserspaceTUN:     true,
+		UserspaceTUNPort: boundPort,
+		closer:           closeFunc,
 	}, nil
 }
 
