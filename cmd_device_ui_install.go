@@ -2,6 +2,9 @@ package main
 
 import (
 	"archive/zip"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,6 +20,8 @@ import (
 const (
 	defaultWDAArtifactURL       = "https://deviceboxhq.com/WebDriverAgentRunner-13.2.0.zip"
 	defaultDeviceKitArtifactURL = "https://deviceboxhq.com/devicekit-ios-runner-0.0.18.ipa"
+	defaultWDAArtifactSHA256    = "448ffe591cf64abf7ff0751897b6860cd45b8032b39677a5dd79f827c4d781cc"
+	defaultDeviceKitSHA256      = "45457d3f11de2b5370b14ba45e6c8502328e28825ee8222e8517245898a4c57f"
 	defaultWDABundleID          = "com.deviceboxhq.goios.WebDriverAgentRunner.xctrunner"
 	defaultDeviceKitBundleID    = "com.deviceboxhq.goios.devicekit.runner"
 )
@@ -27,6 +32,7 @@ func runUIInstallCommand(ctx commandContext) {
 		runUIInstallApp(ctx, uiInstallTarget{
 			Name:           "wda",
 			DefaultURL:     defaultWDAArtifactURL,
+			ExpectedSHA256: defaultWDAArtifactSHA256,
 			DefaultBundle:  defaultWDABundleID,
 			DefaultName:    "go-ios WDA",
 			OutputBaseName: "WebDriverAgentRunner",
@@ -35,6 +41,7 @@ func runUIInstallCommand(ctx commandContext) {
 		runUIInstallApp(ctx, uiInstallTarget{
 			Name:           "devicekit",
 			DefaultURL:     defaultDeviceKitArtifactURL,
+			ExpectedSHA256: defaultDeviceKitSHA256,
 			DefaultName:    "go-ios DeviceKit",
 			OutputBaseName: "devicekit-ios-runner",
 		})
@@ -46,6 +53,7 @@ func runUIInstallCommand(ctx commandContext) {
 type uiInstallTarget struct {
 	Name           string
 	DefaultURL     string
+	ExpectedSHA256 string
 	DefaultBundle  string
 	DefaultName    string
 	OutputBaseName string
@@ -87,6 +95,7 @@ func runUIInstallApp(ctx commandContext, target uiInstallTarget) {
 func uiInstallArtifactPath(ctx commandContext, target uiInstallTarget) (string, func()) {
 	pathArg, _ := ctx.Args.String("--path")
 	if pathArg != "" {
+		slog.Warn("using explicitly trusted local UI automation artifact", "target", target.Name, "path", pathArg)
 		return prepareUIInstallAppPath(pathArg)
 	}
 
@@ -94,7 +103,9 @@ func uiInstallArtifactPath(ctx commandContext, target uiInstallTarget) (string, 
 	exitIfError("failed creating temp dir", err)
 	artifactURL := target.DefaultURL
 	artifactPath := filepath.Join(tempDir, filepath.Base(artifactURL))
-	exitIfError("failed downloading "+target.Name, downloadUIArtifact(artifactURL, artifactPath))
+	digest, err := downloadUIArtifact(artifactURL, artifactPath, target.ExpectedSHA256)
+	exitIfError("failed downloading "+target.Name, err)
+	slog.Info("verified UI automation artifact", "target", target.Name, "sha256", digest)
 	appPath, cleanupApp := prepareUIInstallAppPath(artifactPath)
 	return appPath, func() {
 		cleanupApp()
@@ -114,22 +125,53 @@ func prepareUIInstallAppPath(path string) (string, func()) {
 	return appPath, func() { _ = os.RemoveAll(tempDir) }
 }
 
-func downloadUIArtifact(rawURL string, targetPath string) error {
+func downloadUIArtifact(rawURL string, targetPath string, expectedSHA256 string) (string, error) {
 	resp, err := http.Get(rawURL)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return fmt.Errorf("download returned %s", resp.Status)
+		return "", fmt.Errorf("download returned %s", resp.Status)
 	}
-	out, err := os.Create(targetPath)
+	return writeVerifiedUIArtifact(resp.Body, targetPath, expectedSHA256)
+}
+
+func writeVerifiedUIArtifact(source io.Reader, targetPath string, expectedSHA256 string) (string, error) {
+	if len(expectedSHA256) != sha256.Size*2 {
+		return "", fmt.Errorf("invalid expected SHA-256 digest")
+	}
+	if _, err := hex.DecodeString(expectedSHA256); err != nil {
+		return "", fmt.Errorf("invalid expected SHA-256 digest: %w", err)
+	}
+
+	out, err := os.CreateTemp(filepath.Dir(targetPath), "."+filepath.Base(targetPath)+"-*")
 	if err != nil {
-		return err
+		return "", err
 	}
-	defer out.Close()
-	_, err = io.Copy(out, resp.Body)
-	return err
+	temporaryPath := out.Name()
+	verified := false
+	defer func() {
+		if !verified {
+			_ = os.Remove(temporaryPath)
+		}
+	}()
+
+	hash := sha256.New()
+	_, copyErr := io.Copy(io.MultiWriter(out, hash), source)
+	if err := errors.Join(copyErr, out.Close()); err != nil {
+		return "", err
+	}
+
+	digest := hex.EncodeToString(hash.Sum(nil))
+	if !strings.EqualFold(digest, expectedSHA256) {
+		return "", fmt.Errorf("artifact SHA-256 mismatch: got %s, want %s", digest, expectedSHA256)
+	}
+	if err := os.Rename(temporaryPath, targetPath); err != nil {
+		return "", fmt.Errorf("store verified artifact: %w", err)
+	}
+	verified = true
+	return digest, nil
 }
 
 func unzipUIArtifact(zipPath string, targetDir string) error {
