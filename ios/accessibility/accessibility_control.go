@@ -223,6 +223,11 @@ func (a *ControlInterface) TurnOff() {
 	a.deviceInspectorPreviewOnElement()
 	a.deviceHighlightIssue()
 	a.deviceInspectorShowVisuals(false)
+
+	if err := a.deviceSetAppMonitoringEnabled(false); err != nil {
+		golog.Warn("failed to disable app monitoring during TurnOff",
+			"module", logModule, "service", serviceName, "error", err)
+	}
 }
 
 // Move sends the move command without waiting for response.
