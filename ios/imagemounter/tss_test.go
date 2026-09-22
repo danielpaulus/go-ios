@@ -1,25 +1,62 @@
 package imagemounter
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestTssClientVerifiesTLS guards against re-introducing InsecureSkipVerify:
-// getSignature reuses the client from newTssClient to POST to gs.apple.com,
-// which serves a valid public certificate, so TLS verification must stay on.
+// TestTssClientVerifiesTLS guards against re-introducing InsecureSkipVerify.
 func TestTssClientVerifiesTLS(t *testing.T) {
 	c := newTssClient()
 	transport, ok := c.h.Transport.(*http.Transport)
 	require.True(t, ok, "expected *http.Transport")
-	if transport.TLSClientConfig != nil {
-		assert.False(t, transport.TLSClientConfig.InsecureSkipVerify,
-			"TLS certificate verification must not be disabled")
+	require.NotNil(t, transport.TLSClientConfig)
+	assert.False(t, transport.TLSClientConfig.InsecureSkipVerify,
+		"TLS certificate verification must not be disabled")
+}
+
+func TestTssClientTrustsEmbeddedAppleRootCA(t *testing.T) {
+	c := newTssClient()
+	transport, ok := c.h.Transport.(*http.Transport)
+	require.True(t, ok, "expected *http.Transport")
+	require.NotNil(t, transport.TLSClientConfig.RootCAs)
+
+	cert := parseAppleRootCA(t)
+	assert.True(t, poolContains(transport.TLSClientConfig.RootCAs, cert))
+}
+
+func TestAppleRootCAPEMIsValid(t *testing.T) {
+	cert := parseAppleRootCA(t)
+	assert.Equal(t, "Apple Root CA", cert.Subject.CommonName)
+	assert.Equal(t, cert.Subject.String(), cert.Issuer.String(), "expected a self-signed root, not an intermediate")
+	assert.True(t, cert.IsCA, "expected the CA basic constraint to be set")
+	assert.True(t, cert.NotAfter.After(time.Now()), "embedded Apple Root CA has expired")
+}
+
+func parseAppleRootCA(t *testing.T) *x509.Certificate {
+	t.Helper()
+	block, _ := pem.Decode(appleRootCAPEM)
+	require.NotNil(t, block, "appleRootCAPEM is not a valid PEM block")
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+	return cert
+}
+
+// x509.CertPool has no public membership check, so compare raw subjects.
+func poolContains(pool *x509.CertPool, cert *x509.Certificate) bool {
+	for _, subject := range pool.Subjects() { //nolint:staticcheck
+		if string(subject) == string(cert.RawSubject) {
+			return true
+		}
 	}
+	return false
 }
 
 func TestParseResponse(t *testing.T) {

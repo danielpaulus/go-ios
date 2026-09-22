@@ -1,0 +1,56 @@
+# Compares ios/imagemounter/apple_root_ca.pem against what Apple currently
+# publishes, and opens a PR if Apple ever rotates it. That root is long-lived
+# (valid until 2035), so this only needs to run occasionally — but a silent
+# rotation would otherwise go unnoticed until every cold DDI mount started
+# failing TLS verification again.
+name: Check Apple Root CA freshness
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    name: Check Apple Root CA freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Compare against Apple's published root
+        id: diff
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/apple-root-ca.cer https://www.apple.com/appleca/AppleIncRootCertificate.cer
+          openssl x509 -inform DER -in /tmp/apple-root-ca.cer -out /tmp/apple-root-ca.pem
+          if diff -q /tmp/apple-root-ca.pem ios/imagemounter/apple_root_ca.pem > /dev/null; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            cp /tmp/apple-root-ca.pem ios/imagemounter/apple_root_ca.pem
+          fi
+
+      # Requires "Allow GitHub Actions to create and approve pull requests"
+      # under Settings > Actions > General; opens a PR rather than pushing
+      # straight to main, since this changes a certificate the TSS client
+      # trusts and deserves a human look before merging.
+      - name: Open a PR with the new cert
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="update-apple-root-ca-$(date +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add ios/imagemounter/apple_root_ca.pem
+          git commit -m "chore(imagemounter): update embedded Apple Root CA"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "chore(imagemounter): update embedded Apple Root CA" \
+            --body "Apple's published root at https://www.apple.com/appleca/AppleIncRootCertificate.cer no longer matches ios/imagemounter/apple_root_ca.pem. Review the diff before merging."
