@@ -13,6 +13,8 @@ import (
 	"howett.net/plist"
 )
 
+const tssURL = "https://gs.apple.com/TSS/controller?action=2"
+
 // tssClient is used to talk to https://gs.apple.com/TSS for getting the personalized developer disk image signatures
 type tssClient struct {
 	h *http.Client
@@ -92,14 +94,20 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 		params[k] = v
 	}
 
+	return t.requestTicket(params, "ApImg4Ticket")
+}
+
+// requestTicket sends a personalization request to Apple's TSS server and returns
+// the ticket stored under ticketKey in the response.
+func (t tssClient) requestTicket(params map[string]interface{}, ticketKey string) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	enc := plist.NewEncoderForFormat(buf, plist.XMLFormat)
 	err := enc.Encode(params)
 	if err != nil {
-		return nil, fmt.Errorf("getSignature: failed to encode request body: %w", err)
+		return nil, fmt.Errorf("requestTicket: failed to encode request body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://gs.apple.com/TSS/controller?action=2", buf)
+	req, err := http.NewRequest("POST", tssURL, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -107,29 +115,28 @@ func (t tssClient) getSignature(identity buildIdentity, identifiers personalizat
 	// serves a valid public certificate, so TLS verification stays enabled.
 	res, err := t.h.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("getSignature: failed to send request: %w", err)
+		return nil, fmt.Errorf("requestTicket: failed to send request: %w", err)
 	}
 	defer res.Body.Close()
-	if res.StatusCode == http.StatusOK {
-		resp, err := parseResponse(res.Body)
-		if err != nil {
-			return nil, fmt.Errorf("getSignature: failed to parse response: %w", err)
-		}
-		if resp.status != 0 {
-			return nil, fmt.Errorf("unexpected status in response %d: %q", resp.status, resp.message)
-		}
-		var ticket map[string]interface{}
-		_, err = plist.Unmarshal([]byte(resp.requestString), &ticket)
-		if err != nil {
-			return nil, fmt.Errorf("getSignature: failed to decode plist data: %w", err)
-		}
-		if ticket, ok := ticket["ApImg4Ticket"].([]byte); ok {
-			return ticket, nil
-		} else {
-			return nil, fmt.Errorf("getSignature: could not get 'ApImg4Ticket' value from response")
-		}
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("requestTicket: unexpected response status %d", res.StatusCode)
 	}
-	return nil, fmt.Errorf("getSignature: unexpected response status %d", res.StatusCode)
+	resp, err := parseResponse(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("requestTicket: failed to parse response: %w", err)
+	}
+	if resp.status != 0 {
+		return nil, fmt.Errorf("unexpected status in response %d: %q", resp.status, resp.message)
+	}
+	var ticket map[string]interface{}
+	_, err = plist.Unmarshal([]byte(resp.requestString), &ticket)
+	if err != nil {
+		return nil, fmt.Errorf("requestTicket: failed to decode plist data: %w", err)
+	}
+	if ticket, ok := ticket[ticketKey].([]byte); ok {
+		return ticket, nil
+	}
+	return nil, fmt.Errorf("requestTicket: could not get '%s' value from response", ticketKey)
 }
 
 type response struct {
