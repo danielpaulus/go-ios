@@ -46,6 +46,7 @@ type manifestEntry struct {
 	Name    string
 	Info    struct {
 		Path                string
+		Personalize         bool
 		RestoreRequestRules []restoreRequestRule `plist:"RestoreRequestRules"`
 	}
 }
@@ -120,6 +121,41 @@ type buildIdentity struct {
 	BoardID  string `plist:"ApBoardID"`
 	ChipID   string `plist:"ApChipID"`
 	Manifest map[string]manifestEntry
+
+	// Cryptex1 properties are only set on the identity describing the DDI as a
+	// cryptex. Numbers appear both as hex strings ("0xFF10") and as integers.
+	// Their keys contain a comma, which plist struct tags can't express, so
+	// UnmarshalPlist fills them in.
+	Cryptex1ChipID                  interface{}
+	Cryptex1Type                    interface{}
+	Cryptex1SubType                 interface{}
+	Cryptex1ProductClass            interface{}
+	Cryptex1NonceDomain             interface{}
+	Cryptex1UseProductClass         bool
+	Cryptex1Version                 string
+	Cryptex1PreauthorizationVersion string
+}
+
+func (b *buildIdentity) UnmarshalPlist(unmarshal func(interface{}) error) error {
+	type plainIdentity buildIdentity
+	var plain plainIdentity
+	if err := unmarshal(&plain); err != nil {
+		return err
+	}
+	var raw map[string]interface{}
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+	*b = buildIdentity(plain)
+	b.Cryptex1ChipID = raw["Cryptex1,ChipID"]
+	b.Cryptex1Type = raw["Cryptex1,Type"]
+	b.Cryptex1SubType = raw["Cryptex1,SubType"]
+	b.Cryptex1ProductClass = raw["Cryptex1,ProductClass"]
+	b.Cryptex1NonceDomain = raw["Cryptex1,NonceDomain"]
+	b.Cryptex1UseProductClass, _ = raw["Cryptex1,UseProductClass"].(bool)
+	b.Cryptex1Version, _ = raw["Cryptex1,Version"].(string)
+	b.Cryptex1PreauthorizationVersion, _ = raw["Cryptex1,PreauthorizationVersion"].(string)
+	return nil
 }
 
 func (b buildIdentity) ApBoardID() int {
