@@ -16,6 +16,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/golog"
 	"github.com/danielpaulus/go-ios/ios/xpc"
 	"github.com/google/uuid"
+	"howett.net/plist"
 )
 
 // cryptexServiceName is the RemoteXPC service of cryptexd. Recent devices install
@@ -226,6 +227,60 @@ func (c *CryptexDeveloperDiskImageMounter) MountImage(imagePath string) error {
 	}
 	golog.Info("installed developer disk image cryptex", "module", logModule, "udid", udid, "imagePath", imagePath, "identifier", installed.Identifier, "version", installed.Version)
 	return nil
+}
+
+// cryptexInfo is the cryptex_info plist of a developer disk image. cryptexd
+// reports its CFBundleIdentifier and CFBundleVersion for the installed cryptex.
+type cryptexInfo struct {
+	CFBundleIdentifier string
+	CFBundleVersion    string
+}
+
+// CryptexImageVersion returns the identifier and version the developer disk image
+// at imagePath will have once it is installed as a cryptex. These are taken from
+// its cryptex_info, as the Cryptex1,Version of the build manifest differs from
+// what cryptexd reports.
+func CryptexImageVersion(imagePath string) (RemoteCryptex, error) {
+	manifest, err := loadBuildManifest(path.Join(imagePath, "BuildManifest.plist"))
+	if err != nil {
+		return RemoteCryptex{}, fmt.Errorf("CryptexImageVersion: failed to load build manifest: %w", err)
+	}
+	for _, identity := range manifest.BuildIdentities {
+		entry, ok := identity.Manifest[cryptexInfoPlistKey]
+		if identity.Cryptex1ChipID == nil || !ok {
+			continue
+		}
+		f, err := os.Open(path.Join(imagePath, entry.Info.Path))
+		if err != nil {
+			return RemoteCryptex{}, fmt.Errorf("CryptexImageVersion: %w", err)
+		}
+		defer f.Close()
+		var info cryptexInfo
+		if err := plist.NewDecoder(f).Decode(&info); err != nil {
+			return RemoteCryptex{}, fmt.Errorf("CryptexImageVersion: failed to decode %s: %w", entry.Info.Path, err)
+		}
+		return RemoteCryptex{Identifier: info.CFBundleIdentifier, Version: info.CFBundleVersion}, nil
+	}
+	return RemoteCryptex{}, fmt.Errorf("CryptexImageVersion: the build manifest has no Cryptex1 identity with a %s entry", cryptexInfoPlistKey)
+}
+
+// IsImageMounted reports whether the developer disk image at imagePath is
+// already installed as a cryptex, in the same version.
+func (c *CryptexDeveloperDiskImageMounter) IsImageMounted(imagePath string) (bool, error) {
+	image, err := CryptexImageVersion(imagePath)
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounted: %w", err)
+	}
+	installed, err := c.ListCryptexes()
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounted: %w", err)
+	}
+	for _, cryptex := range installed {
+		if cryptex == image {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // hasCryptexIdentity reports whether the developer disk image at imagePath can be installed as a cryptex

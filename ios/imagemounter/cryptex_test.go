@@ -92,12 +92,21 @@ type testImage struct {
 // writeTestImage creates a developer disk image 'Restore' directory with a
 // personalized DMG identity and a Cryptex1 identity like Xcode's DDI.
 func writeTestImage(t *testing.T) testImage {
+	return writeTestImageWithVersion(t, "27.1.9269.0")
+}
+
+func writeTestImageWithVersion(t *testing.T, version string) testImage {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(path.Join(dir, "Firmware"), 0o755))
+	info, err := plist.Marshal(map[string]interface{}{
+		"CFBundleIdentifier": ddiCryptexIdentifier,
+		"CFBundleVersion":    version,
+	}, plist.XMLFormat)
+	require.NoError(t, err)
 	files := map[string][]byte{
 		cryptexDmgKey:        bytes.Repeat([]byte("dmg-"), 20000),
 		cryptexVolumeKey:     []byte("root hash"),
-		cryptexInfoPlistKey:  []byte("<plist>info</plist>"),
+		cryptexInfoPlistKey:  info,
 		cryptexTrustCacheKey: bytes.Repeat([]byte("tc"), 3000),
 	}
 	paths := map[string]string{
@@ -142,6 +151,16 @@ func writeTestImage(t *testing.T) testImage {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(path.Join(dir, "BuildManifest.plist"), b, 0o644))
 	return testImage{dir: dir, files: files}
+}
+
+func TestCryptexImageVersion(t *testing.T) {
+	img := writeTestImageWithVersion(t, "27.1.9266.5")
+	image, err := CryptexImageVersion(img.dir)
+	require.NoError(t, err)
+	assert.Equal(t, RemoteCryptex{Identifier: ddiCryptexIdentifier, Version: "27.1.9266.5"}, image)
+
+	_, err = CryptexImageVersion(t.TempDir())
+	assert.Error(t, err)
 }
 
 func TestCryptexTSSRequest(t *testing.T) {
@@ -390,11 +409,15 @@ func (f *fakeCryptexd) serve(c net.Conn) error {
 				assert.Equal(f.t, ft.TransferSize, uint64(len(data)), key)
 				f.uploads[key] = data
 			}
-			f.installed = append(f.installed, RemoteCryptex{Identifier: ddiCryptexIdentifier, Version: "27.1.9269.0"})
+			// like cryptexd, report the identifier and version of the cryptex_info
+			var info cryptexInfo
+			_, err := plist.Unmarshal(f.uploads["info"], &info)
+			assert.NoError(f.t, err)
+			f.installed = append(f.installed, RemoteCryptex{Identifier: info.CFBundleIdentifier, Version: info.CFBundleVersion})
 			f.mu.Unlock()
 			resp := map[string]interface{}{"argv": map[string]interface{}{"remote-cryptex": map[string]interface{}{
-				"remote-cryptex-identifier": ddiCryptexIdentifier,
-				"remote-cryptex-version":    "27.1.9269.0",
+				"remote-cryptex-identifier": info.CFBundleIdentifier,
+				"remote-cryptex-version":    info.CFBundleVersion,
 			}}}
 			if err := reply(3, xpc.Message{Flags: xpc.AlwaysSetFlag | xpc.DataFlag | xpc.HeartbeatReplyFlag, Body: resp, Id: installId}); err != nil {
 				return err
@@ -430,6 +453,9 @@ func TestCryptexMountListUnmount(t *testing.T) {
 	images, err := mounter.ListImages()
 	require.NoError(t, err)
 	assert.Empty(t, images)
+	mounted, err := mounter.IsImageMounted(img.dir)
+	require.NoError(t, err)
+	assert.False(t, mounted)
 
 	require.NoError(t, mounter.MountImage(img.dir))
 
@@ -446,10 +472,10 @@ func TestCryptexMountListUnmount(t *testing.T) {
 	for _, r := range fake.requests {
 		routines = append(routines, r["routine"])
 	}
-	getNonce := fake.requests[2]
-	installReq := fake.requests[3]
+	getNonce := fake.requests[3]
+	installReq := fake.requests[4]
 	fake.mu.Unlock()
-	assert.Equal(t, []interface{}{"copy-installed", "read-personalization-id", "get-nonce", "install"}, routines)
+	assert.Equal(t, []interface{}{"copy-installed", "copy-installed", "read-personalization-id", "get-nonce", "install"}, routines)
 	assert.Equal(t, map[string]interface{}{"nonce-domain-handle": uint64(4)}, getNonce["argv"])
 	argv := installReq["argv"].(map[string]interface{})
 	assert.Equal(t, int64(10), argv["image-type-index"])
@@ -463,6 +489,13 @@ func TestCryptexMountListUnmount(t *testing.T) {
 		"Cryptex1,Version":         "39.999.999.0.0,0",
 		"MountedCryptex":           false,
 	}, argv["cryptex1-properties"])
+
+	mounted, err = mounter.IsImageMounted(img.dir)
+	require.NoError(t, err)
+	assert.True(t, mounted)
+	mounted, err = mounter.IsImageMounted(writeTestImageWithVersion(t, "27.1.9270.0").dir)
+	require.NoError(t, err)
+	assert.False(t, mounted, "a different version of the image is not mounted")
 
 	images, err = mounter.ListImages()
 	require.NoError(t, err)
