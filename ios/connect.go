@@ -198,13 +198,13 @@ func CreateXpcConnection(h *http.HttpConnection) (*xpc.Connection, error) {
 		return nil, fmt.Errorf("CreateXpcConnection: failed to initialize xpc connection: %w", err)
 	}
 
-	xpcConn, err := xpc.New(clientServerChannel, serverClientChannel, h)
+	openStream := func() (io.ReadWriteCloser, error) {
+		return h.OpenStream()
+	}
+	xpcConn, err := xpc.New(clientServerChannel, serverClientChannel, openStream, h)
 	if err != nil {
 		return nil, fmt.Errorf("CreateXpcConnection: failed to create xpc connection: %w", err)
 	}
-	xpcConn.SetStreamOpener(func() (io.ReadWriteCloser, error) {
-		return h.OpenStream()
-	})
 
 	return xpcConn, nil
 }
