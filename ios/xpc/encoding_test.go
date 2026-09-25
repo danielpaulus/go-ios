@@ -3,6 +3,7 @@ package xpc
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -62,6 +63,7 @@ func TestDictionary(t *testing.T) {
 			},
 			"CoreDevice.invocationIdentifier": "62419FC1-5ABF-4D96-BCA8-7A5F6F9A69EE",
 		},
+		Id: 1,
 	}, res)
 }
 
@@ -127,6 +129,13 @@ func TestEncodeDecode(t *testing.T) {
 			expectedFlags: AlwaysSetFlag | DataFlag,
 		},
 		{
+			name: "encode file transfer",
+			input: map[string]interface{}{
+				"image": FileTransfer{MsgId: 13, TransferSize: 16648704},
+			},
+			expectedFlags: AlwaysSetFlag | DataFlag,
+		},
+		{
 			name: "encode uuid",
 			input: map[string]interface{}{
 				"uuidvalue": func() uuid.UUID {
@@ -163,4 +172,13 @@ func TestEncodeDecode(t *testing.T) {
 			assert.Equal(t, tt.expectedFlags, res.Flags)
 		})
 	}
+}
+
+// TestEncodeFileTransferWireFormat checks the encoding against the bytes a Mac
+// sends for the 'image' argument of the cryptexd 'install' routine.
+func TestEncodeFileTransferWireFormat(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	err := encodeObject(buf, FileTransfer{MsgId: 13, TransferSize: 16648704})
+	assert.NoError(t, err)
+	assert.Equal(t, "00a001000d0000000000000000f0000014000000010000007300000000400000000afe0000000000", hex.EncodeToString(buf.Bytes()))
 }
