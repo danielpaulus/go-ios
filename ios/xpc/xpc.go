@@ -21,12 +21,13 @@ type Connection struct {
 type StreamOpener func() (io.ReadWriteCloser, error)
 
 // New creates a new connection to an XPC service on an iOS17 device.
-func New(clientServer io.ReadWriter, serverClient io.ReadWriter, closer io.Closer) (*Connection, error) {
+func New(clientServer io.ReadWriter, serverClient io.ReadWriter, openStream StreamOpener, closer io.Closer) (*Connection, error) {
 	return &Connection{
 		connectionCloser: closer,
 		msgId:            1,
 		clientServer:     clientServer,
 		serverClient:     serverClient,
+		openStream:       openStream,
 	}, nil
 }
 
@@ -66,11 +67,6 @@ func (c *Connection) Send(data map[string]interface{}, flags ...uint32) error {
 		Id:    c.msgId,
 	}
 	return EncodeMessage(c.clientServer, msg)
-}
-
-// SetStreamOpener enables OpenFileTransfer on this connection
-func (c *Connection) SetStreamOpener(o StreamOpener) {
-	c.openStream = o
 }
 
 // FileTransferStream carries the payload of a FileTransfer object
