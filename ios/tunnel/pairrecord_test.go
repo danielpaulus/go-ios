@@ -36,3 +36,28 @@ func TestPairRecordManager(t *testing.T) {
 		assert.True(t, private.Equal(pm.selfId.privateKey()))
 	})
 }
+
+func TestGetOrCreateSelfIdentityRejectsDanglingSymlink(t *testing.T) {
+	tmp := t.TempDir()
+	target := path.Join(tmp, "target")
+	link := path.Join(tmp, "selfIdentity.plist")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	_, err := getOrCreateSelfIdentity(link)
+	require.ErrorContains(t, err, "refusing symbolic link")
+	_, err = os.Stat(target)
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestCreateSelfIdentityDoesNotReplaceExistingFile(t *testing.T) {
+	identityPath := path.Join(t.TempDir(), "selfIdentity.plist")
+	require.NoError(t, os.WriteFile(identityPath, []byte("sentinel"), 0o600))
+
+	_, err := createSelfIdentity(identityPath)
+	require.ErrorIs(t, err, os.ErrExist)
+	content, err := os.ReadFile(identityPath)
+	require.NoError(t, err)
+	require.Equal(t, []byte("sentinel"), content)
+}
