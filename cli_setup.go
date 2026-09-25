@@ -62,7 +62,7 @@ func configureCLI(arguments docopt.Opts) {
 	slog.Debug("parsed arguments", "args", redactArgs(arguments))
 
 	startAgentFromEnvironment()
-	warnIfAgentIsNotRunning()
+	warnIfAgentIsNotRunning(arguments)
 }
 
 func redactArgs(arguments docopt.Opts) map[string]interface{} {
@@ -87,7 +87,10 @@ func startAgentFromEnvironment() {
 	}
 }
 
-func warnIfAgentIsNotRunning() {
+func warnIfAgentIsNotRunning(arguments docopt.Opts) {
+	if isDeviceListCommand(arguments) {
+		return
+	}
 	if !tunnel.IsAgentRunning() {
 		slog.Warn("go-ios agent is not running. You might need to start it with 'ios tunnel start' for ios17+. Use ENABLE_GO_IOS_AGENT=user for userspace tunnel or ENABLE_GO_IOS_AGENT=kernel for kernel tunnel for the experimental daemon mode.")
 	}
