@@ -185,13 +185,18 @@ func ConnectToServiceTunnelIface(device DeviceEntry, serviceName string) (Device
 }
 
 func CreateXpcConnection(h *http.HttpConnection) (*xpc.Connection, error) {
-	err := initializeXpcConnection(h)
+	clientServerChannel, err := h.OpenStream()
+	if err != nil {
+		return nil, fmt.Errorf("CreateXpcConnection: failed to open stream: %w", err)
+	}
+	serverClientChannel, err := h.OpenStream()
+	if err != nil {
+		return nil, fmt.Errorf("CreateXpcConnection: failed to open stream: %w", err)
+	}
+	err = initializeXpcConnection(clientServerChannel, serverClientChannel)
 	if err != nil {
 		return nil, fmt.Errorf("CreateXpcConnection: failed to initialize xpc connection: %w", err)
 	}
-
-	clientServerChannel := http.NewStreamReadWriter(h, http.ClientServer)
-	serverClientChannel := http.NewStreamReadWriter(h, http.ServerClient)
 
 	xpcConn, err := xpc.New(clientServerChannel, serverClientChannel, h)
 	if err != nil {
@@ -251,10 +256,7 @@ func ConnectLockdownWithSession(device DeviceEntry) (*LockDownConnection, error)
 	return lockdownConnection, nil
 }
 
-func initializeXpcConnection(h *http.HttpConnection) error {
-	csWriter := http.NewStreamReadWriter(h, http.ClientServer)
-	ssWriter := http.NewStreamReadWriter(h, http.ServerClient)
-
+func initializeXpcConnection(csWriter, ssWriter io.ReadWriter) error {
 	err := xpc.EncodeMessage(csWriter, xpc.Message{
 		Flags: xpc.AlwaysSetFlag,
 		Body:  map[string]interface{}{},
