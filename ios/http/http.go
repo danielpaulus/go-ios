@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"sync/atomic"
 
 	"github.com/danielpaulus/go-ios/ios/golog"
 	"golang.org/x/net/http2"
@@ -31,12 +30,8 @@ const maxFrameSize = 16384
 
 // HttpConnection is a wrapper around a http2.Framer that provides a simple interface to read and write http2 streams for iOS17+.
 type HttpConnection struct {
-	framer             *http2.Framer
-	clientServerStream *bytes.Buffer
-	serverClientStream *bytes.Buffer
-	closer             io.Closer
-	csIsOpen           *atomic.Bool
-	scIsOpen           *atomic.Bool
+	framer *http2.Framer
+	closer io.Closer
 
 	// mu guards the flow-control state and the additional streams below.
 	mu sync.Mutex
@@ -104,48 +99,13 @@ func NewHttpConnection(rw io.ReadWriteCloser) (*HttpConnection, error) {
 	}
 
 	return &HttpConnection{
-		framer:             framer,
-		clientServerStream: bytes.NewBuffer(nil),
-		serverClientStream: bytes.NewBuffer(nil),
-		closer:             rw,
-		csIsOpen:           &atomic.Bool{},
-		scIsOpen:           &atomic.Bool{},
-		peerInitialWindow:  peerInitialWindow,
-		connSendWindow:     defaultWindowSize,
-		streams:            map[uint32]*streamState{},
-		nextStreamId:       uint32(ServerClient) + 2,
+		framer:            framer,
+		closer:            rw,
+		peerInitialWindow: peerInitialWindow,
+		connSendWindow:    defaultWindowSize,
+		streams:           map[uint32]*streamState{},
+		nextStreamId:      uint32(1),
 	}, nil
-}
-
-func (r *HttpConnection) ReadClientServerStream(p []byte) (int, error) {
-	for r.clientServerStream.Len() < len(p) {
-		err := r.readDataFrame()
-		if err != nil {
-			return 0, fmt.Errorf("ReadClientServerStream: %w", err)
-		}
-	}
-	return r.clientServerStream.Read(p)
-}
-
-func (r *HttpConnection) WriteClientServerStream(p []byte) (int, error) {
-	return r.write(p, uint32(ClientServer), r.csIsOpen)
-}
-
-func (r *HttpConnection) WriteServerClientStream(p []byte) (int, error) {
-	return r.write(p, uint32(ServerClient), r.scIsOpen)
-}
-
-func (r *HttpConnection) write(p []byte, stream uint32, isOpen *atomic.Bool) (int, error) {
-	if isOpen.CompareAndSwap(false, true) {
-		err := r.framer.WriteHeaders(http2.HeadersFrameParam{
-			StreamID:   stream,
-			EndHeaders: true,
-		})
-		if err != nil {
-			return 0, fmt.Errorf("write: could not send headers. %w", err)
-		}
-	}
-	return r.Write(p, stream)
 }
 
 func (r *HttpConnection) Write(p []byte, streamId uint32) (int, error) {
@@ -182,21 +142,14 @@ func (r *HttpConnection) processFrame() (bool, error) {
 	switch f.Header().Type {
 	case http2.FrameData:
 		d := f.(*http2.DataFrame)
-		switch d.StreamID {
-		case 1:
-			r.clientServerStream.Write(d.Data())
-		case 3:
-			r.serverClientStream.Write(d.Data())
-		default:
-			r.mu.Lock()
-			s, ok := r.streams[d.StreamID]
-			if ok {
-				s.buf.Write(d.Data())
-			}
-			r.mu.Unlock()
-			if !ok {
-				return false, fmt.Errorf("unknown stream id %d", d.StreamID)
-			}
+		r.mu.Lock()
+		s, ok := r.streams[d.StreamID]
+		if ok {
+			s.buf.Write(d.Data())
+		}
+		r.mu.Unlock()
+		if !ok {
+			return false, fmt.Errorf("unknown stream id %d", d.StreamID)
 		}
 		return true, nil
 	case http2.FrameGoAway:
@@ -250,48 +203,6 @@ func (r *HttpConnection) updateInitialWindow(v int64) {
 	for _, s := range r.streams {
 		s.sendWindow += delta
 	}
-}
-
-func (r *HttpConnection) ReadServerClientStream(p []byte) (int, error) {
-	for r.serverClientStream.Len() < len(p) {
-		err := r.readDataFrame()
-		if err != nil {
-			return 0, err
-		}
-	}
-	return r.serverClientStream.Read(p)
-}
-
-type HttpStreamReadWriter struct {
-	h        *HttpConnection
-	streamId uint32
-}
-
-func NewStreamReadWriter(h *HttpConnection, streamId StreamId) HttpStreamReadWriter {
-	return HttpStreamReadWriter{
-		h:        h,
-		streamId: uint32(streamId),
-	}
-}
-
-func (h HttpStreamReadWriter) Read(p []byte) (n int, err error) {
-	if h.streamId == 1 {
-		return h.h.ReadClientServerStream(p)
-	}
-	if h.streamId == 3 {
-		return h.h.ReadServerClientStream(p)
-	}
-	return 0, fmt.Errorf("Read: unknown stream id %d", h.streamId)
-}
-
-func (h HttpStreamReadWriter) Write(p []byte) (n int, err error) {
-	if h.streamId == 1 {
-		return h.h.WriteClientServerStream(p)
-	}
-	if h.streamId == 3 {
-		return h.h.WriteServerClientStream(p)
-	}
-	return 0, fmt.Errorf("Write: unknown stream id %d", h.streamId)
 }
 
 // Stream is an additional client initiated HTTP/2 stream. RemoteXPC uses those
