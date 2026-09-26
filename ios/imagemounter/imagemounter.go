@@ -242,7 +242,28 @@ func MountImage(device ios.DeviceEntry, path string) error {
 		golog.Warn("there is already a developer image mounted, reboot the device if you want to remove it. aborting.", "module", logModule, "udid", device.Properties.SerialNumber, "imagePath", path)
 		return nil
 	}
-	return conn.MountImage(path)
+
+	err = conn.MountImage(path)
+	if alreadyMounted(err) {
+		// A personalized DDI can auto-remount within about a second of boot (part of
+		// Developer Mode persisting across reboots) — faster than ListImages() above
+		// can catch, so the device can still refuse this as a duplicate right after
+		// it just reported nothing mounted. Treat it the same as the check above.
+		golog.Warn("device reports an image already mounted; treating as already in the desired state.", "module", logModule, "udid", device.Properties.SerialNumber, "imagePath", path)
+		return nil
+	}
+	return err
+}
+
+// alreadyMounted reports whether err is the device refusing MountImage because an image
+// is already mounted at the target path, as opposed to any other reason a mount can fail
+// (wrong signature, developer mode disabled, locked device, ...).
+func alreadyMounted(err error) bool {
+	var refused deviceRefusedError
+	if !errors.As(err, &refused) {
+		return false
+	}
+	return refused.deviceError == "ImageMountFailed" && strings.Contains(refused.detail, "already mounted at")
 }
 
 func UnmountImage(device ios.DeviceEntry) error {

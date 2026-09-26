@@ -2,6 +2,7 @@ package imagemounter
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -25,6 +26,15 @@ var (
 		"Error": "InternalError",
 		"DetailedError": `Error Domain=com.apple.MobileStorage.ErrorDomain Code=-2 "Failed to unmount /Developer." ` +
 			`UserInfo={NSLocalizedDescription=There is no matching entry in the device map for /Developer.}`,
+	}
+	// iOS 26.6, mounting right after boot: the personalized DDI had already
+	// auto-remounted (Developer Mode persists it across reboots) faster than
+	// ListImages() could observe it.
+	alreadyMountedReply = map[string]interface{}{
+		"Error": "ImageMountFailed",
+		"DetailedError": `Error Domain=com.apple.MobileStorage.ErrorDomain Code=-2 "Failed to mount /private/.../ltFdWi.dmg." ` +
+			`UserInfo={NSUnderlyingError=Code=-2 "Invalid value for MountPath: Error Domain=com.apple.MobileStorage.ErrorDomain Code=-3 ` +
+			`\"A disk image of type Personalized/DeveloperDiskImage is already mounted at /System/Developer.\""}`,
 	}
 )
 
@@ -111,6 +121,17 @@ func TestReadImageMounterResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAlreadyMounted(t *testing.T) {
+	err := readImageMounterResponse(readerFor(t, alreadyMountedReply), "udid", "MountImage", "Complete")
+	require.Error(t, err)
+	assert.True(t, alreadyMounted(err))
+
+	assert.False(t, alreadyMounted(readImageMounterResponse(readerFor(t, developerModeDisabledReply), "udid", "MountImage", "Complete")))
+	assert.False(t, alreadyMounted(readImageMounterResponse(readerFor(t, deviceLockedReply), "udid", "MountImage", "Complete")))
+	assert.False(t, alreadyMounted(nil))
+	assert.False(t, alreadyMounted(errors.New("some other error")))
 }
 
 // Devices that predate 'UnmountImage' answer with UnknownCommand. Unmounting stays best-effort
