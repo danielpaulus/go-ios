@@ -207,6 +207,7 @@ type Stream struct {
 func (r *HttpConnection) OpenStream() (*Stream, error) {
 	r.mu.Lock()
 	id := r.nextStreamId
+	// Client controlled streams are always odd numbered (RFC 9113 5.1.1)
 	r.nextStreamId += 2
 	r.streams[id] = &streamState{sendWindow: r.peerInitialWindow}
 	r.mu.Unlock()
