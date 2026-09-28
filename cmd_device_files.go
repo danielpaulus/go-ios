@@ -10,6 +10,7 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/afc"
+	"github.com/danielpaulus/go-ios/ios/fetchsymbols"
 	"github.com/danielpaulus/go-ios/ios/fileservice"
 	"github.com/danielpaulus/go-ios/ios/house_arrest"
 )
@@ -173,6 +174,78 @@ func runFileCommand(ctx commandContext) {
 		} else {
 			slog.Info(fmt.Sprintf("Uploaded %d bytes to %s", fileSize, remotePath))
 		}
+	}
+}
+
+func runFetchSymbolsCommand(ctx commandContext) {
+	if !ctx.Device.SupportsRsd() {
+		exitIfError("fetchsymbols requires iOS 17+ with tunnel", fmt.Errorf("tunnel not running. Start with: ios tunnel start"))
+	}
+
+	baseDir, _ := ctx.Args.String("--path")
+	if baseDir == "" {
+		baseDir = "./ios-symbols"
+	}
+
+	// Cache per iOS version + build so the multi-GB download is reused across devices on
+	// the same version.
+	versionSubdir := "unknown-version"
+	if values, err := ios.GetValues(ctx.Device); err == nil {
+		versionSubdir = values.Value.ProductVersion + "_" + values.Value.BuildVersion
+	} else {
+		slog.Warn("fetchsymbols: could not read iOS version from lockdown, caching without version index", "error", err)
+	}
+	cacheDir := filepath.Join(baseDir, versionSubdir)
+
+	conn, err := fetchsymbols.New(ctx.Device)
+	exitIfError("fetchsymbols: failed to connect to service", err)
+	defer conn.Close()
+
+	files, err := conn.ListFiles()
+	exitIfError("fetchsymbols: failed to list shared cache files", err)
+
+	var totalBytes uint64
+	for _, f := range files {
+		totalBytes += f.Size
+	}
+	slog.Info("fetchsymbols downloads the dyld shared cache from the device. This is a large download, make sure you have enough disk space and time.",
+		"files", len(files), "totalMB", totalBytes/(1024*1024), "cacheDir", cacheDir)
+
+	downloaded := 0
+	skipped := 0
+	for i, f := range files {
+		dest, err := fetchsymbols.CachePath(cacheDir, f.FilePath)
+		exitIfError("fetchsymbols: invalid file path received from device", err)
+
+		if fetchsymbols.IsCached(dest, f.Size) {
+			slog.Info("already cached, skipping", "file", f.FilePath, "dest", dest)
+			skipped++
+			continue
+		}
+
+		var lastLogged uint64
+		progress := func(written uint64) {
+			if written-lastLogged >= 512*1024*1024 || written == f.Size {
+				lastLogged = written
+				slog.Info("downloading", "file", f.FilePath, "writtenMB", written/(1024*1024), "totalMB", f.Size/(1024*1024))
+			}
+		}
+		err = conn.DownloadToCache(dest, i, f, progress)
+		exitIfError("fetchsymbols: download failed", err)
+		downloaded++
+	}
+
+	result := map[string]interface{}{
+		"cacheDir":   cacheDir,
+		"files":      len(files),
+		"downloaded": downloaded,
+		"skipped":    skipped,
+		"totalBytes": totalBytes,
+	}
+	if !JSONdisabled {
+		fmt.Println(convertToJSONString(result))
+	} else {
+		slog.Info("fetchsymbols done", "cacheDir", cacheDir, "files", len(files), "downloaded", downloaded, "skipped", skipped)
 	}
 }
 

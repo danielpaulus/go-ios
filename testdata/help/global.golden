@@ -42,6 +42,7 @@ Commands:
   diskspace                       Print disk usage.
   dproxy                          Start debug proxy.
   erase                           Erase device.
+  fetchsymbols                    Download the dyld shared cache for local symbolication (multi-GB, iOS 17+).
   file ls                         List files in app/group/temp/crash container.
   file pull                       Pull file from device.
   file push                       Push file to device.

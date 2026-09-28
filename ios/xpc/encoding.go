@@ -44,7 +44,10 @@ const (
 	HeartbeatRequestFlag = uint32(0x00010000)
 	HeartbeatReplyFlag   = uint32(0x00020000)
 	FileOpenFlag         = uint32(0x00100000)
-	InitHandshakeFlag    = uint32(0x00400000)
+	// FileTransferStreamResponseFlag opens an additional HTTP2 stream on which the device
+	// streams the raw content of a file transfer back to the client.
+	FileTransferStreamResponseFlag = uint32(0x00200000)
+	InitHandshakeFlag              = uint32(0x00400000)
 )
 
 type wrapperHeader struct {
@@ -551,8 +554,28 @@ func encodeObject(w io.Writer, e interface{}) error {
 		if err := encodeDictionary(w, e.(map[string]interface{})); err != nil {
 			return err
 		}
+	case FileTransfer:
+		if err := encodeFileTransfer(w, e.(FileTransfer)); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("can not encode type %v", t)
+	}
+	return nil
+}
+
+// encodeFileTransfer is the inverse of decodeFileTransfer: a file transfer object carries
+// a message id and a dictionary whose property 's' holds the transfer length.
+func encodeFileTransfer(w io.Writer, ft FileTransfer) error {
+	header := struct {
+		t     xpcType
+		msgId uint64
+	}{fileTransferType, ft.MsgId}
+	if err := binary.Write(w, binary.LittleEndian, header); err != nil {
+		return fmt.Errorf("encodeFileTransfer: failed to write header: %w", err)
+	}
+	if err := encodeDictionary(w, map[string]interface{}{"s": ft.TransferSize}); err != nil {
+		return fmt.Errorf("encodeFileTransfer: failed to write transfer length: %w", err)
 	}
 	return nil
 }
