@@ -119,25 +119,13 @@ func (r *HttpConnection) Write(p []byte, streamId uint32) (int, error) {
 	return len(p), nil
 }
 
-func (r *HttpConnection) readDataFrame() error {
-	for {
-		isData, err := r.processFrame()
-		if err != nil {
-			return fmt.Errorf("readDataFrame: %w", err)
-		}
-		if isData {
-			return nil
-		}
-	}
-}
-
-// processFrame reads and handles a single frame. It reports whether the frame
-// was a DATA frame so that callers waiting for stream data can re-check their
-// buffers.
-func (r *HttpConnection) processFrame() (bool, error) {
+// processFrame reads and handles a single frame. Callers waiting for stream
+// data or for flow-control windows to open call it repeatedly until their
+// condition is met.
+func (r *HttpConnection) processFrame() error {
 	f, err := r.framer.ReadFrame()
 	if err != nil {
-		return false, fmt.Errorf("could not read frame. %w", err)
+		return fmt.Errorf("could not read frame. %w", err)
 	}
 	switch f.Header().Type {
 	case http2.FrameData:
@@ -149,11 +137,10 @@ func (r *HttpConnection) processFrame() (bool, error) {
 		}
 		r.mu.Unlock()
 		if !ok {
-			return false, fmt.Errorf("unknown stream id %d", d.StreamID)
+			return fmt.Errorf("unknown stream id %d", d.StreamID)
 		}
-		return true, nil
 	case http2.FrameGoAway:
-		return false, fmt.Errorf("received GOAWAY")
+		return fmt.Errorf("received GOAWAY")
 	case http2.FrameSettings:
 		s := f.(*http2.SettingsFrame)
 		if s.Flags&http2.FlagSettingsAck != http2.FlagSettingsAck {
@@ -162,7 +149,7 @@ func (r *HttpConnection) processFrame() (bool, error) {
 			}
 			err := r.framer.WriteSettingsAck()
 			if err != nil {
-				return false, fmt.Errorf("could not write settings ack. %w", err)
+				return fmt.Errorf("could not write settings ack. %w", err)
 			}
 		}
 	case http2.FrameWindowUpdate:
@@ -185,12 +172,12 @@ func (r *HttpConnection) processFrame() (bool, error) {
 		// The device resets file transfer streams once it received all data.
 		// That's no reason to fail reads on the XPC streams.
 		if !ok {
-			return false, fmt.Errorf("got RST frame with error code: %s", rst.ErrCode.String())
+			return fmt.Errorf("got RST frame with error code: %s", rst.ErrCode.String())
 		}
 	default:
 		break
 	}
-	return false, nil
+	return nil
 }
 
 // updateInitialWindow applies a new SETTINGS_INITIAL_WINDOW_SIZE of the peer,
@@ -249,7 +236,7 @@ func (s *Stream) Read(p []byte) (int, error) {
 		if reset {
 			return 0, fmt.Errorf("Read: stream %d was reset by the peer", s.id)
 		}
-		if _, err := s.h.processFrame(); err != nil {
+		if err := s.h.processFrame(); err != nil {
 			return 0, fmt.Errorf("Read: %w", err)
 		}
 	}
@@ -265,7 +252,7 @@ func (s *Stream) Write(p []byte) (int, error) {
 			return written, fmt.Errorf("Write: %w", err)
 		}
 		if n == 0 {
-			if _, err := s.h.processFrame(); err != nil {
+			if err := s.h.processFrame(); err != nil {
 				return written, fmt.Errorf("Write: failed waiting for window update. %w", err)
 			}
 			continue
