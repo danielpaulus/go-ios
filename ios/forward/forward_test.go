@@ -193,7 +193,7 @@ func TestForwardCloseLifecycle(t *testing.T) {
 
 	accepted := make(chan struct{})
 	go func() {
-		connectionAccept(cl, 1, 8100)
+		connectionAccept(cl, 1, 8100, nil)
 		close(accepted)
 	}()
 
