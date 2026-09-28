@@ -1,0 +1,40 @@
+// Annotated Claude Desktop config for the go-ios MCP server.
+//
+// This .jsonc file is DOCS ONLY — it has comments so every field is explained.
+// Claude Desktop's config file (claude_desktop_config.json) is STRICT JSON and
+// does NOT allow comments, so copy the sibling `claude-desktop.json` (no
+// comments) into your real config instead of this file.
+//
+// Where the real file lives:
+//   macOS   ~/Library/Application Support/Claude/claude_desktop_config.json
+//   Windows %APPDATA%\Claude\claude_desktop_config.json
+//
+// After editing it, fully quit and reopen Claude Desktop so it re-reads config.
+{
+  // Registry of MCP servers Claude Desktop should launch. Merge the "go-ios"
+  // entry into any existing "mcpServers" object — don't drop your other servers.
+  "mcpServers": {
+    // "go-ios" is the label shown in the client; rename it freely.
+    "go-ios": {
+      // The server is published to npm as @go-ios/mcp and exposes a bin, so the
+      // client just runs it with npx. `-y` skips the npx install prompt; the
+      // package is fetched/cached on first run. It speaks MCP over stdio, which
+      // is exactly what Claude Desktop expects for a `command` server.
+      "command": "npx",
+      "args": ["-y", "@go-ios/mcp"],
+
+      // Environment for the spawned server process. The MCP server does NOT talk
+      // to devices directly — it proxies a running go-ios REST daemon, which you
+      // start separately with `ios rest ...`.
+      "env": {
+        // Base URL of your go-ios REST daemon. Default is http://localhost:8080.
+        "GO_IOS_BASE_URL": "http://localhost:8080",
+
+        // Bearer token for the daemon, sent as `Authorization: Bearer <token>`.
+        // Match whatever the daemon was started with. If you ran the daemon with
+        // auth disabled, you can drop this line entirely.
+        "GO_IOS_API_KEY": "your-token"
+      }
+    }
+  }
+}

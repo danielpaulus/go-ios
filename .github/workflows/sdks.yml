@@ -1,0 +1,136 @@
+name: SDKs CI
+
+# Validation only (spec compile + per-package build/test) for the SDKs under
+# sdks/. Publishing is handled by the separate, dispatch-only release-sdks.yml
+# (lockstep: all five SDKs share one version and ship together).
+on:
+  pull_request:
+    paths:
+      - "sdks/**"
+  push:
+    branches: [main]
+    paths:
+      - "sdks/**"
+
+jobs:
+  spec:
+    name: TypeSpec compiles + OpenAPI 3.1 is emitted
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/spec
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: sdks/spec/package-lock.json
+      - name: Install spec dependencies
+        run: npm ci
+      - name: Compile TypeSpec -> OpenAPI
+        run: npx tsp compile .
+      - name: Verify OpenAPI 3.1 output exists
+        run: |
+          test -f openapi/openapi.3.1.0.yaml
+          head -1 openapi/openapi.3.1.0.yaml | grep -q 'openapi: 3.1.0'
+      - name: Verify committed spec is up to date
+        run: |
+          cp openapi/openapi.3.1.0.yaml openapi/openapi.yaml
+          cp openapi/openapi.3.1.0.json openapi/openapi.json
+          git diff --exit-code -- openapi/ \
+            || (echo "::error::sdks/spec/openapi is out of date — run scripts/regen.sh and commit" && exit 1)
+
+  typescript:
+    name: TypeScript SDK build + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/packages/typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: sdks/packages/typescript/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - run: npm test
+
+  mcp:
+    name: MCP server build + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/packages/mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: sdks/packages/mcp/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - run: npm test
+      # Device-free pre-release gate: the list-tools example spawns the built
+      # MCP server over stdio and asserts the exact curated 44-tool set. It needs
+      # no device and no daemon (call-tool auto-skips without GO_IOS_API_KEY), so
+      # a broken MCP server fails CI here. See sdks/docs/EXAMPLES.md.
+      - name: MCP examples smoke test (list-tools, device-free)
+        run: npm run examples
+
+  python:
+    name: Python SDK test (3.9-3.13) + types
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/packages/python
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+      - name: Sync deps
+        run: uv sync --all-extras --dev
+      - name: Test
+        run: uv run pytest
+      - name: Type check (facade)
+        run: uv run mypy src/go_ios_sdk --exclude '_generated'
+        continue-on-error: false
+
+  csharp:
+    name: C# SDK build + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/packages/csharp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - run: dotnet build -c Release
+      - run: dotnet test -c Release --no-build
+
+  java:
+    name: Java SDK compile + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/packages/java
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Compile + test (javac + JUnit console)
+        run: bash scripts/verify.sh

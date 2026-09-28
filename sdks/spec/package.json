@@ -1,0 +1,22 @@
+{
+  "name": "@go-ios/spec",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeSpec source of truth for the go-ios REST API (emits OpenAPI 3.1).",
+  "type": "module",
+  "scripts": {
+    "compile": "tsp compile .",
+    "watch": "tsp compile . --watch",
+    "clean": "rm -rf tsp-output"
+  },
+  "dependencies": {
+    "@typespec/compiler": "1.14.0",
+    "@typespec/http": "1.14.0",
+    "@typespec/openapi": "1.14.0",
+    "@typespec/openapi3": "1.14.0",
+    "@typespec/rest": "0.84.0",
+    "@typespec/events": "0.84.0",
+    "@typespec/streams": "0.84.0",
+    "@typespec/sse": "0.84.0"
+  }
+}

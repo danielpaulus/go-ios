@@ -1,0 +1,17 @@
+# Build output
+bin/
+obj/
+artifacts/
+*.user
+
+# Re-include the committed generated low-level client (the repo-root .gitignore
+# ignores "generated/", which on a case-insensitive filesystem also matches our
+# src/Generated/ tree). We DO commit the generated sources; only bin/obj below
+# it are ignored (via the patterns above).
+!src/Generated/
+!src/Generated/**
+src/Generated/**/bin/
+src/Generated/**/obj/
+
+# openapi-generator scratch config written by regen.sh
+.openapi-generator-config.json

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Runnable examples for the go-ios C#/.NET SDK.
+
+    This is an executable console project (not packable). It references the
+    hand-written facade project directly so the examples always compile against
+    the exact public API the package ships. It doubles as a pre-release smoke
+    test: `dotnet run run-all` exercises the read-only surface of a live
+    go-ios daemon end to end.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>GoIos.Examples</RootNamespace>
+    <AssemblyName>GoIos.Examples</AssemblyName>
+    <!-- Never publish this project to NuGet; it is docs + a smoke test. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference the SDK facade project (which in turn bundles the generated
+         low-level client). This guarantees the examples track the real API. -->
+    <ProjectReference Include="..\..\src\GoIos.Sdk\GoIos.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>
