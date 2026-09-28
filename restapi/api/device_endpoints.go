@@ -216,17 +216,16 @@ func Screenshot(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "image/png")
-	c.Data(http.StatusOK, "application/octet-stream", imageBytes)
+	c.Data(http.StatusOK, "image/png", imageBytes)
 }
 
 // Change the current device location
 // @Summary      Change the current device location
-// @Description Change the current device location to provided latitude and longtitude
+// @Description Change the current device location to provided latitude and longitude
 // @Tags         general_device_specific
 // @Produce      json
 // @Param        latitude  query      string  true  "Location latitude"
-// @Param        longtitude  query      string  true  "Location longtitude"
+// @Param        longitude  query      string  true  "Location longitude"
 // @Success      200  {object}  GenericResponse
 // @Failure		 422  {object}  GenericResponse
 // @Failure		 500  {object}  GenericResponse
@@ -240,19 +239,19 @@ func SetLocation(c *gin.Context) {
 		return
 	}
 
-	longtitude := c.Query("longtitude")
-	if longtitude == "" {
-		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "longtitude query param is missing"})
+	longitude := c.Query("longitude")
+	if longitude == "" {
+		c.JSON(http.StatusUnprocessableEntity, GenericResponse{Error: "longitude query param is missing"})
 		return
 	}
 
-	err := simlocation.SetLocation(device, latitude, longtitude)
+	err := simlocation.SetLocation(device, latitude, longitude)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, GenericResponse{Error: err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, GenericResponse{Message: "Device location set to latitude=" + latitude + ", longtitude=" + longtitude})
+	c.JSON(http.StatusOK, GenericResponse{Message: "Device location set to latitude=" + latitude + ", longitude=" + longitude})
 }
 
 // Reset to the actual device location
