@@ -134,19 +134,6 @@ func NewHttpConnection(rw io.ReadWriteCloser) (*HttpConnection, error) {
 	}, nil
 }
 
-func (r *HttpConnection) Write(p []byte, streamId uint32) (int, error) {
-	r.framerWriteMu.Lock()
-	err := r.framer.WriteData(streamId, false, p)
-	r.framerWriteMu.Unlock()
-	if err != nil {
-		return 0, fmt.Errorf("Write: could not write data. %w", err)
-	}
-	r.mu.Lock()
-	r.connSendWindow -= int64(len(p))
-	r.mu.Unlock()
-	return len(p), nil
-}
-
 // processFrame reads and handles a single frame. Callers waiting for stream
 // data or for flow-control windows to open call it repeatedly until their
 // condition is met.
