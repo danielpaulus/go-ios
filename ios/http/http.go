@@ -24,6 +24,15 @@ const (
 // that applies until the peer announces a different one.
 const defaultWindowSize = 65535
 
+// recvWindowSize is the flow-control window we grant the peer, for the
+// connection as well as for every stream. It is announced as
+// SETTINGS_INITIAL_WINDOW_SIZE and replenished with WINDOW_UPDATE frames.
+const recvWindowSize = 1048576
+
+// windowUpdateThreshold is how much of a receive window may be used up before
+// it is replenished, so that not every DATA frame needs a WINDOW_UPDATE.
+const windowUpdateThreshold = recvWindowSize / 2
+
 // maxFrameSize is the largest DATA frame payload we send. It's the HTTP/2
 // default for SETTINGS_MAX_FRAME_SIZE, which every peer has to accept.
 const maxFrameSize = 16384
@@ -50,6 +59,9 @@ type HttpConnection struct {
 	// connSendWindow is the connection level send window. Only writes on
 	// additional streams wait for it, see Stream.Write.
 	connSendWindow int64
+	// connRecvUnacked counts the bytes received on the connection that have not
+	// been granted back to the peer with a WINDOW_UPDATE yet.
+	connRecvUnacked int64
 	// streams holds the additional client initiated streams (5, 7, ...) that
 	// are used for XPC file transfers.
 	streams      map[uint32]*streamState
@@ -59,7 +71,10 @@ type HttpConnection struct {
 type streamState struct {
 	buf        bytes.Buffer
 	sendWindow int64
-	reset      bool
+	// recvUnacked counts the bytes received on this stream that have not been
+	// granted back to the peer with a WINDOW_UPDATE yet.
+	recvUnacked int64
+	reset       bool
 }
 
 func (r *HttpConnection) Close() error {
@@ -76,13 +91,15 @@ func NewHttpConnection(rw io.ReadWriteCloser) (*HttpConnection, error) {
 
 	err = framer.WriteSettings(
 		http2.Setting{ID: http2.SettingMaxConcurrentStreams, Val: 100},
-		http2.Setting{ID: http2.SettingInitialWindowSize, Val: 1048576},
+		http2.Setting{ID: http2.SettingInitialWindowSize, Val: recvWindowSize},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("NewHttpConnection: could not write settings. %w", err)
 	}
 
-	err = framer.WriteWindowUpdate(uint32(InitStream), 983041)
+	// SETTINGS_INITIAL_WINDOW_SIZE doesn't apply to the connection window, so it
+	// is raised to the same size explicitly (RFC 9113 6.9.2)
+	err = framer.WriteWindowUpdate(uint32(InitStream), recvWindowSize-defaultWindowSize)
 	if err != nil {
 		return nil, fmt.Errorf("NewHttpConnection: could not write window update. %w", err)
 	}
@@ -152,14 +169,31 @@ func (r *HttpConnection) processFrame(ready func() bool) error {
 	switch f.Header().Type {
 	case http2.FrameData:
 		d := f.(*http2.DataFrame)
+		// the whole frame payload counts against the receive windows, the
+		// padding included (RFC 9113 6.9.1)
+		size := int64(d.Header().Length)
 		r.mu.Lock()
 		s, ok := r.streams[d.StreamID]
+		streamIncrement := int64(0)
 		if ok {
 			s.buf.Write(d.Data())
+			// a stream that the peer is done with doesn't need its window back
+			if !s.reset && !d.StreamEnded() {
+				streamIncrement = ackReceived(&s.recvUnacked, size)
+			}
 		}
+		connIncrement := ackReceived(&r.connRecvUnacked, size)
 		r.mu.Unlock()
 		if !ok {
 			return fmt.Errorf("unknown stream id %d", d.StreamID)
+		}
+		// the received data is buffered without a bound, so the windows are
+		// replenished right away instead of when a reader consumes the data
+		if err := r.writeWindowUpdate(uint32(InitStream), connIncrement); err != nil {
+			return err
+		}
+		if err := r.writeWindowUpdate(d.StreamID, streamIncrement); err != nil {
+			return err
 		}
 	case http2.FrameGoAway:
 		return fmt.Errorf("received GOAWAY")
@@ -214,6 +248,33 @@ func (r *HttpConnection) updateInitialWindow(v int64) {
 	for _, s := range r.streams {
 		s.sendWindow += delta
 	}
+}
+
+// ackReceived adds the n received bytes to unacked and returns the increment to
+// grant back with a WINDOW_UPDATE frame, or 0 while the window still has room.
+func ackReceived(unacked *int64, n int64) int64 {
+	*unacked += n
+	if *unacked < windowUpdateThreshold {
+		return 0
+	}
+	increment := *unacked
+	*unacked = 0
+	return increment
+}
+
+// writeWindowUpdate grants increment bytes of receive window back to the peer.
+// The WINDOW_UPDATE is only sent when increment > 0, otherwise this is a no-op.
+func (r *HttpConnection) writeWindowUpdate(streamId uint32, increment int64) error {
+	if increment <= 0 {
+		return nil
+	}
+	r.framerWriteMu.Lock()
+	err := r.framer.WriteWindowUpdate(streamId, uint32(increment))
+	r.framerWriteMu.Unlock()
+	if err != nil {
+		return fmt.Errorf("could not write window update for stream %d. %w", streamId, err)
+	}
+	return nil
 }
 
 // Stream is an additional client initiated HTTP/2 stream. RemoteXPC uses those
