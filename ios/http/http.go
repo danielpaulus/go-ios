@@ -30,8 +30,17 @@ const maxFrameSize = 16384
 
 // HttpConnection is a wrapper around a http2.Framer that provides a simple interface to read and write http2 streams for iOS17+.
 type HttpConnection struct {
-	framer *http2.Framer
 	closer io.Closer
+
+	framer *http2.Framer
+
+	// framerReadMu guards reading frames. A http2.Framer is not safe for concurrent
+	// reads, and the payload of a frame is only valid until the next read, so a
+	// frame has to be dispatched to its stream before the next one is read.
+	framerReadMu sync.Mutex
+	// framerWriteMu guards writing frames, a http2.Framer encodes every frame into
+	// the same buffer.
+	framerWriteMu sync.Mutex
 
 	// mu guards the flow-control state and the additional streams below.
 	mu sync.Mutex
@@ -109,7 +118,9 @@ func NewHttpConnection(rw io.ReadWriteCloser) (*HttpConnection, error) {
 }
 
 func (r *HttpConnection) Write(p []byte, streamId uint32) (int, error) {
+	r.framerWriteMu.Lock()
 	err := r.framer.WriteData(streamId, false, p)
+	r.framerWriteMu.Unlock()
 	if err != nil {
 		return 0, fmt.Errorf("Write: could not write data. %w", err)
 	}
@@ -122,7 +133,18 @@ func (r *HttpConnection) Write(p []byte, streamId uint32) (int, error) {
 // processFrame reads and handles a single frame. Callers waiting for stream
 // data or for flow-control windows to open call it repeatedly until their
 // condition is met.
-func (r *HttpConnection) processFrame() error {
+//
+// Only one goroutine reads from the connection at a time, and it dispatches the
+// frames of all streams. ready is therefore evaluated again once this goroutine
+// owns the read side: another goroutine may have delivered what the caller is
+// waiting for in the meantime, and reading one more frame would block until the
+// peer happens to send another one.
+func (r *HttpConnection) processFrame(ready func() bool) error {
+	r.framerReadMu.Lock()
+	defer r.framerReadMu.Unlock()
+	if ready() {
+		return nil
+	}
 	f, err := r.framer.ReadFrame()
 	if err != nil {
 		return fmt.Errorf("could not read frame. %w", err)
@@ -147,7 +169,9 @@ func (r *HttpConnection) processFrame() error {
 			if v, ok := s.Value(http2.SettingInitialWindowSize); ok {
 				r.updateInitialWindow(int64(v))
 			}
+			r.framerWriteMu.Lock()
 			err := r.framer.WriteSettingsAck()
+			r.framerWriteMu.Unlock()
 			if err != nil {
 				return fmt.Errorf("could not write settings ack. %w", err)
 			}
@@ -196,8 +220,8 @@ func (r *HttpConnection) updateInitialWindow(v int64) {
 // for transferring the payload of file transfer objects.
 //
 // Writes honor the peer's flow-control windows and read frames from the
-// connection while they wait for window updates. A Stream must therefore not be
-// written while another goroutine reads from the same HttpConnection.
+// connection while they wait for window updates. Every stream of a connection
+// can be read and written from its own goroutine.
 type Stream struct {
 	h  *HttpConnection
 	id uint32
@@ -212,10 +236,12 @@ func (r *HttpConnection) OpenStream() (*Stream, error) {
 	r.streams[id] = &streamState{sendWindow: r.peerInitialWindow}
 	r.mu.Unlock()
 
+	r.framerWriteMu.Lock()
 	err := r.framer.WriteHeaders(http2.HeadersFrameParam{
 		StreamID:   id,
 		EndHeaders: true,
 	})
+	r.framerWriteMu.Unlock()
 	if err != nil {
 		return nil, fmt.Errorf("OpenStream: could not send headers for stream %d. %w", id, err)
 	}
@@ -237,10 +263,19 @@ func (s *Stream) Read(p []byte) (int, error) {
 		if reset {
 			return 0, fmt.Errorf("Read: stream %d was reset by the peer", s.id)
 		}
-		if err := s.h.processFrame(); err != nil {
+		if err := s.h.processFrame(func() bool { return s.readable(len(p)) }); err != nil {
 			return 0, fmt.Errorf("Read: %w", err)
 		}
 	}
+}
+
+// readable reports whether a read of n bytes can complete, either because the
+// data arrived or because the peer reset the stream.
+func (s *Stream) readable(n int) bool {
+	s.h.mu.Lock()
+	defer s.h.mu.Unlock()
+	st := s.h.streams[s.id]
+	return st.reset || st.buf.Len() >= n
 }
 
 // Write sends p as DATA frames on this stream, waiting for the peer to open its
@@ -253,17 +288,29 @@ func (s *Stream) Write(p []byte) (int, error) {
 			return written, fmt.Errorf("Write: %w", err)
 		}
 		if n == 0 {
-			if err := s.h.processFrame(); err != nil {
+			if err := s.h.processFrame(s.writable); err != nil {
 				return written, fmt.Errorf("Write: failed waiting for window update. %w", err)
 			}
 			continue
 		}
-		if err := s.h.framer.WriteData(s.id, false, p[written:written+n]); err != nil {
+		s.h.framerWriteMu.Lock()
+		err = s.h.framer.WriteData(s.id, false, p[written:written+n])
+		s.h.framerWriteMu.Unlock()
+		if err != nil {
 			return written, fmt.Errorf("Write: could not write data on stream %d. %w", s.id, err)
 		}
 		written += n
 	}
 	return written, nil
+}
+
+// writable reports whether a write can make progress, either because both send
+// windows have room or because the peer reset the stream.
+func (s *Stream) writable() bool {
+	s.h.mu.Lock()
+	defer s.h.mu.Unlock()
+	st := s.h.streams[s.id]
+	return st.reset || (st.sendWindow > 0 && s.h.connSendWindow > 0)
 }
 
 // sendWindow reserves up to want bytes of the stream and connection windows and
@@ -287,7 +334,10 @@ func (s *Stream) sendWindow(want int) (int, error) {
 
 // Close half-closes the stream by sending an empty DATA frame with END_STREAM
 func (s *Stream) Close() error {
-	if err := s.h.framer.WriteData(s.id, true, nil); err != nil {
+	s.h.framerWriteMu.Lock()
+	err := s.h.framer.WriteData(s.id, true, nil)
+	s.h.framerWriteMu.Unlock()
+	if err != nil {
 		return fmt.Errorf("Close: could not end stream %d. %w", s.id, err)
 	}
 	return nil
