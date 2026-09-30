@@ -38,6 +38,10 @@ func (d *PrimitiveDictionary) AddInt32(value int) {
 	d.keyValuePairs.PushBack(PrimitiveKeyValuePair{t_null, nil, t_uint32, uint32(value)})
 }
 
+func (d *PrimitiveDictionary) AddInt64(value int64) {
+	d.keyValuePairs.PushBack(PrimitiveKeyValuePair{t_null, nil, t_int64, value})
+}
+
 func (d *PrimitiveDictionary) AddBytes(value []byte) {
 	d.keyValuePairs.PushBack(PrimitiveKeyValuePair{t_null, nil, t_bytearray, value})
 }
@@ -92,6 +96,11 @@ func writeEntry(valuetype uint32, value interface{}, buf io.Writer) error {
 	}
 	if valuetype == t_uint32 {
 		binary.Write(buf, binary.LittleEndian, t_uint32)
+		binary.Write(buf, binary.LittleEndian, value)
+		return nil
+	}
+	if valuetype == t_int64 {
+		binary.Write(buf, binary.LittleEndian, t_int64)
 		binary.Write(buf, binary.LittleEndian, value)
 		return nil
 	}

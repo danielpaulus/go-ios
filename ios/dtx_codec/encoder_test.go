@@ -1,6 +1,7 @@
 package dtx_test
 
 import (
+	"encoding/binary"
 	"testing"
 
 	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
@@ -57,4 +58,21 @@ func TestEncoder(t *testing.T) {
 		assert.Equal(t, msg.PayloadHeader.MessageType, decodedMessage.PayloadHeader.MessageType)
 
 	}
+}
+
+func TestPrimitiveDictionaryAddInt64(t *testing.T) {
+	const value int64 = 1<<40 + 123
+
+	aux := dtx.NewPrimitiveDictionary()
+	aux.AddInt64(value)
+
+	encoded, err := aux.ToBytes()
+	assert.NoError(t, err)
+	assert.Len(t, encoded, 16)
+	assert.Equal(t, uint32(0x0A), binary.LittleEndian.Uint32(encoded[0:4]))
+	assert.Equal(t, uint32(0x06), binary.LittleEndian.Uint32(encoded[4:8]))
+	assert.Equal(t, value, int64(binary.LittleEndian.Uint64(encoded[8:16])))
+
+	decoded := dtx.DecodeAuxiliary(encoded)
+	assert.Equal(t, []interface{}{uint64(value)}, decoded.GetArguments())
 }
