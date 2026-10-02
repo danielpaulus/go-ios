@@ -63,3 +63,34 @@ func TestResetAccessibilityEndpoint(t *testing.T) {
 		assert.True(t, hasError, "Response should contain an error field")
 	})
 }
+
+// TestSetLocationReadsLongitude asserts the handler reads the correctly-spelled
+// `longitude` query param (the spec renamed `longtitude` -> `longitude`).
+func TestSetLocationReadsLongitude(t *testing.T) {
+	t.Run("missing longitude yields 422 mentioning longitude", func(t *testing.T) {
+		router := setupTestRouter()
+		router.PUT("/setlocation", api.SetLocation)
+
+		req, _ := http.NewRequest("PUT", "/setlocation?latitude=1.0", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		var response api.GenericResponse
+		assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+		assert.Contains(t, response.Error, "longitude")
+		assert.NotContains(t, response.Error, "longtitude")
+	})
+
+	t.Run("old misspelled longtitude param is not accepted", func(t *testing.T) {
+		router := setupTestRouter()
+		router.PUT("/setlocation", api.SetLocation)
+
+		// Passing the old misspelled name must NOT satisfy the required param.
+		req, _ := http.NewRequest("PUT", "/setlocation?latitude=1.0&longtitude=2.0", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	})
+}
