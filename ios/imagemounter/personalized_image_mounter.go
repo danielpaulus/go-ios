@@ -69,24 +69,12 @@ func (p PersonalizedDeveloperDiskImageMounter) ListImages() ([][]byte, error) {
 // to avoid unnecessary Apple TSS requests on re-mounts. If no manifest exists, it falls back
 // to querying a nonce and getting a new signature from Apple's TSS server.
 func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) error {
-	manifest, err := loadBuildManifest(path.Join(imagePath, "BuildManifest.plist"))
+	image, err := p.findDmgFile(imagePath)
 	if err != nil {
-		return fmt.Errorf("MountImage: failed to load build manifest: %w", err)
+		return fmt.Errorf("MountImage: could not find .dmg-file for image path %+v: %w", imagePath, err)
 	}
 
-	identifiers, err := p.queryIdentifiers()
-	if err != nil {
-		return fmt.Errorf("MountImage: failed to query personalization identifiers: %w", err)
-	}
-
-	identity, err := manifest.findIdentity(identifiers)
-	if err != nil {
-		return fmt.Errorf("MountImage: could not find identity for identifiers %+v: %w", identifiers, err)
-	}
-
-	dmgPath := path.Join(imagePath, identity.dmgPath())
-
-	signature, err := p.queryPersonalizationManifest(dmgPath)
+	signature, err := p.queryPersonalizationManifest(image.dmgPath)
 	if err != nil {
 		golog.Info("no existing device-side manifest, requesting new signature from Apple TSS", "module", logModule, "udid", p.entry.Properties.SerialNumber, "imagePath", imagePath)
 
@@ -100,7 +88,7 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 			return fmt.Errorf("MountImage: failed to get nonce: %w", err)
 		}
 
-		signature, err = p.tss.getSignature(identity, identifiers, nonce, p.ecid)
+		signature, err = p.tss.getSignature(image.identity, image.identifiers, nonce, p.ecid)
 		if err != nil {
 			return fmt.Errorf("MountImage: failed to get signature from Apple: %w", err)
 		}
@@ -108,7 +96,7 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 		golog.Info("reusing existing device-side manifest, skipping Apple TSS", "module", logModule, "udid", p.entry.Properties.SerialNumber, "imagePath", imagePath)
 	}
 
-	imageSize, err := getFileSize(dmgPath)
+	imageSize, err := getFileSize(image.dmgPath)
 	if err != nil {
 		return fmt.Errorf("MountImage: %w", err)
 	}
@@ -117,13 +105,13 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 	if err != nil {
 		return fmt.Errorf("MountImage: failed to send upload request for image: %w", err)
 	}
-	imageFile, err := os.Open(dmgPath)
+	imageFile, err := os.Open(image.dmgPath)
 	if err != nil {
-		return fmt.Errorf("MountImage: failed to open developer disk dmg file '%s': %w", dmgPath, err)
+		return fmt.Errorf("MountImage: failed to open developer disk dmg file '%s': %w", image.dmgPath, err)
 	}
 	defer imageFile.Close()
 	n, err := io.Copy(p.deviceConn.Writer(), imageFile)
-	golog.Debug("bytes written", "module", logModule, "udid", p.entry.Properties.SerialNumber, "dmgPath", dmgPath, "count", n)
+	golog.Debug("bytes written", "module", logModule, "udid", p.entry.Properties.SerialNumber, "dmgPath", image.dmgPath, "count", n)
 	if err != nil {
 		return fmt.Errorf("MountImage: could not copy developer disk image to the device: %w", err)
 	}
@@ -132,7 +120,7 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 		return err
 	}
 
-	trustCache, err := os.ReadFile(path.Join(imagePath, identity.trustCachePath()))
+	trustCache, err := os.ReadFile(path.Join(imagePath, image.identity.trustCachePath()))
 	if err != nil {
 		return fmt.Errorf("MountImage: could not load trust-cache. %w", err)
 	}
@@ -311,4 +299,34 @@ func sha384FileHash(p string) ([]byte, error) {
 	}
 	digest := h.Sum(nil)
 	return digest, nil
+}
+
+func (p PersonalizedDeveloperDiskImageMounter) findDmgFile(imagePath string) (image, error) {
+	manifest, err := loadBuildManifest(path.Join(imagePath, "BuildManifest.plist"))
+	if err != nil {
+		return image{}, fmt.Errorf("findDmgFile: failed to load build manifest: %w", err)
+	}
+
+	identifiers, err := p.queryIdentifiers()
+	if err != nil {
+		return image{}, fmt.Errorf("findDmgFile: failed to query personalization identifiers: %w", err)
+	}
+
+	identity, err := manifest.findIdentity(identifiers)
+	if err != nil {
+		return image{}, fmt.Errorf("findDmgFile: could not find identity for identifiers %+v: %w", identifiers, err)
+	}
+
+	dmgPath := path.Join(imagePath, identity.dmgPath())
+	return image{
+		identifiers: identifiers,
+		identity:    identity,
+		dmgPath:     dmgPath,
+	}, nil
+}
+
+type image struct {
+	identifiers personalizationIdentifiers
+	identity    buildIdentity
+	dmgPath     string
 }
