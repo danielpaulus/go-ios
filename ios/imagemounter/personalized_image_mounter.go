@@ -27,6 +27,12 @@ type PersonalizedDeveloperDiskImageMounter struct {
 	entry      ios.DeviceEntry
 }
 
+type personalizedImageInfo struct {
+	identifiers personalizationIdentifiers
+	identity    buildIdentity
+	dmgPath     string
+}
+
 // NewPersonalizedDeveloperDiskImageMounter creates a PersonalizedDeveloperDiskImageMounter for the device entry
 func NewPersonalizedDeveloperDiskImageMounter(entry ios.DeviceEntry, version *semver.Version) (PersonalizedDeveloperDiskImageMounter, error) {
 	values, err := ios.GetValuesPlist(entry)
@@ -287,6 +293,8 @@ func getFileSize(p string) (uint64, error) {
 	return uint64(info.Size()), nil
 }
 
+// sha384FileHash for creating the hash of the .dmg image that is used for creating the signature, as well as to
+// compare the mounted image on a device to the one on disk (the device returns this hash in the ListImages call)
 func sha384FileHash(p string) ([]byte, error) {
 	f, err := os.Open(p)
 	if err != nil {
@@ -302,34 +310,29 @@ func sha384FileHash(p string) ([]byte, error) {
 	return digest, nil
 }
 
-func (p PersonalizedDeveloperDiskImageMounter) findDmgFile(imagePath string) (image, error) {
+// findDmgFile uses the device identifiers to find the matching .dmg file that needs to be mounted to the device
+func (p PersonalizedDeveloperDiskImageMounter) findDmgFile(imagePath string) (personalizedImageInfo, error) {
 	manifest, err := loadBuildManifest(path.Join(imagePath, "BuildManifest.plist"))
 	if err != nil {
-		return image{}, fmt.Errorf("findDmgFile: failed to load build manifest: %w", err)
+		return personalizedImageInfo{}, fmt.Errorf("findDmgFile: failed to load build manifest: %w", err)
 	}
 
 	identifiers, err := p.queryIdentifiers()
 	if err != nil {
-		return image{}, fmt.Errorf("findDmgFile: failed to query personalization identifiers: %w", err)
+		return personalizedImageInfo{}, fmt.Errorf("findDmgFile: failed to query personalization identifiers: %w", err)
 	}
 
 	identity, err := manifest.findIdentity(identifiers)
 	if err != nil {
-		return image{}, fmt.Errorf("findDmgFile: could not find identity for identifiers %+v: %w", identifiers, err)
+		return personalizedImageInfo{}, fmt.Errorf("findDmgFile: could not find identity for identifiers %+v: %w", identifiers, err)
 	}
 
 	dmgPath := path.Join(imagePath, identity.dmgPath())
-	return image{
+	return personalizedImageInfo{
 		identifiers: identifiers,
 		identity:    identity,
 		dmgPath:     dmgPath,
 	}, nil
-}
-
-type image struct {
-	identifiers personalizationIdentifiers
-	identity    buildIdentity
-	dmgPath     string
 }
 
 // IsImageMounted verifies if there is currently an image mounted on the device, and if that is the case, it compares
