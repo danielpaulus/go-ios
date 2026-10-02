@@ -107,18 +107,18 @@ func (conn *DeveloperDiskImageMounter) MountImage(imagePath string) error {
 func (conn *DeveloperDiskImageMounter) IsImageMounted(imagePath string) (bool, error) {
 	mounted, err := conn.ListImages()
 	if err != nil {
-		return false, fmt.Errorf("IsImageMounter: failed to check if device is mounted. %w", err)
+		return false, fmt.Errorf("IsImageMounter: failed to list mounted images. %w", err)
 	}
 	if len(mounted) == 0 {
 		return false, nil
 	}
 	diskSignature, _, err := validatePathAndLoadSignature(imagePath)
 	if err != nil {
-		return false, fmt.Errorf("IsImageMounter: failed to check if device is mounted. %w", err)
+		return false, fmt.Errorf("IsImageMounter: failed to read image signature from disk. %w", err)
 	}
 	err = invertUint16Endianness(diskSignature)
 	if err != nil {
-		return false, fmt.Errorf("IsImageMounter: failed to check if device is mounted. %w", err)
+		return false, fmt.Errorf("IsImageMounter: failed to compare signature. %w", err)
 	}
 	for _, image := range mounted {
 		if bytes.Equal(image, diskSignature) {
