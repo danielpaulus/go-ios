@@ -44,6 +44,7 @@ const (
 	HeartbeatRequestFlag = uint32(0x00010000)
 	HeartbeatReplyFlag   = uint32(0x00020000)
 	FileOpenFlag         = uint32(0x00100000)
+	FileOpenReplyFlag    = uint32(0x00200000)
 	InitHandshakeFlag    = uint32(0x00400000)
 )
 
@@ -156,6 +157,7 @@ func decodeWrapper(r io.Reader) (Message, error) {
 	if h.BodyLen == 0 {
 		return Message{
 			Flags: h.Flags,
+			Id:    h.MsgId,
 		}, nil
 	}
 	body, err := decodeBody(r, h)
@@ -165,6 +167,7 @@ func decodeWrapper(r io.Reader) (Message, error) {
 	return Message{
 		Flags: h.Flags,
 		Body:  body,
+		Id:    h.MsgId,
 	}, nil
 }
 
@@ -551,6 +554,10 @@ func encodeObject(w io.Writer, e interface{}) error {
 		if err := encodeDictionary(w, e.(map[string]interface{})); err != nil {
 			return err
 		}
+	case FileTransfer:
+		if err := encodeFileTransfer(w, t); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("can not encode type %v", t)
 	}
@@ -565,6 +572,24 @@ func encodeUuid(w io.Writer, u uuid.UUID) error {
 	err := binary.Write(w, binary.LittleEndian, out)
 	if err != nil {
 		return fmt.Errorf("encodeUuid: failed to write UUID payload: %w", err)
+	}
+	return nil
+}
+
+// encodeFileTransfer writes a file transfer object. The payload itself is not
+// part of the message, it gets sent on a separate stream that is opened with a
+// FileOpenFlag message carrying the same MsgId.
+func encodeFileTransfer(w io.Writer, f FileTransfer) error {
+	header := struct {
+		t     xpcType
+		msgId uint64
+	}{fileTransferType, f.MsgId}
+	if err := binary.Write(w, binary.LittleEndian, header); err != nil {
+		return fmt.Errorf("encodeFileTransfer: failed to write header: %w", err)
+	}
+	// the transfer length is always stored in a property 's'
+	if err := encodeDictionary(w, map[string]interface{}{"s": f.TransferSize}); err != nil {
+		return fmt.Errorf("encodeFileTransfer: failed to write transfer size: %w", err)
 	}
 	return nil
 }
