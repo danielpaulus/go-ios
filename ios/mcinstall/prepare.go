@@ -49,6 +49,7 @@ var skipAllSetup = []string{
 	"Keyboard",
 	"Language",
 	"LanguageAndLocale",
+	"LiquidGlass",
 	"Location",
 	"LockdownMode",
 	"MessagingActivationUsingPhoneNumber",
