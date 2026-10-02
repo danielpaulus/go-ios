@@ -281,8 +281,18 @@ func MountImage(device ios.DeviceEntry, path string) error {
 		return fmt.Errorf("failed getting image list: %v", err)
 	}
 	if len(signatures) != 0 {
-		golog.Warn("there is already a developer image mounted, reboot the device if you want to remove it. aborting.", "module", logModule, "udid", device.Properties.SerialNumber, "imagePath", path)
-		return nil
+		mounted, err := conn.IsImageMounted(path)
+		if err != nil {
+			return fmt.Errorf("failed checking if image is mounted: %v", err)
+		}
+		if mounted {
+			return nil
+		}
+		golog.Info("wrong image is mounted on the device. Unmounting")
+		err = conn.UnmountImage()
+		if err != nil {
+			return fmt.Errorf("failed unmounting image: %v", err)
+		}
 	}
 	return conn.MountImage(path)
 }
