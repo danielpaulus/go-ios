@@ -163,17 +163,10 @@ func (p PersonalizedDeveloperDiskImageMounter) UnmountImage() error {
 }
 
 func (p PersonalizedDeveloperDiskImageMounter) queryPersonalizationManifest(dmgPath string) ([]byte, error) {
-	f, err := os.Open(dmgPath)
+	digest, err := sha384FileHash(dmgPath)
 	if err != nil {
-		return nil, fmt.Errorf("queryPersonalizationManifest: failed to open DMG: %w", err)
-	}
-	defer f.Close()
-
-	h := sha512.New384()
-	if _, err := io.Copy(h, f); err != nil {
 		return nil, fmt.Errorf("queryPersonalizationManifest: failed to hash DMG: %w", err)
 	}
-	digest := h.Sum(nil)
 
 	err = p.plistRw.Write(map[string]interface{}{
 		"Command":               "QueryPersonalizationManifest",
@@ -303,4 +296,19 @@ func getFileSize(p string) (uint64, error) {
 		return 0, fmt.Errorf("getFileSize: expected a file, but got a directory: '%s'", p)
 	}
 	return uint64(info.Size()), nil
+}
+
+func sha384FileHash(p string) ([]byte, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, fmt.Errorf("sha384FileHash: failed to open DMG: %w", err)
+	}
+	defer f.Close()
+
+	h := sha512.New384()
+	if _, err := io.Copy(h, f); err != nil {
+		return nil, fmt.Errorf("sha384FileHash: failed to hash DMG: %w", err)
+	}
+	digest := h.Sum(nil)
+	return digest, nil
 }
