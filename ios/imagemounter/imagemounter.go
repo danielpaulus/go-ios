@@ -116,7 +116,7 @@ func (conn *DeveloperDiskImageMounter) IsImageMounted(imagePath string) (bool, e
 	if err != nil {
 		return false, fmt.Errorf("IsImageMounter: failed to check if device is mounted. %w", err)
 	}
-	err = flip(diskSignature)
+	err = invertUint16Endianness(diskSignature)
 	if err != nil {
 		return false, fmt.Errorf("IsImageMounter: failed to check if device is mounted. %w", err)
 	}
@@ -128,12 +128,12 @@ func (conn *DeveloperDiskImageMounter) IsImageMounted(imagePath string) (bool, e
 	return false, nil
 }
 
-// flip inverts the endianness of the image signature. The signature is a list of uint16 values. The endianness of this
+// invertUint16Endianness flips the endianness of the image signature. The signature is a list of uint16 values. The endianness of this
 // list is different between the device and the signature on disk. To align them we need to change the endianness of those
 // values
-func flip(signature []byte) error {
+func invertUint16Endianness(signature []byte) error {
 	if len(signature)%2 != 0 {
-		return fmt.Errorf("flip: invalid signature length %d", len(signature))
+		return fmt.Errorf("invertUint16Endianness: invalid signature length %d", len(signature))
 	}
 	for i := 0; i < len(signature); i += 2 {
 		signature[i], signature[i+1] = signature[i+1], signature[i]
