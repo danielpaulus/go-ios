@@ -1,6 +1,7 @@
 package imagemounter
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -30,6 +31,7 @@ type ImageMounter interface {
 	ListImages() ([][]byte, error)
 	MountImage(imagePath string) error
 	UnmountImage() error
+	IsImageMounted(imagePath string) (bool, error)
 	io.Closer
 }
 
@@ -98,6 +100,46 @@ func (conn *DeveloperDiskImageMounter) MountImage(imagePath string) error {
 	}
 
 	return hangUp(conn.plistRw)
+}
+
+// IsImageMounted verifies if there is currently an image mounted on the device, and if that is the case, it compares
+// it against the image at imagePath to be the same
+func (conn *DeveloperDiskImageMounter) IsImageMounted(imagePath string) (bool, error) {
+	mounted, err := conn.ListImages()
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounter: failed to check if device is mounted. %w", err)
+	}
+	if len(mounted) == 0 {
+		return false, nil
+	}
+	diskSignature, _, err := validatePathAndLoadSignature(imagePath)
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounter: failed to check if device is mounted. %w", err)
+	}
+	err = flip(diskSignature)
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounter: failed to check if device is mounted. %w", err)
+	}
+	for _, image := range mounted {
+		if bytes.Equal(image, diskSignature) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// flip inverts the endianness of the image signature. The signature is a list of uint16 values. The endianness of this
+// list is different between the device and the signature on disk. To align them we need to change the endianness of those
+// values
+func flip(signature []byte) error {
+	if len(signature)%2 != 0 {
+		return fmt.Errorf("flip: invalid signature length %d", len(signature))
+	}
+	for i := 0; i < len(signature); i += 2 {
+		signature[i], signature[i+1] = signature[i+1], signature[i]
+
+	}
+	return nil
 }
 
 func (conn *DeveloperDiskImageMounter) UnmountImage() error {

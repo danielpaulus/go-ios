@@ -1,6 +1,7 @@
 package imagemounter
 
 import (
+	"bytes"
 	"crypto/sha512"
 	"fmt"
 	"io"
@@ -329,4 +330,32 @@ type image struct {
 	identifiers personalizationIdentifiers
 	identity    buildIdentity
 	dmgPath     string
+}
+
+// IsImageMounted verifies if there is currently an image mounted on the device, and if that is the case, it compares
+// it against the image at imagePath to be the same
+func (p PersonalizedDeveloperDiskImageMounter) IsImageMounted(imagePath string) (bool, error) {
+	mountedSignatures, err := p.ListImages()
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounted: failed to list images: %w", err)
+	}
+	if len(mountedSignatures) == 0 {
+		return false, nil
+	}
+	image, err := p.findDmgFile(imagePath)
+	if err != nil {
+		return false, err
+	}
+
+	imageHash, err := sha384FileHash(image.dmgPath)
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounted: failed to calculate sha384: %w", err)
+	}
+
+	for _, signature := range mountedSignatures {
+		if bytes.Compare(signature, imageHash) == 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
