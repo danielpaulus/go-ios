@@ -94,6 +94,12 @@ func TestHelp_InstrumentsSubcommands(t *testing.T) {
 		t.Fatalf("help instruments network failed: code=%d stderr=%q", networkCode, networkErr)
 	}
 	assertGolden(t, "instruments_network.golden", network)
+
+	processes, processesErr, processesCode := runCLI(t, "help", "instruments", "processes")
+	if processesCode != 0 || processesErr != "" {
+		t.Fatalf("help instruments processes failed: code=%d stderr=%q", processesCode, processesErr)
+	}
+	assertGolden(t, "instruments_processes.golden", processes)
 }
 
 func TestHelp_NestedSubcommandAndUnknown(t *testing.T) {

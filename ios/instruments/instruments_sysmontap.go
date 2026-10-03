@@ -29,6 +29,11 @@ type sysmontapService struct {
 
 	deviceInfoService *DeviceInfoService
 	msgDispatcher     *sysmontapMsgDispatcher
+
+	// processAttributes are the per-process attribute names sent as procAttrs
+	// in setConfig:. The device reports each process as a value array in this
+	// order, so they are needed to decode process samples.
+	processAttributes []string
 }
 
 // NewSysmontapService creates a new sysmontapService
@@ -88,7 +93,13 @@ func NewSysmontapService(device ios.DeviceEntry, samplingInterval int) (*sysmont
 		return nil, err
 	}
 
-	return &sysmontapService{processControlChannel, dtxConn, deviceInfoService, msgDispatcher}, nil
+	return &sysmontapService{
+		channel:           processControlChannel,
+		conn:              dtxConn,
+		deviceInfoService: deviceInfoService,
+		msgDispatcher:     msgDispatcher,
+		processAttributes: attributeNames(procAttrs),
+	}, nil
 }
 
 // Close closes up the DTX connection, message dispatcher and dtx.Message channel

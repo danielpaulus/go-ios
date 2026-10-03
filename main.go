@@ -106,6 +106,7 @@ Usage:
   ios instruments fps [--duration=<seconds>] [options]
   ios instruments network [--duration=<seconds>] [options]
   ios instruments notifications [options]
+  ios instruments processes [--pid=<processID>] [--process=<processName>] [--duration=<seconds>] [options]
   ios ip [options]
   ios kill (<bundleIDs>... | --pid=<processID> | --process=<processName>) [--watch] [options]
   ios lang [--setlocale=<locale>] [--setlang=<newlang>] [options]
@@ -335,6 +336,12 @@ The commands work as following:
                                                     One line is printed per sample. Stops after --duration seconds, or on CTRL+C.
 
     ios instruments notifications [options]         Listen to application state notifications
+
+    ios instruments processes [--pid=<processID>] [--process=<processName>] [--duration=<seconds>] [options]
+                                                    Stream per-process CPU and memory samples from the instruments sysmontap service,
+                                                    like Xcode's Activity Monitor. One line is printed per process and sample (all
+                                                    attributes the device reports in JSON mode). Filter with --pid or --process
+                                                    (exact process name). Stops after --duration seconds, or on CTRL+C.
 
     ios ip [options]                                Uses the live pcap iOS packet capture to wait until it finds one that contains the IP address of the device.
                                                     It relies on the MAC address of the WiFi adapter to know which is the right IP.
@@ -666,8 +673,10 @@ func Main() {
 	}
 }
 
+// xcodeDefaultSamplingRate is the sysmontap update rate Xcode uses.
+const xcodeDefaultSamplingRate = 10
+
 func printSysmontapStats(device ios.DeviceEntry) {
-	const xcodeDefaultSamplingRate = 10
 	sysmon, err := instruments.NewSysmontapService(device, xcodeDefaultSamplingRate)
 	if err != nil {
 		exitIfError("systemMonitor creation error", err)
