@@ -28,14 +28,6 @@ func newIOS17ImageMounter(device ios.DeviceEntry, version *semver.Version) (Imag
 	var mounters []namedImageMounter
 	var errs []error
 
-	personalized, err := NewPersonalizedDeveloperDiskImageMounter(device, version)
-	if err == nil {
-		mounters = append(mounters, namedImageMounter{name: "personalized", ImageMounter: personalized})
-	} else {
-		golog.Debug("personalized image mounter is not available", "module", logModule, "udid", udid, "err", err)
-		errs = append(errs, err)
-	}
-
 	if SupportsCryptexDDI(device) {
 		cryptex, err := NewCryptexDeveloperDiskImageMounter(device)
 		if err == nil {
@@ -44,6 +36,14 @@ func newIOS17ImageMounter(device ios.DeviceEntry, version *semver.Version) (Imag
 			golog.Debug("cryptex image mounter is not available", "module", logModule, "udid", udid, "err", err)
 			errs = append(errs, err)
 		}
+	}
+
+	personalized, err := NewPersonalizedDeveloperDiskImageMounter(device, version)
+	if err == nil {
+		mounters = append(mounters, namedImageMounter{name: "personalized", ImageMounter: personalized})
+	} else {
+		golog.Debug("personalized image mounter is not available", "module", logModule, "udid", udid, "err", err)
+		errs = append(errs, err)
 	}
 
 	if len(mounters) == 0 {

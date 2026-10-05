@@ -33,22 +33,22 @@ func (f *fakeImageMounter) Close() error                        { return nil }
 
 func newFakeIOS17Mounter(personalized, cryptex *fakeImageMounter) *ios17ImageMounter {
 	return &ios17ImageMounter{mounters: []namedImageMounter{
-		{name: "personalized", ImageMounter: personalized},
 		{name: "cryptex", ImageMounter: cryptex},
+		{name: "personalized", ImageMounter: personalized},
 	}}
 }
 
-func TestIOS17MounterPrefersPersonalized(t *testing.T) {
+func TestIOS17MounterPrefersCryptex(t *testing.T) {
 	personalized, cryptex := &fakeImageMounter{}, &fakeImageMounter{}
 	require.NoError(t, newFakeIOS17Mounter(personalized, cryptex).MountImage("img"))
-	assert.Equal(t, []string{"img"}, personalized.mounted)
-	assert.Empty(t, cryptex.mounted)
+	assert.Equal(t, []string{"img"}, cryptex.mounted)
+	assert.Empty(t, personalized.mounted)
 }
 
-func TestIOS17MounterFallsBackToCryptex(t *testing.T) {
-	personalized, cryptex := &fakeImageMounter{mountErr: errors.New("failed")}, &fakeImageMounter{}
+func TestIOS17MounterFallsBackToPersonalized(t *testing.T) {
+	personalized, cryptex := &fakeImageMounter{}, &fakeImageMounter{mountErr: errors.New("failed")}
 	require.NoError(t, newFakeIOS17Mounter(personalized, cryptex).MountImage("img"))
-	assert.Equal(t, []string{"img"}, cryptex.mounted)
+	assert.Equal(t, []string{"img"}, personalized.mounted)
 }
 
 func TestIOS17MounterFailsIfAllMountersFail(t *testing.T) {
@@ -83,7 +83,7 @@ func TestIOS17MounterListsImagesOfAllMounters(t *testing.T) {
 	cryptex := &fakeImageMounter{images: [][]byte{{2}}}
 	images, err := newFakeIOS17Mounter(personalized, cryptex).ListImages()
 	require.NoError(t, err)
-	assert.Equal(t, [][]byte{{1}, {2}}, images)
+	assert.Equal(t, [][]byte{{2}, {1}}, images)
 
 	personalized.listErr = errors.New("failed")
 	images, err = newFakeIOS17Mounter(personalized, cryptex).ListImages()

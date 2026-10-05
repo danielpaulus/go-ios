@@ -52,10 +52,10 @@ func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Versio
 
 // NewImageMounter creates a new ImageMounter depending on the version of the given device.
 // For devices before iOS 17 a DeveloperDiskImageMounter gets created. For iOS 17+ the returned
-// ImageMounter uses the PersonalizedDeveloperDiskImageMounter and, if cryptexd is reachable
-// through a tunnel, the CryptexDeveloperDiskImageMounter: images are mounted with the
-// personalized mounter and only installed as a cryptex if that fails, while listing, checking
-// and unmounting consider the images of both.
+// ImageMounter uses the CryptexDeveloperDiskImageMounter, if cryptexd is reachable through a
+// tunnel, and the PersonalizedDeveloperDiskImageMounter: images are installed as a cryptex and
+// only mounted with the personalized mounter if that fails, while listing, checking and
+// unmounting consider the images of both.
 func NewImageMounter(device ios.DeviceEntry) (ImageMounter, error) {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
