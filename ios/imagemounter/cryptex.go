@@ -283,20 +283,6 @@ func (c *CryptexDeveloperDiskImageMounter) IsImageMounted(imagePath string) (boo
 	return false, nil
 }
 
-// hasCryptexIdentity reports whether the developer disk image at imagePath can be installed as a cryptex
-func hasCryptexIdentity(imagePath string) bool {
-	manifest, err := loadBuildManifest(path.Join(imagePath, "BuildManifest.plist"))
-	if err != nil {
-		return false
-	}
-	for _, identity := range manifest.BuildIdentities {
-		if identity.Cryptex1ChipID != nil {
-			return true
-		}
-	}
-	return false
-}
-
 // cryptexChip holds the img4 chip properties reported by read-personalization-id
 type cryptexChip struct {
 	chip, ecid         uint64

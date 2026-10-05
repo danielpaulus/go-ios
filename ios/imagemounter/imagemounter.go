@@ -51,20 +51,12 @@ func NewDeveloperDiskImageMounter(device ios.DeviceEntry, version *semver.Versio
 }
 
 // NewImageMounter creates a new ImageMounter depending on the version of the given device.
-// For iOS 17+ devices that expose cryptexd through a tunnel a CryptexDeveloperDiskImageMounter is created,
-// for other iOS 17+ devices a PersonalizedDeveloperDiskImageMounter, and for all other devices
-// a DeveloperDiskImageMounter gets created
+// For devices before iOS 17 a DeveloperDiskImageMounter gets created. For iOS 17+ the returned
+// ImageMounter uses the PersonalizedDeveloperDiskImageMounter and, if cryptexd is reachable
+// through a tunnel, the CryptexDeveloperDiskImageMounter: images are mounted with the
+// personalized mounter and only installed as a cryptex if that fails, while listing, checking
+// and unmounting consider the images of both.
 func NewImageMounter(device ios.DeviceEntry) (ImageMounter, error) {
-	return newImageMounter(device, func() bool { return true })
-}
-
-// newImageMounterForImage is like NewImageMounter, but only picks the cryptex mounter
-// if the image at path can be installed as a cryptex.
-func newImageMounterForImage(device ios.DeviceEntry, path string) (ImageMounter, error) {
-	return newImageMounter(device, func() bool { return hasCryptexIdentity(path) })
-}
-
-func newImageMounter(device ios.DeviceEntry, imageSupportsCryptex func() bool) (ImageMounter, error) {
 	version, err := ios.GetProductVersion(device)
 	if err != nil {
 		return nil, fmt.Errorf("NewImageMounter: failed to get device version. %w", err)
@@ -72,10 +64,7 @@ func newImageMounter(device ios.DeviceEntry, imageSupportsCryptex func() bool) (
 	if version.Major() < 17 {
 		return NewDeveloperDiskImageMounter(device, version)
 	}
-	if SupportsCryptexDDI(device) && imageSupportsCryptex() {
-		return NewCryptexDeveloperDiskImageMounter(device)
-	}
-	return NewPersonalizedDeveloperDiskImageMounter(device, version)
+	return newIOS17ImageMounter(device, version)
 }
 
 // ListImages returns a list with signatures of installed developer images
@@ -283,7 +272,7 @@ func hangUp(plistRw ios.PlistCodecReadWriter) error {
 }
 
 func MountImage(device ios.DeviceEntry, path string) error {
-	conn, err := newImageMounterForImage(device, path)
+	conn, err := NewImageMounter(device)
 	if err != nil {
 		return fmt.Errorf("failed connecting to image mounter: %v", err)
 	}

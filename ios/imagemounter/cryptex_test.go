@@ -165,8 +165,6 @@ func TestCryptexImageVersion(t *testing.T) {
 
 func TestCryptexTSSRequest(t *testing.T) {
 	img := writeTestImage(t)
-	assert.True(t, hasCryptexIdentity(img.dir))
-
 	manifest, err := loadBuildManifest(path.Join(img.dir, "BuildManifest.plist"))
 	require.NoError(t, err)
 	chip, err := parseCryptexChip(capturedChip)
