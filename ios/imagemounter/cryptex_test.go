@@ -497,7 +497,9 @@ func TestCryptexMountListUnmount(t *testing.T) {
 
 	images, err = mounter.ListImages()
 	require.NoError(t, err)
-	assert.Equal(t, [][]byte{[]byte(ddiCryptexIdentifier)}, images)
+	version, err := CryptexImageVersion(img.dir)
+	require.NoError(t, err)
+	assert.Equal(t, [][]byte{[]byte(ddiCryptexIdentifier + "@" + version.Version)}, images)
 
 	require.NoError(t, mounter.UnmountImage())
 	images, err = mounter.ListImages()

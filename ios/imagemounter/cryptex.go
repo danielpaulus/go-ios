@@ -94,7 +94,7 @@ func (c *CryptexDeveloperDiskImageMounter) Close() error {
 	return nil
 }
 
-// ListImages returns the identifiers of the installed developer disk image cryptexes
+// ListImages returns the installed developer disk image cryptexes as "identifier@version"
 func (c *CryptexDeveloperDiskImageMounter) ListImages() ([][]byte, error) {
 	installed, err := c.ListCryptexes()
 	if err != nil {
@@ -103,7 +103,7 @@ func (c *CryptexDeveloperDiskImageMounter) ListImages() ([][]byte, error) {
 	var images [][]byte
 	for _, cryptex := range installed {
 		if cryptex.Identifier == ddiCryptexIdentifier {
-			images = append(images, []byte(cryptex.Identifier))
+			images = append(images, []byte(cryptex.Identifier+"@"+cryptex.Version))
 		}
 	}
 	return images, nil
