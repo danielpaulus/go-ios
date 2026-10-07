@@ -86,6 +86,7 @@ Usage:
   ios devicestate list [options]
   ios devmode (enable | get | reveal) [--enable-post-restart] [options]
   ios diagnostics list [options]
+  ios diagnostics ioreg [--plane=<plane>] [--name=<name>] [--class=<class>] [options]
   ios diskspace [options]
   ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
   ios erase [--force] [options]
@@ -271,6 +272,13 @@ The commands work as following:
                                                                   Can also completely finalize developer mode setup after device is restarted.
 
     ios diagnostics list [options]                                List diagnostic infos
+
+    ios diagnostics ioreg [--plane=<plane>] [--name=<name>] [--class=<class>] [options]
+                                                                  Query the ioregistry and print the result as JSON.
+                                                                  Any subset of --plane (CurrentPlane), --name (EntryName) and --class (EntryClass) can be given.
+                                                                  Note: newer iOS versions return no data for EntryName queries, use --class instead.
+                                                                  Ex. "ios diagnostics ioreg --class=IOPMPowerSource"
+
     ios diskspace [options]                                       Prints disk space info.
 
     ios dproxy [--binary] [--mode=<all(default)|usbmuxd|utun>] [--iface=<iface>] [options]
