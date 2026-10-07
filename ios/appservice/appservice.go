@@ -117,6 +117,9 @@ func (c *Connection) launchApp(bundleId string, args []interface{}, env map[stri
 	if err != nil {
 		return 0, fmt.Errorf("launchApp: failed to read response: %w", err)
 	}
+	if err := getError(m); err != nil {
+		return 0, fmt.Errorf("launchApp: %w", err)
+	}
 	pid, err := pidFromResponse(m)
 	if err != nil {
 		return 0, fmt.Errorf("launchApp: failed to get PID: %w", err)
