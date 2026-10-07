@@ -3,6 +3,7 @@ package mcinstall
 import (
 	"crypto/sha1"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
@@ -11,7 +12,8 @@ import (
 	"github.com/danielpaulus/go-ios/ios/mobileactivation"
 )
 
-func PrepareWifi(device ios.DeviceEntry, ssid string, psw string, encType string) error {
+func PrepareWifi(device ios.DeviceEntry, ssid string, psw string, encType string,
+					  p12file string, p12password string) error {
 	if ssid == "" || psw == "" {
 		return fmt.Errorf("PrepareWifi: both ssid and password must be specified")
 	}
@@ -37,6 +39,7 @@ func PrepareWifi(device ios.DeviceEntry, ssid string, psw string, encType string
 	golog.Debug("flush response", "module", logModule, "udid", device.Properties.SerialNumber, "response", re)
 
 	supervised := isSupervised(conn)
+	golog.Info("PrepareWifi: device supervised: ", "module", logModule, "udid", device.Properties.SerialNumber, "IsSupervised", supervised)
 
 	err = conn.EscalateUnsupervised()
 	if err != nil {
@@ -60,14 +63,29 @@ func PrepareWifi(device ios.DeviceEntry, ssid string, psw string, encType string
 		profileUUID(ssid),
 	)
 
-	if err := conn.AddProfile([]byte(profile)); err != nil {
-		return fmt.Errorf("PrepareWifi: %w", err)
+	if supervised && p12file != "" && p12password != "" {
+		p12bytes, err := os.ReadFile(p12file)
+		if err != nil {
+			return fmt.Errorf("PrepareWifi: could not read p12 file: %w", err)
+		}
+		err = conn.AddProfileSupervised([]byte(profile), p12bytes, p12password)
+		if err != nil {
+			return fmt.Errorf("PrepareWifi: %w", err)
+		}
+		golog.Info("Successfully installed wifi profile", "module", logModule, "udid", device.Properties.SerialNumber, "ssid", ssid)
+	} else {
+		if err := conn.AddProfile([]byte(profile)); err != nil {
+			return fmt.Errorf("PrepareWifi: %w", err)
+		}
+		if supervised {
+			golog.Warn("device is supervised, but supervision credentials were not given. The Wi-Fi profile must be approved manually on the device (Settings > General > VPN & Device Management) before it takes effect.",
+			"module", logModule, "udid", device.Properties.SerialNumber, "ssid", ssid)
+		} else {
+			golog.Warn("device is not supervised: the Wi-Fi profile was installed but must be approved manually on the device(Settings > General > VPN & Device Management) before it takes effect. Supervise the device for a silent install.",
+				"module", logModule, "udid", device.Properties.SerialNumber, "ssid", ssid)
+		}
 	}
 
-	if !supervised {
-		golog.Warn("device is not supervised: the Wi-Fi profile was installed but must be approved manually on the device (Settings > General > VPN & Device Management) before it takes effect. Supervise the device for a silent install.",
-			"module", logModule, "udid", device.Properties.SerialNumber, "ssid", ssid)
-	}
 	return nil
 }
 
@@ -126,8 +144,15 @@ func isSupervised(conn *Connection) bool {
 	if err != nil {
 		return false
 	}
-	s, _ := cfg["IsSupervised"].(bool)
-	return s
+	if cc, ok := cfg["CloudConfiguration"].(map[string]interface{}); ok {
+		if s, ok := cc["IsSupervised"].(bool); ok {
+			return s
+		}
+	}
+	if s, ok := cfg["IsSupervised"].(bool); ok {
+		return s
+	}
+	return false
 }
 
 // sanitizeIdentifier converts a string into an Apple-compatible PayloadIdentifier fragment.
