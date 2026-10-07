@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"math"
 	"testing"
 )
 
@@ -65,5 +66,32 @@ func TestReadPacketShortStatusHeaderPayload(t *testing.T) {
 	_, err := readPacketFrom(t, raw)
 	if err == nil {
 		t.Fatal("expected an error for a status header payload shorter than 8 bytes, got nil")
+	}
+}
+
+func TestValidatePacketLengthsBoundaries(t *testing.T) {
+	headerLength := headerSize + maxHeaderPayloadSize
+	valid := header{
+		ThisLen:   headerLength,
+		EntireLen: headerLength + maxPacketPayloadSize,
+	}
+	headerPayload, payload, err := validatePacketLengths(valid)
+	if err != nil {
+		t.Fatalf("boundary lengths rejected: %v", err)
+	}
+	if uint64(headerPayload) != maxHeaderPayloadSize || uint64(payload) != maxPacketPayloadSize {
+		t.Fatalf("validated lengths = %d, %d", headerPayload, payload)
+	}
+
+	testCases := []header{
+		{ThisLen: headerSize + maxHeaderPayloadSize + 1, EntireLen: headerSize + maxHeaderPayloadSize + 1},
+		{ThisLen: headerSize, EntireLen: headerSize + maxPacketPayloadSize + 1},
+		{ThisLen: math.MaxUint64, EntireLen: math.MaxUint64},
+		{ThisLen: headerSize, EntireLen: math.MaxUint64},
+	}
+	for _, testCase := range testCases {
+		if _, _, err := validatePacketLengths(testCase); err == nil {
+			t.Errorf("oversized lengths accepted: ThisLen=%d EntireLen=%d", testCase.ThisLen, testCase.EntireLen)
+		}
 	}
 }
