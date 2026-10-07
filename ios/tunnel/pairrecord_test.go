@@ -19,8 +19,9 @@ func TestPairRecordManager(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("self identity is created", func(t *testing.T) {
-		_, err := os.Stat(path.Join(tmp, "selfIdentity.plist"))
+		info, err := os.Stat(path.Join(tmp, "selfIdentity.plist"))
 		assert.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 	})
 	t.Run("read key equals the stored one", func(t *testing.T) {
 		siPath := path.Join(tmp, "selfIdentity.plist")

@@ -67,19 +67,19 @@ func runPrepareCommand(ctx commandContext) {
 	if createCert, _ := ctx.Args.Bool("create-cert"); createCert {
 		cert, err := ios.CreateDERFormattedSupervisionCert()
 		exitIfError("failed creating cert", err)
-		err = os.WriteFile("supervision-cert.der", cert.CertDER, 0o777)
+		err = writeFileWithPermissions("supervision-cert.der", cert.CertDER, 0o644)
 		slog.Info("supervision-cert.der")
 		exitIfError("failed writing cert", err)
-		err = os.WriteFile("supervision-cert.pem", cert.CertPEM, 0o777)
+		err = writeFileWithPermissions("supervision-cert.pem", cert.CertPEM, 0o644)
 		slog.Info("supervision-cert.pem")
 		exitIfError("failed writing cert", err)
-		err = os.WriteFile("supervision-private-key.key", cert.PrivateKeyDER, 0o777)
+		err = writeFileWithPermissions("supervision-private-key.key", cert.PrivateKeyDER, 0o600)
 		slog.Info("supervision-private-key.key")
 		exitIfError("failed writing cert", err)
-		err = os.WriteFile("supervision-private-key.pem", cert.PrivateKeyPEM, 0o777)
+		err = writeFileWithPermissions("supervision-private-key.pem", cert.PrivateKeyPEM, 0o600)
 		slog.Info("supervision-private-key.pem")
 		exitIfError("failed writing key", err)
-		err = os.WriteFile("supervision-csr.csr", []byte(cert.Csr), 0o777)
+		err = writeFileWithPermissions("supervision-csr.csr", []byte(cert.Csr), 0o644)
 		slog.Info("supervision-csr.csr")
 		exitIfError("failed writing cert", err)
 		slog.Info("Golang does not have good PKCS12 format sadly. If you need a p12 file run this: " +
@@ -126,6 +126,19 @@ func runPrepareCommand(ctx commandContext) {
 	}
 	exitIfError("failed erasing", mcinstall.Prepare(ctx.Device, skip, certBytes, orgname, locale, lang, timezone))
 	fmt.Print(convertToJSONString("ok"))
+}
+
+func writeFileWithPermissions(name string, data []byte, perm os.FileMode) error {
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := f.Chmod(perm); err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	return err
 }
 
 func runSetWallpaperCommand(ctx commandContext) {

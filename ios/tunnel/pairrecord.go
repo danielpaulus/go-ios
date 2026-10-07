@@ -121,7 +121,7 @@ func createSelfIdentity(p string) (selfIdentity, error) {
 		PublicKey:  pub,
 	}
 
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return selfIdentity{}, fmt.Errorf("createSelfIdentity: failed to open file for writing: %w", err)
 	}
