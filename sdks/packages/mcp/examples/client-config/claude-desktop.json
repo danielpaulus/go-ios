@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "go-ios": {
+      "command": "npx",
+      "args": ["-y", "@go-ios/mcp"],
+      "env": {
+        "GO_IOS_BASE_URL": "http://localhost:8080",
+        "GO_IOS_API_KEY": "your-token"
+      }
+    }
+  }
+}

@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Self-documenting DTO/event properties don't each need an XML doc comment. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- Package identity -->
+    <PackageId>GoIos.Sdk</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>go-ios contributors</Authors>
+    <Company>go-ios</Company>
+    <Description>Ergonomic C#/.NET SDK for the go-ios REST API (device automation for iOS). Typed client with an idiomatic async facade and IAsyncEnumerable Server-Sent Events streaming.</Description>
+    <PackageTags>ios;go-ios;appium;device;automation;xcuitest;wda</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/danielpaulus/go-ios-sdks</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/danielpaulus/go-ios-sdks</PackageProjectUrl>
+    <IsPackable>true</IsPackable>
+
+    <!-- Deterministic build + SourceLink -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+
+    <!-- Transitive dependencies of the generated low-level client. Declared here
+         so they flow to consumers as package dependencies (the generated project
+         itself is bundled into this package rather than shipped separately). -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="JsonSubTypes" Version="2.0.1" />
+    <PackageReference Include="Polly" Version="8.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The generated client's types appear in this SDK's public API, so the
+         reference flows at compile time. It is not published as its own NuGet
+         package; instead its DLL is bundled into lib/ of this package (see the
+         target below). ReferenceOutputAssembly stays true so the facade compiles
+         against it; Pack=false keeps NuGet from trying to add it as a package
+         dependency (there is no such package). -->
+    <ProjectReference Include="..\Generated\src\GoIos.Sdk.Generated\GoIos.Sdk.Generated.csproj"
+                      Pack="false" />
+  </ItemGroup>
+
+  <!-- Bundle the generated client's assembly (+ xml docs) into lib/ of this package. -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeGeneratedClientInPackage</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+  <Target Name="IncludeGeneratedClientInPackage">
+    <ItemGroup>
+      <BuildOutputInPackage Include="$(OutputPath)GoIos.Sdk.Generated.dll" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
