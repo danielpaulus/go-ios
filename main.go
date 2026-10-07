@@ -286,6 +286,10 @@ The commands work as following:
                                                                   List files using RemoteXPC (iOS 17+). Requires tunnel.
                                                                   Use --app for app container, --app-group for app group,
                                                                   --crash for crash logs, or --temp for temporary files.
+                                                                  Known limitation: on iOS 26.5.x the device-side daemon rejects
+                                                                  --app-group file operations with RemoteServices error 11007
+                                                                  ("File paths cannot contain '..'.") even for valid paths;
+                                                                  Apple's devicectl fails identically. Use --app as a workaround.
 
     ios file pull [--app=<bundleID> | --app-group=<groupID> | --crash | --temp] --remote=<remotePath> --local=<localPath> [options]
                                                                   Download file using RemoteXPC (iOS 17+). Requires tunnel.
