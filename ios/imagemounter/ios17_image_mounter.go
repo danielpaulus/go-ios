@@ -118,20 +118,15 @@ func (m *ios17ImageMounter) UnmountImage() error {
 
 // IsImageMounted reports whether any of the mounters has the image at imagePath mounted
 func (m *ios17ImageMounter) IsImageMounted(imagePath string) (bool, error) {
-	var errs []error
 	for _, mounter := range m.mounters {
 		mounted, err := mounter.IsImageMounted(imagePath)
 		if err != nil {
 			golog.Debug("failed checking if image is mounted", "module", logModule, "udid", m.udid, "mounter", mounter.name, "imagePath", imagePath, "err", err)
-			errs = append(errs, fmt.Errorf("%s: %w", mounter.name, err))
-			continue
+			return false, err
 		}
 		if mounted {
 			return true, nil
 		}
-	}
-	if len(errs) == len(m.mounters) {
-		return false, fmt.Errorf("IsImageMounted: %w", errors.Join(errs...))
 	}
 	return false, nil
 }
