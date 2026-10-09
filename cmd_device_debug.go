@@ -25,9 +25,10 @@ import (
 func runPCAPCommand(ctx commandContext) {
 	p, _ := ctx.Args.String("--process")
 	i, _ := ctx.Args.Int("--pid")
+	output, _ := ctx.Args.String("--output")
 	pcap.Pid = int32(i)
 	pcap.ProcName = p
-	err := pcap.Start(ctx.Device)
+	err := pcap.StartWithOutput(ctx.Device, output)
 	if err != nil {
 		exitIfError("pcap failed", err)
 	}

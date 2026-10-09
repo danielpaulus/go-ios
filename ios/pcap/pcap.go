@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/golog"
@@ -56,24 +56,33 @@ func (iph *IOSPacketHeader) ToString() string {
 }
 
 func Start(device ios.DeviceEntry) error {
+	return StartWithOutput(device, "")
+}
+
+// StartWithOutput captures packets to outputPath. An empty path creates a
+// unique capture in the current directory. Explicit paths must not exist.
+func StartWithOutput(device ios.DeviceEntry, outputPath string) error {
 	intf, err := ios.ConnectToService(device, "com.apple.pcapd")
 	if err != nil {
 		return err
 	}
 	defer intf.Close()
 	plistCodec := ios.NewPlistCodec()
-	fname := fmt.Sprintf("dump-%d.pcap", time.Now().Unix())
-	if Pid > 0 {
-		fname = fmt.Sprintf("dump-%d-%d.pcap", Pid, time.Now().Unix())
-	} else if ProcName != "" {
-		fname = fmt.Sprintf("dump-%s-%d.pcap", ProcName, time.Now().Unix())
+	var f *os.File
+	if outputPath == "" {
+		f, err = createTemporaryPcap(".")
+	} else {
+		f, err = createPcap(outputPath)
 	}
-	f, err := createPcap(fname)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	golog.Info("create pcap file", "module", logModule, "udid", device.Properties.SerialNumber, "path", fname)
+	finalPath, pathErr := filepath.Abs(f.Name())
+	if pathErr != nil {
+		finalPath = f.Name()
+	}
+	golog.Info("create pcap file", "module", logModule, "udid", device.Properties.SerialNumber, "path", finalPath)
 	for {
 		b, err := plistCodec.Decode(intf.Reader())
 		if err != nil {
@@ -128,16 +137,33 @@ type PcaprecHdrS struct {
 }
 
 func createPcap(name string) (*os.File, error) {
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o755)
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, err
 	}
+	return initializePcap(f)
+}
+
+func createTemporaryPcap(directory string) (*os.File, error) {
+	f, err := os.CreateTemp(directory, "dump-*.pcap")
+	if err != nil {
+		return nil, err
+	}
+	return initializePcap(f)
+}
+
+func initializePcap(f *os.File) (*os.File, error) {
 	// Write `pcap_hdr_s` with little endin to file.
-	f.Write([]byte{
+	_, err := f.Write([]byte{
 		0xd4, 0xc3, 0xb2, 0xa1, 0x02, 0x00, 0x04, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0xff, 0xff, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
 	})
+	if err != nil {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+		return nil, err
+	}
 	return f, nil
 }
 
@@ -153,9 +179,11 @@ func writePacket(f *os.File, iph IOSPacketHeader, packet []byte) error {
 	if err != nil {
 		return err
 	}
-	f.Write(buf.Bytes())
-	f.Write(packet)
-	return nil
+	if _, err := f.Write(buf.Bytes()); err != nil {
+		return err
+	}
+	_, err = f.Write(packet)
+	return err
 }
 
 func getPacket(buf []byte) (iph IOSPacketHeader, packet []byte, err error) {
