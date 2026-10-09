@@ -332,35 +332,28 @@ type TunnelManager struct {
 	firstUpdateCompleted bool
 	userspaceTUN         bool
 	closeOnce            sync.Once
-	portOffset           int
 	// udidFilter, when non-empty, restricts the manager to a single device so
 	// you can run one isolated tunnel agent per device.
 	udidFilter string
-	// basePort is the base for derived userspace listener ports (the agent's own
-	// tunnel-info port), so per-device agents on different ports don't collide.
-	basePort int
 }
 
 // NewTunnelManager creates a new TunnelManager instance for setting up device tunnels for all connected devices
 // If userspaceTUN is set to true, the network stack will run in user space.
 func NewTunnelManager(pm PairRecordManager, userspaceTUN bool) *TunnelManager {
-	return newTunnelManager(pm, userspaceTUN, "", ios.HttpApiPort())
+	return newTunnelManager(pm, userspaceTUN, "")
 }
 
-// NewTunnelManagerForDevice creates a TunnelManager bound to a specific
-// tunnel-info port. If udid is non-empty the manager only manages that one
-// device (ignoring all others), so you can run one isolated agent per device; an
-// empty udid manages all connected devices. basePort is the agent's tunnel-info
-// port: userspace listener ports are derived from it so multiple agents on
-// different ports (e.g. a general agent plus per-device agents) never clash.
-func NewTunnelManagerForDevice(pm PairRecordManager, userspaceTUN bool, udid string, basePort int) *TunnelManager {
-	return newTunnelManager(pm, userspaceTUN, udid, basePort)
+// NewTunnelManagerForDevice creates a TunnelManager optionally bound to a single
+// device. If udid is non-empty the manager only manages that one device
+// (ignoring all others), so you can run one isolated agent per device; an empty
+// udid manages all connected devices. Each userspace tunnel binds its local
+// listener on an OS-assigned ephemeral port, so multiple agents on one host never
+// collide and the actual port is advertised via the tunnel-info API.
+func NewTunnelManagerForDevice(pm PairRecordManager, userspaceTUN bool, udid string) *TunnelManager {
+	return newTunnelManager(pm, userspaceTUN, udid)
 }
 
-func newTunnelManager(pm PairRecordManager, userspaceTUN bool, udidFilter string, basePort int) *TunnelManager {
-	if basePort == 0 {
-		basePort = ios.HttpApiPort()
-	}
+func newTunnelManager(pm PairRecordManager, userspaceTUN bool, udidFilter string) *TunnelManager {
 	return &TunnelManager{
 		ts:                 manualPairingTunnelStart{},
 		dl:                 deviceList{},
@@ -370,8 +363,6 @@ func newTunnelManager(pm PairRecordManager, userspaceTUN bool, udidFilter string
 		startTunnelTimeout: 10 * time.Second,
 		userspaceTUN:       userspaceTUN,
 		udidFilter:         udidFilter,
-		basePort:           basePort,
-		portOffset:         1,
 	}
 }
 
@@ -448,12 +439,11 @@ func (m *TunnelManager) UpdateTunnels(ctx context.Context) error {
 		if shouldSkipDevice(d, localFailed, time.Now()) {
 			continue
 		}
-		if m.userspaceTUN && d.UserspaceTUNPort == 0 {
-			m.mux.Lock()
-			d.UserspaceTUNPort = m.basePort + m.portOffset
-			m.portOffset++
-			m.mux.Unlock()
-		}
+		// The userspace tunnel listener binds an OS-assigned ephemeral port (see
+		// connectToUserspaceTunnelLockdown); the actual bound port comes back on the
+		// returned Tunnel and is what the tunnel-info API advertises. So we no longer
+		// pre-assign a derived port here — that could collide with another agent's
+		// listener on the same host.
 		t, err := m.startTunnel(ctx, d)
 		if err != nil {
 			golog.Warn("failed to start tunnel", "module", logModule, "udid", udid, "error", err)
@@ -593,10 +583,10 @@ func (m manualPairingTunnelStart) StartTunnel(ctx context.Context, device ios.De
 
 	if version.GreaterThan(semver.MustParse("17.4.0")) {
 		if userspaceTUN {
-			tun, err := ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
-			tun.UserspaceTUN = true
-			tun.UserspaceTUNPort = device.UserspaceTUNPort
-			return tun, err
+			// Pass 0 so the userspace listener binds an OS-assigned ephemeral port;
+			// the returned Tunnel carries the actual bound UserspaceTUNPort (and
+			// UserspaceTUN=true), which is what the tunnel-info API advertises.
+			return ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
 		}
 		return ConnectTunnelLockdown(device)
 	}

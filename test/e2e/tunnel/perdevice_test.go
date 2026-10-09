@@ -174,9 +174,10 @@ func TestTunnelAgentAllDevices(t *testing.T) {
 // TestTunnelAgentMixed runs a general (all-devices) agent and a per-device agent
 // at the same time on different tunnel-info ports and proves they don't conflict:
 // they bind cleanly, each gets its own independent tunnel to the device with its
-// own userspace listener port (derived from its own tunnel-info port), and
-// stopping a device's tunnel on one agent never affects the other agent's tunnel.
-// People run go-ios like this in production, so it is verified, not assumed.
+// own userspace listener port (an OS-assigned ephemeral port, advertised as the
+// actual bound port), and stopping a device's tunnel on one agent never affects
+// the other agent's tunnel. People run go-ios like this in production, so it is
+// verified, not assumed.
 func TestTunnelAgentMixed(t *testing.T) {
 	devs := harness.Devices()
 	if len(devs) == 0 {
@@ -206,12 +207,20 @@ func TestTunnelAgentMixed(t *testing.T) {
 	if gen.UserspaceTUNPort == per.UserspaceTUNPort {
 		t.Fatalf("userspace listener port collision: both agents on %d", gen.UserspaceTUNPort)
 	}
-	// Each agent's userspace port is derived from its OWN tunnel-info port.
-	if gen.UserspaceTUNPort <= genPort || gen.UserspaceTUNPort > genPort+1000 {
-		t.Fatalf("general agent userspace port %d not derived from its tunnel-info port %d", gen.UserspaceTUNPort, genPort)
-	}
-	if per.UserspaceTUNPort != perPort+1 {
-		t.Fatalf("per-device agent userspace port = %d, want %d", per.UserspaceTUNPort, perPort+1)
+	// Each agent's userspace listener binds an OS-assigned ephemeral port, so the
+	// advertised port must be a real, valid port distinct from either agent's
+	// tunnel-info port (the two ports are independent now).
+	for _, tc := range []struct {
+		name string
+		port int
+		info int
+	}{{"general", gen.UserspaceTUNPort, genPort}, {"per-device", per.UserspaceTUNPort, perPort}} {
+		if tc.port <= 0 || tc.port > 65535 {
+			t.Fatalf("%s agent userspace port %d is not a valid ephemeral port", tc.name, tc.port)
+		}
+		if tc.port == tc.info {
+			t.Fatalf("%s agent userspace port %d collides with its tunnel-info port", tc.name, tc.port)
+		}
 	}
 
 	// Both tunnels to the same device must actually carry traffic simultaneously.
