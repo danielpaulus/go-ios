@@ -2,29 +2,51 @@ package ncm
 
 import (
 	"fmt"
+	"net/netip"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/Masterminds/semver"
 )
 
+var interfaceNamePattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,15}$`)
+
+func validateInterfaceName(interfaceName string) error {
+	if !interfaceNamePattern.MatchString(interfaceName) {
+		return fmt.Errorf("invalid network interface name %q", interfaceName)
+	}
+	return nil
+}
+
 // SetInterfaceUp uses the ubuntu command line to activate an ethernet device with interfaceName
 func SetInterfaceUp(interfaceName string) (string, error) {
-	b, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("ip link set dev %s up", interfaceName)).CombinedOutput()
+	if err := validateInterfaceName(interfaceName); err != nil {
+		return "", err
+	}
+	b, err := exec.Command("ip", "link", "set", "dev", interfaceName, "up").CombinedOutput()
 	return string(b), err
 }
 
 // AddInterface adds an ipv6 address to an interface using an ubuntu cmd line invocation
 func AddInterface(interfaceName string, ipv6 string) (string, error) {
-	cmd := fmt.Sprintf("ip -6 addr add %s dev %s", ipv6, interfaceName)
-	b, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+	if err := validateInterfaceName(interfaceName); err != nil {
+		return "", err
+	}
+	prefix, err := netip.ParsePrefix(ipv6)
+	if err != nil || !prefix.Addr().Is6() {
+		return "", fmt.Errorf("invalid IPv6 prefix %q", ipv6)
+	}
+	b, err := exec.Command("ip", "-6", "addr", "add", prefix.String(), "dev", interfaceName).CombinedOutput()
 	return string(b), err
 }
 
 // InterfaceHasIP uses 'ip -6 addr show dev' to check existin ips
 func InterfaceHasIP(interfaceName string) (bool, string) {
-	cmd := fmt.Sprintf("ip -6 addr show dev %s", interfaceName)
-	b, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+	if validateInterfaceName(interfaceName) != nil {
+		return false, ""
+	}
+	b, err := exec.Command("ip", "-6", "addr", "show", "dev", interfaceName).CombinedOutput()
 	if err != nil {
 		return false, ""
 	}
@@ -42,7 +64,7 @@ var lowestSupportedVersion = semver.MustParse(strings.Replace(lowestSupportedVer
 
 // CheckUSBMUXVersion runs usbmuxd --version to make sure it is newer or equal to usbmuxd 1.1.1-56-g360619c
 func CheckUSBMUXVersion() (*semver.Version, error) {
-	b, err := exec.Command("/bin/sh", "-c", "usbmuxd --version").CombinedOutput()
+	b, err := exec.Command("usbmuxd", "--version").CombinedOutput()
 	if err != nil {
 		return &semver.Version{}, err
 	}
