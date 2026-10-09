@@ -1,6 +1,7 @@
 package imagemounter
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -30,6 +31,7 @@ type ImageMounter interface {
 	ListImages() ([][]byte, error)
 	MountImage(imagePath string) error
 	UnmountImage() error
+	IsImageMounted(imagePath string) (bool, error)
 	io.Closer
 }
 
@@ -98,6 +100,46 @@ func (conn *DeveloperDiskImageMounter) MountImage(imagePath string) error {
 	}
 
 	return hangUp(conn.plistRw)
+}
+
+// IsImageMounted verifies if there is currently an image mounted on the device, and if that is the case, it compares
+// it against the image at imagePath to be the same
+func (conn *DeveloperDiskImageMounter) IsImageMounted(imagePath string) (bool, error) {
+	mounted, err := conn.ListImages()
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounter: failed to list mounted images. %w", err)
+	}
+	if len(mounted) == 0 {
+		return false, nil
+	}
+	diskSignature, _, err := validatePathAndLoadSignature(imagePath)
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounter: failed to read image signature from disk. %w", err)
+	}
+	err = invertUint16Endianness(diskSignature)
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounter: failed to compare signature. %w", err)
+	}
+	for _, image := range mounted {
+		if bytes.Equal(image, diskSignature) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// invertUint16Endianness flips the endianness of the image signature. The signature is a list of uint16 values. The endianness of this
+// list is different between the device and the signature on disk. To align them we need to change the endianness of those
+// values
+func invertUint16Endianness(signature []byte) error {
+	if len(signature)%2 != 0 {
+		return fmt.Errorf("invertUint16Endianness: invalid signature length %d", len(signature))
+	}
+	for i := 0; i < len(signature); i += 2 {
+		signature[i], signature[i+1] = signature[i+1], signature[i]
+
+	}
+	return nil
 }
 
 func (conn *DeveloperDiskImageMounter) UnmountImage() error {
@@ -239,8 +281,18 @@ func MountImage(device ios.DeviceEntry, path string) error {
 		return fmt.Errorf("failed getting image list: %v", err)
 	}
 	if len(signatures) != 0 {
-		golog.Warn("there is already a developer image mounted, reboot the device if you want to remove it. aborting.", "module", logModule, "udid", device.Properties.SerialNumber, "imagePath", path)
-		return nil
+		mounted, err := conn.IsImageMounted(path)
+		if err != nil {
+			return fmt.Errorf("failed checking if image is mounted: %v", err)
+		}
+		if mounted {
+			return nil
+		}
+		golog.Info("wrong image is mounted on the device. Unmounting")
+		err = conn.UnmountImage()
+		if err != nil {
+			return fmt.Errorf("failed unmounting image: %v", err)
+		}
 	}
 	return conn.MountImage(path)
 }

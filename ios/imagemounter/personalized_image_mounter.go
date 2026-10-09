@@ -1,6 +1,7 @@
 package imagemounter
 
 import (
+	"bytes"
 	"crypto/sha512"
 	"fmt"
 	"io"
@@ -24,6 +25,12 @@ type PersonalizedDeveloperDiskImageMounter struct {
 	tss        tssClient
 	ecid       uint64
 	entry      ios.DeviceEntry
+}
+
+type personalizedImageInfo struct {
+	identifiers personalizationIdentifiers
+	identity    buildIdentity
+	dmgPath     string
 }
 
 // NewPersonalizedDeveloperDiskImageMounter creates a PersonalizedDeveloperDiskImageMounter for the device entry
@@ -69,24 +76,12 @@ func (p PersonalizedDeveloperDiskImageMounter) ListImages() ([][]byte, error) {
 // to avoid unnecessary Apple TSS requests on re-mounts. If no manifest exists, it falls back
 // to querying a nonce and getting a new signature from Apple's TSS server.
 func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) error {
-	manifest, err := loadBuildManifest(path.Join(imagePath, "BuildManifest.plist"))
+	image, err := p.findDmgFile(imagePath)
 	if err != nil {
-		return fmt.Errorf("MountImage: failed to load build manifest: %w", err)
+		return fmt.Errorf("MountImage: could not find .dmg-file for image path %+v: %w", imagePath, err)
 	}
 
-	identifiers, err := p.queryIdentifiers()
-	if err != nil {
-		return fmt.Errorf("MountImage: failed to query personalization identifiers: %w", err)
-	}
-
-	identity, err := manifest.findIdentity(identifiers)
-	if err != nil {
-		return fmt.Errorf("MountImage: could not find identity for identifiers %+v: %w", identifiers, err)
-	}
-
-	dmgPath := path.Join(imagePath, identity.dmgPath())
-
-	signature, err := p.queryPersonalizationManifest(dmgPath)
+	signature, err := p.queryPersonalizationManifest(image.dmgPath)
 	if err != nil {
 		golog.Info("no existing device-side manifest, requesting new signature from Apple TSS", "module", logModule, "udid", p.entry.Properties.SerialNumber, "imagePath", imagePath)
 
@@ -100,7 +95,7 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 			return fmt.Errorf("MountImage: failed to get nonce: %w", err)
 		}
 
-		signature, err = p.tss.getSignature(identity, identifiers, nonce, p.ecid)
+		signature, err = p.tss.getSignature(image.identity, image.identifiers, nonce, p.ecid)
 		if err != nil {
 			return fmt.Errorf("MountImage: failed to get signature from Apple: %w", err)
 		}
@@ -108,7 +103,7 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 		golog.Info("reusing existing device-side manifest, skipping Apple TSS", "module", logModule, "udid", p.entry.Properties.SerialNumber, "imagePath", imagePath)
 	}
 
-	imageSize, err := getFileSize(dmgPath)
+	imageSize, err := getFileSize(image.dmgPath)
 	if err != nil {
 		return fmt.Errorf("MountImage: %w", err)
 	}
@@ -117,13 +112,13 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 	if err != nil {
 		return fmt.Errorf("MountImage: failed to send upload request for image: %w", err)
 	}
-	imageFile, err := os.Open(dmgPath)
+	imageFile, err := os.Open(image.dmgPath)
 	if err != nil {
-		return fmt.Errorf("MountImage: failed to open developer disk dmg file '%s': %w", dmgPath, err)
+		return fmt.Errorf("MountImage: failed to open developer disk dmg file '%s': %w", image.dmgPath, err)
 	}
 	defer imageFile.Close()
 	n, err := io.Copy(p.deviceConn.Writer(), imageFile)
-	golog.Debug("bytes written", "module", logModule, "udid", p.entry.Properties.SerialNumber, "dmgPath", dmgPath, "count", n)
+	golog.Debug("bytes written", "module", logModule, "udid", p.entry.Properties.SerialNumber, "dmgPath", image.dmgPath, "count", n)
 	if err != nil {
 		return fmt.Errorf("MountImage: could not copy developer disk image to the device: %w", err)
 	}
@@ -132,7 +127,7 @@ func (p PersonalizedDeveloperDiskImageMounter) MountImage(imagePath string) erro
 		return err
 	}
 
-	trustCache, err := os.ReadFile(path.Join(imagePath, identity.trustCachePath()))
+	trustCache, err := os.ReadFile(path.Join(imagePath, image.identity.trustCachePath()))
 	if err != nil {
 		return fmt.Errorf("MountImage: could not load trust-cache. %w", err)
 	}
@@ -163,17 +158,10 @@ func (p PersonalizedDeveloperDiskImageMounter) UnmountImage() error {
 }
 
 func (p PersonalizedDeveloperDiskImageMounter) queryPersonalizationManifest(dmgPath string) ([]byte, error) {
-	f, err := os.Open(dmgPath)
+	digest, err := sha384FileHash(dmgPath)
 	if err != nil {
-		return nil, fmt.Errorf("queryPersonalizationManifest: failed to open DMG: %w", err)
-	}
-	defer f.Close()
-
-	h := sha512.New384()
-	if _, err := io.Copy(h, f); err != nil {
 		return nil, fmt.Errorf("queryPersonalizationManifest: failed to hash DMG: %w", err)
 	}
-	digest := h.Sum(nil)
 
 	err = p.plistRw.Write(map[string]interface{}{
 		"Command":               "QueryPersonalizationManifest",
@@ -303,4 +291,74 @@ func getFileSize(p string) (uint64, error) {
 		return 0, fmt.Errorf("getFileSize: expected a file, but got a directory: '%s'", p)
 	}
 	return uint64(info.Size()), nil
+}
+
+// sha384FileHash for creating the hash of the .dmg image that is used for creating the signature, as well as to
+// compare the mounted image on a device to the one on disk (the device returns this hash in the ListImages call)
+func sha384FileHash(p string) ([]byte, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, fmt.Errorf("sha384FileHash: failed to open DMG: %w", err)
+	}
+	defer f.Close()
+
+	h := sha512.New384()
+	if _, err := io.Copy(h, f); err != nil {
+		return nil, fmt.Errorf("sha384FileHash: failed to hash DMG: %w", err)
+	}
+	digest := h.Sum(nil)
+	return digest, nil
+}
+
+// findDmgFile uses the device identifiers to find the matching .dmg file that needs to be mounted to the device
+func (p PersonalizedDeveloperDiskImageMounter) findDmgFile(imagePath string) (personalizedImageInfo, error) {
+	manifest, err := loadBuildManifest(path.Join(imagePath, "BuildManifest.plist"))
+	if err != nil {
+		return personalizedImageInfo{}, fmt.Errorf("findDmgFile: failed to load build manifest: %w", err)
+	}
+
+	identifiers, err := p.queryIdentifiers()
+	if err != nil {
+		return personalizedImageInfo{}, fmt.Errorf("findDmgFile: failed to query personalization identifiers: %w", err)
+	}
+
+	identity, err := manifest.findIdentity(identifiers)
+	if err != nil {
+		return personalizedImageInfo{}, fmt.Errorf("findDmgFile: could not find identity for identifiers %+v: %w", identifiers, err)
+	}
+
+	dmgPath := path.Join(imagePath, identity.dmgPath())
+	return personalizedImageInfo{
+		identifiers: identifiers,
+		identity:    identity,
+		dmgPath:     dmgPath,
+	}, nil
+}
+
+// IsImageMounted verifies if there is currently an image mounted on the device, and if that is the case, it compares
+// it against the image at imagePath to be the same
+func (p PersonalizedDeveloperDiskImageMounter) IsImageMounted(imagePath string) (bool, error) {
+	mountedSignatures, err := p.ListImages()
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounted: failed to list images: %w", err)
+	}
+	if len(mountedSignatures) == 0 {
+		return false, nil
+	}
+	image, err := p.findDmgFile(imagePath)
+	if err != nil {
+		return false, err
+	}
+
+	imageHash, err := sha384FileHash(image.dmgPath)
+	if err != nil {
+		return false, fmt.Errorf("IsImageMounted: failed to calculate sha384: %w", err)
+	}
+
+	for _, signature := range mountedSignatures {
+		if bytes.Compare(signature, imageHash) == 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
