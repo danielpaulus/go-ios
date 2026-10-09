@@ -1,8 +1,8 @@
 module github.com/danielpaulus/go-ios/restapi
 
-go 1.26.0
+go 1.26.6
 
-toolchain go1.26.4
+toolchain go1.26.6
 
 require (
 	github.com/danielpaulus/go-ios v1.0.91
