@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strconv"
+
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/docopt/docopt-go"
 )
@@ -19,6 +21,20 @@ type command struct {
 func boolArg(args docopt.Opts, name string) bool {
 	value, _ := args.Bool(name)
 	return value
+}
+
+// intArgDefault reads a numeric docopt flag, returning def when the flag is
+// absent, empty, or not a valid integer.
+func intArgDefault(args docopt.Opts, name string, def int) int {
+	s, _ := args.String(name)
+	if s == "" {
+		return def
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return def
+	}
+	return v
 }
 
 func commandByBool(name string, run func(commandContext)) command {
