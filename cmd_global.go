@@ -63,5 +63,5 @@ func isDeviceListCommand(args docopt.Opts) bool {
 
 func runDeviceListCommand(ctx commandContext) {
 	details, _ := ctx.Args.Bool("--details")
-	printDeviceList(details)
+	printDeviceList(details, tunnelInfoConfigFromArgs(ctx.Args))
 }

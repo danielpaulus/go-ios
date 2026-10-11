@@ -50,8 +50,14 @@ func resolveDevice(arguments docopt.Opts, tunnelInfo tunnelInfoConfig) ios.Devic
 		return device
 	}
 
-	exitIfError("Device not found: "+udid, err)
 	if addressErr == nil && rsdErr == nil {
+		if err != nil {
+			// Explicit tunnel coordinates were given, so a device missing from
+			// usbmuxd is not fatal: it may only be reachable through a tunnel
+			// (e.g. from another host). Build the entry from the coordinates
+			// and treat --udid as identity metadata.
+			device = directTargetDevice(udid, address, userspaceTunnelErr == nil)
+		}
 		if userspaceTunnelErr == nil {
 			device.UserspaceTUN = true
 			device.UserspaceTUNHost = userspaceTunnelHost
@@ -59,6 +65,8 @@ func resolveDevice(arguments docopt.Opts, tunnelInfo tunnelInfoConfig) ios.Devic
 		}
 		return deviceWithRsdProvider(device, udid, address, rsdPort)
 	}
+
+	exitIfError("Device not found: "+udid, err)
 
 	if !needsAutomaticTunnelInfo(arguments) {
 		return device
@@ -74,6 +82,93 @@ func resolveDevice(arguments docopt.Opts, tunnelInfo tunnelInfoConfig) ios.Devic
 
 	slog.Warn("failed to get tunnel info", "udid", device.Properties.SerialNumber)
 	return device
+}
+
+// Transport markers for devices reachable through a go-ios tunnel instead of
+// usbmuxd. They show up as connectionType in `ios list` output, next to the
+// usbmuxd-reported "USB"/"Network".
+const (
+	connectionTypeTunnel          = "tunnel"
+	connectionTypeUserspaceTunnel = "userspaceTunnel"
+)
+
+// directTargetDevice builds a DeviceEntry from explicit --address/--rsd-port
+// coordinates for a device that usbmuxd does not know. The udid (possibly
+// empty) is identity metadata; the RSD handshake fills it in later if needed.
+func directTargetDevice(udid string, address string, userspaceTunnel bool) ios.DeviceEntry {
+	connectionType := connectionTypeTunnel
+	if userspaceTunnel {
+		connectionType = connectionTypeUserspaceTunnel
+	}
+	return ios.DeviceEntry{
+		Properties: ios.DeviceProperties{
+			SerialNumber:   udid,
+			ConnectionType: connectionType,
+		},
+		Address: address,
+	}
+}
+
+// tunnelBackedDeviceEntry converts a tunnel-agent entry into a DeviceEntry so
+// tunnel-backed devices can be listed alongside usbmuxd ones.
+func tunnelBackedDeviceEntry(t tunnel.Tunnel, tunnelHost string) ios.DeviceEntry {
+	connectionType := connectionTypeTunnel
+	if t.UserspaceTUN {
+		connectionType = connectionTypeUserspaceTunnel
+	}
+	return ios.DeviceEntry{
+		Properties: ios.DeviceProperties{
+			SerialNumber:   t.Udid,
+			ConnectionType: connectionType,
+		},
+		Address:          t.Address,
+		UserspaceTUN:     t.UserspaceTUN,
+		UserspaceTUNHost: tunnelHost,
+		UserspaceTUNPort: t.UserspaceTUNPort,
+	}
+}
+
+// tunnelBackedDevices queries the tunnel agent's /tunnels HTTP API and returns
+// the tunnels as device entries. An error just means no agent is reachable.
+func tunnelBackedDevices(tunnelInfo tunnelInfoConfig) ([]ios.DeviceEntry, error) {
+	tunnels, err := tunnel.ListRunningTunnels(tunnelInfo.Host, tunnelInfo.Port)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]ios.DeviceEntry, len(tunnels))
+	for i, t := range tunnels {
+		entries[i] = tunnelBackedDeviceEntry(t, tunnelInfo.Host)
+	}
+	return entries, nil
+}
+
+// mergeTunnelDevices appends tunnel-backed devices that usbmuxd does not
+// already report, so `ios list` shows devices that are only reachable via a
+// tunnel. usbmuxd entries win for devices known to both sources.
+func mergeTunnelDevices(deviceList ios.DeviceList, tunnelDevices []ios.DeviceEntry) ios.DeviceList {
+	known := make(map[string]bool, len(deviceList.DeviceList))
+	for _, d := range deviceList.DeviceList {
+		known[d.Properties.SerialNumber] = true
+	}
+	for _, d := range tunnelDevices {
+		udid := d.Properties.SerialNumber
+		// A tunnel entry without a udid cannot be addressed or deduplicated by
+		// identity, so skip it rather than let it collapse with other unknowns.
+		if udid == "" || known[udid] {
+			continue
+		}
+		known[udid] = true
+		deviceList.DeviceList = append(deviceList.DeviceList, d)
+	}
+	return deviceList
+}
+
+// isTunnelOnlyDevice reports whether the entry came from tunnel discovery (or
+// explicit tunnel coordinates) rather than usbmuxd, meaning usbmuxd-based
+// services like lockdown are not reachable for it on this host.
+func isTunnelOnlyDevice(device ios.DeviceEntry) bool {
+	connectionType := device.Properties.ConnectionType
+	return connectionType == connectionTypeTunnel || connectionType == connectionTypeUserspaceTunnel
 }
 
 func needsAutomaticTunnelInfo(args docopt.Opts) bool {
