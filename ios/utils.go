@@ -2,7 +2,9 @@ package ios
 
 import (
 	"archive/zip"
+	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -237,8 +239,10 @@ func GenericSliceToType[T any](input []interface{}) ([]T, error) {
 	return result, nil
 }
 
-// Unzip is code I copied from https://golangcode.com/unzip-files-in-go/
-// thank you guys for the cool helpful code examples :-D
+// Unzip extracts src into a private staging directory and replaces dest only
+// after every entry has been written successfully. All archive paths are
+// resolved through os.Root so symlink swaps cannot redirect writes outside the
+// staging directory.
 func Unzip(src string, dest string) ([]string, uint64, error) {
 	var overallSize uint64
 	var filenames []string
@@ -249,49 +253,139 @@ func Unzip(src string, dest string) ([]string, uint64, error) {
 	}
 	defer r.Close()
 
+	cleanDest := filepath.Clean(dest)
+	parentPath := filepath.Dir(cleanDest)
+	destName := filepath.Base(cleanDest)
+	if destName == "." || destName == string(os.PathSeparator) || !filepath.IsLocal(destName) {
+		return filenames, 0, fmt.Errorf("unzip: destination must name a directory below its parent: %s", dest)
+	}
+	if err := os.MkdirAll(parentPath, 0755); err != nil {
+		return filenames, 0, err
+	}
+	parent, err := os.OpenRoot(parentPath)
+	if err != nil {
+		return filenames, 0, err
+	}
+	defer parent.Close()
+
+	stagingName, err := makePrivateRootDir(parent, "."+destName+".extract-")
+	if err != nil {
+		return filenames, 0, err
+	}
+	defer parent.RemoveAll(stagingName)
+	staging, err := parent.OpenRoot(stagingName)
+	if err != nil {
+		return filenames, 0, err
+	}
+
 	for _, f := range r.File {
-
-		// Store filename/path for returning and using later on
-		fpath := filepath.Join(dest, f.Name)
-
-		// Check for ZipSlip. More Info: http://bit.ly/2MsjAWE
-		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return filenames, 0, fmt.Errorf("%s: illegal file path", fpath)
+		entryName := filepath.Clean(filepath.FromSlash(f.Name))
+		if !filepath.IsLocal(entryName) {
+			staging.Close()
+			return filenames, 0, fmt.Errorf("%s: illegal file path", f.Name)
 		}
-
-		filenames = append(filenames, fpath)
+		filenames = append(filenames, filepath.Join(cleanDest, entryName))
 
 		if f.FileInfo().IsDir() {
-			// Make Folder
-			os.MkdirAll(fpath, os.ModePerm)
+			if err := staging.MkdirAll(entryName, 0755); err != nil {
+				staging.Close()
+				return filenames, 0, err
+			}
 			continue
 		}
-
-		// Make File
-		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+		if !f.Mode().IsRegular() {
+			staging.Close()
+			return filenames, 0, fmt.Errorf("%s: unsupported archive entry type", f.Name)
+		}
+		if err := staging.MkdirAll(filepath.Dir(entryName), 0755); err != nil {
+			staging.Close()
 			return filenames, 0, err
 		}
-
-		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-		if err != nil {
+		if err := extractZipFile(staging, f, entryName); err != nil {
+			staging.Close()
 			return filenames, 0, err
 		}
-
-		rc, err := f.Open()
-		if err != nil {
-			return filenames, 0, err
-		}
-
-		_, err = io.Copy(outFile, rc)
-		// sizeStat, err := outFile.Stat()
 		overallSize += f.UncompressedSize64
-		// Close the file without defer to close before next iteration of loop
-		outFile.Close()
-		rc.Close()
+	}
+	if err := staging.Close(); err != nil {
+		return filenames, 0, err
+	}
 
+	backupName := ""
+	if _, err := parent.Lstat(destName); err == nil {
+		backupName, err = unusedRootName(parent, "."+destName+".backup-")
 		if err != nil {
 			return filenames, 0, err
+		}
+		if err := parent.Rename(destName, backupName); err != nil {
+			return filenames, 0, err
+		}
+	} else if !os.IsNotExist(err) {
+		return filenames, 0, err
+	}
+
+	if err := parent.Rename(stagingName, destName); err != nil {
+		if backupName != "" {
+			_ = parent.Rename(backupName, destName)
+		}
+		return filenames, 0, err
+	}
+	if backupName != "" {
+		if err := parent.RemoveAll(backupName); err != nil {
+			return filenames, overallSize, err
 		}
 	}
 	return filenames, overallSize, nil
+}
+
+func extractZipFile(root *os.Root, archiveFile *zip.File, name string) error {
+	out, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, archiveFile.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	in, err := archiveFile.Open()
+	if err != nil {
+		out.Close()
+		_ = root.Remove(name)
+		return err
+	}
+	_, copyErr := io.Copy(out, in)
+	inErr := in.Close()
+	outErr := out.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	if inErr != nil {
+		return inErr
+	}
+	return outErr
+}
+
+func makePrivateRootDir(root *os.Root, prefix string) (string, error) {
+	for range 100 {
+		name, err := unusedRootName(root, prefix)
+		if err != nil {
+			return "", err
+		}
+		if err := root.Mkdir(name, 0700); err == nil {
+			return name, nil
+		} else if !os.IsExist(err) {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("unzip: failed to create a unique staging directory")
+}
+
+func unusedRootName(root *os.Root, prefix string) (string, error) {
+	random := make([]byte, 16)
+	if _, err := rand.Read(random); err != nil {
+		return "", err
+	}
+	name := prefix + hex.EncodeToString(random)
+	if _, err := root.Lstat(name); err == nil {
+		return "", os.ErrExist
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return name, nil
 }
