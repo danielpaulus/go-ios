@@ -201,18 +201,10 @@ func (c *Client) readPacket() (packet, error) {
 	if err != nil {
 		return packet{}, fmt.Errorf("error reading header: %w", err)
 	}
-	// Guard against malformed headers: these subtractions are on uint64 values,
-	// so an under-sized ThisLen/EntireLen would wrap around to a huge length and
-	// panic in make([]byte, ...). These invariants always hold for a valid AFC
-	// packet, so legitimate (including large) transfers are unaffected.
-	if h.ThisLen < headerSize {
-		return packet{}, fmt.Errorf("afc: header ThisLen %d smaller than header size %d", h.ThisLen, headerSize)
+	headerPayloadLen, payloadLen, err := validatePacketLengths(h)
+	if err != nil {
+		return packet{}, err
 	}
-	if h.EntireLen < h.ThisLen {
-		return packet{}, fmt.Errorf("afc: header EntireLen %d smaller than ThisLen %d", h.EntireLen, h.ThisLen)
-	}
-	headerPayloadLen := h.ThisLen - headerSize
-	payloadLen := h.EntireLen - h.ThisLen
 
 	headerpayload := make([]byte, headerPayloadLen)
 	payload := make([]byte, payloadLen)
@@ -250,6 +242,29 @@ func (c *Client) readPacket() (packet, error) {
 	}
 
 	return p, nil
+}
+
+const (
+	maxHeaderPayloadSize = uint64(1 << 20)
+	maxPacketPayloadSize = uint64(64 << 20)
+)
+
+func validatePacketLengths(h header) (int, int, error) {
+	if h.ThisLen < headerSize {
+		return 0, 0, fmt.Errorf("afc: header ThisLen %d smaller than header size %d", h.ThisLen, headerSize)
+	}
+	if h.EntireLen < h.ThisLen {
+		return 0, 0, fmt.Errorf("afc: header EntireLen %d smaller than ThisLen %d", h.EntireLen, h.ThisLen)
+	}
+	headerPayloadLen := h.ThisLen - headerSize
+	payloadLen := h.EntireLen - h.ThisLen
+	if headerPayloadLen > maxHeaderPayloadSize {
+		return 0, 0, fmt.Errorf("afc: header payload length %d exceeds limit %d", headerPayloadLen, maxHeaderPayloadSize)
+	}
+	if payloadLen > maxPacketPayloadSize {
+		return 0, 0, fmt.Errorf("afc: packet payload length %d exceeds limit %d", payloadLen, maxPacketPayloadSize)
+	}
+	return int(headerPayloadLen), int(payloadLen), nil
 }
 
 type FileType string
