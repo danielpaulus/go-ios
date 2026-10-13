@@ -52,7 +52,23 @@ func runDateCommand(ctx commandContext) {
 }
 
 func runDiagnosticsCommand(ctx commandContext) {
+	if ioreg, _ := ctx.Args.Bool("ioreg"); ioreg {
+		runIORegCommand(ctx)
+		return
+	}
 	printDiagnostics(ctx.Device)
+}
+
+func runIORegCommand(ctx commandContext) {
+	plane, _ := ctx.Args.String("--plane")
+	name, _ := ctx.Args.String("--name")
+	class, _ := ctx.Args.String("--class")
+	conn, err := diagnostics.New(ctx.Device)
+	exitIfError("failed to connect to diagnostics service", err)
+	defer conn.Close()
+	values, err := conn.IORegistry(plane, name, class)
+	exitIfError("failed querying ioregistry", err)
+	fmt.Println(convertToJSONString(values))
 }
 
 func runBatteryRegistryCommand(ctx commandContext) {
