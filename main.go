@@ -126,7 +126,7 @@ Usage:
   ios prepare cloudconfig [options]
   ios prepare create-cert
   ios prepare printskip
-  ios wifi [--ssid=<ssid>] [--password=<password>] [--enc-type=<encType>] [--remove] [options]
+  ios wifi [--ssid=<ssid>] [--password=<password>] [--enc-type=<encType>] [--p12file=<p12file>] [--p12password=<p12password>] [--remove] [options]
   ios profile add <profileFile> [--p12file=<orgid>] [--password=<p12password>] [options]
   ios profile list [options]
   ios profile remove <profileName> [options]
@@ -439,7 +439,7 @@ The commands work as following:
 
     ios prepare printskip                                              Print all options you can skip.
 
-	ios wifi [--ssid=<ssid>] [--password=<password>] [--enc-type=<encType>] [--remove]
+	ios wifi [--ssid=<ssid>] [--password=<password>] [--enc-type=<encType>] [--p12file=<p12file>] [--p12password=<p12password>] [--remove]
 																		Installs a wifi profile on the device forcing a connection to the provided WiFi network
 																		If --remove is specified, the wifi profile of the provided ssid will be removed.
 
