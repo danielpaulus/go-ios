@@ -1,7 +1,6 @@
 package dtx
 
 import (
-	"context"
 	"testing"
 	"time"
 )
@@ -63,49 +62,44 @@ func TestDispatchDropsOldestOnOverflow(t *testing.T) {
 	}
 }
 
-// A reply arriving after the caller timed out must be dropped, not block the
-// reader goroutine on the abandoned waiter channel.
-func TestLateReplyAfterTimeoutDoesNotBlock(t *testing.T) {
+// A timed-out caller must deregister its abandoned waiter AND any partial
+// defragmenter for that identifier, so neither leaks in responseWaiters /
+// defragmenters — and a late reply for it must still not block the reader
+// goroutine. (Non-blocking on a nil/unknown waiter is already covered by
+// TestChannelDispatch_ResponseNoWaiter_NoHang / TestSendResponse_NilChannel_NoBlock.)
+func TestTimeoutCleansUpWaiterAndDefragmenter(t *testing.T) {
 	channel := newTestChannel()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // caller "times out" immediately
+	// A pending request left a waiter and a partial (fragmented) reply behind.
+	channel.AddResponseWaiter(42, make(chan Message, 1))
+	channel.defragmenters[42] = &FragmentDecoder{}
 
-	waiter := make(chan Message, 1)
-	channel.AddResponseWaiter(42, waiter)
-	// Simulate the sendAndAwaitReply timeout path.
-	select {
-	case <-ctx.Done():
-		channel.removeResponseWaiter(42)
+	if _, ok := channel.responseWaiters[42]; !ok {
+		t.Fatal("precondition: waiter should be registered")
+	}
+	if _, ok := channel.defragmenters[42]; !ok {
+		t.Fatal("precondition: defragmenter should be registered")
 	}
 
+	// The sendAndAwaitReply timeout/send-error path deregisters both.
+	channel.removeResponseWaiter(42)
+
+	if _, ok := channel.responseWaiters[42]; ok {
+		t.Fatal("responseWaiters leaked after timeout cleanup")
+	}
+	if _, ok := channel.defragmenters[42]; ok {
+		t.Fatal("defragmenters leaked after timeout cleanup")
+	}
+
+	// A late reply for the now-abandoned identifier must not block the reader.
 	done := make(chan struct{})
 	go func() {
 		channel.Dispatch(Message{Identifier: 42, ConversationIndex: 1})
 		close(done)
 	}()
-
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		t.Fatal("Dispatch blocked on a late reply with no waiter")
-	}
-}
-
-// A reply for an identifier that never had a waiter must not block either
-// (the old code sent on a nil channel, which blocks forever).
-func TestUnknownReplyDoesNotBlock(t *testing.T) {
-	channel := newTestChannel()
-
-	done := make(chan struct{})
-	go func() {
-		channel.Dispatch(Message{Identifier: 999, ConversationIndex: 1})
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("Dispatch blocked on a reply with an unknown identifier")
+		t.Fatal("Dispatch blocked on a late reply after timeout cleanup")
 	}
 }
