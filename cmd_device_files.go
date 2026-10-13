@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path"
@@ -115,17 +116,9 @@ func runFileCommand(ctx commandContext) {
 			exitIfError("file pull", fmt.Errorf("--local=<path> is required"))
 		}
 
-		outputFile, err := os.Create(localPath)
-		exitIfError("file pull: failed to create output file", err)
-		defer outputFile.Close()
-
 		slog.Info(fmt.Sprintf("Downloading %s to %s...", remotePath, localPath))
-		err = conn.PullFile(remotePath, outputFile)
+		fileSize, err := pullToLocalFile(conn.PullFile, remotePath, localPath)
 		exitIfError("file pull: failed to download file", err)
-
-		fileInfo, err := outputFile.Stat()
-		exitIfError("file pull: failed to get file info", err)
-		fileSize := fileInfo.Size()
 
 		if !JSONdisabled {
 			result := map[string]interface{}{
@@ -174,6 +167,46 @@ func runFileCommand(ctx commandContext) {
 			slog.Info(fmt.Sprintf("Uploaded %d bytes to %s", fileSize, remotePath))
 		}
 	}
+}
+
+// pullToLocalFile downloads remotePath into localPath using the passed pull
+// function and returns the downloaded size. On any failure the local file is
+// removed so a failed pull never leaves a zero-byte or partial file behind that
+// pipelines could mistake for a successful download (issue #784). This includes
+// failures surfaced by Close, which is where buffered write errors such as a
+// full disk are reported.
+func pullToLocalFile(pull func(remotePath string, writer io.Writer) error, remotePath, localPath string) (size int64, err error) {
+	outputFile, err := os.Create(localPath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create output file: %w", err)
+	}
+	// Remove the file on any error path below. os.Create truncated any prior
+	// contents, so there is nothing worth keeping if the pull does not complete.
+	defer func() {
+		if err != nil {
+			os.Remove(localPath)
+		}
+	}()
+
+	if pullErr := pull(remotePath, outputFile); pullErr != nil {
+		outputFile.Close()
+		err = pullErr
+		return 0, err
+	}
+
+	fileInfo, statErr := outputFile.Stat()
+	if statErr != nil {
+		outputFile.Close()
+		err = fmt.Errorf("failed to get file info: %w", statErr)
+		return 0, err
+	}
+
+	if closeErr := outputFile.Close(); closeErr != nil {
+		err = fmt.Errorf("failed to close output file: %w", closeErr)
+		return 0, err
+	}
+
+	return fileInfo.Size(), nil
 }
 
 func runFsyncCommand(ctx commandContext) {

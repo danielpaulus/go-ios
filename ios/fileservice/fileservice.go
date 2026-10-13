@@ -3,6 +3,7 @@ package fileservice
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -24,7 +25,33 @@ const (
 	// MaxInlineDataSize is the maximum file size that can be sent inline in XPC message
 	// Files larger than this must use the data service
 	MaxInlineDataSize = 500 // bytes - based on Ghidra code checking for 500 bytes
+
+	// defaultReceiveTimeout bounds how long ListDirectory waits for the device
+	// to answer a RetrieveDirectoryList request before giving up.
+	defaultReceiveTimeout = 30 * time.Second
 )
+
+// ErrTimeout is returned when the device does not answer a request within the
+// receive timeout. The connection should be closed afterwards, as a response
+// may still arrive on one of its streams.
+var ErrTimeout = errors.New("timed out waiting for a response from the device")
+
+// DeviceError is an error reported by the device's file service in the
+// EncodedError field of a response, e.g. RemoteServices error 11007
+// "File paths cannot contain '..'." on iOS 26.5.x App Group containers.
+type DeviceError struct {
+	// Description is the LocalizedDescription reported by the device, if any.
+	Description string
+	// Encoded is the raw EncodedError value from the response.
+	Encoded interface{}
+}
+
+func (e *DeviceError) Error() string {
+	if e.Description != "" {
+		return fmt.Sprintf("device error: %s", e.Description)
+	}
+	return fmt.Sprintf("device error: %+v", e.Encoded)
+}
 
 // Domain represents a file system domain on the iOS device
 type Domain uint64
@@ -42,16 +69,38 @@ const (
 	DomainSystemCrashLogs Domain = 5
 )
 
+// controlConnection is the subset of *xpc.Connection used by the file service
+// control channel. It exists as a seam so the control protocol can be unit
+// tested without a device.
+type controlConnection interface {
+	Send(data map[string]interface{}, flags ...uint32) error
+	ReceiveOnClientServerStream() (map[string]interface{}, error)
+	ReceiveOnServerClientStream() (map[string]interface{}, error)
+	Close() error
+}
+
+// receiveResult carries the outcome of a stream receive across a channel.
+type receiveResult struct {
+	response map[string]interface{}
+	err      error
+}
+
 // Connection represents a connection to the file service on an iOS 17+ device.
 // It manages file operations like listing, pulling, and pushing files.
 // Note: Connection is not safe for concurrent use. Each goroutine should have its own Connection.
 type Connection struct {
 	mu         sync.Mutex
-	conn       *xpc.Connection
+	conn       controlConnection
 	device     ios.DeviceEntry
 	sessionID  string
 	domain     Domain
 	identifier string
+	// receiveTimeout bounds how long ListDirectory waits for a response.
+	receiveTimeout time.Duration
+	// pendingControl holds an in-flight read of the control (server->client)
+	// stream started by ListDirectory that no message arrived on yet. It is
+	// consumed by the next control receive so the stream never has two readers.
+	pendingControl chan receiveResult
 }
 
 // New creates a new connection to the file service on the device for iOS 17+.
@@ -65,10 +114,11 @@ func New(device ios.DeviceEntry, domain Domain, identifier string) (*Connection,
 	}
 
 	c := &Connection{
-		conn:       xpcConn,
-		device:     device,
-		domain:     domain,
-		identifier: identifier,
+		conn:           xpcConn,
+		device:         device,
+		domain:         domain,
+		identifier:     identifier,
+		receiveTimeout: defaultReceiveTimeout,
 	}
 
 	// Create session immediately
@@ -95,7 +145,7 @@ func (c *Connection) createSession() error {
 	}
 
 	// Session creation responses come on ServerClientStream
-	response, err := c.conn.ReceiveOnServerClientStream()
+	response, err := c.receiveControl()
 	if err != nil {
 		return fmt.Errorf("createSession: failed to receive response: %w", err)
 	}
@@ -115,8 +165,27 @@ func (c *Connection) createSession() error {
 	return nil
 }
 
+// receiveControl receives the next message on the control (server->client)
+// stream, consuming a pending read left behind by ListDirectory if one exists.
+func (c *Connection) receiveControl() (map[string]interface{}, error) {
+	if c.pendingControl != nil {
+		res := <-c.pendingControl
+		c.pendingControl = nil
+		return res.response, res.err
+	}
+	return c.conn.ReceiveOnServerClientStream()
+}
+
 // ListDirectory returns a list of file names in the specified directory path.
 // The path is relative to the domain root.
+//
+// The listing itself arrives on the client-server stream, but device-side
+// failures (e.g. RemoteServices error 11007 on iOS 26.5.x App Group
+// containers, see issue #784) are reported on the control (server->client)
+// stream like every other control response. Both streams are therefore
+// received concurrently with a timeout, so a failure surfaces as a typed
+// error (*DeviceError or ErrTimeout) instead of blocking forever.
+// After an error the connection should be closed.
 func (c *Connection) ListDirectory(path string) ([]string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -135,17 +204,53 @@ func (c *Connection) ListDirectory(path string) ([]string, error) {
 	}
 
 	// Directory list responses come on ClientServerStream
-	response, err := c.conn.ReceiveOnClientServerStream()
-	if err != nil {
-		return nil, fmt.Errorf("ListDirectory: failed to receive response: %w", err)
-	}
+	listCh := make(chan receiveResult, 1)
+	go func() {
+		response, err := c.conn.ReceiveOnClientServerStream()
+		listCh <- receiveResult{response, err}
+	}()
 
-	// Check for errors in response
-	if err := extractError(response); err != nil {
-		return nil, fmt.Errorf("ListDirectory: %w", err)
+	// Watch the control stream for an error response. Reuse a pending read
+	// from a previous call so the stream never has two concurrent readers.
+	controlCh := c.pendingControl
+	if controlCh == nil {
+		controlCh = make(chan receiveResult, 1)
+		conn := c.conn
+		go func() {
+			response, err := conn.ReceiveOnServerClientStream()
+			controlCh <- receiveResult{response, err}
+		}()
 	}
+	c.pendingControl = controlCh
 
-	// Extract file list
+	timeout := time.NewTimer(c.receiveTimeout)
+	defer timeout.Stop()
+
+	select {
+	case res := <-listCh:
+		if res.err != nil {
+			return nil, fmt.Errorf("ListDirectory: failed to receive response: %w", res.err)
+		}
+		if err := extractError(res.response); err != nil {
+			return nil, fmt.Errorf("ListDirectory: %w", err)
+		}
+		return parseFileList(res.response)
+	case res := <-controlCh:
+		c.pendingControl = nil
+		if res.err != nil {
+			return nil, fmt.Errorf("ListDirectory: failed to receive control response: %w", res.err)
+		}
+		if err := extractError(res.response); err != nil {
+			return nil, fmt.Errorf("ListDirectory: %w", err)
+		}
+		return nil, fmt.Errorf("ListDirectory: unexpected control response without file list (got: %+v)", res.response)
+	case <-timeout.C:
+		return nil, fmt.Errorf("ListDirectory: no response within %v: %w", c.receiveTimeout, ErrTimeout)
+	}
+}
+
+// parseFileList extracts the FileList entries from a RetrieveDirectoryList response.
+func parseFileList(response map[string]interface{}) ([]string, error) {
 	fileListRaw, ok := response["FileList"]
 	if !ok {
 		return nil, fmt.Errorf("ListDirectory: missing FileList in response")
@@ -186,7 +291,7 @@ func (c *Connection) PullFile(path string, writer io.Writer) error {
 	}
 
 	// File retrieval control responses come on ServerClientStream (like CreateSession)
-	response, err := c.conn.ReceiveOnServerClientStream()
+	response, err := c.receiveControl()
 	if err != nil {
 		return fmt.Errorf("PullFile: failed to receive response: %w", err)
 	}
@@ -307,7 +412,7 @@ func (c *Connection) PushFile(path string, reader io.Reader, fileSize int64, per
 	}
 
 	// Propose responses come on ServerClientStream (like other control commands)
-	response, err := c.conn.ReceiveOnServerClientStream()
+	response, err := c.receiveControl()
 	if err != nil {
 		return fmt.Errorf("PushFile: failed to receive response: %w", err)
 	}
@@ -418,16 +523,17 @@ func (c *Connection) Close() error {
 	return c.conn.Close()
 }
 
-// extractError checks if the response contains an error and returns it
+// extractError checks if the response contains an error and returns it as a *DeviceError
 func extractError(response map[string]interface{}) error {
 	if encodedError, ok := response["EncodedError"]; ok && encodedError != nil {
+		devErr := &DeviceError{Encoded: encodedError}
 		// Try to get localized description first
 		if errorMap, ok := encodedError.(map[string]interface{}); ok {
 			if desc, ok := errorMap["LocalizedDescription"].(string); ok && desc != "" {
-				return fmt.Errorf("device error: %s", desc)
+				devErr.Description = desc
 			}
 		}
-		return fmt.Errorf("device error: %+v", encodedError)
+		return devErr
 	}
 	return nil
 }
