@@ -1,0 +1,39 @@
+# Node / TypeScript
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.npmrc
+
+# TypeSpec emitter scratch output (canonical output lives in spec/openapi/, committed)
+tsp-output/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Java
+target/
+*.class
+.gradle/
+
+# C# / .NET
+bin/
+obj/
+*.user
+
+# Generated SDK code (regenerated from spec; not committed until Phase B decides)
+generated/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.log
