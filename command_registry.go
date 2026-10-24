@@ -21,6 +21,21 @@ func boolArg(args docopt.Opts, name string) bool {
 	return value
 }
 
+// portArg reads --port for commands that take a single port. `ios forward`
+// declares --port as repeatable, so docopt always hands it over as []string
+// and Args.String/Args.Int fail. The last value wins.
+func portArg(args docopt.Opts) string {
+	switch value := args["--port"].(type) {
+	case string:
+		return value
+	case []string:
+		if len(value) > 0 {
+			return value[len(value)-1]
+		}
+	}
+	return ""
+}
+
 func commandByBool(name string, run func(commandContext)) command {
 	return command{
 		name: name,

@@ -168,3 +168,26 @@ func TestNeedsAutomaticTunnelInfo(t *testing.T) {
 		})
 	}
 }
+
+// TestPortArg guards --port on single-port commands. `ios forward` declares
+// --port as repeatable, so docopt hands every command a []string for it and
+// Args.String/Args.Int silently fail (issue #876).
+func TestPortArg(t *testing.T) {
+	testCases := []struct {
+		name string
+		argv []string
+		want string
+	}{
+		{name: "webinspector cdp port", argv: []string{"webinspector", "cdp", "--port=19222"}, want: "19222"},
+		{name: "webinspector cdp default", argv: []string{"webinspector", "cdp"}, want: ""},
+		{name: "screenshot stream port", argv: []string{"screenshot", "--stream", "--port=4444"}, want: "4444"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := portArg(parseCLIArgs(t, testCase.argv...)); got != testCase.want {
+				t.Fatalf("portArg(%v) = %q, want %q", testCase.argv, got, testCase.want)
+			}
+		})
+	}
+}
