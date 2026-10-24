@@ -87,7 +87,7 @@ func TestWaitForTargetID_MalformedParamsNoPanic(t *testing.T) {
 			// write does not block on the socket buffer.
 			go func() { _, _, _ = serverConn.ReadMessage() }()
 
-			got := waitForTargetID(context.Background(), client, clientConn)
+			got := waitForTargetID(context.Background(), client, "", clientConn)
 			if got != "T-42" {
 				t.Fatalf("expected targetId %q, got %q", "T-42", got)
 			}
