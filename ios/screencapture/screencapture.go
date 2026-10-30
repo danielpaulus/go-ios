@@ -61,17 +61,24 @@ func (s *Service) Close() error {
 	return s.conn.Close()
 }
 
-// TakeScreenshot returns a PNG of the display with the given unique id, as
-// listed by deviceinfo's GetDisplayInfo ("uniqueId"). An empty id captures the
-// main display.
+// ScreenshotOptions selects what TakeScreenshot captures. The zero value
+// captures the main display. The service only produces PNG, so there is no
+// format option.
+type ScreenshotOptions struct {
+	// DisplayUniqueID is the display to capture, as listed by deviceinfo's
+	// GetDisplayInfo ("uniqueId"). Empty captures the main display.
+	DisplayUniqueID string
+}
+
+// TakeScreenshot returns a PNG of the display chosen by opts.
 //
 // A request that fails in transport closes the connection, since the stream
 // position is unknown afterwards; create a new Service to retry. An error
 // reported by the device keeps it open.
-func (s *Service) TakeScreenshot(ctx context.Context, displayUniqueID string) ([]byte, error) {
+func (s *Service) TakeScreenshot(ctx context.Context, opts ScreenshotOptions) ([]byte, error) {
 	input := map[string]interface{}{"requestedFormat": formatPNG}
-	if displayUniqueID != "" {
-		input["displayUniqueID"] = displayUniqueID
+	if opts.DisplayUniqueID != "" {
+		input["displayUniqueID"] = opts.DisplayUniqueID
 	}
 
 	output, err := s.invoke(ctx, input)

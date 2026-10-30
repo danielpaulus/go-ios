@@ -99,7 +99,7 @@ func TestTakeScreenshotOfADisplay(t *testing.T) {
 	f.reply = imageReply([]byte("png bytes"))
 	s := newService(f)
 
-	image, err := s.TakeScreenshot(context.Background(), "123-456-789")
+	image, err := s.TakeScreenshot(context.Background(), ScreenshotOptions{DisplayUniqueID: "123-456-789"})
 
 	require.NoError(t, err)
 	assert.Equal(t, []byte("png bytes"), image)
@@ -117,7 +117,7 @@ func TestTakeScreenshotOfTheMainDisplay(t *testing.T) {
 	f.reply = imageReply([]byte("png bytes"))
 	s := newService(f)
 
-	_, err := s.TakeScreenshot(context.Background(), "")
+	_, err := s.TakeScreenshot(context.Background(), ScreenshotOptions{})
 
 	require.NoError(t, err)
 	assert.NotContains(t, f.lastInput(t), "displayUniqueID", "no id means the main display")
@@ -132,7 +132,7 @@ func TestDeviceErrorKeepsTheConnection(t *testing.T) {
 	}}
 	s := newService(f)
 
-	_, err := s.TakeScreenshot(context.Background(), "")
+	_, err := s.TakeScreenshot(context.Background(), ScreenshotOptions{})
 
 	assert.ErrorContains(t, err, "Expected to find key requestedFormat.")
 	assert.False(t, f.isClosed(), "a complete reply leaves the stream in a known position")
@@ -143,7 +143,7 @@ func TestMissingImageIsAnError(t *testing.T) {
 	f.reply = map[string]interface{}{"CoreDevice.output": map[string]interface{}{"imageFormat": "png"}}
 	s := newService(f)
 
-	_, err := s.TakeScreenshot(context.Background(), "")
+	_, err := s.TakeScreenshot(context.Background(), ScreenshotOptions{})
 
 	assert.ErrorContains(t, err, "no image")
 }
@@ -155,7 +155,7 @@ func TestClosedConnectionIsReported(t *testing.T) {
 	f.replyErr = errors.New("EOF")
 	s := newService(f)
 
-	_, err := s.TakeScreenshot(context.Background(), "123-456-789")
+	_, err := s.TakeScreenshot(context.Background(), ScreenshotOptions{DisplayUniqueID: "123-456-789"})
 
 	assert.ErrorContains(t, err, "EOF")
 	assert.True(t, f.isClosed())
@@ -169,7 +169,7 @@ func TestTimedOutRequestClosesTheConnection(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
-	_, err := s.TakeScreenshot(ctx, "")
+	_, err := s.TakeScreenshot(ctx, ScreenshotOptions{})
 
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.True(t, f.isClosed(), "an interrupted read leaves the stream position unknown, so the connection must go")
@@ -180,7 +180,7 @@ func TestSendFailureClosesTheConnection(t *testing.T) {
 	f.sendErr = errors.New("channel gone")
 	s := newService(f)
 
-	_, err := s.TakeScreenshot(context.Background(), "")
+	_, err := s.TakeScreenshot(context.Background(), ScreenshotOptions{})
 
 	assert.ErrorContains(t, err, "channel gone")
 	assert.True(t, f.isClosed(), "a failed write may be half a frame, so the connection must go")
