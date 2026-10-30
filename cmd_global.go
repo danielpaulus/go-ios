@@ -63,5 +63,9 @@ func isDeviceListCommand(args docopt.Opts) bool {
 
 func runDeviceListCommand(ctx commandContext) {
 	details, _ := ctx.Args.Bool("--details")
-	printDeviceList(details)
+	if usbmuxOnly, _ := ctx.Args.Bool("--usbmuxd-only"); usbmuxOnly {
+		printDeviceList(details) // legacy path, unchanged output
+		return
+	}
+	printMergedDeviceList(details, tunnelInfoConfigFromArgs(ctx.Args))
 }
