@@ -10,6 +10,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/golog"
 	"github.com/danielpaulus/go-ios/ios/http"
 	"github.com/danielpaulus/go-ios/ios/xpc"
+	"github.com/google/uuid"
 )
 
 // RsdPortProvider is an interface to get a port for a service, or a service for a port from the Remote Service Discovery on the device.
@@ -201,6 +202,30 @@ func newRsdServiceFromTcpConn(conn *net.TCPConn) (RsdService, error) {
 	}, nil
 }
 
+// sendHostHandshake answers the device's handshake with one describing the host. Without
+// it the device has no RemoteXPC version flags for the host and treats it as a legacy peer:
+// a service that replies with a large data object (e.g. a screenshot) then traps with
+// "Attempt to send a larger xpc_data_t than legacy peer can receive". The host echoes the
+// device's protocol version and version flags, as it supports the same RemoteXPC features.
+func (s RsdService) sendHostHandshake(deviceHandshake map[string]interface{}) error {
+	properties := map[string]interface{}{
+		"BootSessionUUID": uuid.New(),
+	}
+	if p, ok := deviceHandshake["Properties"].(map[string]interface{}); ok {
+		if flags, ok := p["RemoteXPCVersionFlags"]; ok {
+			properties["RemoteXPCVersionFlags"] = flags
+		}
+	}
+	msg := map[string]interface{}{
+		"MessageType":              "Handshake",
+		"MessagingProtocolVersion": deviceHandshake["MessagingProtocolVersion"],
+		"Properties":               properties,
+		"Services":                 map[string]interface{}{},
+		"UUID":                     uuid.New(),
+	}
+	return s.xpc.Send(msg)
+}
+
 // Handshake sends a handshake request to the device and returns the RsdHandshakeResponse
 // which contains the UDID and the services available on the device.
 func (s RsdService) Handshake() (RsdHandshakeResponse, error) {
@@ -219,6 +244,9 @@ func (s RsdService) Handshake() (RsdHandshakeResponse, error) {
 		return RsdHandshakeResponse{}, fmt.Errorf("Handshake: could not read UDID")
 	}
 	if m["MessageType"] == "Handshake" {
+		if err := s.sendHostHandshake(m); err != nil {
+			golog.Warn("failed to send the host handshake", "module", logModule, "error", err)
+		}
 		servicesMap := m["Services"].(map[string]interface{})
 		res := make(map[string]RsdServiceEntry)
 		for s, m := range servicesMap {
