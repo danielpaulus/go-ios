@@ -140,6 +140,13 @@ func (conn Connection) sendDirectory(dir string) error {
 			}
 			totalBytes += info.Size()
 			unzippedFiles = append(unzippedFiles, path)
+			relativePath, err := filepath.Rel(dir, path)
+			if err != nil {
+				return err
+			}
+			if err := validateZipEntryNames([]string{filepath.ToSlash(relativePath)}); err != nil {
+				return err
+			}
 			return nil
 		})
 	if err != nil {
@@ -194,6 +201,14 @@ func (conn Connection) sendIpaFile(ipaFile string) error {
 		return err
 	}
 	defer ipa.Close()
+
+	entryNames := make([]string, 0, len(ipa.File))
+	for _, f := range ipa.File {
+		entryNames = append(entryNames, f.Name)
+	}
+	if err := validateZipEntryNames(entryNames); err != nil {
+		return err
+	}
 
 	totalBytes, numFiles := zipFilesSize(ipa)
 
