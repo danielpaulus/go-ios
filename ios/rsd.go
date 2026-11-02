@@ -202,11 +202,9 @@ func newRsdServiceFromTcpConn(conn *net.TCPConn) (RsdService, error) {
 	}, nil
 }
 
-// sendHostHandshake answers the device's handshake with one describing the host. Without
-// it the device has no RemoteXPC version flags for the host and treats it as a legacy peer:
-// a service that replies with a large data object (e.g. a screenshot) then traps with
-// "Attempt to send a larger xpc_data_t than legacy peer can receive". The host echoes the
-// device's protocol version and version flags, as it supports the same RemoteXPC features.
+// sendHostHandshake answers the device's handshake with one describing the host. The host
+// echoes the device's protocol version and version flags, as it supports the same RemoteXPC
+// features.
 func (s RsdService) sendHostHandshake(deviceHandshake map[string]interface{}) error {
 	properties := map[string]interface{}{
 		"BootSessionUUID": uuid.New(),
@@ -229,6 +227,24 @@ func (s RsdService) sendHostHandshake(deviceHandshake map[string]interface{}) er
 // Handshake sends a handshake request to the device and returns the RsdHandshakeResponse
 // which contains the UDID and the services available on the device.
 func (s RsdService) Handshake() (RsdHandshakeResponse, error) {
+	return s.handshake(false)
+}
+
+// HandshakeAsHost does what Handshake does and then answers with the host's own handshake,
+// which announces the host's RemoteXPC version flags. Without them the device treats the
+// host as a legacy peer: a service that replies with a large data object (e.g. a screenshot
+// of a large display) then traps with "Attempt to send a larger xpc_data_t than legacy peer
+// can receive". The device keeps the flags for the tunnel, also after this connection closes.
+//
+// Call it once per tunnel, right after the tunnel started, and use Handshake for any later
+// handshake on the same tunnel. Since iOS 27.2 every further host handshake makes the device
+// move its services to new ports and close them as soon as that RSD connection closes, so
+// the ports from any handshake are refused right away.
+func (s RsdService) HandshakeAsHost() (RsdHandshakeResponse, error) {
+	return s.handshake(true)
+}
+
+func (s RsdService) handshake(asHost bool) (RsdHandshakeResponse, error) {
 	golog.Debug("execute handshake", "module", logModule)
 	m, err := s.xpc.ReceiveOnClientServerStream()
 	if err != nil {
@@ -244,8 +260,10 @@ func (s RsdService) Handshake() (RsdHandshakeResponse, error) {
 		return RsdHandshakeResponse{}, fmt.Errorf("Handshake: could not read UDID")
 	}
 	if m["MessageType"] == "Handshake" {
-		if err := s.sendHostHandshake(m); err != nil {
-			golog.Warn("failed to send the host handshake", "module", logModule, "error", err)
+		if asHost {
+			if err := s.sendHostHandshake(m); err != nil {
+				golog.Warn("failed to send the host handshake", "module", logModule, "error", err)
+			}
 		}
 		servicesMap := m["Services"].(map[string]interface{})
 		res := make(map[string]RsdServiceEntry)
