@@ -339,6 +339,8 @@ type TunnelManager struct {
 	// basePort is the base for derived userspace listener ports (the agent's own
 	// tunnel-info port), so per-device agents on different ports don't collide.
 	basePort int
+	// hostAnnouncer announces the host on a new tunnel; nil uses ios.AnnounceHost.
+	hostAnnouncer func(address string, port int, d ios.DeviceEntry, timeout time.Duration) error
 }
 
 // NewTunnelManager creates a new TunnelManager instance for setting up device tunnels for all connected devices
@@ -553,7 +555,62 @@ func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry)
 	if err != nil {
 		return Tunnel{}, err
 	}
+	// Before the tunnel is listed, so no client uses it before the host was announced.
+	if shouldAnnounceHost(version) {
+		m.announceHost(ctx, t, device)
+	}
 	return t, nil
+}
+
+const (
+	// announceHostAttempts and announceHostTimeout bound the host announcement of a new
+	// tunnel: its RSD service sometimes needs a moment before it answers. A device that
+	// doesn't answer at all delays its tunnel by about 7s.
+	announceHostAttempts   = 3
+	announceHostTimeout    = 2 * time.Second
+	announceHostRetryDelay = 500 * time.Millisecond
+)
+
+// shouldAnnounceHost reports whether a new tunnel to a device with this iOS version announces
+// the host. Only iOS 27+ has services that need it (the screen capture service of the developer
+// disk image), so older devices keep the plain handshake they always had.
+func shouldAnnounceHost(version *semver.Version) bool {
+	return version.Major() >= 27
+}
+
+// announceHost does the tunnel's one host handshake (see ios.RsdService.HandshakeAsHost), so
+// the device sends large replies such as screenshots of a large display. It is best effort:
+// if it fails, the tunnel still works, only those replies don't.
+func (m *TunnelManager) announceHost(ctx context.Context, t Tunnel, device ios.DeviceEntry) {
+	announce := m.hostAnnouncer
+	if announce == nil {
+		announce = ios.AnnounceHost
+	}
+	device.UserspaceTUN = t.UserspaceTUN
+	device.UserspaceTUNPort = t.UserspaceTUNPort
+	if t.UserspaceTUN {
+		// where connectToUserspaceTunnelLockdown listens
+		device.UserspaceTUNHost = "localhost"
+	}
+
+	var err error
+	for attempt := 1; attempt <= announceHostAttempts; attempt++ {
+		if attempt > 1 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(announceHostRetryDelay):
+			}
+		}
+		// A failed attempt sent no host handshake, so trying again can't announce the host twice.
+		err = announce(t.Address, t.RsdPort, device, announceHostTimeout)
+		if err == nil {
+			golog.Debug("announced the host to the device", "module", logModule, "udid", t.Udid)
+			return
+		}
+	}
+	golog.Warn("failed to announce the host to the device, it will not send large replies such as screenshots of a large display",
+		"module", logModule, "udid", t.Udid, "error", err)
 }
 
 // ListTunnels provides all currently running device tunnels
