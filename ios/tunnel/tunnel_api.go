@@ -555,24 +555,26 @@ func (m *TunnelManager) startTunnel(ctx context.Context, device ios.DeviceEntry)
 	if err != nil {
 		return Tunnel{}, err
 	}
-	if announcesHost(version) {
-		go m.announceHost(ctx, t, device)
+	// Before the tunnel is listed, so no client uses it before the host was announced.
+	if shouldAnnounceHost(version) {
+		m.announceHost(ctx, t, device)
 	}
 	return t, nil
 }
 
 const (
 	// announceHostAttempts and announceHostTimeout bound the host announcement of a new
-	// tunnel: its RSD service sometimes needs a moment before it answers.
+	// tunnel: its RSD service sometimes needs a moment before it answers. A device that
+	// doesn't answer at all delays its tunnel by about 7s.
 	announceHostAttempts   = 3
-	announceHostTimeout    = 5 * time.Second
+	announceHostTimeout    = 2 * time.Second
 	announceHostRetryDelay = 500 * time.Millisecond
 )
 
-// announcesHost reports whether a new tunnel to a device with this iOS version announces the
-// host. Only iOS 27+ has services that need it (the screen capture service of the developer
+// shouldAnnounceHost reports whether a new tunnel to a device with this iOS version announces
+// the host. Only iOS 27+ has services that need it (the screen capture service of the developer
 // disk image), so older devices keep the plain handshake they always had.
-func announcesHost(version *semver.Version) bool {
+func shouldAnnounceHost(version *semver.Version) bool {
 	return version.Major() >= 27
 }
 

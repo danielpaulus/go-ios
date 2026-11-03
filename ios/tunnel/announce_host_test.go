@@ -10,10 +10,10 @@ import (
 	"github.com/danielpaulus/go-ios/ios"
 )
 
-func TestAnnouncesHostOnlyFromIOS27(t *testing.T) {
+func TestShouldAnnounceHostOnlyFromIOS27(t *testing.T) {
 	for version, want := range map[string]bool{"17.5.1": false, "26.4": false, "27.0": true, "27.2": true} {
-		if got := announcesHost(semver.MustParse(version)); got != want {
-			t.Errorf("announcesHost(%s) = %v, want %v", version, got, want)
+		if got := shouldAnnounceHost(semver.MustParse(version)); got != want {
+			t.Errorf("shouldAnnounceHost(%s) = %v, want %v", version, got, want)
 		}
 	}
 }
