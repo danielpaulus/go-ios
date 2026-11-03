@@ -53,7 +53,7 @@ func TestAnnounceHostOnTheTunnel(t *testing.T) {
 	if f.address != "fd00::1" || f.port != 58783 {
 		t.Errorf("announced on [%s]:%d, want the tunnel's RSD service", f.address, f.port)
 	}
-	if !f.device.UserspaceTUN || f.device.UserspaceTUNPort != 60106 {
+	if !f.device.UserspaceTUN || f.device.UserspaceTUNHost != "localhost" || f.device.UserspaceTUNPort != 60106 {
 		t.Errorf("device = %+v, want the tunnel's userspace TUN settings", f.device)
 	}
 }

@@ -288,13 +288,13 @@ func (s RsdService) handshake(asHost bool) (RsdHandshakeResponse, error) {
 	if m["MessageType"] == "Handshake" {
 		servicesMap := m["Services"].(map[string]interface{})
 		res := make(map[string]RsdServiceEntry)
-		for s, m := range servicesMap {
-			s2 := m.(map[string]interface{})["Port"].(string)
-			p, err := strconv.ParseInt(s2, 10, 32)
+		for name, entry := range servicesMap {
+			portString := entry.(map[string]interface{})["Port"].(string)
+			p, err := strconv.ParseInt(portString, 10, 32)
 			if err != nil {
 				return RsdHandshakeResponse{}, fmt.Errorf("Handshake: failed to parse port: %w", err)
 			}
-			res[s] = RsdServiceEntry{
+			res[name] = RsdServiceEntry{
 				Port: uint32(p),
 			}
 		}

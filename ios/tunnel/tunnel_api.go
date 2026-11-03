@@ -588,6 +588,10 @@ func (m *TunnelManager) announceHost(ctx context.Context, t Tunnel, device ios.D
 	}
 	device.UserspaceTUN = t.UserspaceTUN
 	device.UserspaceTUNPort = t.UserspaceTUNPort
+	if t.UserspaceTUN {
+		// where connectToUserspaceTunnelLockdown listens
+		device.UserspaceTUNHost = "localhost"
+	}
 
 	var err error
 	for attempt := 1; attempt <= announceHostAttempts; attempt++ {
