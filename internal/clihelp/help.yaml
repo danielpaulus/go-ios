@@ -138,6 +138,9 @@ commands:
   - path: instruments notifications
     usage: ios instruments notifications [options]
     summary: Stream app state notifications.
+  - path: instruments processes
+    usage: ios instruments processes [--pid=<processID>] [--process=<processName>] [--duration=<seconds>] [options]
+    summary: Stream per-process CPU and memory samples.
   - path: ip
     usage: ios ip [options]
     summary: Detect device IP from packet capture.
