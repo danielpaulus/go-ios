@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios/golog"
 	"github.com/danielpaulus/go-ios/ios/http"
@@ -239,9 +240,34 @@ func (s RsdService) Handshake() (RsdHandshakeResponse, error) {
 // Call it once per tunnel, right after the tunnel started, and use Handshake for any later
 // handshake on the same tunnel. Since iOS 27.2 every further host handshake makes the device
 // move its services to new ports and close them as soon as that RSD connection closes, so
-// the ports from any handshake are refused right away.
+// the ports from any handshake are refused right away. The tunnel agent's TunnelManager does
+// this for the tunnels it starts. If it returns an error, the host was not announced.
 func (s RsdService) HandshakeAsHost() (RsdHandshakeResponse, error) {
 	return s.handshake(true)
+}
+
+// AnnounceHost connects to the RSD service of a tunnel and does the tunnel's host handshake
+// (see HandshakeAsHost). It gives up after timeout, as the RSD service of a tunnel that just
+// started may not answer yet. If it returns an error, the host was not announced.
+func AnnounceHost(address string, port int, d DeviceEntry, timeout time.Duration) error {
+	conn, err := ConnectTUNDevice(address, port, d)
+	if err != nil {
+		return fmt.Errorf("AnnounceHost: failed to connect to RSD: %w", err)
+	}
+	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		_ = conn.Close()
+		return fmt.Errorf("AnnounceHost: failed to set the deadline: %w", err)
+	}
+	s, err := newRsdServiceFromTcpConn(conn)
+	if err != nil {
+		_ = conn.Close()
+		return fmt.Errorf("AnnounceHost: %w", err)
+	}
+	defer s.Close()
+	if _, err := s.HandshakeAsHost(); err != nil {
+		return fmt.Errorf("AnnounceHost: %w", err)
+	}
+	return nil
 }
 
 func (s RsdService) handshake(asHost bool) (RsdHandshakeResponse, error) {
@@ -260,11 +286,6 @@ func (s RsdService) handshake(asHost bool) (RsdHandshakeResponse, error) {
 		return RsdHandshakeResponse{}, fmt.Errorf("Handshake: could not read UDID")
 	}
 	if m["MessageType"] == "Handshake" {
-		if asHost {
-			if err := s.sendHostHandshake(m); err != nil {
-				golog.Warn("failed to send the host handshake", "module", logModule, "error", err)
-			}
-		}
 		servicesMap := m["Services"].(map[string]interface{})
 		res := make(map[string]RsdServiceEntry)
 		for s, m := range servicesMap {
@@ -275,6 +296,12 @@ func (s RsdService) handshake(asHost bool) (RsdHandshakeResponse, error) {
 			}
 			res[s] = RsdServiceEntry{
 				Port: uint32(p),
+			}
+		}
+		// Sent last, so a failed handshake never announced the host and can be retried.
+		if asHost {
+			if err := s.sendHostHandshake(m); err != nil {
+				golog.Warn("failed to send the host handshake", "module", logModule, "error", err)
 			}
 		}
 		return RsdHandshakeResponse{

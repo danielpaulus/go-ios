@@ -25,6 +25,10 @@ const versionFlags = uint64(0x0100000000000006)
 // deviceHandshake returns a stream that serves the device's RSD handshake and records what
 // the host writes.
 func deviceHandshake(t *testing.T) *splitStream {
+	return deviceHandshakeWithPort(t, "53541")
+}
+
+func deviceHandshakeWithPort(t *testing.T, port string) *splitStream {
 	var device bytes.Buffer
 	require.NoError(t, xpc.EncodeMessage(&device, xpc.Message{Flags: xpc.AlwaysSetFlag | xpc.DataFlag, Id: 1, Body: map[string]interface{}{
 		"MessageType":              "Handshake",
@@ -34,7 +38,7 @@ func deviceHandshake(t *testing.T) *splitStream {
 			"UniqueDeviceID":        "00000000-0000000000000000",
 		},
 		"Services": map[string]interface{}{
-			"com.apple.coredevice.screencaptureservice": map[string]interface{}{"Port": "53541"},
+			"com.apple.coredevice.screencaptureservice": map[string]interface{}{"Port": port},
 		},
 		"UUID": uuid.New(),
 	}}))
@@ -56,6 +60,16 @@ func TestHandshakeDoesNotAnswer(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, 53541, response.GetPort("com.apple.coredevice.screencaptureservice"))
+	assert.Zero(t, stream.written.Len())
+}
+
+func TestFailedHandshakeAsHostDoesNotAnswer(t *testing.T) {
+	// A failed host handshake gets retried, which must not announce the host twice.
+	stream := deviceHandshakeWithPort(t, "not a port")
+
+	_, err := rsdServiceOn(t, stream).HandshakeAsHost()
+
+	assert.Error(t, err)
 	assert.Zero(t, stream.written.Len())
 }
 

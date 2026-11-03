@@ -6,8 +6,9 @@
 //
 // The service is provided by the developer disk image of iOS 27 and later.
 // Replies carry the image as one large data object, which the device only sends
-// to a host that announced its RemoteXPC version flags: do the tunnel's first RSD
-// handshake with ios.RsdService.HandshakeAsHost.
+// to a host that announced its RemoteXPC version flags. The tunnel agent does that
+// for the tunnels it starts; callers that start tunnels themselves use
+// ios.AnnounceHost or ios.RsdService.HandshakeAsHost once per tunnel.
 package screencapture
 
 import (
