@@ -2,10 +2,22 @@ package zipconduit
 
 import (
 	"encoding/hex"
+	"fmt"
 	"strings"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 const logModule = "go-ios/zipconduit"
+
+func validateZipEntryNames(names []string) error {
+	for _, name := range names {
+		if name != norm.NFD.String(name) {
+			return fmt.Errorf("resource %q uses an NFC name; rename it or store it in NFD before installing", name)
+		}
+	}
+	return nil
+}
 
 // sadly apple does not use a standard compliant zip implementation for this
 // so I had to hack my own basic pseudo zip format together.
