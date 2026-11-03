@@ -34,7 +34,7 @@ func runInfoCommand(ctx commandContext) {
 
 func runScreenshotCommand(ctx commandContext) {
 	stream, _ := ctx.Args.Bool("--stream")
-	port, _ := ctx.Args.String("--port")
+	port := portArg(ctx.Args)
 	path, _ := ctx.Args.String("--output")
 	if stream {
 		if port == "" {
