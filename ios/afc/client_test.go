@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path"
 	"slices"
 	"strings"
@@ -14,19 +15,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestAfc writes to and deletes from the device's AFC media directory, so it only
+// runs against the UDIDs listed in GO_IOS_E2E_DEVICES, never against whatever
+// happens to be plugged in.
 func TestAfc(t *testing.T) {
-	devices, err := ios.ListDevices()
-	if err != nil {
-		t.Skipf("failed to list devices: %s", err)
-		return
+	udids := strings.TrimSpace(os.Getenv("GO_IOS_E2E_DEVICES"))
+	if udids == "" {
+		t.Skip("GO_IOS_E2E_DEVICES not set")
 	}
 
-	if len(devices.DeviceList) == 0 {
-		t.Skipf("no devices connected")
-		return
-	}
-
-	for _, device := range devices.DeviceList {
+	for _, udid := range strings.Split(udids, ",") {
+		udid = strings.TrimSpace(udid)
+		if udid == "" {
+			continue
+		}
+		device, err := ios.GetDevice(udid)
+		if err != nil {
+			t.Fatalf("GetDevice(%s): %v", udid, err)
+		}
 
 		t.Run(fmt.Sprintf("device %s", device.Properties.SerialNumber), func(t *testing.T) {
 
@@ -134,6 +140,9 @@ func TestAfc(t *testing.T) {
 			t.Run("walk dir", func(t *testing.T) {
 				basePath := path.Join("./", uuid.New().String())
 				mustCreateDir(client, basePath)
+				t.Cleanup(func() {
+					assert.NoError(t, client.RemoveAll(basePath))
+				})
 				mustCreateDir(client, path.Join(basePath, "a-dir"))
 				mustCreateDir(client, path.Join(basePath, "a-dir", "subdir"))
 				mustCreateFile(client, path.Join(basePath, "a-dir", "file"))
