@@ -24,37 +24,55 @@ var PLATFORM_MAPPING = {
     "freebsd": "freebsd"
 };
 
+// On Windows npm's global prefix IS the bin dir (executables/shims live
+// directly in %AppData%\npm, which is what's on PATH). On Linux/macOS
+// executables go in <prefix>/bin. Appending "bin" on Windows puts the
+// binary in a folder that isn't on PATH.
+function binDirFromNpmPrefix(prefix) {
+    return process.platform === "win32" ? prefix : path.join(prefix, "bin");
+}
+
 async function getInstallationPath() {
+    var env = process.env;
 
-    // `npm bin` will output the path where binary files should be installed
-
-    const value = null //await execShellCommand("npm bin -g");
-
-
-    var dir = null;
-    if (!value || value.length === 0) {
-
-        // We couldn't infer path from `npm bin`. Let's try to get it from
-        // Environment variables set by NPM when it runs.
-        // npm_config_prefix points to NPM's installation directory where `bin` folder is available
-        // Ex: /Users/foo/.nvm/versions/node/v4.3.0
-        var env = process.env;
-        if (env && env.npm_config_prefix) {
-            // On Windows npm's global prefix IS the bin dir (executables/shims
-            // live directly in %AppData%\npm, which is what's on PATH). On
-            // Linux/macOS executables go in <prefix>/bin. Appending "bin" on
-            // Windows puts the binary in a folder that isn't on PATH.
-            dir = process.platform === "win32"
-                ? env.npm_config_prefix
-                : path.join(env.npm_config_prefix, "bin");
-        }
-    } else {
-        dir = value.trim();
+    // npm sets npm_config_prefix (newer versions also npm_config_global_prefix)
+    // to its installation directory, e.g. /Users/foo/.nvm/versions/node/v4.3.0
+    var npmPrefix = env.npm_config_prefix || env.npm_config_global_prefix;
+    if (npmPrefix) {
+        var dir = binDirFromNpmPrefix(npmPrefix);
+        await mkdirp(dir);
+        return dir;
     }
-    //throw (dir)
-    ///Users/danielpaulus/.nvm/versions/node/v19.7.0/lib/node_modules/go-ios/node_modules/.bin
-    await mkdirp(dir);
-    return dir;
+
+    // pnpm does not set npm_config_prefix (issue #659). PNPM_HOME is the
+    // directory pnpm places global binaries in; it is on PATH itself, so do
+    // not append a "bin" subdir.
+    if (env.PNPM_HOME) {
+        await mkdirp(env.PNPM_HOME);
+        return env.PNPM_HOME;
+    }
+
+    // Last resort: ask npm for its global prefix. Unlike execShellCommand
+    // (which resolves stderr on failure), resolve null on any error so a shell
+    // error message is never mistaken for a path.
+    var output = await new Promise((resolve) => {
+        require('child_process').exec("npm prefix -g", (error, stdout) => {
+            resolve(error ? null : stdout);
+        });
+    });
+    var prefix = output && output.trim();
+    if (prefix && path.isAbsolute(prefix)) {
+        var fallbackDir = binDirFromNpmPrefix(prefix);
+        await mkdirp(fallbackDir);
+        return fallbackDir;
+    }
+
+    throw new Error(
+        "Could not determine a global bin directory to install the go-ios binary into. " +
+        "None of npm_config_prefix, npm_config_global_prefix or PNPM_HOME are set, " +
+        "and 'npm prefix -g' did not return a usable path. " +
+        "Set a global prefix (e.g. 'npm config set prefix <dir>') or, for pnpm, " +
+        "run 'pnpm setup' so PNPM_HOME is set, then reinstall go-ios.");
 }
 
 async function verifyAndPlaceBinary(binName, binPath, callback) {
@@ -93,11 +111,9 @@ function validateConfiguration(packageJson) {
 }
 
 function parsePackageJson() {
-    if (process.arch !== "arm64" && process.platform !== "darwin") {
-        if (!(process.arch in ARCH_MAPPING)) {
-            console.error("Installation is not supported for this architecture: " + process.arch);
-            return;
-        }
+    if (!(process.arch in ARCH_MAPPING)) {
+        console.error("Installation is not supported for this architecture: " + process.arch);
+        return;
     }
 
     if (!(process.platform in PLATFORM_MAPPING)) {
@@ -153,12 +169,8 @@ async function install(callback) {
     mkdirp.sync(opts.binPath);
     console.info(`Copying the relevant binary for your platform ${process.platform}`);
     let src = `./dist/go-ios-${PLATFORM_MAPPING[process.platform]}-${ARCH_MAPPING[process.arch]}_${PLATFORM_MAPPING[process.platform]}_${ARCH_MAPPING[process.arch]}/${opts.binName}`;
-    if (process.arch === "arm64" && process.platform === "darwin") {
-        console.log("using amd64 build on M1 mac")
-        src = `./dist/go-ios-${process.platform}-amd64_${process.platform}_amd64/${opts.binName}`;
-    }
 
-    if (process.arch === "ia32" && process.platform === "w32") {
+    if (process.arch === "ia32" && process.platform === "win32") {
         src = `./dist/go-ios-${PLATFORM_MAPPING[process.platform]}-amd64_${PLATFORM_MAPPING[process.platform]}_amd64/${opts.binName}`;
     }
 
