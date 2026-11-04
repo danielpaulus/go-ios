@@ -241,6 +241,31 @@ func (c *Client) FindPage(pageKey string) (Application, Page, bool) {
 	return Application{}, Page{}, false
 }
 
+// FindPageByTarget accepts "<pid>.<pageKey>" as well as a bare page key.
+// Page keys are numbered per application, so Safari's page 1 and an app
+// WebView's page 1 collide and FindPage picks whichever the map yields first.
+func (c *Client) FindPageByTarget(target string) (Application, Page, bool) {
+	pidText, pageKey, scoped := strings.Cut(target, ".")
+	if !scoped {
+		return c.FindPage(target)
+	}
+	pid, err := strconv.Atoi(pidText)
+	if err != nil {
+		return Application{}, Page{}, false
+	}
+	c.stateMu.Lock()
+	defer c.stateMu.Unlock()
+	for appID, appPages := range c.pages {
+		app, ok := c.apps[appID]
+		if !ok || app.PID != pid {
+			continue
+		}
+		page, ok := appPages[pageKey]
+		return app, page, ok
+	}
+	return Application{}, Page{}, false
+}
+
 func (c *Client) SetupInspectorSocket(sessionID string, app Application, page Page, pause bool) error {
 	message := map[string]any{
 		"WIRApplicationIdentifierKey":         app.ID,
