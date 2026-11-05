@@ -16,10 +16,11 @@ const (
 	digitizerMessageType       = "IndigoDigitizerEvent"
 )
 
-// Edge is the screen edge a touch starts from, in the display's native
-// (unrotated) axes. A touch that starts from an edge can begin a system gesture,
-// such as swiping up from the bottom to go home, which a touch reported through
-// Session never does.
+// Edge is the screen edge a contact comes onto the screen over, in the
+// display's native (unrotated) axes. iOS only recognizes some system gestures
+// when the swipe starts at an edge: going home (up from the bottom), Control
+// Center and Notification Center (down from the top) and going back (in from the
+// left). A touch reported through Session can never start one.
 type Edge uint64
 
 const (
@@ -120,25 +121,46 @@ func NewDigitizerSession(device ios.DeviceEntry, displayID uint64) (*DigitizerSe
 	return &DigitizerSession{display: displayID, conn: &indigoConnection{conn: conn}}, nil
 }
 
-// TouchDown puts a contact at point, or moves the one already down there. The
-// edge is taken from the first TouchDown of a contact and kept until TouchUp:
-// it says where the contact started, not where it is.
+// TouchDown puts a contact down at point. edge is the edge the contact comes
+// onto the screen over, for a swipe that should be able to start a system
+// gesture, and EdgeNone for any other touch. It is sent as given, so it should
+// be the edge point is at: the device does not check one against the other.
+// Move the contact with TouchMove and lift it with TouchUp.
 func (s *DigitizerSession) TouchDown(point NormalizedPoint, edge Edge) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if err := s.checkOpen(); err != nil {
 		return err
 	}
-	phase := digitizerMoved
-	if !s.contactDown {
-		phase = digitizerBegan
-		s.edge = edge
-		s.contactDisplay = s.display
+	if s.contactDown {
+		return fmt.Errorf("TouchDown: a contact is already down, move it with TouchMove")
 	}
-	if err := s.conn.send(digitizerEvent{phase: phase, point: point, edge: s.edge, display: s.contactDisplay}); err != nil {
+	ev := digitizerEvent{phase: digitizerBegan, point: point, edge: edge, display: s.display}
+	if err := s.conn.send(ev); err != nil {
 		return fmt.Errorf("TouchDown: %w", err)
 	}
 	s.contactDown = true
+	s.edge = edge
+	s.contactDisplay = s.display
+	s.lastContact = point
+	return nil
+}
+
+// TouchMove moves the contact that is down to point. The contact keeps the edge
+// and the display it was put down with.
+func (s *DigitizerSession) TouchMove(point NormalizedPoint) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if err := s.checkOpen(); err != nil {
+		return err
+	}
+	if !s.contactDown {
+		return fmt.Errorf("TouchMove: no contact is down, put one down with TouchDown")
+	}
+	ev := digitizerEvent{phase: digitizerMoved, point: point, edge: s.edge, display: s.contactDisplay}
+	if err := s.conn.send(ev); err != nil {
+		return fmt.Errorf("TouchMove: %w", err)
+	}
 	s.lastContact = point
 	return nil
 }

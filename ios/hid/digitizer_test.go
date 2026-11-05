@@ -24,12 +24,12 @@ func openDigitizer() (*DigitizerSession, *fakeDigitizer) {
 	return &DigitizerSession{display: 2, conn: f}, f
 }
 
-// A swipe up from the bottom of a phone held upright: the edge is said once,
-// when the contact begins, and every later event of the contact repeats it.
+// A swipe up from the bottom of a phone held upright: the edge is given when the
+// contact is put down, and every later event of the contact repeats it.
 func TestDigitizerContactPhasesAndEdge(t *testing.T) {
 	s, f := openDigitizer()
 	require.NoError(t, s.TouchDown(NormalizedPoint{X: 0.5, Y: 1}, EdgeBottom))
-	require.NoError(t, s.TouchDown(NormalizedPoint{X: 0.5, Y: 0.7}, EdgeNone))
+	require.NoError(t, s.TouchMove(NormalizedPoint{X: 0.5, Y: 0.7}))
 	require.NoError(t, s.TouchUp(NormalizedPoint{X: 0.5, Y: 0.4}))
 
 	require.Len(t, f.events, 3)
@@ -47,6 +47,32 @@ func TestDigitizerTouchUpWithNothingDownSendsNothing(t *testing.T) {
 	assert.Empty(t, f.events)
 }
 
+func TestDigitizerTouchMoveWithNothingDownFails(t *testing.T) {
+	s, f := openDigitizer()
+	assert.Error(t, s.TouchMove(NormalizedPoint{X: 0.5, Y: 0.5}))
+	assert.Empty(t, f.events)
+}
+
+func TestDigitizerTouchDownWhileDownFails(t *testing.T) {
+	s, f := openDigitizer()
+	require.NoError(t, s.TouchDown(NormalizedPoint{X: 0.5, Y: 0.5}, EdgeNone))
+	assert.Error(t, s.TouchDown(NormalizedPoint{X: 0.6, Y: 0.5}, EdgeNone))
+	assert.Len(t, f.events, 1)
+}
+
+// Close lifts the contact where it was last moved to, not where it went down.
+func TestDigitizerCloseLiftsAMovedContactWhereItIs(t *testing.T) {
+	s, f := openDigitizer()
+	require.NoError(t, s.TouchDown(NormalizedPoint{X: 0.5, Y: 1}, EdgeBottom))
+	require.NoError(t, s.TouchMove(NormalizedPoint{X: 0.5, Y: 0.6}))
+	require.NoError(t, s.Close())
+
+	last := f.events[len(f.events)-1]
+	assert.Equal(t, digitizerEnded, last.phase)
+	assert.Equal(t, NormalizedPoint{X: 0.5, Y: 0.6}, last.point)
+	assert.Equal(t, EdgeBottom, last.edge)
+}
+
 func TestDigitizerCloseLiftsAContactLeftDown(t *testing.T) {
 	s, f := openDigitizer()
 	require.NoError(t, s.TouchDown(NormalizedPoint{X: 0.25, Y: 0.75}, EdgeNone))
@@ -61,6 +87,7 @@ func TestDigitizerCloseLiftsAContactLeftDown(t *testing.T) {
 func TestDigitizerClosedSessionRejectsEverything(t *testing.T) {
 	s := &DigitizerSession{closed: true}
 	assert.Error(t, s.TouchDown(NormalizedPoint{}, EdgeNone))
+	assert.Error(t, s.TouchMove(NormalizedPoint{}))
 	assert.Error(t, s.TouchUp(NormalizedPoint{}))
 }
 
@@ -93,7 +120,7 @@ func TestDigitizerSetDisplayAppliesFromTheNextContact(t *testing.T) {
 	s, f := openDigitizer()
 	require.NoError(t, s.TouchDown(NormalizedPoint{X: 0.5, Y: 0.5}, EdgeNone))
 	s.SetDisplay(1)
-	require.NoError(t, s.TouchDown(NormalizedPoint{X: 0.6, Y: 0.5}, EdgeNone))
+	require.NoError(t, s.TouchMove(NormalizedPoint{X: 0.6, Y: 0.5}))
 	require.NoError(t, s.TouchUp(NormalizedPoint{X: 0.6, Y: 0.5}))
 	require.NoError(t, s.TouchDown(NormalizedPoint{X: 0.5, Y: 0.5}, EdgeNone))
 
