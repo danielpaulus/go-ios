@@ -226,12 +226,17 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 	var closeOnce sync.Once
 	var explicitClose atomic.Bool
 	statsDone := make(chan struct{})
+	// done is closed after the tunnel is torn down. Consumers use Tunnel.Done
+	// to learn about a shutdown caused by a data-plane failure, which is
+	// otherwise indistinguishable from a healthy tunnel.
+	done := make(chan struct{})
 	doClose := func() error {
 		var err error
 		closeOnce.Do(func() {
 			close(statsDone)
 			iface.networkStack.Close()
 			err = errors.Join(connToDevice.Close(), listener.Close())
+			close(done)
 		})
 		return err
 	}
@@ -268,6 +273,7 @@ func connectToUserspaceTunnelLockdown(ctx context.Context, device ios.DeviceEntr
 		RsdPort: int(tunnelInfo.ServerRSDPort),
 		Udid:    device.Properties.SerialNumber,
 		closer:  closeFunc,
+		done:    done,
 	}, nil
 }
 
