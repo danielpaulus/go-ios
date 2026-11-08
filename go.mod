@@ -1,8 +1,8 @@
 module github.com/danielpaulus/go-ios
 
-go 1.26.0
+go 1.26.6
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 require (
 	github.com/Masterminds/semver v1.5.0
