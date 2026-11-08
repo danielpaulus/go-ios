@@ -76,8 +76,8 @@ type FileTransferStream struct {
 }
 
 // OpenFileTransfer opens a new stream for the payload of the FileTransfer object with
-// the given id. The peer accepts it only after it received the message that
-// references the FileTransfer, so call WaitAccepted after sending that message.
+// the given id. Write the payload after sending the message that references the
+// FileTransfer, without waiting for the peer's answer first (see WaitAccepted).
 func (c *Connection) OpenFileTransfer(id uint64) (*FileTransferStream, error) {
 	if c.openStream == nil {
 		return nil, fmt.Errorf("OpenFileTransfer: connection does not support file transfers")
@@ -96,7 +96,9 @@ func (c *Connection) OpenFileTransfer(id uint64) (*FileTransferStream, error) {
 	return &FileTransferStream{rwc: rwc, id: id}, nil
 }
 
-// WaitAccepted blocks until the peer is ready to receive the payload
+// WaitAccepted reads the peer's answer to the stream's FileOpen message. The answer
+// may come only after the payload (cryptexd on iOS 27.0.1 sent none before it), so it
+// is no go-ahead for writing the payload.
 func (f *FileTransferStream) WaitAccepted() error {
 	msg, err := DecodeMessage(f.rwc)
 	if err != nil {
