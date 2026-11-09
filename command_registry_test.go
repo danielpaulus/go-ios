@@ -105,6 +105,8 @@ func TestDispatchSubcommandCollisions(t *testing.T) {
 		// info vs lockdown
 		{name: "info lockdown dispatches info", argv: []string{"info", "lockdown"}, want: "device:info"},
 		{name: "plain lockdown dispatches lockdown", argv: []string{"lockdown", "get", "ProductVersion"}, want: "device:lockdown"},
+		{name: "hid hinge dispatches hid", argv: []string{"hid", "hinge", "halfopen"}, want: "device:hid"},
+		{name: "hid hinge takes degrees", argv: []string{"hid", "hinge", "95.5"}, want: "device:hid"},
 		// ui vs launch/screenshot/install/run
 		{name: "ui app launch dispatches ui", argv: []string{"ui", "app", "launch", "com.apple.mobilesafari"}, want: "global:ui"},
 		{name: "ui screenshot dispatches ui", argv: []string{"ui", "screenshot"}, want: "global:ui"},
@@ -147,6 +149,7 @@ func TestNeedsAutomaticTunnelInfo(t *testing.T) {
 		{name: "timeformat stays tunnel-free", args: docopt.Opts{"timeformat": true}, want: false},
 		{name: "file needs tunnel", args: docopt.Opts{"file": true}, want: true},
 		{name: "rsd needs tunnel", args: docopt.Opts{"rsd": true}, want: true},
+		{name: "hid needs tunnel", args: docopt.Opts{"hid": true, "hinge": true}, want: true},
 		{name: "display info needs tunnel", args: docopt.Opts{"info": true, "display": true}, want: true},
 		{name: "plain info stays tunnel-free", args: docopt.Opts{"info": true}, want: false},
 		{name: "syslog needs tunnel when available", args: docopt.Opts{"syslog": true}, want: true},
