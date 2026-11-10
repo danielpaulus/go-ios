@@ -106,6 +106,10 @@ func TestDispatchSubcommandCollisions(t *testing.T) {
 		{name: "info lockdown dispatches info", argv: []string{"info", "lockdown"}, want: "device:info"},
 		{name: "plain lockdown dispatches lockdown", argv: []string{"lockdown", "get", "ProductVersion"}, want: "device:lockdown"},
 		{name: "hid hinge dispatches hid", argv: []string{"hid", "hinge", "halfopen"}, want: "device:hid"},
+		{name: "hid button dispatches hid", argv: []string{"hid", "button", "home"}, want: "device:hid"},
+		{name: "hid button takes a hold", argv: []string{"hid", "button", "action", "--hold=1500"}, want: "device:hid"},
+		// ui shares the button literals with hid
+		{name: "ui button still dispatches ui", argv: []string{"ui", "button", "home"}, want: "global:ui"},
 		{name: "hid hinge takes degrees", argv: []string{"hid", "hinge", "95.5"}, want: "device:hid"},
 		// ui vs launch/screenshot/install/run
 		{name: "ui app launch dispatches ui", argv: []string{"ui", "app", "launch", "com.apple.mobilesafari"}, want: "global:ui"},

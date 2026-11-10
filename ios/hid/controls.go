@@ -38,8 +38,10 @@ func (c *xpcMessageConn) Close() error {
 	return c.conn.Close()
 }
 
-// Controls folds the device the way Xcode's device hub does. iOS 27+ and a
-// mounted Developer Disk Image.
+// Controls presses the device's buttons and folds it, the way Xcode's device
+// hub does. iOS 27+ and a mounted Developer Disk Image. Buttons work on any
+// device; only the hinge needs one that folds, so that is checked when it is
+// set rather than here.
 //
 // The device answers none of these events, so a nil error means an event was
 // sent, not that anything happened.

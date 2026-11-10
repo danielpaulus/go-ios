@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios/hid"
 	"github.com/docopt/docopt-go"
@@ -25,4 +26,25 @@ func TestHingeAngle(t *testing.T) {
 	}
 	_, err := hingeAngle(docopt.Opts{"<degrees>": "ajar"})
 	assert.Error(t, err)
+}
+
+func TestPressedButton(t *testing.T) {
+	for _, b := range hid.Buttons {
+		assert.Equal(t, b, pressedButton(docopt.Opts{"button": true, b.Name: true}), b.Name)
+	}
+}
+
+func TestButtonHold(t *testing.T) {
+	hold, err := buttonHold(docopt.Opts{})
+	require.NoError(t, err)
+	assert.Zero(t, hold, "no --hold uses the button's own")
+
+	hold, err = buttonHold(docopt.Opts{"--hold": "1500"})
+	require.NoError(t, err)
+	assert.Equal(t, 1500*time.Millisecond, hold)
+
+	for _, bad := range []string{"0", "-5", "soon"} {
+		_, err = buttonHold(docopt.Opts{"--hold": bad})
+		assert.Error(t, err, bad)
+	}
 }
