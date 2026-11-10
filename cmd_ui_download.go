@@ -14,6 +14,7 @@ type uiDownloadResult struct {
 	ArtifactPath string `json:"artifactPath"`
 	ArtifactType string `json:"artifactType"`
 	SizeBytes    int64  `json:"sizeBytes"`
+	SHA256       string `json:"sha256"`
 	AppPath      string `json:"appPath,omitempty"`
 }
 
@@ -42,6 +43,7 @@ func uiDownloadTargets(ctx commandContext) []uiInstallTarget {
 		{
 			Name:           "wda",
 			DefaultURL:     defaultWDAArtifactURL,
+			ExpectedSHA256: defaultWDAArtifactSHA256,
 			DefaultBundle:  defaultWDABundleID,
 			DefaultName:    "go-ios WDA",
 			OutputBaseName: "WebDriverAgentRunner",
@@ -49,6 +51,7 @@ func uiDownloadTargets(ctx commandContext) []uiInstallTarget {
 		{
 			Name:           "devicekit",
 			DefaultURL:     defaultDeviceKitArtifactURL,
+			ExpectedSHA256: defaultDeviceKitSHA256,
 			DefaultName:    "go-ios DeviceKit",
 			OutputBaseName: "devicekit-ios-runner",
 		},
@@ -65,7 +68,8 @@ func uiDownloadTargets(ctx commandContext) []uiInstallTarget {
 
 func downloadUIInstallTarget(target uiInstallTarget, outputDir string) uiDownloadResult {
 	artifactPath := filepath.Join(outputDir, filepath.Base(target.DefaultURL))
-	exitIfError("failed downloading "+target.Name, downloadUIArtifact(target.DefaultURL, artifactPath))
+	digest, err := downloadUIArtifact(target.DefaultURL, artifactPath, target.ExpectedSHA256)
+	exitIfError("failed downloading "+target.Name, err)
 	info, err := os.Stat(artifactPath)
 	exitIfError("failed stat "+artifactPath, err)
 
@@ -75,6 +79,7 @@ func downloadUIInstallTarget(target uiInstallTarget, outputDir string) uiDownloa
 		ArtifactPath: artifactPath,
 		ArtifactType: strings.TrimPrefix(strings.ToLower(filepath.Ext(artifactPath)), "."),
 		SizeBytes:    info.Size(),
+		SHA256:       digest,
 	}
 	if strings.EqualFold(filepath.Ext(artifactPath), ".zip") {
 		extractDir := filepath.Join(outputDir, target.OutputBaseName+"-"+time.Now().UTC().Format("20060102150405"))
