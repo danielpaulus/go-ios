@@ -95,6 +95,7 @@ Usage:
   ios forward [options] [<hostPort> <targetPort>] [--port=<mapping>]...
   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
+  ios hid hinge (close | halfopen | open | <degrees>) [options]
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
   ios httpproxy remove [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
@@ -304,6 +305,10 @@ The commands work as following:
     ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
                                                                   Remove | treeview | mkdir in target path.
                                                                   --r used alongside rm will recursively remove all files and directories from target path.
+
+    ios hid hinge (close | halfopen | open | <degrees>) [options]
+                                                                  Folds a foldable such as the iPhone Duo: close (0), halfopen (130), open (180),
+                                                                  or any angle in degrees from 0 to 180. Needs iOS 27+ and a mounted developer disk image.
 
     ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>]
                                                                   Set global http proxy on supervised device.

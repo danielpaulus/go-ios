@@ -7,6 +7,7 @@ var deviceCommands = []command{
 	commandByBool("ip", runIPCommand),
 	commandByBool("pcap", runPCAPCommand),
 	commandByBool("ps", runPSCommand),
+	commandByBool("hid", runHIDCommand),
 	{
 		name: "install",
 		match: func(args docopt.Opts) bool {
