@@ -2,7 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios/hid"
 	"github.com/docopt/docopt-go"
@@ -13,11 +18,52 @@ func runHIDCommand(ctx commandContext) {
 	exitIfError("failed connecting to the hid service (iOS 27+ with the developer disk image mounted)", err)
 	defer controls.Close()
 
-	if boolArg(ctx.Args, "hinge") {
+	switch {
+	case boolArg(ctx.Args, "button"):
+		hold, err := buttonHold(ctx.Args)
+		exitIfError("invalid --hold", err)
+		exitIfError("failed pressing the button", controls.PressButton(pressedButton(ctx.Args), hold))
+	case boolArg(ctx.Args, "muteswitch"):
+		silent := boolArg(ctx.Args, "silent")
+		exitIfError("failed moving the mute switch", controls.SetMuteSwitch(silent))
+		// The position only holds while the connection is open.
+		position := "ring"
+		if silent {
+			position = "silent"
+		}
+		slog.Info("holding the mute switch until interrupted (CTRL+C); the physical switch decides again after", "position", position)
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+		<-stop
+	case boolArg(ctx.Args, "hinge"):
 		degrees, err := hingeAngle(ctx.Args)
 		exitIfError("invalid hinge angle", err)
 		exitIfError("failed setting the hinge angle", controls.SetHingeAngle(degrees))
 	}
+}
+
+// pressedButton is the button named on the command line. docopt only lets one
+// of them through.
+func pressedButton(args docopt.Opts) hid.Button {
+	for _, b := range hid.Buttons() {
+		if boolArg(args, b.String()) {
+			return b
+		}
+	}
+	return hid.ButtonHome
+}
+
+// buttonHold is --hold in milliseconds, or zero for the button's own hold.
+func buttonHold(args docopt.Opts) (time.Duration, error) {
+	value, _ := args.String("--hold")
+	if value == "" {
+		return 0, nil
+	}
+	ms, err := strconv.Atoi(value)
+	if err != nil || ms <= 0 {
+		return 0, fmt.Errorf("%q is not a positive number of milliseconds", value)
+	}
+	return time.Duration(ms) * time.Millisecond, nil
 }
 
 // hingeAngle is the angle a preset stands for, or the number of degrees given.

@@ -1,5 +1,5 @@
-// Package hid injects touch events over CoreDevice, and folds the device
-// through Controls. iOS 27+.
+// Package hid injects touch events over CoreDevice, and presses buttons and
+// folds the device through Controls. iOS 27+.
 package hid
 
 import (

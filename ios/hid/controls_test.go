@@ -155,3 +155,89 @@ func decodeVirtualization(t *testing.T, b []byte) map[string]interface{} {
 	assert.Equal(t, len(b), off, "trailing bytes")
 	return out
 }
+
+func TestPressButtonSendsDownThenUp(t *testing.T) {
+	c, m := openControls(false)
+	require.NoError(t, c.PressButton(ButtonVolumeUp, time.Millisecond))
+
+	require.Len(t, m.sent, 2)
+	for i, state := range []uint64{1, 2} {
+		assert.Equal(t, "com.apple.coredevice.feature.remote.hid.button", m.sent[i]["featureIdentifier"])
+		assert.Equal(t, "IndigoButtonEvent", m.sent[i]["messageType"])
+		assert.Equal(t, map[string]interface{}{"usagePage": uint64(0x0c), "usageCode": uint64(0xe9), "state": state}, payloadOf(m.sent[i]))
+	}
+}
+
+func TestPressButtonHoldsForTheButtonsOwnTime(t *testing.T) {
+	c, _ := openControls(false)
+	start := time.Now()
+	require.NoError(t, c.PressButton(ButtonLock, 0))
+	lock, _ := ButtonLock.usage()
+	assert.GreaterOrEqual(t, time.Since(start), lock.hold)
+}
+
+func TestPressButtonWorksOnADeviceThatDoesNotFold(t *testing.T) {
+	c, m := openControls(false)
+	require.NoError(t, c.PressButton(ButtonHome, 0))
+	assert.Len(t, m.sent, 2)
+}
+
+func TestClosedControlsPressNothing(t *testing.T) {
+	c, m := openControls(false)
+	require.NoError(t, c.Close())
+	assert.Error(t, c.PressButton(ButtonHome, 0))
+	assert.Empty(t, m.sent)
+}
+
+// The usages Xcode's device hub sends for each button.
+func TestButtonUsages(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		page, code uint64
+	}{
+		{"home", 0x0c, 0x40},
+		{"volumeup", 0x0c, 0xe9},
+		{"volumedown", 0x0c, 0xea},
+		{"lock", 0x0c, 0x30},
+		{"cameracontrol", 0xff00, 0x66},
+		{"action", 0x0b, 0x2d},
+	} {
+		b, err := ParseButton(tc.name)
+		require.NoError(t, err, tc.name)
+		assert.Equal(t, tc.name, b.String())
+		u, ok := b.usage()
+		require.True(t, ok, tc.name)
+		assert.Equal(t, [2]uint64{tc.page, tc.code}, [2]uint64{u.usagePage, u.usageCode}, tc.name)
+	}
+	b, err := ParseButton("Home")
+	require.NoError(t, err)
+	assert.Equal(t, ButtonHome, b, "case does not matter")
+	_, err = ParseButton("power")
+	assert.Error(t, err)
+}
+
+func TestPressButtonRefusesAnUnknownButton(t *testing.T) {
+	c, m := openControls(false)
+	assert.Error(t, c.PressButton(Button(99), 0))
+	assert.Empty(t, m.sent)
+	assert.Equal(t, "Button(99)", Button(99).String())
+}
+
+// One event per position, as the device hub sends for a switch: 1 rings, 2 is
+// silent.
+func TestSetMuteSwitchSendsOneEventForThePosition(t *testing.T) {
+	for muted, state := range map[bool]uint64{false: 1, true: 2} {
+		c, m := openControls(false)
+		require.NoError(t, c.SetMuteSwitch(muted))
+		require.Len(t, m.sent, 1, "muted=%v", muted)
+		assert.Equal(t, "IndigoButtonEvent", m.sent[0]["messageType"])
+		assert.Equal(t, map[string]interface{}{"usagePage": uint64(0x0b), "usageCode": uint64(0x2e), "state": state}, payloadOf(m.sent[0]), "muted=%v", muted)
+	}
+}
+
+func TestClosedControlsMoveNoSwitch(t *testing.T) {
+	c, m := openControls(false)
+	require.NoError(t, c.Close())
+	assert.Error(t, c.SetMuteSwitch(true))
+	assert.Empty(t, m.sent)
+}
