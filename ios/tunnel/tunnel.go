@@ -38,11 +38,33 @@ type Tunnel struct {
 	UserspaceTUN     bool `json:"userspaceTun"`
 	UserspaceTUNPort int  `json:"userspaceTunPort"`
 	closer           func() error
+	// done is closed when the tunnel is gone, either because Close was called
+	// or because the data plane died on its own. Nil for tunnel types that
+	// cannot observe a spontaneous shutdown.
+	done chan struct{}
 }
+
+// neverDone is returned by Done for tunnels that cannot report a shutdown, so
+// callers can always select on the result instead of special-casing nil.
+var neverDone = make(chan struct{})
 
 // Close closes the connection to the device and removes the virtual network interface from the host
 func (t Tunnel) Close() error {
 	return t.closer()
+}
+
+// Done returns a channel that is closed once the tunnel is gone, whether that
+// happened through an explicit Close or because the data plane failed. Callers
+// can use it to invalidate per-tunnel state (cached ports, forwarded
+// connections) and reconnect without polling.
+//
+// Every call returns the same channel for a given tunnel. Tunnel types that
+// cannot observe a spontaneous shutdown return a channel that never closes.
+func (t Tunnel) Done() <-chan struct{} {
+	if t.done == nil {
+		return neverDone
+	}
+	return t.done
 }
 
 // ManualPairAndConnectToTunnel tries to verify an existing pairing, and if this fails it triggers a new manual pairing process.

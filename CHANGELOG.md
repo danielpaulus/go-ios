@@ -13,6 +13,10 @@ Use `## [Unreleased]` to jot down notable changes between releases if you like.
 
 ## [Unreleased]
 
+## Additions
+
+- **tunnel:** `Tunnel.Done()` returns a channel that is closed when the tunnel is gone, either because `Close` was called or because the userspace data plane died on its own. Callers can use it to invalidate cached tunnel state (for example an RSD port provider) and reconnect instead of talking to a dead tunnel whose local listener still exists.
+
 ## [1.3.2] - 2026-08-11
 
 ## Fixes
