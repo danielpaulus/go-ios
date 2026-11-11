@@ -1,6 +1,5 @@
-// Package hid injects touch events over CoreDevice. A media stream has to be
-// running for the device to apply them, and starting one is the caller's job:
-// without it every report is accepted and discarded with no error. iOS 27+.
+// Package hid injects touch events over CoreDevice, and presses buttons and
+// folds the device through Controls. iOS 27+.
 package hid
 
 import (
