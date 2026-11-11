@@ -29,8 +29,8 @@ func TestHingeAngle(t *testing.T) {
 }
 
 func TestPressedButton(t *testing.T) {
-	for _, b := range hid.Buttons {
-		assert.Equal(t, b, pressedButton(docopt.Opts{"button": true, b.Name: true}), b.Name)
+	for _, b := range hid.Buttons() {
+		assert.Equal(t, b, pressedButton(docopt.Opts{"button": true, b.String(): true}), b.String())
 	}
 }
 

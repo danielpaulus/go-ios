@@ -18,73 +18,106 @@ const (
 	buttonUp   buttonState = 2
 )
 
-// Button is a hardware button, as HID usage page and code.
-type Button struct {
-	Name      string
-	usagePage uint64
-	usageCode uint64
-	// How long the device hub holds it down for a click.
-	hold time.Duration
-}
+// Button is a hardware button, as the device hub presses it.
+type Button int
 
-var (
-	// ButtonHome is the home button. Two presses about 160 ms apart open the app
+const (
+	// ButtonHome is the home button. Two presses about 150 ms apart open the app
 	// switcher.
-	ButtonHome       = Button{Name: "home", usagePage: 0x0c, usageCode: 0x40, hold: time.Millisecond}
-	ButtonVolumeUp   = Button{Name: "volumeup", usagePage: 0x0c, usageCode: 0xe9, hold: 250 * time.Millisecond}
-	ButtonVolumeDown = Button{Name: "volumedown", usagePage: 0x0c, usageCode: 0xea, hold: 250 * time.Millisecond}
-	ButtonLock       = Button{Name: "lock", usagePage: 0x0c, usageCode: 0x30, hold: 250 * time.Millisecond}
+	ButtonHome Button = iota
+	ButtonVolumeUp
+	ButtonVolumeDown
+	ButtonLock
 	// ButtonCameraControl is the Camera Control. Whether one press opens the
 	// camera or two do, about 150 ms apart, is a setting on the device.
-	ButtonCameraControl = Button{Name: "cameracontrol", usagePage: 0xff00, usageCode: 0x66, hold: 250 * time.Millisecond}
+	ButtonCameraControl
 	// ButtonAction is the Action button, which only acts when held for about a
 	// second.
-	ButtonAction = Button{Name: "action", usagePage: 0x0b, usageCode: 0x2d, hold: time.Second}
+	ButtonAction
 )
 
-// Buttons lists every button, for looking one up by name.
-var Buttons = []Button{ButtonHome, ButtonVolumeUp, ButtonVolumeDown, ButtonLock, ButtonCameraControl, ButtonAction}
+// buttonUsage is how the device hub presses a button: its HID usage page and
+// code, and how long it holds it down for a click.
+type buttonUsage struct {
+	name      string
+	usagePage uint64
+	usageCode uint64
+	hold      time.Duration
+}
+
+func (b Button) usage() (buttonUsage, bool) {
+	switch b {
+	case ButtonHome:
+		return buttonUsage{"home", 0x0c, 0x40, time.Millisecond}, true
+	case ButtonVolumeUp:
+		return buttonUsage{"volumeup", 0x0c, 0xe9, 250 * time.Millisecond}, true
+	case ButtonVolumeDown:
+		return buttonUsage{"volumedown", 0x0c, 0xea, 250 * time.Millisecond}, true
+	case ButtonLock:
+		return buttonUsage{"lock", 0x0c, 0x30, 250 * time.Millisecond}, true
+	case ButtonCameraControl:
+		return buttonUsage{"cameracontrol", 0xff00, 0x66, 250 * time.Millisecond}, true
+	case ButtonAction:
+		return buttonUsage{"action", 0x0b, 0x2d, time.Second}, true
+	}
+	return buttonUsage{}, false
+}
+
+// String is the button's name, as ParseButton takes it.
+func (b Button) String() string {
+	if u, ok := b.usage(); ok {
+		return u.name
+	}
+	return fmt.Sprintf("Button(%d)", int(b))
+}
+
+// Buttons lists every button.
+func Buttons() []Button {
+	return []Button{ButtonHome, ButtonVolumeUp, ButtonVolumeDown, ButtonLock, ButtonCameraControl, ButtonAction}
+}
 
 // ParseButton finds a button by name, ignoring case.
 func ParseButton(name string) (Button, error) {
-	for _, b := range Buttons {
-		if strings.EqualFold(b.Name, name) {
+	names := make([]string, 0, len(Buttons()))
+	for _, b := range Buttons() {
+		if strings.EqualFold(b.String(), name) {
 			return b, nil
 		}
+		names = append(names, b.String())
 	}
-	names := make([]string, len(Buttons))
-	for i, b := range Buttons {
-		names[i] = b.Name
-	}
-	return Button{}, fmt.Errorf("unknown button %q, expected one of %s", name, strings.Join(names, ", "))
+	return 0, fmt.Errorf("unknown button %q, expected one of %s", name, strings.Join(names, ", "))
 }
 
 // PressButton presses the button and lets it go after hold, or after the
 // button's own hold when hold is zero. It returns once the button is up.
 // A device without the button ignores it.
 func (c *Controls) PressButton(b Button, hold time.Duration) error {
+	u, ok := b.usage()
+	if !ok {
+		return fmt.Errorf("PressButton: unknown button %d", int(b))
+	}
 	if hold <= 0 {
-		hold = b.hold
+		hold = u.hold
 	}
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	if err := c.send(buildButtonPayload(b, buttonDown)); err != nil {
-		return fmt.Errorf("PressButton: failed to press %s: %w", b.Name, err)
+	if err := c.send(buildButtonPayload(u, buttonDown)); err != nil {
+		return fmt.Errorf("PressButton: failed to press %s: %w", u.name, err)
 	}
 	time.Sleep(hold)
-	if err := c.send(buildButtonPayload(b, buttonUp)); err != nil {
-		return fmt.Errorf("PressButton: failed to release %s: %w", b.Name, err)
+	if err := c.send(buildButtonPayload(u, buttonUp)); err != nil {
+		return fmt.Errorf("PressButton: failed to release %s: %w", u.name, err)
 	}
 	return nil
 }
 
-func buildButtonPayload(b Button, state buttonState) map[string]interface{} {
+func buildButtonPayload(u buttonUsage, state buttonState) map[string]interface{} {
 	return map[string]interface{}{
 		"featureIdentifier": buttonFeatureIdentifier,
 		"messageType":       buttonMessageType,
 		"payload": map[string]interface{}{
-			"usagePage": b.usagePage,
-			"usageCode": b.usageCode,
+			"usagePage": u.usagePage,
+			"usageCode": u.usageCode,
 			"state":     uint64(state),
 		},
 	}

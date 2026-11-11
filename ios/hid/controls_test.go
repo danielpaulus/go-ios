@@ -172,7 +172,8 @@ func TestPressButtonHoldsForTheButtonsOwnTime(t *testing.T) {
 	c, _ := openControls(false)
 	start := time.Now()
 	require.NoError(t, c.PressButton(ButtonLock, 0))
-	assert.GreaterOrEqual(t, time.Since(start), ButtonLock.hold)
+	lock, _ := ButtonLock.usage()
+	assert.GreaterOrEqual(t, time.Since(start), lock.hold)
 }
 
 func TestPressButtonWorksOnADeviceThatDoesNotFold(t *testing.T) {
@@ -203,11 +204,21 @@ func TestButtonUsages(t *testing.T) {
 	} {
 		b, err := ParseButton(tc.name)
 		require.NoError(t, err, tc.name)
-		assert.Equal(t, [2]uint64{tc.page, tc.code}, [2]uint64{b.usagePage, b.usageCode}, tc.name)
+		assert.Equal(t, tc.name, b.String())
+		u, ok := b.usage()
+		require.True(t, ok, tc.name)
+		assert.Equal(t, [2]uint64{tc.page, tc.code}, [2]uint64{u.usagePage, u.usageCode}, tc.name)
 	}
 	b, err := ParseButton("Home")
 	require.NoError(t, err)
 	assert.Equal(t, ButtonHome, b, "case does not matter")
 	_, err = ParseButton("power")
 	assert.Error(t, err)
+}
+
+func TestPressButtonRefusesAnUnknownButton(t *testing.T) {
+	c, m := openControls(false)
+	assert.Error(t, c.PressButton(Button(99), 0))
+	assert.Empty(t, m.sent)
+	assert.Equal(t, "Button(99)", Button(99).String())
 }

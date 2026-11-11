@@ -29,8 +29,8 @@ func runHIDCommand(ctx commandContext) {
 // pressedButton is the button named on the command line. docopt only lets one
 // of them through.
 func pressedButton(args docopt.Opts) hid.Button {
-	for _, b := range hid.Buttons {
-		if boolArg(args, b.Name) {
+	for _, b := range hid.Buttons() {
+		if boolArg(args, b.String()) {
 			return b
 		}
 	}
