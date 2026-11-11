@@ -163,11 +163,13 @@ func (s *CDPServer) handlePageWebSocket(w http.ResponseWriter, r *http.Request) 
 	defer cancel()
 
 	sessionID := strings.ToUpper(uuid.New().String())
+	s.client.OpenSessionEvents(sessionID)
+	defer func() { _ = s.client.CloseInspectorSocket(sessionID, app, page) }()
 	if err := s.client.SetupInspectorSocket(sessionID, app, page, false); err != nil {
 		_ = ws.WriteJSON(cdpError(0, err))
 		return
 	}
-	targetID := waitForTargetID(ctx, s.client, ws)
+	targetID := waitForTargetID(ctx, s.client, sessionID, ws)
 	if targetID == "" {
 		return
 	}
@@ -199,7 +201,7 @@ func (s *cdpPageSession) writeJSON(value any) error {
 
 func (s *cdpPageSession) forwardDeviceEvents(ctx context.Context) error {
 	for {
-		event, err := s.server.client.NextEvent(ctx)
+		event, err := s.server.client.NextSessionEvent(ctx, s.sessionID)
 		if err != nil {
 			return err
 		}
@@ -268,9 +270,9 @@ func (s *cdpPageSession) forwardBrowserCommands(ctx context.Context) error {
 	}
 }
 
-func waitForTargetID(ctx context.Context, client *Client, ws *websocket.Conn) string {
+func waitForTargetID(ctx context.Context, client *Client, sessionID string, ws *websocket.Conn) string {
 	for {
-		event, err := client.NextEvent(ctx)
+		event, err := client.NextSessionEvent(ctx, sessionID)
 		if err != nil {
 			_ = ws.WriteJSON(cdpError(0, err))
 			return ""

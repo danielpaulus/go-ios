@@ -91,6 +91,13 @@ type Client struct {
 	results  map[int]chan map[string]any
 	events   chan map[string]any
 
+	// sessions routes page events by WIRDestinationKey (the inspector socket's
+	// sender key). Without it every CDP session shared one queue: a session that
+	// ended kept its device-side socket open, its events piled up unread, and the
+	// next session picked up a stale target.
+	sessionMu sync.Mutex
+	sessions  map[string]chan map[string]any
+
 	done     chan struct{}
 	errs     chan error
 	disabled chan error
@@ -122,6 +129,7 @@ func NewWithConnection(device ios.DeviceEntry, conn ios.DeviceConnectionInterfac
 		pages:        make(map[string]map[string]Page),
 		results:      make(map[int]chan map[string]any),
 		events:       make(chan map[string]any, 256),
+		sessions:     make(map[string]chan map[string]any),
 		done:         make(chan struct{}),
 		errs:         make(chan error, 1),
 		disabled:     make(chan error, 1),
@@ -252,6 +260,55 @@ func (c *Client) SetupInspectorSocket(sessionID string, app Application, page Pa
 		message["WIRAutomaticallyPause"] = false
 	}
 	return c.sendMessage("_rpc_forwardSocketSetup:", message)
+}
+
+// OpenSessionEvents registers a queue for events addressed to sessionID.
+// Register it before SetupInspectorSocket so the first events are not lost.
+func (c *Client) OpenSessionEvents(sessionID string) {
+	c.sessionMu.Lock()
+	defer c.sessionMu.Unlock()
+	c.sessions[sessionID] = make(chan map[string]any, 4096)
+}
+
+// CloseInspectorSocket tells the device the inspector socket is gone and stops
+// queueing its events; later events for it are dropped.
+func (c *Client) CloseInspectorSocket(sessionID string, app Application, page Page) error {
+	c.closeSessionEvents(sessionID)
+	return c.sendMessage("_rpc_forwardDidClose:", map[string]any{
+		"WIRApplicationIdentifierKey": app.ID,
+		"WIRPageIdentifierKey":        page.ID,
+		"WIRSenderKey":                sessionID,
+	})
+}
+
+func (c *Client) closeSessionEvents(sessionID string) {
+	c.sessionMu.Lock()
+	defer c.sessionMu.Unlock()
+	c.sessions[sessionID] = nil // keep the key: its late events are dropped, not queued
+}
+
+// NextSessionEvent is NextEvent for one session opened with OpenSessionEvents.
+// An empty sessionID reads the shared queue.
+func (c *Client) NextSessionEvent(ctx context.Context, sessionID string) (map[string]any, error) {
+	if sessionID == "" {
+		return c.NextEvent(ctx)
+	}
+	c.sessionMu.Lock()
+	queue := c.sessions[sessionID]
+	c.sessionMu.Unlock()
+	if queue == nil {
+		return nil, fmt.Errorf("inspector session %s is closed", sessionID)
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case err := <-c.errs:
+		return nil, err
+	case err := <-c.disabled:
+		return nil, err
+	case event := <-queue:
+		return event, nil
+	}
 }
 
 func (c *Client) RequestAutomationSession(sessionID string, app Application) error {
@@ -579,6 +636,22 @@ func (c *Client) handleApplicationData(arg map[string]any) error {
 			select {
 			case result <- payload:
 			default:
+			}
+			return nil
+		}
+	}
+	if destination, _ := arg["WIRDestinationKey"].(string); destination != "" {
+		c.sessionMu.Lock()
+		queue, routed := c.sessions[destination]
+		c.sessionMu.Unlock()
+		if routed {
+			if queue == nil {
+				return nil // closed session — the device may still be flushing
+			}
+			select {
+			case queue <- payload:
+			default:
+				golog.Warn("webinspector session event queue full", "module", logModule, "udid", c.device.Properties.SerialNumber, "session", destination)
 			}
 			return nil
 		}
