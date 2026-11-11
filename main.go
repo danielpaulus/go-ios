@@ -98,6 +98,7 @@ Usage:
   ios hid button (home | volumeup | volumedown | lock | cameracontrol | action) [--hold=<ms>] [options]
   ios hid hinge (close | halfopen | open | <degrees>) [options]
   ios hid muteswitch (ring | silent) [options]
+  ios hid orientation (portrait | landscapeleft | portraitupsidedown | landscaperight) [options]
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
   ios httpproxy remove [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
@@ -318,6 +319,10 @@ The commands work as following:
 
     ios hid muteswitch (ring | silent) [options]                  Moves the ring/silent switch, on iPhones that have one instead of an Action
                                                                   button, and holds it there until CTRL+C. The physical switch decides again after.
+
+    ios hid orientation (portrait | landscapeleft | portraitupsidedown | landscaperight) [options]
+                                                                  Turns the device as if it were held that way: landscapeleft has the front camera
+                                                                  on the left. The display follows when the app in front supports it.
 
     ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>]
                                                                   Set global http proxy on supervised device.

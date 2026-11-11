@@ -114,6 +114,9 @@ commands:
   - path: hid hinge
     usage: ios hid hinge (close | halfopen | open | <degrees>) [options]
     summary: Fold a foldable such as the iPhone Duo, to a preset or 0-180 degrees.
+  - path: hid orientation
+    usage: ios hid orientation (portrait | landscapeleft | portraitupsidedown | landscaperight) [options]
+    summary: Turn the device to an orientation, as if it were held that way.
   - path: httpproxy
     usage: ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
     summary: Install global HTTP proxy profile.
