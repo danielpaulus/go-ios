@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios/xpc"
 	"github.com/google/uuid"
@@ -91,4 +92,60 @@ func TestHandshakeAsHostAnnouncesTheHostVersionFlags(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, versionFlags, properties["RemoteXPCVersionFlags"])
 	assert.NotEqual(t, uuid.Nil, host.Body["UUID"])
+}
+
+// closeRecorder reports when it is closed.
+type closeRecorder chan time.Time
+
+func (c closeRecorder) Close() error {
+	c <- time.Now()
+	return nil
+}
+
+func rsdServiceClosingWith(t *testing.T, stream *splitStream, c io.Closer) RsdService {
+	conn, err := xpc.New(stream, &bytes.Buffer{}, nil, io.NopCloser(nil))
+	require.NoError(t, err)
+	return RsdService{xpc: conn, c: c}
+}
+
+func TestAnnounceHostKeepsTheConnectionOpenForAMoment(t *testing.T) {
+	// Closed right after the host handshake, the connection can end before the device took
+	// the handshake, and the device then treats the host as a legacy peer.
+	defer func(d time.Duration) { hostAnnouncementLinger = d }(hostAnnouncementLinger)
+	hostAnnouncementLinger = 250 * time.Millisecond
+	stream := deviceHandshake(t)
+	closed := make(closeRecorder, 1)
+	start := time.Now()
+
+	require.NoError(t, announceHostAndClose(rsdServiceClosingWith(t, stream, closed)))
+
+	select {
+	case <-closed:
+		t.Fatal("closed right after the host handshake")
+	default:
+	}
+	host, err := xpc.DecodeMessage(&stream.written)
+	require.NoError(t, err)
+	assert.Equal(t, "Handshake", host.Body["MessageType"])
+	select {
+	case at := <-closed:
+		if d := at.Sub(start); d < hostAnnouncementLinger {
+			t.Errorf("closed %v after the host handshake, want %v", d, hostAnnouncementLinger)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("still open after 5s")
+	}
+}
+
+func TestFailedAnnounceHostClosesRightAway(t *testing.T) {
+	stream := deviceHandshakeWithPort(t, "not a port")
+	closed := make(closeRecorder, 1)
+
+	assert.Error(t, announceHostAndClose(rsdServiceClosingWith(t, stream, closed)))
+
+	select {
+	case <-closed:
+	default:
+		t.Fatal("still open after a failed handshake")
+	}
 }

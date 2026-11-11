@@ -235,7 +235,9 @@ func (s RsdService) Handshake() (RsdHandshakeResponse, error) {
 // which announces the host's RemoteXPC version flags. Without them the device treats the
 // host as a legacy peer: a service that replies with a large data object (e.g. a screenshot
 // of a large display) then traps with "Attempt to send a larger xpc_data_t than legacy peer
-// can receive". The device keeps the flags for the tunnel, also after this connection closes.
+// can receive". The device keeps the flags for the tunnel, also after this connection closes,
+// but closing it right after the host handshake can lose them: keep it open for a moment, as
+// AnnounceHost does (see hostAnnouncementLinger).
 //
 // Call it once per tunnel, right after the tunnel started, and use Handshake for any later
 // handshake on the same tunnel. Since iOS 27.2 every further host handshake makes the device
@@ -246,9 +248,19 @@ func (s RsdService) HandshakeAsHost() (RsdHandshakeResponse, error) {
 	return s.handshake(true)
 }
 
+// hostAnnouncementLinger is how long AnnounceHost keeps the RSD connection open after the
+// host handshake. A sent handshake is not yet one the device took: on iOS 27.0.1, closing
+// the connection right away lost it on about half of the tunnels (remoted
+// logged "Device must renegotiate TLS" instead of "Declined TLS"), and the device then treated
+// the host as a legacy peer on the whole tunnel (cryptexd: "Invalid or missing remote device
+// connection version flags").
+var hostAnnouncementLinger = 2 * time.Second
+
 // AnnounceHost connects to the RSD service of a tunnel and does the tunnel's host handshake
 // (see HandshakeAsHost). It gives up after timeout, as the RSD service of a tunnel that just
-// started may not answer yet. If it returns an error, the host was not announced.
+// started may not answer yet. If it returns an error, the host was not announced. Otherwise
+// it returns once the host handshake was sent, and closes the connection
+// hostAnnouncementLinger later.
 func AnnounceHost(address string, port int, d DeviceEntry, timeout time.Duration) error {
 	conn, err := ConnectTUNDevice(address, port, d)
 	if err != nil {
@@ -263,10 +275,20 @@ func AnnounceHost(address string, port int, d DeviceEntry, timeout time.Duration
 		_ = conn.Close()
 		return fmt.Errorf("AnnounceHost: %w", err)
 	}
-	defer s.Close()
-	if _, err := s.HandshakeAsHost(); err != nil {
+	if err := announceHostAndClose(s); err != nil {
 		return fmt.Errorf("AnnounceHost: %w", err)
 	}
+	return nil
+}
+
+// announceHostAndClose does the host handshake on s and closes s: right away if the handshake
+// failed, else hostAnnouncementLinger later.
+func announceHostAndClose(s RsdService) error {
+	if _, err := s.HandshakeAsHost(); err != nil {
+		_ = s.Close()
+		return err
+	}
+	time.AfterFunc(hostAnnouncementLinger, func() { _ = s.Close() })
 	return nil
 }
 
