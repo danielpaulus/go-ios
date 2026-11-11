@@ -2,7 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios/hid"
@@ -19,6 +23,18 @@ func runHIDCommand(ctx commandContext) {
 		hold, err := buttonHold(ctx.Args)
 		exitIfError("invalid --hold", err)
 		exitIfError("failed pressing the button", controls.PressButton(pressedButton(ctx.Args), hold))
+	case boolArg(ctx.Args, "muteswitch"):
+		silent := boolArg(ctx.Args, "silent")
+		exitIfError("failed moving the mute switch", controls.SetMuteSwitch(silent))
+		// The position only holds while the connection is open.
+		position := "ring"
+		if silent {
+			position = "silent"
+		}
+		slog.Info("holding the mute switch until interrupted (CTRL+C); the physical switch decides again after", "position", position)
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+		<-stop
 	case boolArg(ctx.Args, "hinge"):
 		degrees, err := hingeAngle(ctx.Args)
 		exitIfError("invalid hinge angle", err)

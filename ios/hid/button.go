@@ -122,3 +122,33 @@ func buildButtonPayload(u buttonUsage, state buttonState) map[string]interface{}
 		},
 	}
 }
+
+// The ring/silent switch, on iPhones that have one instead of an Action button.
+// The device hub sends one event for each position the switch is moved to,
+// rather than a press and a release. The position belongs to the connection:
+// once it closes, the device goes by its physical switch again.
+const (
+	muteSwitchUsagePage uint64 = 0x0b
+	muteSwitchUsageCode uint64 = 0x2e
+
+	muteSwitchRing   buttonState = 1
+	muteSwitchSilent buttonState = 2
+)
+
+// SetMuteSwitch moves the ring/silent switch: to silent when muted is true,
+// to ring otherwise. It holds there while these Controls stay open; closing them
+// hands the ringer back to the physical switch. A device without the switch,
+// such as one with an Action button, ignores it.
+func (c *Controls) SetMuteSwitch(muted bool) error {
+	state := muteSwitchRing
+	if muted {
+		state = muteSwitchSilent
+	}
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	u := buttonUsage{name: "muteswitch", usagePage: muteSwitchUsagePage, usageCode: muteSwitchUsageCode}
+	if err := c.send(buildButtonPayload(u, state)); err != nil {
+		return fmt.Errorf("SetMuteSwitch: %w", err)
+	}
+	return nil
+}

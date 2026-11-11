@@ -222,3 +222,22 @@ func TestPressButtonRefusesAnUnknownButton(t *testing.T) {
 	assert.Empty(t, m.sent)
 	assert.Equal(t, "Button(99)", Button(99).String())
 }
+
+// One event per position, as the device hub sends for a switch: 1 rings, 2 is
+// silent.
+func TestSetMuteSwitchSendsOneEventForThePosition(t *testing.T) {
+	for muted, state := range map[bool]uint64{false: 1, true: 2} {
+		c, m := openControls(false)
+		require.NoError(t, c.SetMuteSwitch(muted))
+		require.Len(t, m.sent, 1, "muted=%v", muted)
+		assert.Equal(t, "IndigoButtonEvent", m.sent[0]["messageType"])
+		assert.Equal(t, map[string]interface{}{"usagePage": uint64(0x0b), "usageCode": uint64(0x2e), "state": state}, payloadOf(m.sent[0]), "muted=%v", muted)
+	}
+}
+
+func TestClosedControlsMoveNoSwitch(t *testing.T) {
+	c, m := openControls(false)
+	require.NoError(t, c.Close())
+	assert.Error(t, c.SetMuteSwitch(true))
+	assert.Empty(t, m.sent)
+}

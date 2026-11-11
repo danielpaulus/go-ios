@@ -49,6 +49,7 @@ Commands:
   fsync                           App container file sync operations.
   hid button                      Press a hardware button, as Xcode's device hub does.
   hid hinge                       Fold a foldable such as the iPhone Duo, to a preset or 0-180 degrees.
+  hid muteswitch                  Hold the ring/silent switch in a position until CTRL+C, on iPhones that have one instead of an Action button.
   httpproxy                       Install global HTTP proxy profile.
   httpproxy remove                Remove go-ios HTTP proxy profile.
   image auto                      Auto-download and mount developer image.

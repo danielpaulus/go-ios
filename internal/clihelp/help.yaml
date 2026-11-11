@@ -108,6 +108,9 @@ commands:
   - path: hid button
     usage: ios hid button (home | volumeup | volumedown | lock | cameracontrol | action) [--hold=<ms>] [options]
     summary: Press a hardware button, as Xcode's device hub does.
+  - path: hid muteswitch
+    usage: ios hid muteswitch (ring | silent) [options]
+    summary: Hold the ring/silent switch in a position until CTRL+C, on iPhones that have one instead of an Action button.
   - path: hid hinge
     usage: ios hid hinge (close | halfopen | open | <degrees>) [options]
     summary: Fold a foldable such as the iPhone Duo, to a preset or 0-180 degrees.
