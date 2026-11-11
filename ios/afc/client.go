@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"golang.org/x/exp/slices"
@@ -268,6 +269,20 @@ type FileInfo struct {
 	Mode       uint32
 	Size       int64
 	LinkTarget string
+
+	// Mtime is the modification time the device reports for the file
+	// (AFC st_mtime). It is the zero time when the device omits the field or
+	// sends a value that cannot be read; a field it sends as 0 decodes to the
+	// Unix epoch, so "absent" and "reported as 0" stay distinguishable.
+	//
+	// Note that this is when the file was last written on the device, which on
+	// iOS is not the same as when a photo or video was captured: Media/DCIM
+	// entries often carry a later mtime than the EXIF date.
+	Mtime time.Time
+
+	// Birthtime is the creation time the device reports for the file
+	// (AFC st_birthtime), with the same zero-value and epoch behaviour as Mtime.
+	Birthtime time.Time
 }
 
 func (f FileInfo) IsDir() bool {
@@ -290,11 +305,28 @@ func (c *Client) Stat(s string) (FileInfo, error) {
 		return FileInfo{}, fmt.Errorf("error getting file info: %w", err)
 	}
 
-	reader := bufio.NewReader(bytes.NewReader(resp.Payload))
-	info := FileInfo{}
+	info := parseFileInfo(resp.Payload)
 
-	// Parse the file info response which is a series of null-terminated strings
-	// in key-value pairs
+	// Set the name from the path
+	parts := strings.Split(s, "/")
+	if len(parts) > 0 {
+		info.Name = parts[len(parts)-1]
+	}
+
+	return info, nil
+}
+
+// parseFileInfo parses the payload of an AFC GET_FILE_INFO response, which is a
+// series of null-terminated key/value pairs.
+//
+// Keys the client does not know are skipped, so a device answering with extra
+// fields cannot break it, and a value that fails to parse leaves its field at
+// the zero value instead of failing the whole call: one unknown field is not
+// worth losing the file's size and type over.
+func parseFileInfo(payload []byte) FileInfo {
+	info := FileInfo{}
+	reader := bufio.NewReader(bytes.NewReader(payload))
+
 	for {
 		key, err := reader.ReadString('\x00')
 		if err != nil {
@@ -322,16 +354,27 @@ func (c *Client) Stat(s string) (FileInfo, error) {
 			info.Mode = uint32(mode)
 		case "st_linktarget":
 			info.LinkTarget = value
+		case "st_mtime":
+			info.Mtime = afcTimestamp(value)
+		case "st_birthtime":
+			info.Birthtime = afcTimestamp(value)
 		}
 	}
 
-	// Set the name from the path
-	parts := strings.Split(s, "/")
-	if len(parts) > 0 {
-		info.Name = parts[len(parts)-1]
-	}
+	return info
+}
 
-	return info, nil
+// afcTimestamp turns an AFC timestamp into a time. AFC reports st_mtime and
+// st_birthtime as nanoseconds since the Unix epoch. The reply carries no zone,
+// so the result is UTC; decoding to the host's zone instead would make the same
+// reply mean different instants on two machines. A value of 0 is the Unix
+// epoch, while a negative or unparsable value returns the zero time.
+func afcTimestamp(value string) time.Time {
+	nanos, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || nanos < 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, nanos).UTC()
 }
 
 // WalkDir traverses the filesystem starting at the provided path
