@@ -17,7 +17,8 @@ const (
 
 	virtualizationProvider = "com.apple.Virtualization.VirtualMachines"
 
-	hingeControl = "hinge-slider-control"
+	hingeControl       = "hinge-slider-control"
+	orientationControl = "orientation-picker-control"
 )
 
 // Hinge angles in degrees, as the device hub's fold buttons set them.
@@ -45,9 +46,10 @@ func (c *Controls) SetHingeAngle(degrees float64) error {
 	return nil
 }
 
-// buildVirtualizationPayload sets one virtualization control to a value, for a
-// range control such as the hinge.
-func buildVirtualizationPayload(control, kind string, value float64) map[string]interface{} {
+// buildVirtualizationPayload sets one virtualization control to a value: a
+// number for a range control such as the hinge, a string for an enum control
+// such as the orientation picker.
+func buildVirtualizationPayload[V float64 | string](control, kind string, value V) map[string]interface{} {
 	return map[string]interface{}{
 		"featureIdentifier": vendorDefinedFeatureIdentifier,
 		"messageType":       vendorDefinedMessageType,
@@ -75,7 +77,7 @@ const (
 
 var virtualizationHeader = []byte{0xd3, 0, 0, 0, 4, 0, 0, 0x81}
 
-func encodeVirtualizationControl(control, kind string, value float64) []byte {
+func encodeVirtualizationControl[V float64 | string](control, kind string, value V) []byte {
 	b := append([]byte{}, virtualizationHeader...)
 	b = appendVirtualizationString(b, virtualizationKey, "provider")
 	b = appendVirtualizationString(b, virtualizationString, virtualizationProvider)
@@ -84,13 +86,18 @@ func encodeVirtualizationControl(control, kind string, value float64) []byte {
 	b = appendVirtualizationString(b, virtualizationKey, "type")
 	b = appendVirtualizationString(b, virtualizationString, kind)
 	b = appendVirtualizationString(b, virtualizationKey, "value")
-	b = append(b, virtualizationDoubleHeader, 0, 0, virtualizationDouble|virtualizationLast)
-	return binary.LittleEndian.AppendUint64(b, math.Float64bits(value))
+	switch v := any(value).(type) {
+	case string:
+		return appendVirtualizationString(b, virtualizationString|virtualizationLast, v)
+	default:
+		b = append(b, virtualizationDoubleHeader, 0, 0, virtualizationDouble|virtualizationLast)
+		return binary.LittleEndian.AppendUint64(b, math.Float64bits(v.(float64)))
+	}
 }
 
 func appendVirtualizationString(b []byte, typ byte, s string) []byte {
 	body := []byte(s)
-	if typ == virtualizationKey {
+	if typ&^virtualizationLast == virtualizationKey {
 		body = append(body, 0)
 	}
 	n := len(body)

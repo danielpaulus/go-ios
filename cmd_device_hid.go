@@ -35,6 +35,8 @@ func runHIDCommand(ctx commandContext) {
 		stop := make(chan os.Signal, 1)
 		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 		<-stop
+	case boolArg(ctx.Args, "orientation"):
+		exitIfError("failed setting the orientation", controls.SetOrientation(chosenOrientation(ctx.Args)))
 	case boolArg(ctx.Args, "hinge"):
 		degrees, err := hingeAngle(ctx.Args)
 		exitIfError("invalid hinge angle", err)
@@ -51,6 +53,17 @@ func pressedButton(args docopt.Opts) hid.Button {
 		}
 	}
 	return hid.ButtonHome
+}
+
+// chosenOrientation is the orientation named on the command line. docopt only
+// lets one of them through.
+func chosenOrientation(args docopt.Opts) hid.Orientation {
+	for _, o := range hid.Orientations() {
+		if boolArg(args, o.String()) {
+			return o
+		}
+	}
+	return hid.OrientationPortrait
 }
 
 // buttonHold is --hold in milliseconds, or zero for the button's own hold.
