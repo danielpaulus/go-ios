@@ -38,13 +38,14 @@ func (c *xpcMessageConn) Close() error {
 	return c.conn.Close()
 }
 
-// Controls presses the device's buttons and folds it, the way Xcode's device
-// hub does. iOS 27+ and a mounted Developer Disk Image. Buttons work on any
-// device; only the hinge needs one that folds, so that is checked when it is
+// Controls presses the device's buttons, turns it and folds it, the way Xcode's
+// device hub does. iOS 27+ and a mounted Developer Disk Image. Buttons work on
+// any device; only the hinge needs one that folds, so that is checked when it is
 // set rather than here.
 //
-// The device answers none of these events, so a nil error means an event was
-// sent, not that anything happened.
+// The device answers none of the HID events, so a nil error means an event was
+// sent, not that anything happened. Only turning a device that does not fold is
+// answered.
 type Controls struct {
 	mutex    sync.Mutex
 	indigo   messageConn
@@ -54,6 +55,13 @@ type Controls struct {
 
 	// Told apart by the device's displays.
 	foldable bool
+	// Connects to devicecontrol, which turns a device that does not fold.
+	dialDeviceControl func() (requestConn, error)
+	// Connects to the universal HID service, which arms a foldable's
+	// orientation picker.
+	dialUniversalHID func() (messageConn, error)
+	// Reads the device's displays, to tell whether a foldable is open.
+	readDisplays func() (map[string]interface{}, error)
 }
 
 // NewControls connects to the device's hid service, and reads its displays to
@@ -71,6 +79,15 @@ func NewControls(device ios.DeviceEntry) (*Controls, error) {
 		indigo:   &xpcMessageConn{conn: conn},
 		grace:    closeGrace,
 		foldable: foldable,
+		dialDeviceControl: func() (requestConn, error) {
+			return dialDeviceControl(device)
+		},
+		dialUniversalHID: func() (messageConn, error) {
+			return dialUniversalHID(device)
+		},
+		readDisplays: func() (map[string]interface{}, error) {
+			return readDisplayInfo(device)
+		},
 	}, nil
 }
 
@@ -109,16 +126,20 @@ func (c *Controls) send(msg map[string]interface{}) error {
 // the iPhone Duo does: its inner and cover displays are both listed, folded or
 // not.
 func isFoldable(device ios.DeviceEntry) (bool, error) {
-	info, err := deviceinfo.NewDeviceInfo(device)
-	if err != nil {
-		return false, fmt.Errorf("isFoldable: %w", err)
-	}
-	defer info.Close()
-	displays, err := info.GetDisplayInfo()
+	displays, err := readDisplayInfo(device)
 	if err != nil {
 		return false, fmt.Errorf("isFoldable: %w", err)
 	}
 	return countBuiltInDisplays(displays) > 1, nil
+}
+
+func readDisplayInfo(device ios.DeviceEntry) (map[string]interface{}, error) {
+	info, err := deviceinfo.NewDeviceInfo(device)
+	if err != nil {
+		return nil, err
+	}
+	defer info.Close()
+	return info.GetDisplayInfo()
 }
 
 func countBuiltInDisplays(info map[string]interface{}) int {

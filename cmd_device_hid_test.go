@@ -34,6 +34,12 @@ func TestPressedButton(t *testing.T) {
 	}
 }
 
+func TestChosenOrientation(t *testing.T) {
+	for _, o := range hid.Orientations() {
+		assert.Equal(t, o, chosenOrientation(docopt.Opts{"orientation": true, o.String(): true}), o.String())
+	}
+}
+
 func TestButtonHold(t *testing.T) {
 	hold, err := buttonHold(docopt.Opts{})
 	require.NoError(t, err)
