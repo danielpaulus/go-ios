@@ -10,10 +10,12 @@ and idiomatic; match the style of surrounding code.
 
 - Build: `go build ./...` (CI uses `make build`, which also wires up the
   `go.work` workspace). Use the Go toolchain pinned in `go.mod`.
-- Unit tests: `go test ./...` (device-free; this is what CI runs).
-- Device/integration testing lives only in the `test/e2e/` suite, gated by the
+- Unit tests: `go test ./...` (this is what CI runs). It must not touch a
+  device: the few package tests that use one (`ios/afc`, `ios/imagemounter`)
+  skip unless `GO_IOS_E2E_DEVICES` lists the UDIDs they may use.
+- Device/integration testing lives in the `test/e2e/` suite, gated by the
   `e2e` build tag and `GO_IOS_E2E_DEVICES`, and runs on the self-hosted CI
-  runners. Put device-dependent tests there, not in the package unit tests.
+  runners. Put new device-dependent tests there, not in the package unit tests.
 
 ## Logging
 
