@@ -323,6 +323,8 @@ The commands work as following:
     ios hid orientation (portrait | landscapeleft | portraitupsidedown | landscaperight) [options]
                                                                   Turns the device as if it were held that way: landscapeleft has the front camera
                                                                   on the left. The display follows when the app in front supports it.
+                                                                  On a foldable this also moves the hinge to open flat or closed,
+                                                                  whichever the display in use goes with.
 
     ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>]
                                                                   Set global http proxy on supervised device.

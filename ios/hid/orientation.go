@@ -89,8 +89,14 @@ func ParseOrientation(name string) (Orientation, error) {
 //
 // A foldable, such as the iPhone Duo, is turned with its orientation picker,
 // the way the device hub's rotate button does. The device does not answer
-// that, nor tell what it was last set to. Other devices are turned through
-// devicecontrol, which answers with the orientation the device is in now.
+// that, nor tell what it was last set to. It works at any hinge angle, but
+// after a restart the device ignores the picker until the hinge has been set,
+// so the hinge is set every time (see armOrientationPicker). As the device
+// does not report its hinge angle, that moves the hinge to open flat when the
+// inner display is in use and to closed otherwise: the display in use does
+// not change, but a hinge set in between, such as half open, does not stay
+// there. Other devices are turned through devicecontrol, which answers with
+// the orientation the device is in now.
 func (c *Controls) SetOrientation(o Orientation) error {
 	n, ok := o.names()
 	if !ok {
@@ -121,8 +127,10 @@ func (c *Controls) SetOrientation(o Orientation) error {
 // restart it ignores the picker until the virtualization service has been
 // sent an empty report and the hinge has been set, as the device hub does when
 // it connects and folds. Both are sent every time, since whether they were
-// already cannot be read. The hinge is set where it is: open when the larger,
-// inner display is the active one, closed otherwise, so no display changes.
+// already cannot be read. Nor can the hinge angle, so the hinge is set to the
+// end of its range the active display belongs to: open flat when the larger,
+// inner display is the active one, closed otherwise. The display stays, but
+// an angle in between is lost.
 func (c *Controls) armOrientationPicker() error {
 	c.mutex.Lock()
 	closed := c.closed
