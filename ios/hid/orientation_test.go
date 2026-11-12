@@ -2,6 +2,7 @@ package hid
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -79,22 +80,23 @@ func TestSetOrientationOnAFoldableUsesItsPicker(t *testing.T) {
 	} {
 		c, f := openOrientationControls(true, true)
 		require.NoError(t, c.SetOrientation(o))
-		require.Len(t, f.indigo.sent, 2)
+		require.Len(t, f.indigo.sent, 1, "the picker alone, the hinge stays")
 		assert.Equal(t, map[string]interface{}{
 			"provider": "com.apple.Virtualization.VirtualMachines",
 			"source":   "orientation-picker-control",
 			"type":     "enum",
 			"value":    picker,
-		}, virtualizationOf(t, f.indigo.sent[1]), o.String())
+		}, virtualizationOf(t, f.indigo.sent[0]), o.String())
+		assert.Empty(t, f.universal.sent)
 		assert.Empty(t, f.deviceControl.requests)
 	}
 }
 
 // After a restart a foldable ignores its picker until the virtualization
 // service got an empty report and the hinge was set.
-func TestSetOrientationArmsAFoldablesPickerFirst(t *testing.T) {
+func TestUnstickOrientationSendsTheReportThenTheHinge(t *testing.T) {
 	c, f := openOrientationControls(true, true)
-	require.NoError(t, c.SetOrientation(OrientationLandscapeLeft))
+	require.NoError(t, c.UnstickOrientation())
 
 	require.Len(t, f.universal.sent, 1)
 	assert.Equal(t, map[string]interface{}{
@@ -105,25 +107,50 @@ func TestSetOrientationArmsAFoldablesPickerFirst(t *testing.T) {
 		},
 	}, f.universal.sent[0])
 
-	require.Len(t, f.indigo.sent, 2)
-	hinge := virtualizationOf(t, f.indigo.sent[0])
-	assert.Equal(t, "hinge-slider-control", hinge["source"], "the hinge comes before the picker")
+	require.Len(t, f.indigo.sent, 1)
+	assert.Equal(t, "hinge-slider-control", virtualizationOf(t, f.indigo.sent[0])["source"])
 }
 
-func TestSetOrientationKeepsTheHingeWhereItIs(t *testing.T) {
+func TestUnstickOrientationKeepsTheDisplayInUse(t *testing.T) {
 	for open, want := range map[bool]float64{true: HingeOpenFlat, false: HingeClosed} {
 		c, f := openOrientationControls(true, open)
-		require.NoError(t, c.SetOrientation(OrientationPortrait))
+		require.NoError(t, c.UnstickOrientation())
 		assert.Equal(t, want, virtualizationOf(t, f.indigo.sent[0])["value"], "open=%v", open)
 	}
 }
 
-func TestSetOrientationOnAFoldableFailsWithoutItsDisplays(t *testing.T) {
+func TestUnstickOrientationAtKeepsTheHingeAngle(t *testing.T) {
+	c, f := openOrientationControls(true, true)
+	require.NoError(t, c.UnstickOrientationAt(130))
+	require.Len(t, f.universal.sent, 1)
+	require.Len(t, f.indigo.sent, 1)
+	assert.Equal(t, 130.0, virtualizationOf(t, f.indigo.sent[0])["value"])
+}
+
+func TestUnstickOrientationAtRefusesAnAngleOutOfRange(t *testing.T) {
+	for _, degrees := range []float64{-1, 181, math.NaN()} {
+		c, f := openOrientationControls(true, true)
+		assert.Error(t, c.UnstickOrientationAt(degrees), "%v", degrees)
+		assert.Empty(t, f.universal.sent)
+		assert.Empty(t, f.indigo.sent)
+	}
+}
+
+func TestUnstickOrientationFailsWithoutTheDisplays(t *testing.T) {
 	c, f := openOrientationControls(true, true)
 	c.readDisplays = func() (map[string]interface{}, error) { return nil, errors.New("no deviceinfo") }
-	assert.Error(t, c.SetOrientation(OrientationPortrait))
+	assert.Error(t, c.UnstickOrientation())
 	assert.Empty(t, f.indigo.sent, "nothing is sent")
 	assert.Empty(t, f.universal.sent)
+}
+
+func TestUnstickOrientationDoesNothingOnASingleDisplayDevice(t *testing.T) {
+	c, f := openOrientationControls(false, false)
+	require.NoError(t, c.UnstickOrientation())
+	require.NoError(t, c.UnstickOrientationAt(90))
+	assert.Empty(t, f.indigo.sent)
+	assert.Empty(t, f.universal.sent)
+	assert.Empty(t, f.deviceControl.requests)
 }
 
 func TestSetOrientationOnASingleDisplayDevice(t *testing.T) {
@@ -165,6 +192,10 @@ func TestClosedControlsTurnNothing(t *testing.T) {
 		c, f := openOrientationControls(foldable, true)
 		require.NoError(t, c.Close())
 		assert.Error(t, c.SetOrientation(OrientationLandscapeLeft))
+		if foldable {
+			assert.Error(t, c.UnstickOrientation())
+			assert.Error(t, c.UnstickOrientationAt(90))
+		}
 		assert.Empty(t, f.indigo.sent)
 		assert.Empty(t, f.universal.sent)
 		assert.Empty(t, f.deviceControl.requests)

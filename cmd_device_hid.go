@@ -36,6 +36,9 @@ func runHIDCommand(ctx commandContext) {
 		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 		<-stop
 	case boolArg(ctx.Args, "orientation"):
+		if boolArg(ctx.Args, "--unstick") {
+			exitIfError("failed unsticking the orientation", controls.UnstickOrientation())
+		}
 		exitIfError("failed setting the orientation", controls.SetOrientation(chosenOrientation(ctx.Args)))
 	case boolArg(ctx.Args, "hinge"):
 		degrees, err := hingeAngle(ctx.Args)
