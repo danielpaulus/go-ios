@@ -110,6 +110,7 @@ func TestDispatchSubcommandCollisions(t *testing.T) {
 		{name: "hid muteswitch dispatches hid", argv: []string{"hid", "muteswitch", "silent"}, want: "device:hid"},
 		{name: "hid button takes a hold", argv: []string{"hid", "button", "action", "--hold=1500"}, want: "device:hid"},
 		{name: "hid orientation dispatches hid", argv: []string{"hid", "orientation", "landscapeleft"}, want: "device:hid"},
+		{name: "hid orientation --unstick dispatches hid", argv: []string{"hid", "orientation", "landscapeleft", "--unstick"}, want: "device:hid"},
 		// ui shares the button and orientation literals with hid
 		{name: "ui orientation still dispatches ui", argv: []string{"ui", "orientation", "set", "portrait"}, want: "global:ui"},
 		{name: "ui button still dispatches ui", argv: []string{"ui", "button", "home"}, want: "global:ui"},

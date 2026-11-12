@@ -2,6 +2,7 @@ package hid
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -89,23 +90,16 @@ func ParseOrientation(name string) (Orientation, error) {
 //
 // A foldable, such as the iPhone Duo, is turned with its orientation picker,
 // the way the device hub's rotate button does. The device does not answer
-// that, nor tell what it was last set to. It works at any hinge angle, but
-// after a restart the device ignores the picker until the hinge has been set,
-// so the hinge is set every time (see armOrientationPicker). As the device
-// does not report its hinge angle, that moves the hinge to open flat when the
-// inner display is in use and to closed otherwise: the display in use does
-// not change, but a hinge set in between, such as half open, does not stay
-// there. Other devices are turned through devicecontrol, which answers with
-// the orientation the device is in now.
+// that, nor tell what it was last set to, and after a restart it ignores the
+// picker until UnstickOrientation has been called. Other devices are turned
+// through devicecontrol, which answers with the orientation the device is in
+// now.
 func (c *Controls) SetOrientation(o Orientation) error {
 	n, ok := o.names()
 	if !ok {
 		return fmt.Errorf("SetOrientation: unknown orientation %d", int(o))
 	}
 	if c.foldable {
-		if err := c.armOrientationPicker(); err != nil {
-			return fmt.Errorf("SetOrientation: %w", err)
-		}
 		c.mutex.Lock()
 		defer c.mutex.Unlock()
 		if err := c.send(buildVirtualizationPayload(orientationControl, "enum", n.picker)); err != nil {
@@ -123,33 +117,67 @@ func (c *Controls) SetOrientation(o Orientation) error {
 	return nil
 }
 
-// armOrientationPicker makes a foldable follow its orientation picker. After a
-// restart it ignores the picker until the virtualization service has been
-// sent an empty report and the hinge has been set, as the device hub does when
-// it connects and folds. Both are sent every time, since whether they were
-// already cannot be read. Nor can the hinge angle, so the hinge is set to the
-// end of its range the active display belongs to: open flat when the larger,
-// inner display is the active one, closed otherwise. The display stays, but
-// an angle in between is lost.
-func (c *Controls) armOrientationPicker() error {
+// UnstickOrientation makes a foldable follow SetOrientation again. After a
+// restart it ignores its orientation picker until the virtualization service
+// has been sent an empty report and the hinge has been set, as the device hub
+// does when it connects and folds; folding it by hand does not count. Once
+// done, it holds until the next restart. Whether it is needed cannot be read,
+// so call it once after the device restarts, before turning it.
+//
+// It sets the hinge, and as the device does not report its hinge angle, to
+// the end of its range the display in use goes with: open flat when the
+// larger, inner display is in use, closed otherwise. The display in use stays,
+// but a hinge set in between, such as half open, does not stay there.
+//
+// It does nothing on a device that does not fold. Use UnstickOrientationAt
+// when the hinge angle is known.
+func (c *Controls) UnstickOrientation() error {
+	if !c.foldable {
+		return nil
+	}
+	displays, err := c.readDisplays()
+	if err != nil {
+		return fmt.Errorf("UnstickOrientation: read displays: %w", err)
+	}
+	degrees := HingeClosed
+	if innerDisplayActive(displays) {
+		degrees = HingeOpenFlat
+	}
+	if err := c.unstickOrientation(degrees); err != nil {
+		return fmt.Errorf("UnstickOrientation: %w", err)
+	}
+	return nil
+}
+
+// UnstickOrientationAt does what UnstickOrientation does, but sets the hinge
+// to degrees, such as the angle SetHingeAngle last set since the restart, so
+// it stays there. An angle past where the displays switch, such as 130 on a
+// closed device, switches them, as SetHingeAngle does.
+func (c *Controls) UnstickOrientationAt(degrees float64) error {
+	if !c.foldable {
+		return nil
+	}
+	if math.IsNaN(degrees) || degrees < HingeClosed || degrees > HingeOpenFlat {
+		return fmt.Errorf("UnstickOrientationAt: %v degrees is outside 0 to 180", degrees)
+	}
+	if err := c.unstickOrientation(degrees); err != nil {
+		return fmt.Errorf("UnstickOrientationAt: %w", err)
+	}
+	return nil
+}
+
+// unstickOrientation sends the virtualization service an empty report, then
+// sets the hinge to degrees.
+func (c *Controls) unstickOrientation(degrees float64) error {
 	c.mutex.Lock()
 	closed := c.closed
 	c.mutex.Unlock()
 	if closed {
 		return fmt.Errorf("controls are closed")
 	}
-	displays, err := c.readDisplays()
-	if err != nil {
-		return fmt.Errorf("armOrientationPicker: read displays: %w", err)
-	}
-	angle := HingeClosed
-	if innerDisplayActive(displays) {
-		angle = HingeOpenFlat
-	}
-
 	conn, err := c.dialUniversalHID()
 	if err != nil {
-		return fmt.Errorf("armOrientationPicker: %w", err)
+		return err
 	}
 	err = conn.send(map[string]interface{}{
 		"featureIdentifier": universalHIDFeatureIdentifier,
@@ -165,15 +193,12 @@ func (c *Controls) armOrientationPicker() error {
 		err = closeErr
 	}
 	if err != nil {
-		return fmt.Errorf("armOrientationPicker: %w", err)
+		return err
 	}
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	if err := c.send(buildVirtualizationPayload(hingeControl, "range", angle)); err != nil {
-		return fmt.Errorf("armOrientationPicker: %w", err)
-	}
-	return nil
+	return c.send(buildVirtualizationPayload(hingeControl, "range", degrees))
 }
 
 // emptyVirtualizationReport is the report the device hub sends the
