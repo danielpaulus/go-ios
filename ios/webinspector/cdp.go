@@ -121,17 +121,23 @@ func (s *CDPServer) handleTargets(w http.ResponseWriter, r *http.Request) {
 		if page.Type != WIRTypeWeb && page.Type != WIRTypeWebPage {
 			continue
 		}
-		wsURL := fmt.Sprintf("ws://%s/devtools/page/%s", s.Addr(), page.Key)
+		targetID := cdpTargetID(appPage.Application, page)
+		wsURL := fmt.Sprintf("ws://%s/devtools/page/%s", s.Addr(), targetID)
 		targets = append(targets, CDPTarget{
-			ID:                   page.Key,
+			ID:                   targetID,
 			Title:                page.Title,
 			Type:                 "page",
 			URL:                  page.URL,
 			WebSocketDebuggerURL: wsURL,
-			DevtoolsFrontendURL:  "/devtools/inspector.html?ws=" + s.Addr() + "/devtools/page/" + page.Key,
+			DevtoolsFrontendURL:  "/devtools/inspector.html?ws=" + s.Addr() + "/devtools/page/" + targetID,
 		})
 	}
 	writeJSON(w, targets)
+}
+
+// cdpTargetID is "<pid>.<pageKey>": page keys repeat across applications.
+func cdpTargetID(app Application, page Page) string {
+	return fmt.Sprintf("%d.%s", app.PID, page.Key)
 }
 
 func (s *CDPServer) handleVersion(w http.ResponseWriter, _ *http.Request) {
@@ -146,7 +152,7 @@ func (s *CDPServer) handleVersion(w http.ResponseWriter, _ *http.Request) {
 
 func (s *CDPServer) handlePageWebSocket(w http.ResponseWriter, r *http.Request) {
 	pageKey := strings.TrimPrefix(r.URL.Path, "/devtools/page/")
-	app, page, ok := s.client.FindPage(pageKey)
+	app, page, ok := s.client.FindPageByTarget(pageKey)
 	if !ok {
 		http.Error(w, "page not found", http.StatusNotFound)
 		return
