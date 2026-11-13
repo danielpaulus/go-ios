@@ -17,9 +17,10 @@ import (
 // must self-terminate within it (slack over the sampling duration for DTX
 // connection setup and teardown).
 const (
-	fpsDurationSeconds      = 5
-	networkDurationSeconds  = 8
-	instrumentsSampleWindow = 30 * time.Second
+	fpsDurationSeconds       = 5
+	networkDurationSeconds   = 8
+	processesDurationSeconds = 5
+	instrumentsSampleWindow  = 30 * time.Second
 )
 
 // TestInstrumentsFPS streams frames-per-second samples from the graphics OpenGL
@@ -70,6 +71,32 @@ func TestInstrumentsNetwork(t *testing.T) {
 			}
 		}
 		logInstrumentsSamples(t, "network", udid, samples)
+	})
+}
+
+// TestInstrumentsProcesses streams per-process sysmontap samples for
+// SpringBoard (always running) and asserts the command self-terminates and
+// emits well-formed samples for that process with a numeric cpuUsage (the CLI
+// skips the first snapshot, in which the device reports cpuUsage as null).
+func TestInstrumentsProcesses(t *testing.T) {
+	forEachDevice(t, func(t *testing.T, udid string) {
+		samples := streamNDJSON(t, udid, instrumentsSampleWindow,
+			"instruments", "processes", "--process=SpringBoard", "--duration="+strconv.Itoa(processesDurationSeconds))
+		if len(samples) == 0 {
+			t.Fatalf("instruments processes: no SpringBoard samples in %ds window", processesDurationSeconds)
+		}
+		for i, s := range samples {
+			if s["name"] != "SpringBoard" {
+				t.Fatalf("instruments processes sample %d is not SpringBoard: %v", i, s["name"])
+			}
+			if _, ok := s["pid"].(float64); !ok {
+				t.Fatalf("instruments processes sample %d \"pid\" missing or not numeric: %v", i, s["pid"])
+			}
+			if cpu, ok := s["cpuUsage"].(float64); !ok || cpu < 0 {
+				t.Fatalf("instruments processes sample %d \"cpuUsage\" missing, null or negative: %v", i, s["cpuUsage"])
+			}
+		}
+		logInstrumentsSamples(t, "processes", udid, samples)
 	})
 }
 
