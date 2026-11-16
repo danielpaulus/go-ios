@@ -152,6 +152,30 @@ func (w WebClip) DisplayName() string {
 	return w.Name
 }
 
+// PlaceholderIcon is the home screen entry for a built-in app whose download was removed
+// (offloaded) or that was taken off the home screen while staying installed. iOS reports
+// it with only a displayIdentifier and displayName, so it matches no other icon type.
+type PlaceholderIcon struct {
+	Name              string `plist:"displayName"`
+	DisplayIdentifier string `plist:"displayIdentifier"`
+}
+
+func (p PlaceholderIcon) DisplayName() string {
+	return p.Name
+}
+
+// UnknownIcon is the home screen entry for a dict that matched no known icon shape,
+// e.g. a shape added by a newer iOS. It carries only the sorted key names of the dict,
+// never its values, so a single unrecognized entry can be inspected or skipped without
+// failing the whole layout decode.
+type UnknownIcon struct {
+	Keys []string
+}
+
+func (u UnknownIcon) DisplayName() string {
+	return ""
+}
+
 // Custom may be a widget or a paginated widget on the homescreen. We don't provide any information for this type
 // of icon on the home screen
 type Custom struct {

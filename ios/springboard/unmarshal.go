@@ -1,6 +1,8 @@
 package springboard
 
-import "fmt"
+import (
+	"slices"
+)
 
 // internalUnmarshaler is a helper struct that knows how to unmarshal a plist that represents an Icon.
 type internalUnmarshaler struct {
@@ -62,7 +64,27 @@ func (t *internalUnmarshaler) UnmarshalPlist(unmarshal func(interface{}) error) 
 		return nil
 	}
 
-	return fmt.Errorf("could not unmarshal plist")
+	// iOS reports built-in apps that were offloaded or taken off the home screen with only
+	// a displayIdentifier and displayName while the app stays installed. Such entries carry
+	// no actionable data for icon automation but must not break the whole layout decode.
+	if len(app.DisplayIdentifier) > 0 {
+		t.icon = PlaceholderIcon{Name: app.Name, DisplayIdentifier: app.DisplayIdentifier}
+		return nil
+	}
+
+	// A dict matching no known shape becomes an UnknownIcon so an unknown entry shape does
+	// not fail the layout decode; non-dict entries are malformed and still fail below.
+	var keys map[string]any
+	if err := unmarshal(&keys); err != nil {
+		return err
+	}
+	names := make([]string, 0, len(keys))
+	for k := range keys {
+		names = append(names, k)
+	}
+	slices.Sort(names)
+	t.icon = UnknownIcon{Keys: names}
+	return nil
 }
 
 type folderUnmarshaler struct {
