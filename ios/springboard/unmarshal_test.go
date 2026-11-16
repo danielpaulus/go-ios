@@ -3,6 +3,7 @@ package springboard
 import (
 	"bytes"
 	"encoding/binary"
+	"slices"
 	"strings"
 	"testing"
 
@@ -54,11 +55,10 @@ func folderEntry(name string, pages ...[]any) map[string]any {
 
 func TestListIcons(t *testing.T) {
 	tests := []struct {
-		name     string
-		state    []any
-		wantErr  string
-		exactErr bool
-		check    func(t *testing.T, screens []Screen)
+		name    string
+		state   []any
+		wantErr string
+		check   func(t *testing.T, screens []Screen)
 	}{
 		{
 			name:  "app icon",
@@ -187,35 +187,71 @@ func TestListIcons(t *testing.T) {
 			},
 		},
 		{
-			name: "unknown dict fails with keys and position",
+			name: "unknown dict surfaces as UnknownIcon",
 			state: []any{
 				[]any{appEntry("com.apple.mobilephone", "Telefon")},
 				[]any{appEntry("com.example.one", "One"), appEntry("com.example.two", "Two"),
 					map[string]any{"betaTitle": "SECRET-BETA-VALUE", "isRemovable": true}},
 			},
-			wantErr:  "could not unmarshal icon at page 2 position 3 with keys [betaTitle isRemovable]",
-			exactErr: true,
+			check: func(t *testing.T, screens []Screen) {
+				unknown, ok := screens[1][2].(UnknownIcon)
+				if !ok {
+					t.Fatalf("expected UnknownIcon, got %T", screens[1][2])
+				}
+				// only key names are kept, dict values are dropped
+				if !slices.Equal(unknown.Keys, []string{"betaTitle", "isRemovable"}) {
+					t.Errorf("unexpected keys: %v", unknown.Keys)
+				}
+				if _, ok := screens[1][1].(AppIcon); !ok {
+					t.Errorf("expected AppIcon before the unknown entry, got %T", screens[1][1])
+				}
+			},
 		},
 		{
-			name:     "empty bundleIdentifier is not an app",
-			state:    []any{[]any{map[string]any{"bundleIdentifier": "", "displayName": "X"}}},
-			wantErr:  "could not unmarshal icon at page 1 position 1 with keys [bundleIdentifier displayName]",
-			exactErr: true,
+			name:  "empty bundleIdentifier is not an app",
+			state: []any{[]any{map[string]any{"bundleIdentifier": "", "displayName": "X"}}},
+			check: func(t *testing.T, screens []Screen) {
+				unknown, ok := screens[0][0].(UnknownIcon)
+				if !ok {
+					t.Fatalf("expected UnknownIcon, got %T", screens[0][0])
+				}
+				if !slices.Equal(unknown.Keys, []string{"bundleIdentifier", "displayName"}) {
+					t.Errorf("unexpected keys: %v", unknown.Keys)
+				}
+			},
 		},
 		{
-			name:     "empty displayIdentifier is not a placeholder",
-			state:    []any{[]any{map[string]any{"displayIdentifier": "", "displayName": "X"}}},
-			wantErr:  "could not unmarshal icon at page 1 position 1 with keys [displayIdentifier displayName]",
-			exactErr: true,
+			name:  "empty displayIdentifier is not a placeholder",
+			state: []any{[]any{map[string]any{"displayIdentifier": "", "displayName": "X"}}},
+			check: func(t *testing.T, screens []Screen) {
+				unknown, ok := screens[0][0].(UnknownIcon)
+				if !ok {
+					t.Fatalf("expected UnknownIcon, got %T", screens[0][0])
+				}
+				if !slices.Equal(unknown.Keys, []string{"displayIdentifier", "displayName"}) {
+					t.Errorf("unexpected keys: %v", unknown.Keys)
+				}
+			},
 		},
 		{
-			name: "unknown dict inside a folder fails with the folder location",
+			name: "unknown dict inside a folder surfaces as UnknownIcon",
 			state: []any{[]any{
 				appEntry("com.apple.mobilephone", "Telefon"),
 				folderEntry("Utils", []any{appEntry("com.example.app", "App")}, []any{map[string]any{"foo": "SECRET-FOLDER-VALUE"}}),
 			}},
-			wantErr:  "could not unmarshal icon at folder page 2 position 1 inside folder at page 1 position 2 with keys [foo]",
-			exactErr: true,
+			check: func(t *testing.T, screens []Screen) {
+				folder, ok := screens[0][1].(Folder)
+				if !ok {
+					t.Fatalf("expected Folder, got %T", screens[0][1])
+				}
+				unknown, ok := folder.Icons[1][0].(UnknownIcon)
+				if !ok {
+					t.Fatalf("expected UnknownIcon child, got %T", folder.Icons[1][0])
+				}
+				if !slices.Equal(unknown.Keys, []string{"foo"}) {
+					t.Errorf("unexpected keys: %v", unknown.Keys)
+				}
+			},
 		},
 		{
 			name:    "non-dict entry keeps failing with the plist type mismatch",
@@ -232,11 +268,7 @@ func TestListIcons(t *testing.T) {
 				if err == nil {
 					t.Fatalf("expected error containing %q, got none", tt.wantErr)
 				}
-				// exact matches pin that dict values never leak into the error
-				if tt.exactErr && err.Error() != tt.wantErr {
-					t.Fatalf("error %q does not equal %q", err.Error(), tt.wantErr)
-				}
-				if !tt.exactErr && !strings.Contains(err.Error(), tt.wantErr) {
+				if !strings.Contains(err.Error(), tt.wantErr) {
 					t.Fatalf("error %q does not contain %q", err.Error(), tt.wantErr)
 				}
 				return

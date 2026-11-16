@@ -102,35 +102,12 @@ func (c *Client) ListIcons() ([]Screen, error) {
 	for i, s := range response {
 		screen := make([]Icon, len(s))
 		for j, t := range s {
-			err := checkIcon(t.icon, fmt.Sprintf("page %d position %d", i+1, j+1))
-			if err != nil {
-				return nil, err
-			}
 			screen[j] = t.icon
 		}
 		screens[i] = screen
 	}
 
 	return screens, nil
-}
-
-// checkIcon rejects icons that matched no known shape. Positions are 1-based, matching how
-// the pages appear on the device.
-func checkIcon(icon Icon, location string) error {
-	switch v := icon.(type) {
-	case unknownIcon:
-		return fmt.Errorf("could not unmarshal icon at %s with keys %v", location, v.keys)
-	case Folder:
-		for i, page := range v.Icons {
-			for j, child := range page {
-				err := checkIcon(child, fmt.Sprintf("folder page %d position %d inside folder at %s", i+1, j+1, location))
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
 }
 
 // Screen is a list of Icons displayed on one page of the home screen
@@ -185,6 +162,18 @@ type PlaceholderIcon struct {
 
 func (p PlaceholderIcon) DisplayName() string {
 	return p.Name
+}
+
+// UnknownIcon is the home screen entry for a dict that matched no known icon shape,
+// e.g. a shape added by a newer iOS. It carries only the sorted key names of the dict,
+// never its values, so a single unrecognized entry can be inspected or skipped without
+// failing the whole layout decode.
+type UnknownIcon struct {
+	Keys []string
+}
+
+func (u UnknownIcon) DisplayName() string {
+	return ""
 }
 
 // Custom may be a widget or a paginated widget on the homescreen. We don't provide any information for this type

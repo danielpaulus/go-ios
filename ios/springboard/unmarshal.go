@@ -72,8 +72,8 @@ func (t *internalUnmarshaler) UnmarshalPlist(unmarshal func(interface{}) error) 
 		return nil
 	}
 
-	// The plist decoder cannot tell us where an entry sits, so an entry matching no known
-	// shape is stored here and ListIcons fails on it with the entry's page and position.
+	// A dict matching no known shape becomes an UnknownIcon so an unknown entry shape does
+	// not fail the layout decode; non-dict entries are malformed and still fail below.
 	var keys map[string]any
 	if err := unmarshal(&keys); err != nil {
 		return err
@@ -83,18 +83,8 @@ func (t *internalUnmarshaler) UnmarshalPlist(unmarshal func(interface{}) error) 
 		names = append(names, k)
 	}
 	slices.Sort(names)
-	t.icon = unknownIcon{keys: names}
+	t.icon = UnknownIcon{Keys: names}
 	return nil
-}
-
-// unknownIcon marks a dict that matched no known icon shape. It never reaches consumers:
-// ListIcons rejects it with an error naming its keys and position.
-type unknownIcon struct {
-	keys []string
-}
-
-func (u unknownIcon) DisplayName() string {
-	return ""
 }
 
 type folderUnmarshaler struct {
