@@ -24,13 +24,7 @@ type hidConn interface {
 	Close() error
 }
 
-// Session delivers touch input to one device.
-//
-// A media stream has to be running for any of this to reach the screen. Without
-// one the device accepts every report and discards it, returning no error, so a
-// caller that forgets sees silence rather than a failure. Starting that stream
-// and keeping it up for the session's lifetime is the caller's job: ios/display
-// does it, and this package deliberately does not.
+// Session delivers touch input to one device, to its main touchscreen.
 type Session struct {
 	device ios.DeviceEntry
 
@@ -46,10 +40,6 @@ type Session struct {
 }
 
 // NewSession connects to the device's HID service. iOS 27+ and a kernel tunnel.
-//
-// Touch does nothing until a media stream is running: the device accepts the
-// reports and throws them away, returning no error. Starting that stream and
-// keeping it up is the caller's job.
 func NewSession(device ios.DeviceEntry) (*Session, error) {
 	session := &Session{device: device}
 

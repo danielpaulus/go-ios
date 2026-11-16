@@ -95,6 +95,9 @@ Usage:
   ios forward [options] [<hostPort> <targetPort>] [--port=<mapping>]...
   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
+  ios hid button (home | volumeup | volumedown | lock | cameracontrol | action) [--hold=<ms>] [options]
+  ios hid hinge (close | halfopen | open | <degrees>) [options]
+  ios hid muteswitch (ring | silent) [options]
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
   ios httpproxy remove [options]
   ios image auto [--basedir=<where_dev_images_are_stored>] [options]
@@ -304,6 +307,17 @@ The commands work as following:
     ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
                                                                   Remove | treeview | mkdir in target path.
                                                                   --r used alongside rm will recursively remove all files and directories from target path.
+
+    ios hid button (home | volumeup | volumedown | lock | cameracontrol | action) [--hold=<ms>] [options]
+                                                                  Presses a button and lets it go after --hold milliseconds, or after the time
+                                                                  the device hub holds that button for. Pressing home twice opens the app switcher.
+
+    ios hid hinge (close | halfopen | open | <degrees>) [options]
+                                                                  Folds a foldable such as the iPhone Duo: close (0), halfopen (130), open (180),
+                                                                  or any angle in degrees from 0 to 180. Needs iOS 27+ and a mounted developer disk image.
+
+    ios hid muteswitch (ring | silent) [options]                  Moves the ring/silent switch, on iPhones that have one instead of an Action
+                                                                  button, and holds it there until CTRL+C. The physical switch decides again after.
 
     ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>]
                                                                   Set global http proxy on supervised device.
