@@ -11,7 +11,8 @@ import (
 	"github.com/danielpaulus/go-ios/ios/xpc"
 )
 
-// ErrNotFoldable is returned for a hinge angle sent to a device without one.
+// ErrNotFoldable is returned for a hinge angle sent to a device without one,
+// and for unsticking its orientation.
 var ErrNotFoldable = errors.New("the device does not fold")
 
 // closeGrace is how long Close waits after the last event. An event the
@@ -57,8 +58,8 @@ type Controls struct {
 	foldable bool
 	// Connects to devicecontrol, which turns a device that does not fold.
 	dialDeviceControl func() (requestConn, error)
-	// Connects to the universal HID service, which arms a foldable's
-	// orientation picker.
+	// Connects to the universal HID service, which unsticks a foldable's
+	// orientation picker after a restart.
 	dialUniversalHID func() (messageConn, error)
 	// Reads the device's displays, to tell whether a foldable is open.
 	readDisplays func() (map[string]interface{}, error)

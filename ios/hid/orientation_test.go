@@ -144,13 +144,45 @@ func TestUnstickOrientationFailsWithoutTheDisplays(t *testing.T) {
 	assert.Empty(t, f.universal.sent)
 }
 
-func TestUnstickOrientationDoesNothingOnASingleDisplayDevice(t *testing.T) {
+func TestUnstickOrientationRefusesADeviceThatDoesNotFold(t *testing.T) {
 	c, f := openOrientationControls(false, false)
-	require.NoError(t, c.UnstickOrientation())
-	require.NoError(t, c.UnstickOrientationAt(90))
+	assert.ErrorIs(t, c.UnstickOrientation(), ErrNotFoldable)
+	assert.ErrorIs(t, c.UnstickOrientationAt(90), ErrNotFoldable)
 	assert.Empty(t, f.indigo.sent)
 	assert.Empty(t, f.universal.sent)
 	assert.Empty(t, f.deviceControl.requests)
+}
+
+// brokenMessages fails to send or close with the errors given.
+type brokenMessages struct {
+	sendErr, closeErr error
+}
+
+func (b brokenMessages) send(map[string]interface{}) error { return b.sendErr }
+func (b brokenMessages) Close() error                      { return b.closeErr }
+
+func TestUnstickOrientationSaysWhichStepFailed(t *testing.T) {
+	broken := errors.New("broken")
+	for step, breakIt := range map[string]func(c *Controls){
+		"connect to the universal HID service": func(c *Controls) {
+			c.dialUniversalHID = func() (messageConn, error) { return nil, broken }
+		},
+		"send the empty report": func(c *Controls) {
+			c.dialUniversalHID = func() (messageConn, error) { return brokenMessages{sendErr: broken}, nil }
+		},
+		"close the universal HID service": func(c *Controls) {
+			c.dialUniversalHID = func() (messageConn, error) { return brokenMessages{closeErr: broken}, nil }
+		},
+		"set the hinge to 180 degrees": func(c *Controls) {
+			c.indigo = brokenMessages{sendErr: broken}
+		},
+	} {
+		c, _ := openOrientationControls(true, true)
+		breakIt(c)
+		err := c.UnstickOrientation()
+		assert.ErrorIs(t, err, broken, step)
+		assert.ErrorContains(t, err, step)
+	}
 }
 
 func TestSetOrientationOnASingleDisplayDevice(t *testing.T) {

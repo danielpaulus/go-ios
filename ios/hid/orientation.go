@@ -129,11 +129,11 @@ func (c *Controls) SetOrientation(o Orientation) error {
 // larger, inner display is in use, closed otherwise. The display in use stays,
 // but a hinge set in between, such as half open, does not stay there.
 //
-// It does nothing on a device that does not fold. Use UnstickOrientationAt
+// A device that does not fold gets ErrNotFoldable. Use UnstickOrientationAt
 // when the hinge angle is known.
 func (c *Controls) UnstickOrientation() error {
 	if !c.foldable {
-		return nil
+		return fmt.Errorf("UnstickOrientation: %w", ErrNotFoldable)
 	}
 	displays, err := c.readDisplays()
 	if err != nil {
@@ -155,7 +155,7 @@ func (c *Controls) UnstickOrientation() error {
 // closed device, switches them, as SetHingeAngle does.
 func (c *Controls) UnstickOrientationAt(degrees float64) error {
 	if !c.foldable {
-		return nil
+		return fmt.Errorf("UnstickOrientationAt: %w", ErrNotFoldable)
 	}
 	if math.IsNaN(degrees) || degrees < HingeClosed || degrees > HingeOpenFlat {
 		return fmt.Errorf("UnstickOrientationAt: %v degrees is outside 0 to 180", degrees)
@@ -177,9 +177,9 @@ func (c *Controls) unstickOrientation(degrees float64) error {
 	}
 	conn, err := c.dialUniversalHID()
 	if err != nil {
-		return err
+		return fmt.Errorf("connect to the universal HID service: %w", err)
 	}
-	err = conn.send(map[string]interface{}{
+	sendErr := conn.send(map[string]interface{}{
 		"featureIdentifier": universalHIDFeatureIdentifier,
 		"messageType":       "Request",
 		"payload": map[string]interface{}{
@@ -189,16 +189,20 @@ func (c *Controls) unstickOrientation(degrees float64) error {
 	// Like the hid service, this one drops a message the connection is closed
 	// on straight away.
 	time.Sleep(c.grace)
-	if closeErr := conn.Close(); err == nil {
-		err = closeErr
+	closeErr := conn.Close()
+	if sendErr != nil {
+		return fmt.Errorf("send the empty report: %w", sendErr)
 	}
-	if err != nil {
-		return err
+	if closeErr != nil {
+		return fmt.Errorf("close the universal HID service: %w", closeErr)
 	}
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	return c.send(buildVirtualizationPayload(hingeControl, "range", degrees))
+	if err := c.send(buildVirtualizationPayload(hingeControl, "range", degrees)); err != nil {
+		return fmt.Errorf("set the hinge to %v degrees: %w", degrees, err)
+	}
+	return nil
 }
 
 // emptyVirtualizationReport is the report the device hub sends the
