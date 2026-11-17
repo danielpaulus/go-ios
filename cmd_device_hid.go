@@ -40,6 +40,10 @@ func runHIDCommand(ctx commandContext) {
 			exitIfError("failed unsticking the orientation", controls.UnstickOrientation())
 		}
 		exitIfError("failed setting the orientation", controls.SetOrientation(chosenOrientation(ctx.Args)))
+	case boolArg(ctx.Args, "hinge") && !hingeAngleGiven(ctx.Args):
+		degrees, err := controls.HingeAngle()
+		exitIfError("failed reading the hinge angle", err)
+		fmt.Println(convertToJSONString(map[string]float64{"angle": degrees}))
 	case boolArg(ctx.Args, "hinge"):
 		degrees, err := hingeAngle(ctx.Args)
 		exitIfError("invalid hinge angle", err)
@@ -80,6 +84,13 @@ func buttonHold(args docopt.Opts) (time.Duration, error) {
 		return 0, fmt.Errorf("%q is not a positive number of milliseconds", value)
 	}
 	return time.Duration(ms) * time.Millisecond, nil
+}
+
+// hingeAngleGiven reports whether the command line names a hinge angle, to
+// set, or none, to read it.
+func hingeAngleGiven(args docopt.Opts) bool {
+	value, _ := args.String("<degrees>")
+	return value != "" || boolArg(args, "close") || boolArg(args, "halfopen") || boolArg(args, "open")
 }
 
 // hingeAngle is the angle a preset stands for, or the number of degrees given.

@@ -2,6 +2,7 @@ package hid
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"strings"
 	"time"
@@ -122,26 +123,23 @@ func (c *Controls) SetOrientation(o Orientation) error {
 // has been sent an empty report and the hinge has been set, as the device hub
 // does when it connects and folds; folding it by hand does not count. Once
 // done, it holds until the next restart. Whether it is needed cannot be read,
-// so call it once after the device restarts, before turning it.
+// so call it once after the device restarts, before turning it. It takes about
+// a second, mostly to connect to the universal HID service.
 //
-// It sets the hinge, and as the device does not report its hinge angle, to
-// the end of its range the display in use goes with: open flat when the
-// larger, inner display is in use, closed otherwise. The display in use stays,
-// but a hinge set in between, such as half open, does not stay there.
+// It sets the hinge to the angle it reads, so the hinge stays where it is.
+// When the angle cannot be read, it sets the hinge to the end of its range the
+// display in use goes with: open flat when the larger, inner display is in
+// use, closed otherwise. The display in use stays then, but a hinge in
+// between, such as half open, does not.
 //
-// A device that does not fold gets ErrNotFoldable. Use UnstickOrientationAt
-// when the hinge angle is known.
+// A device that does not fold gets ErrNotFoldable.
 func (c *Controls) UnstickOrientation() error {
 	if !c.foldable {
 		return fmt.Errorf("UnstickOrientation: %w", ErrNotFoldable)
 	}
-	displays, err := c.readDisplays()
+	degrees, err := c.unstickAngle()
 	if err != nil {
-		return fmt.Errorf("UnstickOrientation: read displays: %w", err)
-	}
-	degrees := HingeClosed
-	if innerDisplayActive(displays) {
-		degrees = HingeOpenFlat
+		return fmt.Errorf("UnstickOrientation: %w", err)
 	}
 	if err := c.unstickOrientation(degrees); err != nil {
 		return fmt.Errorf("UnstickOrientation: %w", err)
@@ -150,9 +148,11 @@ func (c *Controls) UnstickOrientation() error {
 }
 
 // UnstickOrientationAt does what UnstickOrientation does, but sets the hinge
-// to degrees, such as the angle SetHingeAngle last set since the restart, so
-// it stays there. An angle past where the displays switch, such as 130 on a
+// to degrees. An angle past where the displays switch, such as 130 on a
 // closed device, switches them, as SetHingeAngle does.
+//
+// Deprecated: UnstickOrientation keeps the hinge where it is, as it reads the
+// angle.
 func (c *Controls) UnstickOrientationAt(degrees float64) error {
 	if !c.foldable {
 		return fmt.Errorf("UnstickOrientationAt: %w", ErrNotFoldable)
@@ -164,6 +164,31 @@ func (c *Controls) UnstickOrientationAt(degrees float64) error {
 		return fmt.Errorf("UnstickOrientationAt: %w", err)
 	}
 	return nil
+}
+
+// unstickAngle is the angle to set the hinge to while unsticking: the one it
+// is at, or else the end of its range the display in use goes with.
+func (c *Controls) unstickAngle() (float64, error) {
+	c.mutex.Lock()
+	closed := c.closed
+	c.mutex.Unlock()
+	if closed {
+		return 0, fmt.Errorf("controls are closed")
+	}
+	degrees, readErr := c.readHingeAngle()
+	if readErr == nil {
+		return degrees, nil
+	}
+	displays, err := c.readDisplays()
+	if err != nil {
+		return 0, fmt.Errorf("read the hinge angle: %w; read displays: %w", readErr, err)
+	}
+	degrees = HingeClosed
+	if innerDisplayActive(displays) {
+		degrees = HingeOpenFlat
+	}
+	slog.Warn("cannot read the hinge angle; setting it to the end the display in use goes with", "degrees", degrees, "error", readErr)
+	return degrees, nil
 }
 
 // unstickOrientation sends the virtualization service an empty report, then

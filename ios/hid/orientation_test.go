@@ -50,7 +50,13 @@ type orientationFakes struct {
 	deviceControl *fakeDeviceControl
 }
 
+// openOrientationControls opens controls on a device whose hinge reads open
+// flat when open, and closed otherwise.
 func openOrientationControls(foldable, open bool) (*Controls, orientationFakes) {
+	hinge := HingeClosed
+	if open {
+		hinge = HingeOpenFlat
+	}
 	f := orientationFakes{
 		indigo:        &fakeMessages{},
 		universal:     &fakeMessages{},
@@ -62,6 +68,7 @@ func openOrientationControls(foldable, open bool) (*Controls, orientationFakes) 
 		dialDeviceControl: func() (requestConn, error) { return f.deviceControl, nil },
 		dialUniversalHID:  func() (messageConn, error) { return f.universal, nil },
 		readDisplays:      func() (map[string]interface{}, error) { return duoDisplays(open), nil },
+		readHingeAngle:    func() (float64, error) { return hinge, nil },
 	}
 	return c, f
 }
@@ -111,9 +118,20 @@ func TestUnstickOrientationSendsTheReportThenTheHinge(t *testing.T) {
 	assert.Equal(t, "hinge-slider-control", virtualizationOf(t, f.indigo.sent[0])["source"])
 }
 
-func TestUnstickOrientationKeepsTheDisplayInUse(t *testing.T) {
+func TestUnstickOrientationKeepsTheHingeWhereItIs(t *testing.T) {
+	c, f := openOrientationControls(true, true)
+	c.readHingeAngle = func() (float64, error) { return 89.44, nil }
+	require.NoError(t, c.UnstickOrientation())
+	require.Len(t, f.indigo.sent, 1)
+	assert.Equal(t, 89.44, virtualizationOf(t, f.indigo.sent[0])["value"])
+}
+
+// Without the hinge angle, the hinge goes to the end the display in use goes
+// with, so that display stays.
+func TestUnstickOrientationWithoutTheHingeAngleKeepsTheDisplayInUse(t *testing.T) {
 	for open, want := range map[bool]float64{true: HingeOpenFlat, false: HingeClosed} {
 		c, f := openOrientationControls(true, open)
+		c.readHingeAngle = func() (float64, error) { return 0, errors.New("no hinge updates") }
 		require.NoError(t, c.UnstickOrientation())
 		assert.Equal(t, want, virtualizationOf(t, f.indigo.sent[0])["value"], "open=%v", open)
 	}
@@ -136,10 +154,14 @@ func TestUnstickOrientationAtRefusesAnAngleOutOfRange(t *testing.T) {
 	}
 }
 
-func TestUnstickOrientationFailsWithoutTheDisplays(t *testing.T) {
+func TestUnstickOrientationFailsWithoutTheHingeAngleOrTheDisplays(t *testing.T) {
 	c, f := openOrientationControls(true, true)
-	c.readDisplays = func() (map[string]interface{}, error) { return nil, errors.New("no deviceinfo") }
-	assert.Error(t, c.UnstickOrientation())
+	noHinge, noDisplays := errors.New("no hinge updates"), errors.New("no displays")
+	c.readHingeAngle = func() (float64, error) { return 0, noHinge }
+	c.readDisplays = func() (map[string]interface{}, error) { return nil, noDisplays }
+	err := c.UnstickOrientation()
+	assert.ErrorIs(t, err, noHinge)
+	assert.ErrorIs(t, err, noDisplays)
 	assert.Empty(t, f.indigo.sent, "nothing is sent")
 	assert.Empty(t, f.universal.sent)
 }
@@ -185,6 +207,26 @@ func TestUnstickOrientationSaysWhichStepFailed(t *testing.T) {
 	}
 }
 
+func TestHingeAngle(t *testing.T) {
+	c, _ := openOrientationControls(true, true)
+	c.readHingeAngle = func() (float64, error) { return 89.44, nil }
+	degrees, err := c.HingeAngle()
+	require.NoError(t, err)
+	assert.Equal(t, 89.44, degrees)
+
+	broken := errors.New("no hinge updates")
+	c.readHingeAngle = func() (float64, error) { return 0, broken }
+	_, err = c.HingeAngle()
+	assert.ErrorIs(t, err, broken)
+}
+
+func TestHingeAngleOfADeviceThatDoesNotFold(t *testing.T) {
+	c, _ := openOrientationControls(false, false)
+	c.readHingeAngle = func() (float64, error) { panic("not read") }
+	_, err := c.HingeAngle()
+	assert.ErrorIs(t, err, ErrNotFoldable)
+}
+
 func TestSetOrientationOnASingleDisplayDevice(t *testing.T) {
 	c, f := openOrientationControls(false, false)
 	require.NoError(t, c.SetOrientation(OrientationLandscapeRight))
@@ -222,9 +264,12 @@ func TestSetOrientationRefusesAnUnknownOrientation(t *testing.T) {
 func TestClosedControlsTurnNothing(t *testing.T) {
 	for _, foldable := range []bool{true, false} {
 		c, f := openOrientationControls(foldable, true)
+		c.readHingeAngle = func() (float64, error) { panic("not read") }
 		require.NoError(t, c.Close())
 		assert.Error(t, c.SetOrientation(OrientationLandscapeLeft))
 		if foldable {
+			_, err := c.HingeAngle()
+			assert.Error(t, err)
 			assert.Error(t, c.UnstickOrientation())
 			assert.Error(t, c.UnstickOrientationAt(90))
 		}

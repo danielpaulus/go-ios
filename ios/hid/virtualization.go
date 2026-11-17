@@ -46,6 +46,27 @@ func (c *Controls) SetHingeAngle(degrees float64) error {
 	return nil
 }
 
+// HingeAngle reads the angle the hinge is at, in degrees from 0 (closed) to
+// 180 (open flat): the angle SetHingeAngle last set, or the device was folded
+// to by hand, whichever came last. A device that does not fold gets
+// ErrNotFoldable.
+func (c *Controls) HingeAngle() (float64, error) {
+	if !c.foldable {
+		return 0, fmt.Errorf("HingeAngle: %w", ErrNotFoldable)
+	}
+	c.mutex.Lock()
+	closed := c.closed
+	c.mutex.Unlock()
+	if closed {
+		return 0, fmt.Errorf("HingeAngle: controls are closed")
+	}
+	degrees, err := c.readHingeAngle()
+	if err != nil {
+		return 0, fmt.Errorf("HingeAngle: %w", err)
+	}
+	return degrees, nil
+}
+
 // buildVirtualizationPayload sets one virtualization control to a value: a
 // number for a range control such as the hinge, a string for an enum control
 // such as the orientation picker.

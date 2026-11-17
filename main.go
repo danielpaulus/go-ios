@@ -96,7 +96,7 @@ Usage:
   ios fsync [--app=bundleId] [options] (pull | push) --srcPath=<srcPath> --dstPath=<dstPath>
   ios fsync [--app=bundleId] [options] (rm [--r] | tree | mkdir) --path=<targetPath>
   ios hid button (home | volumeup | volumedown | lock | cameracontrol | action) [--hold=<ms>] [options]
-  ios hid hinge (close | halfopen | open | <degrees>) [options]
+  ios hid hinge [close | halfopen | open | <degrees>] [options]
   ios hid muteswitch (ring | silent) [options]
   ios hid orientation (portrait | landscapeleft | portraitupsidedown | landscaperight) [--unstick] [options]
   ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> --password=<p12password> [options]
@@ -313,9 +313,11 @@ The commands work as following:
                                                                   Presses a button and lets it go after --hold milliseconds, or after the time
                                                                   the device hub holds that button for. Pressing home twice opens the app switcher.
 
-    ios hid hinge (close | halfopen | open | <degrees>) [options]
+    ios hid hinge [close | halfopen | open | <degrees>] [options]
                                                                   Folds a foldable such as the iPhone Duo: close (0), halfopen (130), open (180),
                                                                   or any angle in degrees from 0 to 180. Needs iOS 27+ and a mounted developer disk image.
+                                                                  With no angle, prints the angle the hinge is at: the one last set, or folded to
+                                                                  by hand, whichever came last.
 
     ios hid muteswitch (ring | silent) [options]                  Moves the ring/silent switch, on iPhones that have one instead of an Action
                                                                   button, and holds it there until CTRL+C. The physical switch decides again after.
@@ -324,8 +326,7 @@ The commands work as following:
                                                                   Turns the device as if it were held that way: landscapeleft has the front camera
                                                                   on the left. The display follows when the app in front supports it.
                                                                   After a restart a foldable ignores this until --unstick is given once,
-                                                                  which also moves the hinge to open flat or closed, whichever the
-                                                                  display in use goes with.
+                                                                  which sets the hinge to the angle it is at.
 
     ios httpproxy <host> <port> [<user>] [<pass>] --p12file=<orgid> [--password=<p12password>]
                                                                   Set global http proxy on supervised device.
