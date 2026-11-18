@@ -213,10 +213,15 @@ func TestUnstickOrientationSaysWhichStepFailed(t *testing.T) {
 
 func TestHingeAngle(t *testing.T) {
 	c, _ := openOrientationControls(true, true)
-	c.readHingeAngle = func() (float64, error) { return 89.44, nil }
+	c.readHingeAngle = func() (float64, error) { return 120.5, nil }
 	degrees, err := c.HingeAngle()
 	require.NoError(t, err)
-	assert.Equal(t, 89.44, degrees)
+	assert.Equal(t, 120.5, degrees)
+
+	c.readHingeAngle = func() (float64, error) { return 0.05, nil }
+	degrees, err = c.HingeAngle()
+	require.NoError(t, err)
+	assert.Equal(t, HingeOpenFlat, degrees, "the read lags a fold by hand; the inner display is in use")
 
 	broken := errors.New("no hinge updates")
 	c.readHingeAngle = func() (float64, error) { return 0, broken }
@@ -225,7 +230,7 @@ func TestHingeAngle(t *testing.T) {
 }
 
 func TestHingeAngleIsWithinTheHingesRange(t *testing.T) {
-	c, _ := openOrientationControls(true, true)
+	c, _ := openOrientationControls(true, false)
 	c.readHingeAngle = func() (float64, error) { return -0.06, nil }
 	degrees, err := c.HingeAngle()
 	require.NoError(t, err)
@@ -322,9 +327,31 @@ func openWhileSetClosed() map[string]interface{} {
 	return info
 }
 
-// The angle read is the newest sample, so it is the one the hinge was set to
-// only when it fits the display in use: a device held closed by hand reads
-// about 0 degrees whatever the hinge was set to.
+// The angle read can lag a fold by hand, while the displays follow whichever
+// came last, so it is kept only when it fits the display in use.
+func TestHingeAngleInUse(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		displays map[string]interface{}
+		read     float64
+		want     float64
+		fits     bool
+	}{
+		{"inner display, half open", duoDisplays(true), 130, 130, true},
+		{"inner display, read closed", duoDisplays(true), 0.05, HingeOpenFlat, false},
+		{"inner display, at the cover's limit", duoDisplays(true), 90, HingeOpenFlat, false},
+		{"cover display, closed", duoDisplays(false), 0.05, 0.05, true},
+		{"cover display, below closed", duoDisplays(false), -0.06, HingeClosed, true},
+		{"cover display, folded to 45", duoDisplays(false), 45, 45, true},
+		{"cover display, read open", duoDisplays(false), 180, HingeClosed, false},
+		{"open while set closed", openWhileSetClosed(), 0, 0, true},
+	} {
+		degrees, fits := HingeAngleInUse(tc.read, tc.displays)
+		assert.Equal(t, tc.want, degrees, tc.name)
+		assert.Equal(t, tc.fits, fits, tc.name)
+	}
+}
+
 func TestUnstickOrientationKeepsAnAngleThatFitsTheDisplayInUse(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -333,13 +360,8 @@ func TestUnstickOrientationKeepsAnAngleThatFitsTheDisplayInUse(t *testing.T) {
 		want     float64
 	}{
 		{"inner display, half open", duoDisplays(true), 130, 130},
-		{"inner display, read held closed", duoDisplays(true), 0.05, HingeOpenFlat},
-		{"inner display, at the cover's limit", duoDisplays(true), 90, HingeOpenFlat},
-		{"cover display, closed", duoDisplays(false), 0.05, 0.05},
-		{"cover display, read below closed", duoDisplays(false), -0.06, HingeClosed},
-		{"cover display, folded to 45", duoDisplays(false), 45, 45},
-		{"cover display, closed by hand after half open", duoDisplays(false), 150, HingeClosed},
-		{"open while set closed", openWhileSetClosed(), 0, 0},
+		{"inner display, read closed", duoDisplays(true), 0.05, HingeOpenFlat},
+		{"cover display, read open", duoDisplays(false), 180, HingeClosed},
 	} {
 		c, f := openOrientationControls(true, true)
 		displays, read := tc.displays, tc.read

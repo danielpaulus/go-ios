@@ -46,10 +46,11 @@ func (c *Controls) SetHingeAngle(degrees float64) error {
 	return nil
 }
 
-// HingeAngle reads the angle the hinge is at, in degrees from 0 (closed) to
+// HingeAngle reads the angle the device goes by, in degrees from 0 (closed) to
 // 180 (open flat): the angle SetHingeAngle last set, or the device was folded
-// to by hand, whichever came last. A device that does not fold gets
-// ErrNotFoldable.
+// to by hand, whichever came last. It is the angle read, checked against the
+// display in use, as the angle read can lag a fold by hand (see
+// HingeAngleInUse). A device that does not fold gets ErrNotFoldable.
 func (c *Controls) HingeAngle() (float64, error) {
 	if !c.foldable {
 		return 0, fmt.Errorf("HingeAngle: %w", ErrNotFoldable)
@@ -60,11 +61,17 @@ func (c *Controls) HingeAngle() (float64, error) {
 	if closed {
 		return 0, fmt.Errorf("HingeAngle: controls are closed")
 	}
-	degrees, err := c.readHingeAngle()
+	read, err := c.readHingeAngle()
 	if err != nil {
 		return 0, fmt.Errorf("HingeAngle: %w", err)
 	}
-	return clampHingeAngle(degrees), nil
+	displays, err := c.readDisplays()
+	if err != nil {
+		// Without the displays the angle read is all there is.
+		return clampHingeAngle(read), nil
+	}
+	degrees, _ := HingeAngleInUse(read, displays)
+	return degrees, nil
 }
 
 // clampHingeAngle keeps an angle read within 0 to 180 degrees: a closed iPhone

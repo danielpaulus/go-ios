@@ -316,8 +316,8 @@ The commands work as following:
     ios hid hinge [close | halfopen | open | <degrees>] [options]
                                                                   Folds a foldable such as the iPhone Duo: close (0), halfopen (130), open (180),
                                                                   or any angle in degrees from 0 to 180. Needs iOS 27+ and a mounted developer disk image.
-                                                                  With no angle, prints the angle the hinge is at: the one last set, or folded to
-                                                                  by hand, whichever came last.
+                                                                  With no angle, prints the angle the device goes by: the one last set, or folded
+                                                                  to by hand, whichever came last.
 
     ios hid muteswitch (ring | silent) [options]                  Moves the ring/silent switch, on iPhones that have one instead of an Action
                                                                   button, and holds it there until CTRL+C. The physical switch decides again after.

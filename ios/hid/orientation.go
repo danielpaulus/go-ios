@@ -126,16 +126,11 @@ func (c *Controls) SetOrientation(o Orientation) error {
 // so call it once after the device restarts, before turning it. It takes about
 // a second, mostly to connect to the universal HID service.
 //
-// It sets the hinge to the angle it reads, so the hinge stays where it is,
-// when that angle fits the display in use. The displays follow whichever came
-// last, the hinge being set or the device being folded by hand, but the angle
-// read does not always: closed by hand after the hinge was set open, it can
-// read the angle set while the cover display is in use, and closed by hand
-// and then set open, it can read about 0 degrees while the inner display is
-// in use. So when the inner display is in use and the read says 90 degrees or
-// less, or the cover display is in use and it says 130 or more, or the angle
-// cannot be read, it sets the hinge to the end of its range the display in use
-// goes with: open flat for the larger, inner display, closed for the cover
+// It sets the hinge to the angle the device goes by (see HingeAngleInUse), so
+// the hinge and the display in use stay as they are. That is the angle read,
+// unless it does not fit the display in use, as after a fold by hand, or
+// cannot be read: then it is the end of the range the display in use goes
+// with, open flat for the larger, inner display and closed for the cover
 // display. The display in use stays then, but a hinge in between, such as half
 // open, does not.
 //
@@ -181,9 +176,33 @@ const (
 	innerDisplayMinAngle = 130.0
 )
 
-// unstickAngle is the angle to set the hinge to while unsticking: the one it
-// reads, if that fits the display in use, or else the end of its range that
-// display goes with.
+// HingeAngleInUse is the hinge angle the device goes by, in degrees from 0
+// (closed) to 180 (open flat), from the angle read (deviceinfo.GetHingeAngle)
+// and the device's display info (deviceinfo.GetDisplayInfo).
+//
+// The displays follow whichever came last, the hinge being set or the device
+// being folded by hand, but the angle read can lag a fold by hand: closed by
+// hand after the hinge was set open, it can still read the angle set while
+// the cover display is in use. So the angle read is kept only when it fits the
+// display in use: more than 90 degrees for the inner display, less than 130
+// for the cover. Otherwise it is the end of the range that display goes with:
+// 180 for the inner display, 0 for the cover. fits reports whether it is the
+// angle read.
+func HingeAngleInUse(read float64, displays map[string]interface{}) (degrees float64, fits bool) {
+	read = clampHingeAngle(read)
+	inner := innerDisplayInUse(displays)
+	if inner && read > coverDisplayMaxAngle || !inner && read < innerDisplayMinAngle {
+		return read, true
+	}
+	if inner {
+		return HingeOpenFlat, false
+	}
+	return HingeClosed, false
+}
+
+// unstickAngle is the angle to set the hinge to while unsticking, so it stays
+// as the device goes by it: the one in use (see HingeAngleInUse), or the end of
+// the range the display in use goes with when the angle cannot be read.
 func (c *Controls) unstickAngle() (float64, error) {
 	c.mutex.Lock()
 	closed := c.closed
@@ -191,29 +210,26 @@ func (c *Controls) unstickAngle() (float64, error) {
 	if closed {
 		return 0, fmt.Errorf("controls are closed")
 	}
-	degrees, readErr := c.readHingeAngle()
-	degrees = clampHingeAngle(degrees)
+	read, readErr := c.readHingeAngle()
 	displays, displaysErr := c.readDisplays()
-	if displaysErr != nil {
-		if readErr != nil {
-			return 0, fmt.Errorf("read the hinge angle: %w; read displays: %w", readErr, displaysErr)
+	switch {
+	case readErr != nil && displaysErr != nil:
+		return 0, fmt.Errorf("read the hinge angle: %w; read displays: %w", readErr, displaysErr)
+	case displaysErr != nil:
+		return clampHingeAngle(read), nil
+	case readErr != nil:
+		end := HingeClosed
+		if innerDisplayInUse(displays) {
+			end = HingeOpenFlat
 		}
-		return degrees, nil
-	}
-	inner := innerDisplayInUse(displays)
-	if readErr == nil && (inner && degrees > coverDisplayMaxAngle || !inner && degrees < innerDisplayMinAngle) {
-		return degrees, nil
-	}
-	end := HingeClosed
-	if inner {
-		end = HingeOpenFlat
-	}
-	if readErr != nil {
 		slog.Warn("cannot read the hinge angle; setting it to the end the display in use goes with", "degrees", end, "error", readErr)
-	} else {
-		slog.Info("the hinge angle read does not fit the display in use; setting it to the end that display goes with", "read", degrees, "degrees", end)
+		return end, nil
 	}
-	return end, nil
+	degrees, fits := HingeAngleInUse(read, displays)
+	if !fits {
+		slog.Info("the hinge angle read does not fit the display in use; setting it to the end that display goes with", "read", read, "degrees", degrees)
+	}
+	return degrees, nil
 }
 
 // unstickOrientation sends the virtualization service an empty report, then

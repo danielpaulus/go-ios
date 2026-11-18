@@ -50,9 +50,13 @@ func (c Connection) GetDisplayInfo() (map[string]interface{}, error) {
 // hingeAngleTimeout is how long GetHingeAngle waits for the hinge to report.
 const hingeAngleTimeout = 5 * time.Second
 
-// GetHingeAngle reads the angle a foldable's hinge is at, in degrees from 0
-// (closed) to 180 (open flat). It is the angle the device goes by: the one the
-// hinge was last set to, or folded to by hand, whichever came last.
+// GetHingeAngle reads a foldable's hinge angle, in degrees from 0 (closed) to
+// 180 (open flat): the newest sample the device has. That is normally the
+// angle the hinge was last set to, or folded to by hand, whichever came last,
+// which the displays follow. But it can lag a fold by hand: closed by hand
+// after the hinge was set open, an iPhone Duo kept reading the angle set while
+// its cover display was in use. hid.HingeAngleInUse checks it against the
+// display in use. A closed iPhone Duo reads a little below 0.
 //
 // It subscribes to the hinge updates the device hub follows, and the first is
 // the angle now. A device that sends none within 5 seconds, such as one
