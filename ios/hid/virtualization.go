@@ -64,7 +64,13 @@ func (c *Controls) HingeAngle() (float64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("HingeAngle: %w", err)
 	}
-	return degrees, nil
+	return clampHingeAngle(degrees), nil
+}
+
+// clampHingeAngle keeps an angle read within 0 to 180 degrees: a closed iPhone
+// Duo reads a little below 0.
+func clampHingeAngle(degrees float64) float64 {
+	return min(max(degrees, HingeClosed), HingeOpenFlat)
 }
 
 // buildVirtualizationPayload sets one virtualization control to a value: a
