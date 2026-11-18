@@ -56,8 +56,15 @@ const hingeAngleTimeout = 5 * time.Second
 //
 // It subscribes to the hinge updates the device hub follows, and the first is
 // the angle now. A device that sends none within 5 seconds, such as one
-// without a hinge, gets an error, and the connection is closed.
-func (c Connection) GetHingeAngle() (float64, error) {
+// without a hinge, gets an error. It uses a connection of its own, as the
+// subscription cannot be ended.
+func GetHingeAngle(device ios.DeviceEntry) (float64, error) {
+	c, err := NewDeviceInfo(device)
+	if err != nil {
+		return 0, fmt.Errorf("GetHingeAngle: %w", err)
+	}
+	defer c.Close()
+
 	sideChannel := uuid.New()
 	request := coredevice.BuildRequestWithAction(c.deviceId, "com.apple.coredevice.feature.monitormotion",
 		"com.apple.coredevice.action.streamhingeangle", map[string]interface{}{
@@ -107,7 +114,6 @@ func (c Connection) GetHingeAngle() (float64, error) {
 		}
 		return r.degrees, nil
 	case <-time.After(hingeAngleTimeout):
-		c.conn.Close()
 		return 0, fmt.Errorf("GetHingeAngle: the device did not report its hinge within %s", hingeAngleTimeout)
 	}
 }

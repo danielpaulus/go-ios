@@ -92,7 +92,7 @@ func NewControls(device ios.DeviceEntry) (*Controls, error) {
 			return readDisplayInfo(device)
 		},
 		readHingeAngle: func() (float64, error) {
-			return readHingeAngle(device)
+			return deviceinfo.GetHingeAngle(device)
 		},
 	}, nil
 }
@@ -146,15 +146,6 @@ func readDisplayInfo(device ios.DeviceEntry) (map[string]interface{}, error) {
 	}
 	defer info.Close()
 	return info.GetDisplayInfo()
-}
-
-func readHingeAngle(device ios.DeviceEntry) (float64, error) {
-	info, err := deviceinfo.NewDeviceInfo(device)
-	if err != nil {
-		return 0, err
-	}
-	defer info.Close()
-	return info.GetHingeAngle()
 }
 
 func countBuiltInDisplays(info map[string]interface{}) int {
