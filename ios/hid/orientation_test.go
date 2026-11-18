@@ -221,7 +221,7 @@ func TestHingeAngle(t *testing.T) {
 	c.readHingeAngle = func() (float64, error) { return 0.05, nil }
 	degrees, err = c.HingeAngle()
 	require.NoError(t, err)
-	assert.Equal(t, HingeOpenFlat, degrees, "the read lags a fold by hand; the inner display is in use")
+	assert.Equal(t, HingeOpenFlat, degrees, "set open right after a fold by hand, the read is still the hand's; the inner display is in use")
 
 	broken := errors.New("no hinge updates")
 	c.readHingeAngle = func() (float64, error) { return 0, broken }
@@ -327,8 +327,9 @@ func openWhileSetClosed() map[string]interface{} {
 	return info
 }
 
-// The angle read can lag a fold by hand, while the displays follow whichever
-// came last, so it is kept only when it fits the display in use.
+// Right after a fold by hand the angle read can still be the hand's while the
+// displays follow the hinge being set, so it is kept only when it fits the
+// display in use.
 func TestHingeAngleInUse(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

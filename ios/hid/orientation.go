@@ -128,8 +128,8 @@ func (c *Controls) SetOrientation(o Orientation) error {
 //
 // It sets the hinge to the angle the device goes by (see HingeAngleInUse), so
 // the hinge and the display in use stay as they are. That is the angle read,
-// unless it does not fit the display in use, as after a fold by hand, or
-// cannot be read: then it is the end of the range the display in use goes
+// unless it does not fit the display in use, as when the hinge is set right
+// after a fold by hand, or cannot be read: then it is the end of the range the display in use goes
 // with, open flat for the larger, inner display and closed for the cover
 // display. The display in use stays then, but a hinge in between, such as half
 // open, does not.
@@ -181,10 +181,11 @@ const (
 // and the device's display info (deviceinfo.GetDisplayInfo).
 //
 // The displays follow whichever came last, the hinge being set or the device
-// being folded by hand, but the angle read can lag a fold by hand: closed by
-// hand after the hinge was set open, it can still read the angle set while
-// the cover display is in use. So the angle read is kept only when it fits the
-// display in use: more than 90 degrees for the inner display, less than 130
+// being folded by hand. The angle read normally does too, but after a fold by
+// hand the hinge sensor keeps sending small new samples while it settles, and
+// those win over the hinge being set meanwhile: set open after it was closed
+// by hand, an iPhone Duo kept reading about 0 degrees while its inner display
+// was in use. So the angle read is kept only when it fits the display in use: more than 90 degrees for the inner display, less than 130
 // for the cover. Otherwise it is the end of the range that display goes with:
 // 180 for the inner display, 0 for the cover. fits reports whether it is the
 // angle read.

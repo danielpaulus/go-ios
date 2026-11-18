@@ -49,7 +49,8 @@ func (c *Controls) SetHingeAngle(degrees float64) error {
 // HingeAngle reads the angle the device goes by, in degrees from 0 (closed) to
 // 180 (open flat): the angle SetHingeAngle last set, or the device was folded
 // to by hand, whichever came last. It is the angle read, checked against the
-// display in use, as the angle read can lag a fold by hand (see
+// display in use, as right after a fold by hand the angle read can still be
+// the hand's while the displays follow the hinge being set (see
 // HingeAngleInUse). A device that does not fold gets ErrNotFoldable.
 func (c *Controls) HingeAngle() (float64, error) {
 	if !c.foldable {
