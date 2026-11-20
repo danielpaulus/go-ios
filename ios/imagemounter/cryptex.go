@@ -531,10 +531,10 @@ func installCryptex(conn *xpc.Connection, imagePath string, identity buildIdenti
 	if err != nil {
 		return RemoteCryptex{}, fmt.Errorf("installCryptex: failed to send install request: %w", err)
 	}
+	// Each payload goes out right away. The device's answer to a stream's FileOpen
+	// message is no go-ahead: it may come only after the payload (cryptexd on
+	// iOS 27.0.1 sent none before it), and waiting for it then never ends.
 	for i, u := range uploads {
-		if err := streams[i].WaitAccepted(); err != nil {
-			return RemoteCryptex{}, fmt.Errorf("installCryptex: device did not accept %s: %w", u.arg, err)
-		}
 		if _, err := io.Copy(streams[i], sources[i]); err != nil {
 			return RemoteCryptex{}, fmt.Errorf("installCryptex: failed to send %s: %w", u.arg, err)
 		}

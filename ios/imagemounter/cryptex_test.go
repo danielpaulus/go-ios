@@ -12,6 +12,7 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/http"
@@ -230,6 +231,10 @@ type fakeCryptexd struct {
 	// window is the flow-control window the fake announces and keeps topping
 	// up, small enough that uploads have to wait for WINDOW_UPDATE frames.
 	window uint32
+	// answerAfterPayload answers a file stream's FileOpen message only once its
+	// payload arrived, as pymobiledevice3 describes cryptexd, instead of as soon
+	// as the install request references the stream.
+	answerAfterPayload bool
 
 	mu        sync.Mutex
 	requests  []map[string]interface{}
@@ -332,6 +337,11 @@ func (f *fakeCryptexd) serve(c net.Conn) error {
 					s.opened, s.transferId, s.buf = true, msg.Id, s.buf[24:]
 					transfers[msg.Id] = frame.StreamID
 				}
+				if f.answerAfterPayload && s.opened && s.ended && install != nil {
+					if err := reply(frame.StreamID, xpc.Message{Flags: xpc.AlwaysSetFlag | xpc.FileOpenReplyFlag, Id: s.transferId}); err != nil {
+						return err
+					}
+				}
 				break
 			}
 			// XPC messages on the request (1) and reply (3) streams
@@ -373,7 +383,8 @@ func (f *fakeCryptexd) serve(c net.Conn) error {
 					f.mu.Unlock()
 					resp = map[string]interface{}{"argv": map[string]interface{}{}}
 				case "install":
-					// accept the file transfers, the reply follows once all of them arrived
+					// accept the file transfers (with answerAfterPayload, each one once its
+					// payload arrived), the reply follows once all of them arrived
 					install, installId = argv, msg.Id
 					for _, key := range []string{"image", "trustcache", "im4m", "info", "volumehash"} {
 						ft, ok := argv[key].(xpc.FileTransfer)
@@ -383,6 +394,9 @@ func (f *fakeCryptexd) serve(c net.Conn) error {
 						stream, ok := transfers[ft.MsgId]
 						if !ok {
 							return fmt.Errorf("install: no stream was opened for %s", key)
+						}
+						if f.answerAfterPayload {
+							continue
 						}
 						if err := reply(stream, xpc.Message{Flags: xpc.AlwaysSetFlag | xpc.FileOpenReplyFlag, Id: ft.MsgId}); err != nil {
 							return err
@@ -506,4 +520,32 @@ func TestCryptexMountListUnmount(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, images)
 	assert.Error(t, mounter.UnmountImage(), "nothing left to uninstall")
+}
+
+func TestCryptexMountSendsTheFilesWithoutWaitingForTheDevice(t *testing.T) {
+	// The fake answers each file stream's FileOpen message only after the payload, so a
+	// client that waits for that answer before it sends the payload waits forever.
+	img := writeTestImage(t)
+	fake := &fakeCryptexd{t: t, window: 1000, answerAfterPayload: true}
+	im4m := []byte("ticket")
+	mounter := &CryptexDeveloperDiskImageMounter{
+		connect: fake.connect,
+		sign: func(map[string]interface{}) ([]byte, error) {
+			return im4m, nil
+		},
+	}
+
+	mounted := make(chan error, 1)
+	go func() { mounted <- mounter.MountImage(img.dir) }()
+	select {
+	case err := <-mounted:
+		require.NoError(t, err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("MountImage still waits for the device")
+	}
+
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	assert.Equal(t, img.files[cryptexDmgKey], fake.uploads["image"])
+	assert.Equal(t, im4m, fake.uploads["im4m"])
 }
