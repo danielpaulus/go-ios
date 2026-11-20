@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -77,7 +78,31 @@ func (p PairRecordManager) StoreDeviceInfo(d device) error {
 }
 
 func readSelfIdentity(p string) (selfIdentity, error) {
-	content, err := os.ReadFile(p)
+	pathInfo, err := os.Lstat(p)
+	if err != nil {
+		return selfIdentity{}, fmt.Errorf("readSelfIdentity: could not inspect file: %w", err)
+	}
+	if pathInfo.Mode()&os.ModeSymlink != 0 {
+		return selfIdentity{}, fmt.Errorf("readSelfIdentity: refusing symbolic link '%s'", p)
+	}
+	if !pathInfo.Mode().IsRegular() {
+		return selfIdentity{}, fmt.Errorf("readSelfIdentity: '%s' is not a regular file", p)
+	}
+
+	f, err := os.Open(p)
+	if err != nil {
+		return selfIdentity{}, fmt.Errorf("readSelfIdentity: could not open file: %w", err)
+	}
+	defer f.Close()
+	openedInfo, err := f.Stat()
+	if err != nil {
+		return selfIdentity{}, fmt.Errorf("readSelfIdentity: could not stat opened file: %w", err)
+	}
+	if !os.SameFile(pathInfo, openedInfo) {
+		return selfIdentity{}, fmt.Errorf("readSelfIdentity: file changed while opening '%s'", p)
+	}
+
+	content, err := io.ReadAll(f)
 	if err != nil {
 		return selfIdentity{}, fmt.Errorf("readSelfIdentity: could not read file: %w", err)
 	}
@@ -91,18 +116,20 @@ func readSelfIdentity(p string) (selfIdentity, error) {
 }
 
 func getOrCreateSelfIdentity(p string) (selfIdentity, error) {
-	info, err := os.Stat(p)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return createSelfIdentity(p)
-		} else {
-			return selfIdentity{}, fmt.Errorf("getOrCreateSelfIdentity: failed to get file info: %w", err)
-		}
+	si, err := readSelfIdentity(p)
+	if err == nil {
+		return si, nil
 	}
-	if info.IsDir() {
-		return selfIdentity{}, fmt.Errorf("getOrCreateSelfIdentity: '%s' is a directory", p)
+	if !errors.Is(err, os.ErrNotExist) {
+		return selfIdentity{}, err
 	}
-	return readSelfIdentity(p)
+	si, err = createSelfIdentity(p)
+	if errors.Is(err, os.ErrExist) {
+		// Another creator won the race. Read its file through the same symlink and
+		// file-identity checks rather than replacing it.
+		return readSelfIdentity(p)
+	}
+	return si, err
 }
 
 func createSelfIdentity(p string) (selfIdentity, error) {
@@ -121,7 +148,7 @@ func createSelfIdentity(p string) (selfIdentity, error) {
 		PublicKey:  pub,
 	}
 
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 	if err != nil {
 		return selfIdentity{}, fmt.Errorf("createSelfIdentity: failed to open file for writing: %w", err)
 	}
