@@ -161,14 +161,21 @@ func writePacket(f *os.File, iph IOSPacketHeader, packet []byte) error {
 func getPacket(buf []byte) (iph IOSPacketHeader, packet []byte, err error) {
 	iph = IOSPacketHeader{}
 	preader := bytes.NewReader(buf)
-	struc.Unpack(preader, &iph)
+	if err := struc.Unpack(preader, &iph); err != nil {
+		return iph, nil, fmt.Errorf("pcap: invalid packet header: %w", err)
+	}
+	if iph.HdrSize < PacketHeaderSize {
+		return iph, nil, fmt.Errorf("pcap: header size %d is smaller than fixed header %d", iph.HdrSize, PacketHeaderSize)
+	}
+	if uint64(iph.HdrSize) > uint64(len(buf)) {
+		return iph, nil, fmt.Errorf("pcap: header size %d exceeds packet buffer %d", iph.HdrSize, len(buf))
+	}
 
 	// support ios 15 beta4
 	if iph.HdrSize > PacketHeaderSize {
-		buf := make([]byte, iph.HdrSize-PacketHeaderSize)
-		_, err = io.ReadFull(preader, buf)
-		if err != nil {
-			return iph, []byte{}, err
+		extensionSize := int64(iph.HdrSize - PacketHeaderSize)
+		if _, err := preader.Seek(extensionSize, io.SeekCurrent); err != nil {
+			return iph, nil, fmt.Errorf("pcap: failed to skip extended header: %w", err)
 		}
 	}
 
