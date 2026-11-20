@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -54,13 +55,9 @@ func TestUsesProxy(t *testing.T) {
 	}
 	log.Printf("Downloaded to %s", path)
 	wg.Wait()
-	d, _ := ios.ListDevices()
-	if len(d.DeviceList) == 0 {
-		t.Skip("No device attached")
-		return
-	}
+	device := e2eDevice(t)
 	wg.Add(1)
-	m, err := imagemounter.NewPersonalizedDeveloperDiskImageMounter(d.DeviceList[0], ios.IOS17())
+	m, err := imagemounter.NewPersonalizedDeveloperDiskImageMounter(device, ios.IOS17())
 	if !assert.Nil(t, err) {
 		t.Fail()
 	}
@@ -88,12 +85,8 @@ func TestWorksWithoutProxy(t *testing.T) {
 	}
 	log.Printf("Downloaded to %s", path)
 
-	d, _ := ios.ListDevices()
-	if len(d.DeviceList) == 0 {
-		t.Skip("No device attached")
-		return
-	}
-	m, err := imagemounter.NewPersonalizedDeveloperDiskImageMounter(d.DeviceList[0], ios.IOS17())
+	device := e2eDevice(t)
+	m, err := imagemounter.NewPersonalizedDeveloperDiskImageMounter(device, ios.IOS17())
 	if !assert.Nil(t, err) {
 		t.Fail()
 	}
@@ -103,4 +96,21 @@ func TestWorksWithoutProxy(t *testing.T) {
 		t.Fail()
 	}
 
+}
+
+// e2eDevice returns the first device listed in GO_IOS_E2E_DEVICES and skips the
+// test when it is unset, so an image is never mounted on a phone that just
+// happens to be plugged in.
+func e2eDevice(t *testing.T) ios.DeviceEntry {
+	t.Helper()
+	udid, _, _ := strings.Cut(os.Getenv("GO_IOS_E2E_DEVICES"), ",")
+	udid = strings.TrimSpace(udid)
+	if udid == "" {
+		t.Skip("GO_IOS_E2E_DEVICES not set")
+	}
+	device, err := ios.GetDevice(udid)
+	if err != nil {
+		t.Fatalf("GetDevice(%s): %v", udid, err)
+	}
+	return device
 }
