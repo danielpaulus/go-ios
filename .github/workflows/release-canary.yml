@@ -67,9 +67,46 @@ jobs:
           retention-days: 1
           overwrite: true
 
+  # Mirrors release.yml's build_ncm_linux job: go-ncm (ncm/cmd/go-ncm) needs
+  # cgo + libusb, so it is built natively on amd64 and arm64 Linux runners.
+  build_ncm_linux:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install libusb
+        run: sudo apt-get update && sudo apt-get install -y libusb-1.0-0-dev
+
+      - name: Build go-ncm
+        run: |
+          set -euo pipefail
+          CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=0.0.${{ github.run_number }}" -o go-ncm-${{ matrix.arch }} ./ncm/cmd/go-ncm
+          ./go-ncm-${{ matrix.arch }} --version | grep -qx "0.0.${{ github.run_number }}"
+
+      - name: upload the go-ncm build
+        uses: actions/upload-artifact@v7
+        with:
+          name: ncm-build-${{ matrix.arch }}
+          path: go-ncm-${{ matrix.arch }}
+          retention-days: 1
+          overwrite: true
+
   build_on_linux_and_publish:
     runs-on: ubuntu-latest
-    needs: build_on_mac
+    needs: [build_on_mac, build_ncm_linux]
     permissions:
       # id-token: write lets the job mint an OIDC token for npm trusted
       # publishing. No contents: write here — canary does not cut a GitHub release.
@@ -105,12 +142,32 @@ jobs:
         run: |
           unzip go-ios-windows.zip
 
+      - name: Download go-ncm builds from previous jobs
+        uses: actions/download-artifact@v8
+        with:
+          pattern: ncm-build-*
+          path: ./ncm-bin
+          merge-multiple: true
+
       - name: Build linux
         run: |
           sed -i 's/version \= \"local-build\"/version = \"0.0.${{ github.run_number }}\"/' main.go
           mkdir bin
           GOARCH=arm64 go build -ldflags="-s -w" -o bin/ios-arm64
           GOARCH=amd64 go build -ldflags="-s -w" -o bin/ios-amd64
+
+      # Canary cuts no GitHub release, but package (and smoke-test) the go-ncm
+      # release asset exactly like release.yml does to prove that path works.
+      - name: Package go-ncm release asset
+        run: |
+          set -euo pipefail
+          # download-artifact strips the executable bit, restore it before zipping
+          chmod +x ncm-bin/go-ncm-arm64 ncm-bin/go-ncm-amd64
+          zip -j go-ncm-linux.zip ncm-bin/go-ncm-arm64 ncm-bin/go-ncm-amd64
+          # go-ncm dynamically links libusb, install the runtime lib to run it
+          sudo apt-get update && sudo apt-get install -y libusb-1.0-0
+          ./ncm-bin/go-ncm-amd64 --version | grep -qx "0.0.${{ github.run_number }}"
+          unzip -l go-ncm-linux.zip
 
       # OIDC trusted publishing needs Node >= 22.14.0 and npm >= 11.5.1.
       - name: Set up Node

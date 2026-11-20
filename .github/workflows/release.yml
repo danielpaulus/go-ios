@@ -119,9 +119,48 @@ jobs:
           retention-days: 1
           overwrite: true
 
+  # go-ncm (the standalone CDC-NCM driver, see ncm/cmd/go-ncm) needs cgo +
+  # libusb, so instead of cross-compiling it is built natively on amd64 and
+  # arm64 Linux runners.
+  build_ncm_linux:
+    needs: prepare_version
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install libusb
+        run: sudo apt-get update && sudo apt-get install -y libusb-1.0-0-dev
+
+      - name: Build go-ncm
+        run: |
+          set -euo pipefail
+          CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${{ needs.prepare_version.outputs.version }}" -o go-ncm-${{ matrix.arch }} ./ncm/cmd/go-ncm
+          ./go-ncm-${{ matrix.arch }} --version | grep -qx "${{ needs.prepare_version.outputs.version }}"
+
+      - name: upload the go-ncm build
+        uses: actions/upload-artifact@v7
+        with:
+          name: ncm-build-${{ matrix.arch }}
+          path: go-ncm-${{ matrix.arch }}
+          retention-days: 1
+          overwrite: true
+
   release_and_publish:
     runs-on: ubuntu-latest
-    needs: [prepare_version, build_on_mac]
+    needs: [prepare_version, build_on_mac, build_ncm_linux]
     permissions:
       contents: write
       id-token: write # OIDC token for npm trusted publishing
@@ -152,6 +191,13 @@ jobs:
           name: windows-build
           path: ./win-bin
 
+      - name: Download go-ncm builds from previous jobs
+        uses: actions/download-artifact@v8
+        with:
+          pattern: ncm-build-*
+          path: ./ncm-bin
+          merge-multiple: true
+
       - name: Build linux and package all artifacts
         run: |
           set -euo pipefail
@@ -162,6 +208,9 @@ jobs:
           ( cd mac-bin && unzip -o go-ios-mac.zip && rm go-ios-mac.zip && zip -j ../go-ios-mac.zip ios )
           ( cd win-bin && unzip -o go-ios-windows.zip && zip -j ../go-ios-win.zip ios.exe )
           zip -j go-ios-linux.zip bin/ios-arm64 bin/ios-amd64
+          # download-artifact strips the executable bit, restore it before zipping
+          chmod +x ncm-bin/go-ncm-arm64 ncm-bin/go-ncm-amd64
+          zip -j go-ncm-linux.zip ncm-bin/go-ncm-arm64 ncm-bin/go-ncm-amd64
 
       - name: Update CHANGELOG, commit, and tag
         env:
@@ -200,7 +249,7 @@ jobs:
         run: |
           set -euo pipefail
           gh release create "v${VERSION}" \
-            go-ios-linux.zip go-ios-mac.zip go-ios-win.zip \
+            go-ios-linux.zip go-ios-mac.zip go-ios-win.zip go-ncm-linux.zip \
             --title "v${VERSION}" \
             --notes-file /tmp/notes.md
 

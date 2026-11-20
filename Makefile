@@ -21,7 +21,7 @@ build:
 	@$(GOEXEC) work use .
 	@$(GOEXEC) build -o $(GO_IOS_BINARY_NAME) .
 	@$(GOEXEC) work use ./ncm
-	@CGO_ENABLED=1 $(GOEXEC) build -o $(NCM_BINARY_NAME) ./cmd/cdc-ncm/main.go
+	@CGO_ENABLED=1 $(GOEXEC) build -o $(NCM_BINARY_NAME) ./ncm/cmd/go-ncm
 
 # Run the Go program with sudo
 run: build
