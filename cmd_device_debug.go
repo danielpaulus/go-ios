@@ -103,6 +103,10 @@ func runInstrumentsCommand(ctx commandContext) {
 		streamInstrumentsFPS(ctx.Device, duration)
 	case "network":
 		streamInstrumentsNetwork(ctx.Device, duration)
+	case "processes":
+		filter, err := processSampleFilterFromArgs(ctx.Args)
+		exitIfError("failed parsing process filter", err)
+		streamInstrumentsProcesses(ctx.Device, duration, filter)
 	default:
 		listenAppStateNotifications(ctx.Device)
 	}
@@ -111,7 +115,7 @@ func runInstrumentsCommand(ctx commandContext) {
 // instrumentsSubcommand returns which `ios instruments <subcommand>` was
 // requested, or "" if none matched.
 func instrumentsSubcommand(args docopt.Opts) string {
-	for _, name := range []string{"fps", "network", "notifications"} {
+	for _, name := range []string{"fps", "network", "processes", "notifications"} {
 		if boolArg(args, name) {
 			return name
 		}
@@ -212,6 +216,90 @@ func formatNetworkSample(sample instruments.NetworkSample) string {
 		return builder.String()
 	}
 	return convertToJSONString(networkSampleOutput{Type: sample.Type, Data: sample.Data})
+}
+
+// processSampleFilter selects processes by --pid and/or --process; the zero
+// value matches every process.
+type processSampleFilter struct {
+	pid    uint64
+	hasPid bool
+	name   string
+}
+
+func processSampleFilterFromArgs(args docopt.Opts) (processSampleFilter, error) {
+	var filter processSampleFilter
+	if value, err := args.String("--pid"); err == nil && value != "" {
+		pid, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return processSampleFilter{}, fmt.Errorf("invalid --pid %q: %w", value, err)
+		}
+		filter.pid, filter.hasPid = pid, true
+	}
+	filter.name, _ = args.String("--process")
+	return filter, nil
+}
+
+func (f processSampleFilter) matches(sample instruments.ProcessSample) bool {
+	if f.hasPid && sample.Pid != f.pid {
+		return false
+	}
+	return f.name == "" || sample.Name == f.name
+}
+
+func streamInstrumentsProcesses(device ios.DeviceEntry, duration time.Duration, filter processSampleFilter) {
+	service, err := instruments.NewSysmontapService(device, xcodeDefaultSamplingRate)
+	exitIfError("failed starting sysmontap service", err)
+	defer service.Close()
+
+	streamInstrumentsSamples(filterProcessSamples(service.ReceiveProcessSamples(), filter), duration, formatProcessSample)
+}
+
+// filterProcessSamples flattens per-process snapshots into one sample per
+// matching process. The first snapshot is dropped because the device reports
+// cpuUsage as null in it (there is no previous sample to diff against).
+func filterProcessSamples(snapshots chan instruments.SysmontapProcessSnapshot, filter processSampleFilter) chan instruments.ProcessSample {
+	samples := make(chan instruments.ProcessSample)
+	go func() {
+		defer close(samples)
+
+		first := true
+		for snapshot := range snapshots {
+			if first {
+				first = false
+				continue
+			}
+			for _, process := range snapshot.Processes {
+				if filter.matches(process) {
+					samples <- process
+				}
+			}
+		}
+	}()
+	return samples
+}
+
+// processSampleHumanKeys are the attributes printed with --nojson; JSON output
+// contains every attribute the device reports.
+var processSampleHumanKeys = []string{"cpuUsage", "physFootprint", "memResidentSize", "threadCount"}
+
+func formatProcessSample(sample instruments.ProcessSample) string {
+	if JSONdisabled {
+		var builder strings.Builder
+		fmt.Fprintf(&builder, "pid=%d name=%s", sample.Pid, sample.Name)
+		for _, key := range processSampleHumanKeys {
+			value, ok := sample.Attributes[key]
+			if !ok {
+				continue
+			}
+			if f, isFloat := value.(float64); isFloat {
+				fmt.Fprintf(&builder, " %s=%.2f", key, f)
+				continue
+			}
+			fmt.Fprintf(&builder, " %s=%v", key, value)
+		}
+		return builder.String()
+	}
+	return convertToJSONString(sample.Attributes)
 }
 
 func listenAppStateNotifications(device ios.DeviceEntry) {

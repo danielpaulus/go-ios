@@ -116,8 +116,9 @@ Commands:
   instruments fps                 Stream frames-per-second samples.
   instruments network             Stream network activity samples.
   instruments notifications       Stream app state notifications.
+  instruments processes           Stream per-process CPU and memory samples.
   ip                              Detect device IP from packet capture.
-  kill                            Kill app by bundle ID, PID, or process.
+  kill                            Kill one or more apps by bundle ID, or a process by PID/name.
   lang                            Read or set device language and locale.
   launch                          Launch app by bundle ID.
   list                            List connected devices.
