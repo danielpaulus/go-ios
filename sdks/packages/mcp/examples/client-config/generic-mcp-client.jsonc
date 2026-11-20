@@ -1,0 +1,41 @@
+// Generic MCP client config for the go-ios MCP server.
+//
+// This is DOCS ONLY (.jsonc, with comments). Different MCP clients use slightly
+// different config shapes/filenames, but almost all of them support one of the
+// two transports this server speaks: stdio (spawn a command) or Streamable HTTP
+// (connect to a URL). Copy whichever block your client understands into its own
+// config, stripping comments if the client requires strict JSON.
+//
+// The go-ios MCP server proxies a running go-ios REST daemon (`ios rest ...`) —
+// start that daemon first; the two env vars below point the server at it.
+{
+  "mcpServers": {
+    // ---- Option A: stdio (local) -----------------------------------------
+    // The client launches the server as a subprocess and speaks MCP over its
+    // stdin/stdout. This is the default transport and needs no open port.
+    "go-ios-stdio": {
+      "command": "npx",
+      "args": ["-y", "@go-ios/mcp"],
+      "env": {
+        "GO_IOS_BASE_URL": "http://localhost:8080",
+        "GO_IOS_API_KEY": "your-token"
+      }
+    },
+
+    // ---- Option B: Streamable HTTP (remote) ------------------------------
+    // Run the server yourself as a long-lived HTTP process:
+    //
+    //   GO_IOS_BASE_URL=http://localhost:8080 \
+    //   GO_IOS_API_KEY=your-token \
+    //   npx -y @go-ios/mcp --http --port 3000
+    //
+    // then point an HTTP-capable MCP client at the /mcp endpoint below. Use this
+    // when the client and the server run on different machines. (Field names for
+    // an HTTP server vary by client — some use "url", some "type": "http"; adapt
+    // to your client's schema.)
+    "go-ios-http": {
+      "type": "http",
+      "url": "http://127.0.0.1:3000/mcp"
+    }
+  }
+}
