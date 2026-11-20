@@ -3,26 +3,57 @@ package instruments
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
-	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
-	"github.com/danielpaulus/go-ios/ios/golog"
 	"image/jpeg"
 	"image/png"
 	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/deviceinfo"
+	dtx "github.com/danielpaulus/go-ios/ios/dtx_codec"
+	"github.com/danielpaulus/go-ios/ios/golog"
+	"github.com/danielpaulus/go-ios/ios/screencapture"
 )
 
 const screenshotServiceName string = "com.apple.instruments.server.services.screenshot"
+const coreScreenshotServiceName = "com.apple.coredevice.screencaptureservice"
 
-type ScreenshotService struct {
-	channel *dtx.Channel
-	conn    *dtx.Connection
+type screenshotCapturer interface {
+	TakeScreenshot(context.Context, screencapture.ScreenshotOptions) ([]byte, error)
+	Close() error
 }
 
+type displayInfoConnection interface {
+	GetDisplayInfo() (map[string]interface{}, error)
+	Close() error
+}
+
+type ScreenshotService struct {
+	channel     *dtx.Channel
+	conn        *dtx.Connection
+	capture     screenshotCapturer
+	displayInfo displayInfoConnection
+}
+
+// NewScreenshotService captures the active built-in display when the device
+// offers CoreDevice screen capture (iOS 27+). Older devices use Instruments.
 func NewScreenshotService(device ios.DeviceEntry) (*ScreenshotService, error) {
+	if device.SupportsRsd() && device.Rsd.GetPort(coreScreenshotServiceName) != 0 {
+		info, err := deviceinfo.NewDeviceInfo(device)
+		if err != nil {
+			return nil, err
+		}
+		capture, err := screencapture.New(device)
+		if err != nil {
+			_ = info.Close()
+			return nil, err
+		}
+		return &ScreenshotService{capture: capture, displayInfo: info}, nil
+	}
 	dtxConn, err := connectInstruments(device)
 	if err != nil {
 		return nil, err
@@ -32,10 +63,25 @@ func NewScreenshotService(device ios.DeviceEntry) (*ScreenshotService, error) {
 }
 
 func (d *ScreenshotService) Close() {
+	if d.capture != nil {
+		_ = d.capture.Close()
+		_ = d.displayInfo.Close()
+		return
+	}
 	d.conn.Close()
 }
 
 func (d *ScreenshotService) TakeScreenshot() ([]byte, error) {
+	if d.capture != nil {
+		// Refresh for every frame so streaming follows folding/unfolding too.
+		info, err := d.displayInfo.GetDisplayInfo()
+		if err != nil {
+			return nil, fmt.Errorf("TakeScreenshot: failed to get display info: %w", err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		return d.capture.TakeScreenshot(ctx, screencapture.ScreenshotOptions{DisplayUniqueID: activeDisplayID(info)})
+	}
 	msg, err := d.channel.MethodCall("takeScreenshot")
 	if err != nil {
 		return nil, fmt.Errorf("TakeScreenshot: %s", err)
@@ -49,6 +95,31 @@ func (d *ScreenshotService) TakeScreenshot() ([]byte, error) {
 	}
 
 	return imageBytes, nil
+}
+
+// activeDisplayID ignores external displays and prefers the primary display if
+// multiple built-in displays are active. With none active (e.g. a locked phone),
+// an empty ID preserves the service's main-display default.
+func activeDisplayID(info map[string]interface{}) string {
+	displays, _ := info["displays"].([]interface{})
+	selected := ""
+	for _, entry := range displays {
+		display, ok := entry.(map[string]interface{})
+		if !ok || display["active"] != true || display["external"] != false {
+			continue
+		}
+		id, _ := display["uniqueId"].(string)
+		if id == "" {
+			continue
+		}
+		if display["primary"] == true {
+			return id
+		}
+		if selected == "" {
+			selected = id
+		}
+	}
+	return selected
 }
 
 // MJPEG server code
