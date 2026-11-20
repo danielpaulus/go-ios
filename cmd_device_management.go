@@ -50,6 +50,8 @@ func runWifiCommand(ctx commandContext) {
 	psw, _ := ctx.Args.String("--password")
 	encType, _ := ctx.Args.String("--enc-type")
 	remove, _ := ctx.Args.Bool("--remove")
+	p12file, _ := ctx.Args.String("--p12file")
+	p12password, _ := ctx.Args.String("--p12password")
 
 	if encType == "" {
 		encType = "WPA"
@@ -58,7 +60,8 @@ func runWifiCommand(ctx commandContext) {
 	if remove {
 		exitIfError("failed removing wifi", mcinstall.RemoveWifi(ctx.Device, ssid))
 	} else {
-		exitIfError("failed preparing wifi", mcinstall.PrepareWifi(ctx.Device, ssid, psw, encType))
+		exitIfError("failed preparing wifi", mcinstall.PrepareWifi(ctx.Device, ssid, psw, encType,
+			p12file, p12password))
 	}
 	fmt.Print(convertToJSONString("ok"))
 }
