@@ -15,6 +15,12 @@ import (
 	"github.com/danielpaulus/go-ios/ios/golog"
 )
 
+// ddiRepo hosts the signed developer disk images for iOS 11.4 - 16.7. It is the
+// same source pymobiledevice3 downloads from and, unlike the older mirror, also
+// carries the last classic images (15.8, 16.7). Versions the repo does not have
+// (pre-11.4 and patch releases like 14.7.1) stay on the older mirror.
+const ddiRepo = "https://raw.githubusercontent.com/doronz88/DeveloperDiskImage/main/DeveloperDiskImages"
+
 var (
 	versionMap = map[string]string{
 		"4.2":             "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/4.2",
@@ -42,49 +48,53 @@ var (
 		"11.1 (15B87)":    "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/11.1%20(15B87)",
 		"11.2 (15C5092b)": "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/11.2%20(15C5092b)",
 		"11.3 (15E5178d)": "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/11.3%20(15E5178d)",
-		"11.4 (15F5037c)": "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/11.4%20(15F5037c)",
-		"12.0 (16A5288q)": "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/12.0%20(16A5288q)",
-		"12.1 (16B5059d)": "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/12.1%20(16B5059d)",
-		"12.2 (16E5191d)": "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/12.2%20(16E5191d)",
-		"12.3 (16F148)":   "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/12.3%20(16F148)",
-		"12.4":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/12.4",
-		"13.0":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/13.0",
-		"13.1":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/13.1",
-		"13.2":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/13.2",
-		"13.3":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/13.3",
-		"13.4":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/13.4",
-		"13.5":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/13.5",
-		"13.7":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/13.7",
-		"14.0":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/14.0",
-		"14.1":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/14.1",
-		"14.2":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/14.2",
-		"14.4":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/14.4",
-		"14.5":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/14.5",
-		"14.6":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/14.6",
-		"14.7":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/14.7",
+		"11.4 (15F5037c)": ddiRepo + "/11.4",
+		"12.0 (16A5288q)": ddiRepo + "/12.0",
+		"12.1 (16B5059d)": ddiRepo + "/12.1",
+		"12.2 (16E5191d)": ddiRepo + "/12.2",
+		"12.3 (16F148)":   ddiRepo + "/12.3",
+		"12.4":            ddiRepo + "/12.4",
+		"13.0":            ddiRepo + "/13.0",
+		"13.1":            ddiRepo + "/13.1",
+		"13.2":            ddiRepo + "/13.2",
+		"13.3":            ddiRepo + "/13.3",
+		"13.4":            ddiRepo + "/13.4",
+		"13.5":            ddiRepo + "/13.5",
+		"13.6":            ddiRepo + "/13.6",
+		"13.7":            ddiRepo + "/13.7",
+		"14.0":            ddiRepo + "/14.0",
+		"14.1":            ddiRepo + "/14.1",
+		"14.2":            ddiRepo + "/14.2",
+		"14.3":            ddiRepo + "/14.3",
+		"14.4":            ddiRepo + "/14.4",
+		"14.5":            ddiRepo + "/14.5",
+		"14.6":            ddiRepo + "/14.6",
+		"14.7":            ddiRepo + "/14.7",
 		"14.7.1":          "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/14.7.1",
-		"14.8":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/14.8",
-		"15.0":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/15.0",
-		"15.1":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/15.1",
-		"15.2":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/15.2",
-		"15.3":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/15.3",
+		"14.8":            ddiRepo + "/14.8",
+		"15.0":            ddiRepo + "/15.0",
+		"15.1":            ddiRepo + "/15.1",
+		"15.2":            ddiRepo + "/15.2",
+		"15.3":            ddiRepo + "/15.3",
 		"15.3.1":          "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/15.3.1",
-		"15.4":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/15.4",
-		"15.5":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/15.5",
-		"15.6":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/15.6",
+		"15.4":            ddiRepo + "/15.4",
+		"15.5":            ddiRepo + "/15.5",
+		"15.6":            ddiRepo + "/15.6",
 		"15.6.1":          "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/15.6.1",
-		"15.7":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/15.7",
-		"16.0":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/16.0",
-		"16.1":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/16.1",
-		"16.2":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/16.2",
-		"16.3":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/16.3",
-		"16.4":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/16.4",
+		"15.7":            ddiRepo + "/15.7",
+		"15.8":            ddiRepo + "/15.8",
+		"16.0":            ddiRepo + "/16.0",
+		"16.1":            ddiRepo + "/16.1",
+		"16.2":            ddiRepo + "/16.2",
+		"16.3":            ddiRepo + "/16.3",
+		"16.4":            ddiRepo + "/16.4",
 		"16.4.1":          "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/16.4.1",
-		"16.5":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/16.5",
-		"16.6":            "https://github.com/mspvirajpatel/Xcode_Developer_Disk_Images/blob/master/Developer%20Disk%20Image/16.6",
+		"16.5":            ddiRepo + "/16.5",
+		"16.6":            ddiRepo + "/16.6",
+		"16.7":            ddiRepo + "/16.7",
 	}
 
-	availableVersions = []string{"4.2", "4.3", "5.0", "5.1", "6.0", "6.1", "7.0", "7.1", "8.0", "8.1", "8.2", "8.3", "8.4 (12H141)", "9.0 (13A340)", "9.1 (13B5110e)", "9.2 (13C75)", "9.3 (13E230)", "10.0 (14A345)", "10.1 (14B72)", "10.2 (14C5062c)", "10.3 (14E269)", "11.0 (15A372)", "11.1 (15B87)", "11.2 (15C5092b)", "11.3 (15E5178d)", "11.4 (15F5037c)", "12.0 (16A5288q)", "12.1 (16B5059d)", "12.2 (16E5191d)", "12.3 (16F148)", "12.4", "13.0", "13.1", "13.2", "13.3", "13.4", "13.5", "13.7", "14.0", "14.1", "14.2", "14.4", "14.5", "14.6", "14.7", "14.7.1", "14.8", "15.0", "15.1", "15.2", "15.3.1", "15.3", "15.4", "15.5", "15.6", "15.6.1", "15.7", "16.0", "16.1", "16.2", "16.3", "16.4", "16.4.1", "16.5", "16.6"}
+	availableVersions = []string{"4.2", "4.3", "5.0", "5.1", "6.0", "6.1", "7.0", "7.1", "8.0", "8.1", "8.2", "8.3", "8.4 (12H141)", "9.0 (13A340)", "9.1 (13B5110e)", "9.2 (13C75)", "9.3 (13E230)", "10.0 (14A345)", "10.1 (14B72)", "10.2 (14C5062c)", "10.3 (14E269)", "11.0 (15A372)", "11.1 (15B87)", "11.2 (15C5092b)", "11.3 (15E5178d)", "11.4 (15F5037c)", "12.0 (16A5288q)", "12.1 (16B5059d)", "12.2 (16E5191d)", "12.3 (16F148)", "12.4", "13.0", "13.1", "13.2", "13.3", "13.4", "13.5", "13.6", "13.7", "14.0", "14.1", "14.2", "14.3", "14.4", "14.5", "14.6", "14.7", "14.7.1", "14.8", "15.0", "15.1", "15.2", "15.3.1", "15.3", "15.4", "15.5", "15.6", "15.6.1", "15.7", "15.8", "16.0", "16.1", "16.2", "16.3", "16.4", "16.4.1", "16.5", "16.6", "16.7"}
 )
 
 const (
@@ -278,7 +288,7 @@ func downloadImageForVersion(baseDir string, productVersion string, udid string)
 			return imageDownloaded, nil
 		}
 	}
-	golog.Info("thank you github.com/mspvirajpatel for making these images available :-)", "module", logModule, "udid", udid)
+	golog.Info("thank you github.com/doronz88 and github.com/mspvirajpatel for making these images available :-)", "module", logModule, "udid", udid)
 	versionPath, err := safeJoin(baseDir, versionDir)
 	if err != nil {
 		return "", err
