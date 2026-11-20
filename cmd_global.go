@@ -26,6 +26,16 @@ var globalCommands = []command{
 	},
 	commandByBool("listen", runListenCommand),
 	{
+		// `forward --list` only reads the local forward registry, so it needs
+		// no device and must dispatch before device resolution — listing must
+		// work on a host with no device attached.
+		name: "forward --list",
+		match: func(args docopt.Opts) bool {
+			return boolArg(args, "forward") && boolArg(args, "--list")
+		},
+		run: runForwardListCommand,
+	},
+	{
 		name:  "list",
 		match: isDeviceListCommand,
 		run:   runDeviceListCommand,
