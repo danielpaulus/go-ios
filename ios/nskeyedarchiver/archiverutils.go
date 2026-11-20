@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	plist "howett.net/plist"
 )
@@ -26,16 +27,13 @@ func toUidList(list []interface{}) []plist.UID {
 	return result
 }
 
-// plistFromBytes decodes a binary or XML based PLIST using the amazing github.com/DHowett/go-plist library and returns an interface{} or propagates the error raised by the library.
-func plistFromBytes(plistBytes []byte) (interface{}, error) {
-	var test interface{}
-	decoder := plist.NewDecoder(bytes.NewReader(plistBytes))
+// plistFromReader decodes a binary or XML based PLIST using the amazing github.com/DHowett/go-plist library and returns an interface{} or propagates the error raised by the library.
+func plistFromReader(r io.ReadSeeker) (interface{}, error) {
+	var v interface{}
+	decoder := plist.NewDecoder(r)
 
-	err := decoder.Decode(&test)
-	if err != nil {
-		return test, err
-	}
-	return test, nil
+	err := decoder.Decode(&v)
+	return v, err
 }
 
 // ToPlist converts a given struct to a Plist using the
