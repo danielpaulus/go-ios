@@ -1,6 +1,8 @@
 package afc
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -19,7 +21,7 @@ const serviceName = "com.apple.afc"
 // ".." path element (which could escape the destination directory) are
 // rejected. This is defense in depth on top of containedIn.
 func unsafeEntryName(name string) bool {
-	if name == "" {
+	if name == "" || name == "." {
 		return true
 	}
 	if filepath.IsAbs(name) || path.IsAbs(name) {
@@ -54,23 +56,10 @@ func (c *Client) PullSingleFile(srcPath, dstPath string) error {
 	if err != nil {
 		return err
 	}
-	if fileInfo.IsLink() {
-		srcPath = fileInfo.LinkTarget
+	if fileInfo.IsDir() {
+		return fmt.Errorf("afc: %q is a directory", srcPath)
 	}
-	fd, err := c.Open(srcPath, READ_ONLY)
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
-
-	f, err := os.OpenFile(dstPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = io.Copy(f, fd)
-	return err
+	return c.pullAtomically(srcPath, dstPath, fileInfo)
 }
 
 func (conn *Client) Pull(srcPath, dstPath string) error {
@@ -78,40 +67,160 @@ func (conn *Client) Pull(srcPath, dstPath string) error {
 	if err != nil {
 		return err
 	}
+	return conn.pullAtomically(srcPath, dstPath, fileInfo)
+}
+
+func (c *Client) pullAtomically(srcPath, dstPath string, fileInfo FileInfo) error {
+	cleanDestination := filepath.Clean(dstPath)
+	parentPath := filepath.Dir(cleanDestination)
+	destinationName := filepath.Base(cleanDestination)
+	if destinationName == "." || destinationName == string(os.PathSeparator) || !filepath.IsLocal(destinationName) {
+		return fmt.Errorf("afc: destination must name an entry below its parent: %s", dstPath)
+	}
+	if err := os.MkdirAll(parentPath, 0755); err != nil {
+		return err
+	}
+	parent, err := os.OpenRoot(parentPath)
+	if err != nil {
+		return err
+	}
+	defer parent.Close()
+
+	stagingName, err := makePullStagingDir(parent, "."+destinationName+".pull-")
+	if err != nil {
+		return err
+	}
+	defer parent.RemoveAll(stagingName)
+	staging, err := parent.OpenRoot(stagingName)
+	if err != nil {
+		return err
+	}
+
+	stagedPath := stagingName
 	if fileInfo.IsDir() {
-		ret, _ := ios.PathExists(dstPath)
-		if !ret {
-			err = os.MkdirAll(dstPath, os.ModePerm)
-			if err != nil {
+		err = c.pullEntry(srcPath, staging, ".", fileInfo)
+	} else {
+		const stagedFile = "content"
+		err = c.pullEntry(srcPath, staging, stagedFile, fileInfo)
+		stagedPath = filepath.Join(stagingName, stagedFile)
+	}
+	closeErr := staging.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+
+	backupName := ""
+	if _, err := parent.Lstat(destinationName); err == nil {
+		backupName, err = unusedPullName(parent, "."+destinationName+".backup-")
+		if err != nil {
+			return err
+		}
+		if err := parent.Rename(destinationName, backupName); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := parent.Rename(stagedPath, destinationName); err != nil {
+		if backupName != "" {
+			_ = parent.Rename(backupName, destinationName)
+		}
+		return err
+	}
+	if backupName != "" {
+		if err := parent.RemoveAll(backupName); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Client) pullEntry(srcPath string, root *os.Root, relativePath string, fileInfo FileInfo) error {
+	if fileInfo.IsDir() {
+		if relativePath != "." {
+			if err := root.MkdirAll(relativePath, 0755); err != nil {
 				return err
 			}
 		}
-		fileList, err := conn.List(srcPath)
+		fileList, err := c.List(srcPath)
 		if err != nil {
 			return err
 		}
 		for _, v := range fileList {
-			// v is a device-supplied entry name. Reject names that are
-			// absolute or contain ".." elements, and verify the joined host
-			// destination stays inside dstPath, so a malicious device cannot
-			// escape the destination directory (zip-slip / path traversal).
 			if unsafeEntryName(v) {
 				return fmt.Errorf("afc: refusing to pull entry with unsafe name %q under %q", v, srcPath)
 			}
-			sp := path.Join(srcPath, v)
-			dp := filepath.Join(dstPath, v)
-			if !containedIn(dstPath, dp) {
-				return fmt.Errorf("afc: refusing to write %q outside destination %q", dp, dstPath)
+			childPath := filepath.Join(relativePath, filepath.FromSlash(v))
+			if !filepath.IsLocal(childPath) {
+				return fmt.Errorf("afc: refusing to write unsafe destination %q", childPath)
 			}
-			err = conn.Pull(sp, dp)
+			childSource := path.Join(srcPath, v)
+			childInfo, err := c.Stat(childSource)
 			if err != nil {
 				return err
 			}
+			if err := c.pullEntry(childSource, root, childPath, childInfo); err != nil {
+				return err
+			}
 		}
-	} else {
-		return conn.PullSingleFile(srcPath, dstPath)
+		return nil
 	}
-	return nil
+
+	if fileInfo.IsLink() {
+		srcPath = fileInfo.LinkTarget
+	}
+	deviceFile, err := c.Open(srcPath, READ_ONLY)
+	if err != nil {
+		return err
+	}
+	hostFile, err := root.OpenFile(relativePath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
+	if err != nil {
+		_ = deviceFile.Close()
+		return err
+	}
+	_, copyErr := io.Copy(hostFile, deviceFile)
+	hostCloseErr := hostFile.Close()
+	deviceCloseErr := deviceFile.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	if hostCloseErr != nil {
+		return hostCloseErr
+	}
+	return deviceCloseErr
+}
+
+func makePullStagingDir(root *os.Root, prefix string) (string, error) {
+	for range 100 {
+		random := make([]byte, 16)
+		if _, err := rand.Read(random); err != nil {
+			return "", err
+		}
+		name := prefix + hex.EncodeToString(random)
+		if err := root.Mkdir(name, 0700); err == nil {
+			return name, nil
+		} else if !os.IsExist(err) {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("afc: failed to create a unique pull staging directory")
+}
+
+func unusedPullName(root *os.Root, prefix string) (string, error) {
+	random := make([]byte, 16)
+	if _, err := rand.Read(random); err != nil {
+		return "", err
+	}
+	name := prefix + hex.EncodeToString(random)
+	if _, err := root.Lstat(name); err == nil {
+		return "", os.ErrExist
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return name, nil
 }
 
 func (conn *Client) Push(srcPath, dstPath string) error {
