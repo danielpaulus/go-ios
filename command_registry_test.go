@@ -115,6 +115,7 @@ func TestDispatchSubcommandCollisions(t *testing.T) {
 		{name: "ui orientation still dispatches ui", argv: []string{"ui", "orientation", "set", "portrait"}, want: "global:ui"},
 		{name: "ui button still dispatches ui", argv: []string{"ui", "button", "home"}, want: "global:ui"},
 		{name: "hid hinge takes degrees", argv: []string{"hid", "hinge", "95.5"}, want: "device:hid"},
+		{name: "hid hinge alone reads it", argv: []string{"hid", "hinge"}, want: "device:hid"},
 		// ui vs launch/screenshot/install/run
 		{name: "ui app launch dispatches ui", argv: []string{"ui", "app", "launch", "com.apple.mobilesafari"}, want: "global:ui"},
 		{name: "ui screenshot dispatches ui", argv: []string{"ui", "screenshot"}, want: "global:ui"},

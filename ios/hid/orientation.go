@@ -2,6 +2,7 @@ package hid
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"strings"
 	"time"
@@ -122,26 +123,25 @@ func (c *Controls) SetOrientation(o Orientation) error {
 // has been sent an empty report and the hinge has been set, as the device hub
 // does when it connects and folds; folding it by hand does not count. Once
 // done, it holds until the next restart. Whether it is needed cannot be read,
-// so call it once after the device restarts, before turning it.
+// so call it once after the device restarts, before turning it. It takes about
+// a second, mostly to connect to the universal HID service.
 //
-// It sets the hinge, and as the device does not report its hinge angle, to
-// the end of its range the display in use goes with: open flat when the
-// larger, inner display is in use, closed otherwise. The display in use stays,
-// but a hinge set in between, such as half open, does not stay there.
+// It sets the hinge to the angle the device goes by (see HingeAngleInUse), so
+// the hinge and the display in use stay as they are. That is the angle read,
+// unless it does not fit the display in use, as when the hinge is set right
+// after a fold by hand, or cannot be read: then it is the end of the range the display in use goes
+// with, open flat for the larger, inner display and closed for the cover
+// display. The display in use stays then, but a hinge in between, such as half
+// open, does not.
 //
-// A device that does not fold gets ErrNotFoldable. Use UnstickOrientationAt
-// when the hinge angle is known.
+// A device that does not fold gets ErrNotFoldable.
 func (c *Controls) UnstickOrientation() error {
 	if !c.foldable {
 		return fmt.Errorf("UnstickOrientation: %w", ErrNotFoldable)
 	}
-	displays, err := c.readDisplays()
+	degrees, err := c.unstickAngle()
 	if err != nil {
-		return fmt.Errorf("UnstickOrientation: read displays: %w", err)
-	}
-	degrees := HingeClosed
-	if innerDisplayActive(displays) {
-		degrees = HingeOpenFlat
+		return fmt.Errorf("UnstickOrientation: %w", err)
 	}
 	if err := c.unstickOrientation(degrees); err != nil {
 		return fmt.Errorf("UnstickOrientation: %w", err)
@@ -150,9 +150,11 @@ func (c *Controls) UnstickOrientation() error {
 }
 
 // UnstickOrientationAt does what UnstickOrientation does, but sets the hinge
-// to degrees, such as the angle SetHingeAngle last set since the restart, so
-// it stays there. An angle past where the displays switch, such as 130 on a
+// to degrees. An angle past where the displays switch, such as 130 on a
 // closed device, switches them, as SetHingeAngle does.
+//
+// Deprecated: UnstickOrientation keeps the hinge where it is, as it reads the
+// angle.
 func (c *Controls) UnstickOrientationAt(degrees float64) error {
 	if !c.foldable {
 		return fmt.Errorf("UnstickOrientationAt: %w", ErrNotFoldable)
@@ -164,6 +166,71 @@ func (c *Controls) UnstickOrientationAt(degrees float64) error {
 		return fmt.Errorf("UnstickOrientationAt: %w", err)
 	}
 	return nil
+}
+
+// The hinge angles the displays are in use at, as measured on an iPhone Duo
+// with iOS 27: the cover display at 90 degrees and below, the inner one at 130
+// and above. In between it depends on which way the hinge moved.
+const (
+	coverDisplayMaxAngle = 90.0
+	innerDisplayMinAngle = 130.0
+)
+
+// HingeAngleInUse is the hinge angle the device goes by, in degrees from 0
+// (closed) to 180 (open flat), from the angle read (deviceinfo.GetHingeAngle)
+// and the device's display info (deviceinfo.GetDisplayInfo).
+//
+// The displays follow whichever came last, the hinge being set or the device
+// being folded by hand. The angle read normally does too, but after a fold by
+// hand the hinge sensor keeps sending small new samples while it settles, and
+// those win over the hinge being set meanwhile: set open after it was closed
+// by hand, an iPhone Duo kept reading about 0 degrees while its inner display
+// was in use. So the angle read is kept only when it fits the display in use: more than 90 degrees for the inner display, less than 130
+// for the cover. Otherwise it is the end of the range that display goes with:
+// 180 for the inner display, 0 for the cover. fits reports whether it is the
+// angle read.
+func HingeAngleInUse(read float64, displays map[string]interface{}) (degrees float64, fits bool) {
+	read = clampHingeAngle(read)
+	inner := innerDisplayInUse(displays)
+	if inner && read > coverDisplayMaxAngle || !inner && read < innerDisplayMinAngle {
+		return read, true
+	}
+	if inner {
+		return HingeOpenFlat, false
+	}
+	return HingeClosed, false
+}
+
+// unstickAngle is the angle to set the hinge to while unsticking, so it stays
+// as the device goes by it: the one in use (see HingeAngleInUse), or the end of
+// the range the display in use goes with when the angle cannot be read.
+func (c *Controls) unstickAngle() (float64, error) {
+	c.mutex.Lock()
+	closed := c.closed
+	c.mutex.Unlock()
+	if closed {
+		return 0, fmt.Errorf("controls are closed")
+	}
+	read, readErr := c.readHingeAngle()
+	displays, displaysErr := c.readDisplays()
+	switch {
+	case readErr != nil && displaysErr != nil:
+		return 0, fmt.Errorf("read the hinge angle: %w; read displays: %w", readErr, displaysErr)
+	case displaysErr != nil:
+		return clampHingeAngle(read), nil
+	case readErr != nil:
+		end := HingeClosed
+		if innerDisplayInUse(displays) {
+			end = HingeOpenFlat
+		}
+		slog.Warn("cannot read the hinge angle; setting it to the end the display in use goes with", "degrees", end, "error", readErr)
+		return end, nil
+	}
+	degrees, fits := HingeAngleInUse(read, displays)
+	if !fits {
+		slog.Info("the hinge angle read does not fit the display in use; setting it to the end that display goes with", "read", read, "degrees", degrees)
+	}
+	return degrees, nil
 }
 
 // unstickOrientation sends the virtualization service an empty report, then
@@ -212,11 +279,13 @@ func emptyVirtualizationReport() []byte {
 	return []byte{0x81, 0x61, 0xff, 0x5b, 0x00, 0x00}
 }
 
-// innerDisplayActive reports whether the active built-in display is the larger
-// of a foldable's two, the one used open.
-func innerDisplayActive(info map[string]interface{}) bool {
+// innerDisplayInUse reports whether the built-in display in use is the larger
+// of a foldable's two, the one used open. The display in use is the one with
+// its backlight on, and active only breaks a tie: the device can keep a dark
+// display active, as when it is open while its hinge is set closed.
+func innerDisplayInUse(info map[string]interface{}) bool {
 	displays, _ := info["displays"].([]interface{})
-	activeArea, largest := 0.0, 0.0
+	inUseArea, largest, best := 0.0, 0.0, 0
 	for _, d := range displays {
 		display, ok := d.(map[string]interface{})
 		if !ok {
@@ -227,11 +296,18 @@ func innerDisplayActive(info map[string]interface{}) bool {
 		}
 		area := displayArea(display)
 		largest = max(largest, area)
+		rank := 0
+		if backlight, _ := display["backlightState"].(string); backlight == "activeOn" {
+			rank += 2
+		}
 		if active, _ := display["active"].(bool); active {
-			activeArea = area
+			rank++
+		}
+		if rank > best {
+			inUseArea, best = area, rank
 		}
 	}
-	return activeArea > 0 && activeArea == largest
+	return inUseArea > 0 && inUseArea == largest
 }
 
 // displayArea is the display's size in pixels, from bounds [[x, y], [w, h]].

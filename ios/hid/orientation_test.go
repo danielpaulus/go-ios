@@ -33,8 +33,12 @@ func (f *fakeDeviceControl) Close() error { return nil }
 // active when open.
 func duoDisplays(open bool) map[string]interface{} {
 	display := func(id int, w, h float64, active bool) map[string]interface{} {
+		backlight := "off"
+		if active {
+			backlight = "activeOn"
+		}
 		return map[string]interface{}{
-			"displayId": id, "external": false, "active": active,
+			"displayId": id, "external": false, "active": active, "backlightState": backlight,
 			"bounds": []interface{}{[]interface{}{0.0, 0.0}, []interface{}{w, h}},
 		}
 	}
@@ -50,7 +54,13 @@ type orientationFakes struct {
 	deviceControl *fakeDeviceControl
 }
 
+// openOrientationControls opens controls on a device whose hinge reads open
+// flat when open, and closed otherwise.
 func openOrientationControls(foldable, open bool) (*Controls, orientationFakes) {
+	hinge := HingeClosed
+	if open {
+		hinge = HingeOpenFlat
+	}
 	f := orientationFakes{
 		indigo:        &fakeMessages{},
 		universal:     &fakeMessages{},
@@ -62,6 +72,7 @@ func openOrientationControls(foldable, open bool) (*Controls, orientationFakes) 
 		dialDeviceControl: func() (requestConn, error) { return f.deviceControl, nil },
 		dialUniversalHID:  func() (messageConn, error) { return f.universal, nil },
 		readDisplays:      func() (map[string]interface{}, error) { return duoDisplays(open), nil },
+		readHingeAngle:    func() (float64, error) { return hinge, nil },
 	}
 	return c, f
 }
@@ -111,9 +122,20 @@ func TestUnstickOrientationSendsTheReportThenTheHinge(t *testing.T) {
 	assert.Equal(t, "hinge-slider-control", virtualizationOf(t, f.indigo.sent[0])["source"])
 }
 
-func TestUnstickOrientationKeepsTheDisplayInUse(t *testing.T) {
+func TestUnstickOrientationKeepsTheHingeWhereItIs(t *testing.T) {
+	c, f := openOrientationControls(true, true)
+	c.readHingeAngle = func() (float64, error) { return 120.5, nil }
+	require.NoError(t, c.UnstickOrientation())
+	require.Len(t, f.indigo.sent, 1)
+	assert.Equal(t, 120.5, virtualizationOf(t, f.indigo.sent[0])["value"])
+}
+
+// Without the hinge angle, the hinge goes to the end the display in use goes
+// with, so that display stays.
+func TestUnstickOrientationWithoutTheHingeAngleKeepsTheDisplayInUse(t *testing.T) {
 	for open, want := range map[bool]float64{true: HingeOpenFlat, false: HingeClosed} {
 		c, f := openOrientationControls(true, open)
+		c.readHingeAngle = func() (float64, error) { return 0, errors.New("no hinge updates") }
 		require.NoError(t, c.UnstickOrientation())
 		assert.Equal(t, want, virtualizationOf(t, f.indigo.sent[0])["value"], "open=%v", open)
 	}
@@ -136,10 +158,14 @@ func TestUnstickOrientationAtRefusesAnAngleOutOfRange(t *testing.T) {
 	}
 }
 
-func TestUnstickOrientationFailsWithoutTheDisplays(t *testing.T) {
+func TestUnstickOrientationFailsWithoutTheHingeAngleOrTheDisplays(t *testing.T) {
 	c, f := openOrientationControls(true, true)
-	c.readDisplays = func() (map[string]interface{}, error) { return nil, errors.New("no deviceinfo") }
-	assert.Error(t, c.UnstickOrientation())
+	noHinge, noDisplays := errors.New("no hinge updates"), errors.New("no displays")
+	c.readHingeAngle = func() (float64, error) { return 0, noHinge }
+	c.readDisplays = func() (map[string]interface{}, error) { return nil, noDisplays }
+	err := c.UnstickOrientation()
+	assert.ErrorIs(t, err, noHinge)
+	assert.ErrorIs(t, err, noDisplays)
 	assert.Empty(t, f.indigo.sent, "nothing is sent")
 	assert.Empty(t, f.universal.sent)
 }
@@ -185,6 +211,39 @@ func TestUnstickOrientationSaysWhichStepFailed(t *testing.T) {
 	}
 }
 
+func TestHingeAngle(t *testing.T) {
+	c, _ := openOrientationControls(true, true)
+	c.readHingeAngle = func() (float64, error) { return 120.5, nil }
+	degrees, err := c.HingeAngle()
+	require.NoError(t, err)
+	assert.Equal(t, 120.5, degrees)
+
+	c.readHingeAngle = func() (float64, error) { return 0.05, nil }
+	degrees, err = c.HingeAngle()
+	require.NoError(t, err)
+	assert.Equal(t, HingeOpenFlat, degrees, "set open right after a fold by hand, the read is still the hand's; the inner display is in use")
+
+	broken := errors.New("no hinge updates")
+	c.readHingeAngle = func() (float64, error) { return 0, broken }
+	_, err = c.HingeAngle()
+	assert.ErrorIs(t, err, broken)
+}
+
+func TestHingeAngleIsWithinTheHingesRange(t *testing.T) {
+	c, _ := openOrientationControls(true, false)
+	c.readHingeAngle = func() (float64, error) { return -0.06, nil }
+	degrees, err := c.HingeAngle()
+	require.NoError(t, err)
+	assert.Equal(t, HingeClosed, degrees)
+}
+
+func TestHingeAngleOfADeviceThatDoesNotFold(t *testing.T) {
+	c, _ := openOrientationControls(false, false)
+	c.readHingeAngle = func() (float64, error) { panic("not read") }
+	_, err := c.HingeAngle()
+	assert.ErrorIs(t, err, ErrNotFoldable)
+}
+
 func TestSetOrientationOnASingleDisplayDevice(t *testing.T) {
 	c, f := openOrientationControls(false, false)
 	require.NoError(t, c.SetOrientation(OrientationLandscapeRight))
@@ -222,9 +281,12 @@ func TestSetOrientationRefusesAnUnknownOrientation(t *testing.T) {
 func TestClosedControlsTurnNothing(t *testing.T) {
 	for _, foldable := range []bool{true, false} {
 		c, f := openOrientationControls(foldable, true)
+		c.readHingeAngle = func() (float64, error) { panic("not read") }
 		require.NoError(t, c.Close())
 		assert.Error(t, c.SetOrientation(OrientationLandscapeLeft))
 		if foldable {
+			_, err := c.HingeAngle()
+			assert.Error(t, err)
 			assert.Error(t, c.UnstickOrientation())
 			assert.Error(t, c.UnstickOrientationAt(90))
 		}
@@ -247,8 +309,74 @@ func TestParseOrientation(t *testing.T) {
 	assert.ErrorContains(t, err, "portrait, landscapeleft, portraitupsidedown, landscaperight")
 }
 
-func TestInnerDisplayActive(t *testing.T) {
-	assert.True(t, innerDisplayActive(duoDisplays(true)))
-	assert.False(t, innerDisplayActive(duoDisplays(false)))
-	assert.False(t, innerDisplayActive(map[string]interface{}{}))
+func TestInnerDisplayInUse(t *testing.T) {
+	assert.True(t, innerDisplayInUse(duoDisplays(true)))
+	assert.False(t, innerDisplayInUse(duoDisplays(false)))
+	assert.False(t, innerDisplayInUse(map[string]interface{}{}))
+	assert.False(t, innerDisplayInUse(openWhileSetClosed()), "the lit cover display, not the dark active inner one")
+}
+
+// openWhileSetClosed is a foldable open while its hinge is set closed: the
+// inner display stays active but goes dark, and the cover display lights up
+// without becoming active.
+func openWhileSetClosed() map[string]interface{} {
+	info := duoDisplays(true)
+	displays := info["displays"].([]interface{})
+	displays[0].(map[string]interface{})["backlightState"] = "activeOn"
+	displays[1].(map[string]interface{})["backlightState"] = "off"
+	return info
+}
+
+// Right after a fold by hand the angle read can still be the hand's while the
+// displays follow the hinge being set, so it is kept only when it fits the
+// display in use.
+func TestHingeAngleInUse(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		displays map[string]interface{}
+		read     float64
+		want     float64
+		fits     bool
+	}{
+		{"inner display, half open", duoDisplays(true), 130, 130, true},
+		{"inner display, read closed", duoDisplays(true), 0.05, HingeOpenFlat, false},
+		{"inner display, at the cover's limit", duoDisplays(true), 90, HingeOpenFlat, false},
+		{"cover display, closed", duoDisplays(false), 0.05, 0.05, true},
+		{"cover display, below closed", duoDisplays(false), -0.06, HingeClosed, true},
+		{"cover display, folded to 45", duoDisplays(false), 45, 45, true},
+		{"cover display, read open", duoDisplays(false), 180, HingeClosed, false},
+		{"open while set closed", openWhileSetClosed(), 0, 0, true},
+	} {
+		degrees, fits := HingeAngleInUse(tc.read, tc.displays)
+		assert.Equal(t, tc.want, degrees, tc.name)
+		assert.Equal(t, tc.fits, fits, tc.name)
+	}
+}
+
+func TestUnstickOrientationKeepsAnAngleThatFitsTheDisplayInUse(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		displays map[string]interface{}
+		read     float64
+		want     float64
+	}{
+		{"inner display, half open", duoDisplays(true), 130, 130},
+		{"inner display, read closed", duoDisplays(true), 0.05, HingeOpenFlat},
+		{"cover display, read open", duoDisplays(false), 180, HingeClosed},
+	} {
+		c, f := openOrientationControls(true, true)
+		displays, read := tc.displays, tc.read
+		c.readDisplays = func() (map[string]interface{}, error) { return displays, nil }
+		c.readHingeAngle = func() (float64, error) { return read, nil }
+		require.NoError(t, c.UnstickOrientation(), tc.name)
+		assert.Equal(t, tc.want, virtualizationOf(t, f.indigo.sent[0])["value"], tc.name)
+	}
+}
+
+func TestUnstickOrientationKeepsTheReadWithoutTheDisplays(t *testing.T) {
+	c, f := openOrientationControls(true, true)
+	c.readHingeAngle = func() (float64, error) { return 130, nil }
+	c.readDisplays = func() (map[string]interface{}, error) { return nil, errors.New("no displays") }
+	require.NoError(t, c.UnstickOrientation())
+	assert.Equal(t, 130.0, virtualizationOf(t, f.indigo.sent[0])["value"])
 }

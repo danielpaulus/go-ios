@@ -28,6 +28,13 @@ func TestHingeAngle(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestHingeAngleGiven(t *testing.T) {
+	for _, args := range []docopt.Opts{{"close": true}, {"halfopen": true}, {"open": true}, {"<degrees>": "95.5"}} {
+		assert.True(t, hingeAngleGiven(args), "%v", args)
+	}
+	assert.False(t, hingeAngleGiven(docopt.Opts{"hinge": true, "<degrees>": nil}), "none reads the angle")
+}
+
 func TestPressedButton(t *testing.T) {
 	for _, b := range hid.Buttons() {
 		assert.Equal(t, b, pressedButton(docopt.Opts{"button": true, b.String(): true}), b.String())

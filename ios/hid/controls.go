@@ -63,6 +63,8 @@ type Controls struct {
 	dialUniversalHID func() (messageConn, error)
 	// Reads the device's displays, to tell whether a foldable is open.
 	readDisplays func() (map[string]interface{}, error)
+	// Reads the angle a foldable's hinge is at.
+	readHingeAngle func() (float64, error)
 }
 
 // NewControls connects to the device's hid service, and reads its displays to
@@ -88,6 +90,9 @@ func NewControls(device ios.DeviceEntry) (*Controls, error) {
 		},
 		readDisplays: func() (map[string]interface{}, error) {
 			return readDisplayInfo(device)
+		},
+		readHingeAngle: func() (float64, error) {
+			return deviceinfo.GetHingeAngle(device)
 		},
 	}, nil
 }

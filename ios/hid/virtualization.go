@@ -46,6 +46,41 @@ func (c *Controls) SetHingeAngle(degrees float64) error {
 	return nil
 }
 
+// HingeAngle reads the angle the device goes by, in degrees from 0 (closed) to
+// 180 (open flat): the angle SetHingeAngle last set, or the device was folded
+// to by hand, whichever came last. It is the angle read, checked against the
+// display in use, as right after a fold by hand the angle read can still be
+// the hand's while the displays follow the hinge being set (see
+// HingeAngleInUse). A device that does not fold gets ErrNotFoldable.
+func (c *Controls) HingeAngle() (float64, error) {
+	if !c.foldable {
+		return 0, fmt.Errorf("HingeAngle: %w", ErrNotFoldable)
+	}
+	c.mutex.Lock()
+	closed := c.closed
+	c.mutex.Unlock()
+	if closed {
+		return 0, fmt.Errorf("HingeAngle: controls are closed")
+	}
+	read, err := c.readHingeAngle()
+	if err != nil {
+		return 0, fmt.Errorf("HingeAngle: %w", err)
+	}
+	displays, err := c.readDisplays()
+	if err != nil {
+		// Without the displays the angle read is all there is.
+		return clampHingeAngle(read), nil
+	}
+	degrees, _ := HingeAngleInUse(read, displays)
+	return degrees, nil
+}
+
+// clampHingeAngle keeps an angle read within 0 to 180 degrees: a closed iPhone
+// Duo reads a little below 0.
+func clampHingeAngle(degrees float64) float64 {
+	return min(max(degrees, HingeClosed), HingeOpenFlat)
+}
+
 // buildVirtualizationPayload sets one virtualization control to a value: a
 // number for a range control such as the hinge, a string for an enum control
 // such as the orientation picker.
