@@ -263,6 +263,9 @@ const (
 	S_IFLNK FileType = "S_IFLNK"
 )
 
+// FileInfo is what GET_FILE_INFO reports for one path. Note that iOS replies
+// carry st_ifmt but no st_mode, so Mode stays 0 on hardware even though the
+// parser handles the key.
 type FileInfo struct {
 	Name       string
 	Type       FileType
@@ -270,14 +273,20 @@ type FileInfo struct {
 	Size       int64
 	LinkTarget string
 
+	// Nlink is the link count the device reports (AFC st_nlink), zero when the
+	// reply omits the key or sends a value that cannot be read. Every real file
+	// has at least one link, so zero means the count is unavailable rather than
+	// that the file has none.
+	Nlink uint64
+
 	// Mtime is the modification time the device reports for the file
 	// (AFC st_mtime). It is the zero time when the device omits the field or
 	// sends a value that cannot be read; a field it sends as 0 decodes to the
 	// Unix epoch, so "absent" and "reported as 0" stay distinguishable.
 	//
-	// Note that this is when the file was last written on the device, which on
-	// iOS is not the same as when a photo or video was captured: Media/DCIM
-	// entries often carry a later mtime than the EXIF date.
+	// Note that this is a filesystem modification timestamp: it need not match
+	// the capture time recorded in EXIF or other media metadata, so do not use
+	// one as the other.
 	Mtime time.Time
 
 	// Birthtime is the creation time the device reports for the file
@@ -354,6 +363,14 @@ func parseFileInfo(payload []byte) FileInfo {
 			info.Mode = uint32(mode)
 		case "st_linktarget":
 			info.LinkTarget = value
+		case "st_nlink":
+			nlink, err := strconv.ParseUint(value, 10, 64)
+			if err != nil {
+				// strconv returns MaxUint64 alongside ErrRange, so a saturated
+				// count has to be dropped rather than assigned.
+				nlink = 0
+			}
+			info.Nlink = nlink
 		case "st_mtime":
 			info.Mtime = afcTimestamp(value)
 		case "st_birthtime":
@@ -365,10 +382,13 @@ func parseFileInfo(payload []byte) FileInfo {
 }
 
 // afcTimestamp turns an AFC timestamp into a time. AFC reports st_mtime and
-// st_birthtime as nanoseconds since the Unix epoch. The reply carries no zone,
-// so the result is UTC; decoding to the host's zone instead would make the same
-// reply mean different instants on two machines. A value of 0 is the Unix
-// epoch, while a negative or unparsable value returns the zero time.
+// st_birthtime as nanoseconds since the Unix epoch.
+//
+// The reply carries no zone, so the number alone fixes the instant. The result
+// is normalized to UTC so every machine renders and serializes it identically,
+// rather than each host formatting the same instant in its own local zone.
+// A value of 0 is the Unix epoch, while a negative, overflowing or unparsable
+// value returns the zero time.
 func afcTimestamp(value string) time.Time {
 	nanos, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || nanos < 0 {

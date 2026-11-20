@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"math"
 	"testing"
 	"time"
 
@@ -124,6 +125,7 @@ func TestStatParsesTimestamps(t *testing.T) {
 	assert.False(t, info.IsDir())
 	assert.Equal(t, int64(12345678), info.Size)
 	assert.Equal(t, uint32(0o100644), info.Mode)
+	assert.Equal(t, uint64(1), info.Nlink)
 	assert.True(t, info.Mtime.Equal(time.Unix(0, 1762240518123456789).UTC()), "mtime = %v", info.Mtime)
 	assert.True(t, info.Birthtime.Equal(time.Unix(0, 1761000000000000000).UTC()), "birthtime = %v", info.Birthtime)
 }
@@ -150,6 +152,37 @@ func TestStatWithoutTimestampsKeepsZeroTime(t *testing.T) {
 	assert.True(t, info.Birthtime.IsZero())
 	assert.True(t, info.IsDir())
 	assert.Equal(t, int64(42), info.Size)
+	assert.Zero(t, info.Nlink, "no st_nlink in the reply")
+}
+
+// TestParseFileInfoNlink pins the link-count decoding: a value the device sends
+// is read, and anything unreadable — including one too large for uint64, which
+// strconv reports together with MaxUint64 — leaves the field at zero instead of
+// handing the caller a saturated count.
+func TestParseFileInfoNlink(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  uint64
+	}{
+		{name: "one", value: "1", want: 1},
+		{name: "zero", value: "0", want: 0},
+		{name: "empty", value: "", want: 0},
+		{name: "negative", value: "-1", want: 0},
+		{name: "not a number", value: "not-a-number", want: 0},
+		{name: "max uint64", value: "18446744073709551615", want: math.MaxUint64},
+		{name: "overflows uint64", value: "18446744073709551616", want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := encodeFileInfoPayload("st_size", "42", "st_nlink", tt.value)
+
+			info := parseFileInfo(payload)
+
+			assert.Equal(t, tt.want, info.Nlink, "st_nlink %q", tt.value)
+			assert.Equal(t, int64(42), info.Size, "a bad link count must not cost the size")
+		})
+	}
 }
 
 // TestStatIgnoresMalformedTimestamp verifies a timestamp the client cannot
@@ -235,12 +268,12 @@ func TestStatEpochTimestamps(t *testing.T) {
 }
 
 // TestStatParsesDeviceReply runs the parser over a reply captured verbatim from
-// a device (iPhone16,2 on iOS 26.4.1, /DCIM/173APPLE/IMG_3794.HEIC), so the fixture
-// reflects what AFC actually sends rather than only what the format allows.
+// a device (ProductType iPhone16,2, iOS 26.4.1, /DCIM/173APPLE/IMG_3794.HEIC),
+// so the fixture reflects what AFC actually sends rather than only what the
+// format allows.
 //
-// Worth noting for anyone editing this file: a real reply carries st_size,
-// st_blocks, st_nlink, st_ifmt, st_mtime and st_birthtime, and no st_mode — so
-// FileInfo.Mode is 0 on a real device even though the parser handles the key.
+// Worth noting for anyone editing this file: this reply carries st_size,
+// st_blocks, st_nlink, st_ifmt, st_mtime and st_birthtime, and no st_mode.
 func TestStatParsesDeviceReply(t *testing.T) {
 	payload := []byte("st_size\x004199202\x00" +
 		"st_blocks\x008208\x00" +
@@ -260,6 +293,7 @@ func TestStatParsesDeviceReply(t *testing.T) {
 	wantBirth := time.Unix(0, 1775095043579017563).UTC()
 	assert.True(t, info.Mtime.Equal(wantMtime), "mtime = %v, want %v", info.Mtime, wantMtime)
 	assert.True(t, info.Birthtime.Equal(wantBirth), "birthtime = %v, want %v", info.Birthtime, wantBirth)
+	assert.Equal(t, uint64(1), info.Nlink)
 	assert.Equal(t, 2026, info.Mtime.Year())
 	assert.Equal(t, time.April, info.Mtime.Month())
 	assert.Equal(t, 2, info.Mtime.Day())
