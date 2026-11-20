@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"golang.org/x/exp/slices"
@@ -262,12 +263,35 @@ const (
 	S_IFLNK FileType = "S_IFLNK"
 )
 
+// FileInfo is what GET_FILE_INFO reports for one path. Note that iOS replies
+// carry st_ifmt but no st_mode, so Mode stays 0 on hardware even though the
+// parser handles the key.
 type FileInfo struct {
 	Name       string
 	Type       FileType
 	Mode       uint32
 	Size       int64
 	LinkTarget string
+
+	// Nlink is the link count the device reports (AFC st_nlink), zero when the
+	// reply omits the key or sends a value that cannot be read. Every real file
+	// has at least one link, so zero means the count is unavailable rather than
+	// that the file has none.
+	Nlink uint64
+
+	// Mtime is the modification time the device reports for the file
+	// (AFC st_mtime). It is the zero time when the device omits the field or
+	// sends a value that cannot be read; a field it sends as 0 decodes to the
+	// Unix epoch, so "absent" and "reported as 0" stay distinguishable.
+	//
+	// Note that this is a filesystem modification timestamp: it need not match
+	// the capture time recorded in EXIF or other media metadata, so do not use
+	// one as the other.
+	Mtime time.Time
+
+	// Birthtime is the creation time the device reports for the file
+	// (AFC st_birthtime), with the same zero-value and epoch behaviour as Mtime.
+	Birthtime time.Time
 }
 
 func (f FileInfo) IsDir() bool {
@@ -290,11 +314,28 @@ func (c *Client) Stat(s string) (FileInfo, error) {
 		return FileInfo{}, fmt.Errorf("error getting file info: %w", err)
 	}
 
-	reader := bufio.NewReader(bytes.NewReader(resp.Payload))
-	info := FileInfo{}
+	info := parseFileInfo(resp.Payload)
 
-	// Parse the file info response which is a series of null-terminated strings
-	// in key-value pairs
+	// Set the name from the path
+	parts := strings.Split(s, "/")
+	if len(parts) > 0 {
+		info.Name = parts[len(parts)-1]
+	}
+
+	return info, nil
+}
+
+// parseFileInfo parses the payload of an AFC GET_FILE_INFO response, which is a
+// series of null-terminated key/value pairs.
+//
+// Keys the client does not know are skipped, so a device answering with extra
+// fields cannot break it, and a value that fails to parse leaves its field at
+// the zero value instead of failing the whole call: one unknown field is not
+// worth losing the file's size and type over.
+func parseFileInfo(payload []byte) FileInfo {
+	info := FileInfo{}
+	reader := bufio.NewReader(bytes.NewReader(payload))
+
 	for {
 		key, err := reader.ReadString('\x00')
 		if err != nil {
@@ -322,16 +363,38 @@ func (c *Client) Stat(s string) (FileInfo, error) {
 			info.Mode = uint32(mode)
 		case "st_linktarget":
 			info.LinkTarget = value
+		case "st_nlink":
+			nlink, err := strconv.ParseUint(value, 10, 64)
+			if err != nil {
+				// strconv returns MaxUint64 alongside ErrRange, so a saturated
+				// count has to be dropped rather than assigned.
+				nlink = 0
+			}
+			info.Nlink = nlink
+		case "st_mtime":
+			info.Mtime = afcTimestamp(value)
+		case "st_birthtime":
+			info.Birthtime = afcTimestamp(value)
 		}
 	}
 
-	// Set the name from the path
-	parts := strings.Split(s, "/")
-	if len(parts) > 0 {
-		info.Name = parts[len(parts)-1]
-	}
+	return info
+}
 
-	return info, nil
+// afcTimestamp turns an AFC timestamp into a time. AFC reports st_mtime and
+// st_birthtime as nanoseconds since the Unix epoch.
+//
+// The reply carries no zone, so the number alone fixes the instant. The result
+// is normalized to UTC so every machine renders and serializes it identically,
+// rather than each host formatting the same instant in its own local zone.
+// A value of 0 is the Unix epoch, while a negative, overflowing or unparsable
+// value returns the zero time.
+func afcTimestamp(value string) time.Time {
+	nanos, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || nanos < 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, nanos).UTC()
 }
 
 // WalkDir traverses the filesystem starting at the provided path
