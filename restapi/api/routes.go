@@ -6,12 +6,50 @@ import (
 
 var streamingMiddleWare = StreamingHeaderMiddleware()
 
-func registerRoutes(router *gin.RouterGroup) {
+func registerRoutes(router *gin.RouterGroup, rateLimit float64, rateBurst int) {
 	router.GET("/list", List)
+	registerTunnelRoutes(router)
+	// feat/restapi-w1c-fsync: fleet/host-level provisioning routes (no device).
+	registerProvisioningHostRoutes(router)
+	// --- feat/restapi-w4-sign: host-local codesigning + supervision-cert routes ---
+	registerSignHostRoutes(router)
+	// --- end feat/restapi-w4-sign ---
 
 	device := router.Group("/device/:udid")
 	device.Use(DeviceMiddleware())
+	device.Use(RateLimitUDID(rateLimit, rateBurst))
 	simpleDeviceRoutes(device)
+	registerDeviceInfoRoutes(device)
+	// --- feat/restapi-w1a-diagnostics: diagnostics & network parity endpoints ---
+	registerDiagnosticsNetRoutes(device)
+	// --- end feat/restapi-w1a-diagnostics ---
+	registerDeviceMgmtRoutes(device)
+	registerFilesRoutes(device)
+	registerMediaRoutes(device)
+	registerConfigRoutes(device)
+	registerSettingsRoutes(device)
+	registerMonitoringRoutes(device)
+	registerMdmRoutes(device)
+	registerJobRoutes(device)
+	registerProxyRoutes(device)
+	// w1b accessibility + location parity (feat/restapi-w1b-a11y)
+	registerAccessibilityRoutes(device)
+	// feat/restapi-w1c-fsync: AFC filesystem + cloud-config device routes.
+	registerFsyncRoutes(device)
+	registerProvisioningDeviceRoutes(device)
+	// --- feat/restapi-w4-sign: device-scoped prepare route ---
+	registerSignDeviceRoutes(device)
+	// --- end feat/restapi-w4-sign ---
+	// feat/restapi-w1d-webinspector: WebInspector device routes.
+	registerWebInspectorRoutes(device)
+	// feat/restapi-w2-ui: UI-automation routes proxying to a forwarded WDA/DeviceKit backend.
+	registerUIRoutes(device)
+	// --- feat/restapi-w3a-streams: live UI video stream + mjpeg screenshot stream ---
+	registerStreamRoutes(device)
+	// --- end feat/restapi-w3a-streams ---
+	// --- feat/restapi-w3b-pcap: live pcap streaming route ---
+	registerPcapRoutes(device)
+	// --- end feat/restapi-w3b-pcap ---
 	appRoutes(device)
 }
 
