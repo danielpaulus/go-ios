@@ -181,7 +181,11 @@ func (c *uiClient) tap(x, y int) {
 func (c *uiClient) swipe(fromX, fromY, toX, toY int, duration float64) {
 	switch c.driver {
 	case uiDriverDeviceKit:
-		printUIResponse(c.deviceKitRPC("device.io.swipe", map[string]interface{}{"fromX": fromX, "fromY": fromY, "toX": toX, "toY": toY, "duration": duration}))
+		// DeviceKit's device.io.swipe expects x1/y1/x2/y2 (start/end), not
+		// fromX/fromY/toX/toY — the latter is rejected with "Invalid parameters"
+		// ("data missing"). The WDA dragfromtoforduration path below keeps its own
+		// fromX/toX naming.
+		printUIResponse(c.deviceKitRPC("device.io.swipe", map[string]interface{}{"x1": fromX, "y1": fromY, "x2": toX, "y2": toY, "duration": duration}))
 	case uiDriverWDA:
 		body := map[string]interface{}{"fromX": fromX, "fromY": fromY, "toX": toX, "toY": toY, "duration": duration}
 		printUIResponse(c.wdaHTTP(http.MethodPost, wdaPath("session", c.wdaSession(), "wda", "dragfromtoforduration"), mustJSON(body)))
