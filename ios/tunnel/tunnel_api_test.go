@@ -226,3 +226,32 @@ func serverHostPort(t *testing.T, rawURL string) (string, int) {
 	}
 	return host, port
 }
+
+func TestTunnelDoneReportsShutdown(t *testing.T) {
+	done := make(chan struct{})
+	tun := Tunnel{done: done}
+
+	select {
+	case <-tun.Done():
+		t.Fatal("Done closed before the tunnel was torn down")
+	default:
+	}
+
+	close(done)
+
+	select {
+	case <-tun.Done():
+	default:
+		t.Fatal("Done not closed after the tunnel was torn down")
+	}
+}
+
+func TestTunnelDoneWithoutShutdownSignal(t *testing.T) {
+	// Tunnel types that cannot observe a spontaneous shutdown must still return
+	// a usable channel instead of nil, so callers can select on it blindly.
+	select {
+	case <-(Tunnel{}).Done():
+		t.Fatal("Done closed for a tunnel without a shutdown signal")
+	default:
+	}
+}
