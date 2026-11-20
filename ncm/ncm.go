@@ -127,55 +127,89 @@ func (r *NcmWrapper) ReadDatagrams() ([]ethernet.Frame, error) {
 	if h.Signature != headerSignature {
 		return result, fmt.Errorf("ReadDatagrams: wrong header signature: %x", h.Signature)
 	}
+	const fixedHeaderSize = 12
+	if h.HeaderLen < fixedHeaderSize {
+		return result, fmt.Errorf("ReadDatagrams: header length %d is smaller than %d", h.HeaderLen, fixedHeaderSize)
+	}
+	if h.BlockLen < h.HeaderLen {
+		return result, fmt.Errorf("ReadDatagrams: block length %d is smaller than header length %d", h.BlockLen, h.HeaderLen)
+	}
 
 	slog.Debug("read block", "ntbheader", h.String(), "length", h.BlockLen-h.HeaderLen)
 
-	//read the entire block, minus the header
+	// Read the entire block after the fixed header. Keeping a zero-filled copy
+	// of the header makes all protocol offsets relative to the start of the NTB.
 	ncmTransferBlock := make([]byte, h.BlockLen)
-
-	//later we need many indexes, so we pad the header length with 0s for easier calculations
-	b, err := io.ReadFull(r.targetReader, ncmTransferBlock[h.HeaderLen:])
+	b, err := io.ReadFull(r.targetReader, ncmTransferBlock[fixedHeaderSize:])
 	if err != nil {
 		return result, fmt.Errorf("ReadDatagrams: reading block failed bytes read:%d err: %w", b, err)
 	}
 	usbReceiveBytes.WithLabelValues(r.serial).Add(float64(h.BlockLen))
-	offset := h.NdpIndex
-	var dh datagramPointerHeader
-	err = binary.Read(bytes.NewReader(ncmTransferBlock[offset:]), binary.LittleEndian, &dh)
-	if err != nil {
-		return result, fmt.Errorf("ReadDatagrams: reading datagramPointerHeader failed %w", err)
-	}
-	if !dh.IsValid() {
-		return result, fmt.Errorf("ReadDatagrams: datagrampointerheader invalid signature:%x", dh.Signature)
-	}
-	slog.Debug("datagramPointerHeader", "header", dh.String())
-	if dh.NextNpdIndex != 0 {
-		//if this happens, we gotta create a loop here to extract all dhs, starting with the next index until
-		//nextndpindex==0
-		// so far, it seems ios devices do not use this.
-		panic("not implemented :-)")
-	}
-	datagramPointers := ncmTransferBlock[offset+8:]
-	pointer := 0
-	for {
-		dgIndex := binary.LittleEndian.Uint16(datagramPointers[pointer:])
-		dgLen := binary.LittleEndian.Uint16(datagramPointers[pointer+2:])
-		if dgLen == 0 {
-			break
+
+	offset := int(h.NdpIndex)
+	visited := make(map[int]struct{})
+	for offset != 0 {
+		if _, ok := visited[offset]; ok {
+			return result, fmt.Errorf("ReadDatagrams: cyclic NDP chain at offset %d", offset)
 		}
-		slog.Debug("datagram", "index", dgIndex, "length", dgLen)
-		datagram := ncmTransferBlock[dgIndex : dgIndex+dgLen]
-		slog.Debug("parse ethernet frame", "ipv6", iPv6Parser(datagram[EtherHeaderLength:]), "ethernet", EthernetParser(datagram))
-		result = append(result, ethernet.Frame(datagram))
-		pointer += 4
-		if pointer > int(dh.Length-8) {
-			slog.Error("datagramheaderpointer out of bounds")
-			break
+		visited[offset] = struct{}{}
+		if offset < int(h.HeaderLen) || offset > len(ncmTransferBlock)-8 {
+			return result, fmt.Errorf("ReadDatagrams: NDP offset %d is outside block length %d", offset, len(ncmTransferBlock))
 		}
+
+		var dh datagramPointerHeader
+		if err := binary.Read(bytes.NewReader(ncmTransferBlock[offset:offset+8]), binary.LittleEndian, &dh); err != nil {
+			return result, fmt.Errorf("ReadDatagrams: reading datagramPointerHeader failed %w", err)
+		}
+		if !dh.IsValid() {
+			return result, fmt.Errorf("ReadDatagrams: datagrampointerheader invalid signature:%x", dh.Signature)
+		}
+		if dh.Length < 12 || (dh.Length-8)%4 != 0 {
+			return result, fmt.Errorf("ReadDatagrams: invalid NDP length %d", dh.Length)
+		}
+		ndpEnd := offset + int(dh.Length)
+		if ndpEnd < offset || ndpEnd > len(ncmTransferBlock) {
+			return result, fmt.Errorf("ReadDatagrams: NDP at %d ends outside block at %d", offset, ndpEnd)
+		}
+		slog.Debug("datagramPointerHeader", "header", dh.String())
+
+		terminated := false
+		for pointer := offset + 8; pointer+4 <= ndpEnd; pointer += 4 {
+			dgIndex := int(binary.LittleEndian.Uint16(ncmTransferBlock[pointer : pointer+2]))
+			dgLen := int(binary.LittleEndian.Uint16(ncmTransferBlock[pointer+2 : pointer+4]))
+			if dgIndex == 0 && dgLen == 0 {
+				terminated = true
+				break
+			}
+			if dgIndex == 0 || dgLen == 0 {
+				return result, fmt.Errorf("ReadDatagrams: incomplete datagram pointer index=%d length=%d", dgIndex, dgLen)
+			}
+			dgEnd := dgIndex + dgLen
+			if dgIndex < int(h.HeaderLen) || dgEnd < dgIndex || dgEnd > len(ncmTransferBlock) {
+				return result, fmt.Errorf("ReadDatagrams: datagram range %d:%d is outside block length %d", dgIndex, dgEnd, len(ncmTransferBlock))
+			}
+			if dgLen < EtherHeaderLength {
+				return result, fmt.Errorf("ReadDatagrams: datagram length %d is shorter than Ethernet header", dgLen)
+			}
+
+			frame := ethernet.Frame(ncmTransferBlock[dgIndex:dgEnd])
+			ipv6 := ""
+			if frame.Ethertype() == ethernet.IPv6 {
+				if len(frame) < EtherHeaderLength+40 {
+					return result, fmt.Errorf("ReadDatagrams: IPv6 datagram length %d is shorter than minimum frame", len(frame))
+				}
+				ipv6 = iPv6Parser(frame[EtherHeaderLength:])
+			}
+			slog.Debug("parse ethernet frame", "ipv6", ipv6, "ethernet", EthernetParser(frame))
+			result = append(result, frame)
+		}
+		if !terminated {
+			return result, fmt.Errorf("ReadDatagrams: NDP at %d has no terminating pointer", offset)
+		}
+		offset = int(dh.NextNpdIndex)
 	}
 
 	return result, nil
-
 }
 
 // this wants a complete ethernet.Frame on every write.
