@@ -96,7 +96,7 @@ func runWebInspectorCommand(cmdCtx commandContext) {
 
 	if cdp, _ := cmdCtx.Args.Bool("cdp"); cdp {
 		host, _ := cmdCtx.Args.String("--host")
-		port, _ := cmdCtx.Args.Int("--port")
+		port, _ := strconv.Atoi(portArg(cmdCtx.Args))
 		if port == 0 {
 			port = 9222
 		}
