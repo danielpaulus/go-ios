@@ -277,12 +277,19 @@ func (conn *DeviceConnection) createClientTLSConn(pairRecord PairRecord) (*tls.C
 		golog.Error("Error SSL", "module", logModule, "conn", &conn.c, "error", err)
 		return nil, err
 	}
+	verify, err := deviceCertificateVerifier(pairRecord.DeviceCertificate)
+	if err != nil {
+		golog.Error("Error SSL", "module", logModule, "conn", &conn.c, "error", err)
+		return nil, err
+	}
 	conf := &tls.Config{
-		// We always trust whatever the phone sends, I do not see an issue here as probably
-		// nobody would build a fake iphone to hack this library.
-		InsecureSkipVerify: true,
-		Certificates:       []tls.Certificate{cert5},
-		ClientAuth:         tls.NoClientCert,
+		// The device's certificate is issued by this host's own root when it pairs, so there is
+		// no chain to verify. VerifyPeerCertificate checks it against the pair record instead,
+		// so that something answering in the device's place on the network is refused.
+		InsecureSkipVerify:    true,
+		VerifyPeerCertificate: verify,
+		Certificates:          []tls.Certificate{cert5},
+		ClientAuth:            tls.NoClientCert,
 	}
 
 	tlsConn := tls.Client(conn.c, conf)
